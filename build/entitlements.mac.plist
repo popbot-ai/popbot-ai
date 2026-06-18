@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <!-- Electron runs JIT-compiled JavaScript (V8). Required. -->
+  <key>com.apple.security.cs.allow-jit</key>
+  <true/>
+  <!-- V8 maps unsigned executable pages for compiled code. -->
+  <key>com.apple.security.cs.allow-unsigned-executable-memory</key>
+  <true/>
+  <!-- Allows loading native modules (better-sqlite3, node-pty) that
+       weren't signed by Apple themselves. Without this, the hardened
+       runtime blocks them and Electron crashes at startup. -->
+  <key>com.apple.security.cs.disable-library-validation</key>
+  <true/>
+  <!-- Electron's helper processes read DYLD_* env vars; the hardened
+       runtime strips them by default. -->
+  <key>com.apple.security.cs.allow-dyld-environment-variables</key>
+  <true/>
+  <!-- Inherit the parent app's entitlements into helper processes
+       (renderer, GPU, plugin). Skipping this means helpers get a
+       sandboxed set and break. -->
+  <key>com.apple.security.inherit</key>
+  <true/>
+</dict>
+</plist>

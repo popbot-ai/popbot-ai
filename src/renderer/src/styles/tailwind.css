@@ -1,0 +1,13 @@
+/*
+ * Tailwind utilities only — base + components are intentionally omitted to
+ * preserve the prototype's careful layering. The prototype's preflight-equivalent
+ * lives in prototype.css.
+ *
+ * For new components written outside the prototype's class system, use
+ * Tailwind utility classes freely (they don't conflict with the prototype's
+ * scoped class selectors).
+ */
+@import '@fortawesome/fontawesome-free/css/all.min.css';
+@import './prototype.css';
+
+@tailwind utilities;

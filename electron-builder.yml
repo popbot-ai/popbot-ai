@@ -1,0 +1,49 @@
+appId: com.proofofplay.popbot
+productName: PopBot
+copyright: Copyright © 2026 Proof of Play, Inc.
+directories:
+  output: release
+  buildResources: build
+files:
+  - out/**/*
+  - package.json
+  - "!**/{.DS_Store,Thumbs.db,*.log}"
+mac:
+  target:
+    - dmg
+    - zip
+  category: public.app-category.developer-tools
+  # Code signing + notarization. electron-builder picks the certificate
+  # by name match against the user's keychain. To sign + notarize your
+  # own build, set CSC_NAME to your "Developer ID Application" subject
+  # name (or leave it unset to let electron-builder auto-discover a
+  # Developer ID in your keychain), and provide APPLE_ID +
+  # APPLE_APP_SPECIFIC_PASSWORD + APPLE_TEAM_ID at build time (see
+  # scripts/release.sh). With no signing identity available, the build
+  # is unsigned/ad-hoc and macOS Gatekeeper will warn on launch.
+  # identity: "Your Name (TEAMID)"   # or set via CSC_NAME env var
+  hardenedRuntime: true
+  gatekeeperAssess: false
+  entitlements: build/entitlements.mac.plist
+  entitlementsInherit: build/entitlements.mac.plist
+  # notarize: true — team id, apple id, and password come from env vars
+  # (APPLE_TEAM_ID, APPLE_ID, APPLE_APP_SPECIFIC_PASSWORD). Passing
+  # teamId here is rejected by the current electron-builder.
+  notarize: true
+  # popbot-windowmover native helper not yet built — re-add the
+  # extraResources block when the binary lands under
+  # `native/popbot-windowmover/build/`.
+dmg:
+  # Volume icon shown when the .dmg is mounted. Without this,
+  # electron-builder falls back to a default flat square — looks bad
+  # next to the masked .app icon inside. Pointing at the same .icns
+  # we use for the app gives the volume the same rounded squircle.
+  icon: build/icon.icns
+  contents:
+    - x: 130
+      y: 220
+    - x: 410
+      y: 220
+      type: link
+      path: /Applications
+publish: null
