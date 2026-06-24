@@ -1012,15 +1012,14 @@ function ReviewList({
   const ignoredSet = new Set(ignoredPrs ?? []);
   const visibleReviews = status.reviews.filter((r) => !ignoredSet.has(r.number));
   if (visibleReviews.length === 0) {
-    // Everything's connected (status is ok) — show the all-green
-    // checklist so the user can see GitHub is wired up correctly, then
-    // the "nothing waiting" note underneath.
+    // Everything's connected — show just the "nothing waiting" note, no
+    // config checklist. We only surface the readiness steps when a step
+    // is actually missing (mirrors the Tickets tab + central chat panel).
     return (
-      <ReviewsReadiness
-        status={status}
-        onOpenPrefs={onOpenPrefs}
-        footer={<div className="reviews-empty-note">No PRs need your review right now.</div>}
-      />
+      <div className="empty reviews-readiness">
+        <div className="ico"><i className="fa-brands fa-github" /></div>
+        <div className="reviews-empty-note">No PRs need your review right now.</div>
+      </div>
     );
   }
   return (

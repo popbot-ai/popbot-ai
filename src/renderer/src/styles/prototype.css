@@ -124,9 +124,36 @@ input, textarea { font: inherit; color: inherit; background: none; border: 0; ou
 /* Windows/Linux frameless chrome: full custom menu bar on the left, a
    draggable spacer, then the app buttons. The right padding reserves
    room for the OS caption buttons (Window Controls Overlay). */
-.titlebar.titlebar-win { display: flex; align-items: stretch; }
-.titlebar-win .titlebar-drag { flex: 1 1 auto; height: 100%; -webkit-app-region: drag; }
-.titlebar-win .right { padding-right: 148px; align-items: center; -webkit-app-region: no-drag; }
+.titlebar.titlebar-custom { display: flex; align-items: stretch; }
+.titlebar-custom .titlebar-drag { flex: 1 1 auto; height: 100%; -webkit-app-region: drag; }
+.titlebar-custom .right { align-items: center; -webkit-app-region: no-drag; }
+/* Windows: reserve room on the right for the OS overlay caption buttons. */
+.platform-win .titlebar-custom .right { padding-right: 148px; }
+
+/* Linux: app-drawn window controls (min / maximize-restore / close) in
+   the generic VS-Code / Slack style — consistent across WMs. */
+.win-controls { display: flex; align-items: stretch; height: 100%; -webkit-app-region: no-drag; }
+.win-ctl {
+  width: 44px; height: 100%;
+  display: inline-flex; align-items: center; justify-content: center;
+  color: var(--fg-2);
+}
+.win-ctl:hover { background: var(--bg-3); color: var(--fg-0); }
+.win-ctl-close:hover { background: #e81123; color: #fff; }
+.win-ctl svg { display: block; }
+
+/* About dialog */
+.about-modal { width: 380px; }
+.about-head { display: flex; align-items: center; gap: 14px; }
+.about-icon { width: 52px; height: 52px; border-radius: 12px; flex: 0 0 auto; }
+.about-head h2 { margin: 0; }
+.about-body { display: flex; flex-direction: column; gap: 12px; }
+.about-update { min-height: 20px; font-size: 13px; }
+.about-update .about-ok { color: var(--good, #3fb950); }
+.about-update .about-upd { color: var(--accent, #7c8cff); }
+.about-update i { margin-right: 6px; }
+.about-links { display: flex; align-items: center; gap: 8px; font-size: 13px; }
+.about-links .dot { color: var(--fg-2); }
 
 /* Menu bar — theme-matched replacement for the native Windows menu bar. */
 .menubar { display: flex; align-items: stretch; height: 100%; -webkit-app-region: no-drag; }

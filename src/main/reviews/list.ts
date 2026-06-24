@@ -16,10 +16,30 @@ import { existsSync } from 'node:fs';
 import { promisify } from 'node:util';
 import type { ListReviewsResult, ReviewItem } from '@shared/reviews';
 import { getSetting } from '../persistence/settings';
+import { listRepos } from '../persistence/repos';
 
 const execFileP = promisify(execFile);
 
 interface GitSettingsLite { repoPath?: string }
+
+/**
+ * Resolve the repo path the Reviews tab runs `gh` against. Prefers the
+ * multi-repo store (the "Add Repository" flow writes there), then falls
+ * back to the legacy single-repo `git` setting for back-compat. Returns
+ * null when no configured repo path exists on disk → 'no-repo'.
+ *
+ * Without this, adding a repo via the new store left the legacy
+ * `git.repoPath` empty, so Reviews kept asking to "configure a
+ * repository" even though one was already added.
+ */
+function resolveReviewRepoPath(): string | null {
+  for (const r of listRepos()) {
+    if (r.repoPath && existsSync(r.repoPath)) return r.repoPath;
+  }
+  const s = getSetting<GitSettingsLite>('git');
+  if (s?.repoPath && existsSync(s.repoPath)) return s.repoPath;
+  return null;
+}
 
 interface ReviewsSettings {
   /** Substrings (case-insensitive) — any match in the PR title drops
@@ -102,13 +122,11 @@ export async function listRecentOpenPrs(): Promise<
   | { ok: true; prs: ReviewItem[] }
   | { ok: false; reason: 'gh-not-found' | 'gh-not-authed' | 'no-repo' | 'error'; error?: string }
 > {
-  const s = getSetting<GitSettingsLite>('git');
-  if (!s?.repoPath || !existsSync(s.repoPath)) {
-    return { ok: false, reason: 'no-repo' };
-  }
+  const repoPath = resolveReviewRepoPath();
+  if (!repoPath) return { ok: false, reason: 'no-repo' };
   const search = `is:pr is:open updated:>${searchSinceIsoDate()}`;
   try {
-    const rows = await ghPrSearch(s.repoPath, search);
+    const rows = await ghPrSearch(repoPath, search);
     const prs: ReviewItem[] = rows.map((pr) => ({
       number: pr.number,
       title: pr.title,
@@ -144,15 +162,13 @@ export async function getReviewByNumber(prNumber: number): Promise<
   | { ok: true; pr: ReviewItem }
   | { ok: false; reason: 'not-found' | 'gh-not-found' | 'gh-not-authed' | 'no-repo' | 'error'; error?: string }
 > {
-  const s = getSetting<GitSettingsLite>('git');
-  if (!s?.repoPath || !existsSync(s.repoPath)) {
-    return { ok: false, reason: 'no-repo' };
-  }
+  const repoPath = resolveReviewRepoPath();
+  if (!repoPath) return { ok: false, reason: 'no-repo' };
   try {
     const { stdout } = await execFileP(
       'gh',
       ['pr', 'view', String(prNumber), '--json', GH_FIELDS],
-      { cwd: s.repoPath, maxBuffer: 1024 * 1024 },
+      { cwd: repoPath, maxBuffer: 1024 * 1024 },
     );
     const data = JSON.parse(stdout) as GhPr;
     const pr: ReviewItem = {
@@ -183,11 +199,8 @@ export async function getReviewByNumber(prNumber: number): Promise<
 }
 
 export async function listPendingReviews(): Promise<ListReviewsResult> {
-  const s = getSetting<GitSettingsLite>('git');
-  if (!s?.repoPath || !existsSync(s.repoPath)) {
-    return { ok: false, reason: 'no-repo' };
-  }
-  const cwd = s.repoPath;
+  const cwd = resolveReviewRepoPath();
+  if (!cwd) return { ok: false, reason: 'no-repo' };
   let requestedFresh: GhPr[] = [];
   let requestedReReview: GhPr[] = [];
   let unreviewed: GhPr[] = [];

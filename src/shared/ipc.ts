@@ -34,7 +34,7 @@ import type {
 import type { ListReviewsResult } from './reviews';
 import type { SentryTestResult } from './sentry';
 import type { SlackTestResult } from './slack';
-import type { UpdateInfo } from './updates';
+import type { UpdateInfo, UpdateCheckResult } from './updates';
 import type {
   AgentBackendId,
   ChatRecord,
@@ -206,6 +206,13 @@ export const IpcChannel = {
   /** Push channel — main → renderer. Latest GitHub release is newer
    *  than the running app's version. */
   UpdateAvailable: 'pb:updates:available',
+
+  /** On-demand update check (About dialog). Returns UpdateCheckResult. */
+  UpdatesCheck: 'pb:updates:check',
+
+  /** Push channel — main → renderer. Open the About dialog (fired from
+   *  the native macOS app menu). */
+  ShowAbout: 'pb:app:show-about',
 
   /** Multi-repo configuration. Each repo is either slot-pool or
    *  ephemeral; mode is set at create and is immutable thereafter
@@ -702,6 +709,11 @@ export interface PopBotApi {
     /** Subscribe to "newer release available" pushes from the main
      *  process update poller. Returns an unsubscribe function. */
     onAvailable(handler: (info: UpdateInfo) => void): () => void;
+    /** Run an on-demand update check (About dialog). */
+    check(): Promise<UpdateCheckResult>;
+    /** Subscribe to "open the About dialog" pushes (native macOS menu).
+     *  Returns an unsubscribe function. */
+    onShowAbout(handler: () => void): () => void;
   };
   notifications: {
     /** Most-recent notifications (default 50). */

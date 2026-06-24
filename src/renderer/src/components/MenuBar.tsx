@@ -34,21 +34,18 @@ interface MenuBarProps {
   onOpenPrefs: () => void;
   onToggleGitPanel?: () => void;
   gitPanelOpen?: boolean;
+  /** Opens the About dialog (Help ▸ About PopBot). */
+  onOpenAbout?: () => void;
 }
 
 const win = (name: WinActionName) => (): void => { void window.popbot.win.action(name); };
 
-export function MenuBar({ onNewChat, onOpenPrefs, onToggleGitPanel, gitPanelOpen }: MenuBarProps): JSX.Element {
+const REPO_URL = 'https://github.com/popbot-ai/popbot-ai';
+
+export function MenuBar({ onNewChat, onOpenPrefs, onToggleGitPanel, gitPanelOpen, onOpenAbout }: MenuBarProps): JSX.Element {
   // Which menu is open, by id. The app-icon system menu uses id '__sys'.
   const [open, setOpen] = useState<string | null>(null);
-  const [maximized, setMaximized] = useState(false);
   const barRef = useRef<HTMLDivElement | null>(null);
-
-  // Track maximize state so Window/system menus relabel Maximize↔Restore.
-  useEffect(() => {
-    void window.popbot.win.action('is-maximized').then((m) => setMaximized(!!m));
-    return window.popbot.win.onMaximizeChange(setMaximized);
-  }, []);
 
   // Close on outside-click / Escape.
   useEffect(() => {
@@ -100,10 +97,6 @@ export function MenuBar({ onNewChat, onOpenPrefs, onToggleGitPanel, gitPanelOpen
       id: 'view',
       label: 'View',
       items: [
-        { label: 'Reload', accel: 'Ctrl+R', onClick: win('reload') },
-        { label: 'Force Reload', accel: 'Ctrl+Shift+R', onClick: win('force-reload') },
-        { label: 'Toggle Developer Tools', accel: 'Ctrl+Shift+I', onClick: win('toggle-devtools') },
-        { separator: true },
         { label: 'Git Panel', checked: gitPanelOpen, onClick: onToggleGitPanel },
         { separator: true },
         { label: 'Reset Zoom', accel: 'Ctrl+0', onClick: win('zoom-reset') },
@@ -112,23 +105,15 @@ export function MenuBar({ onNewChat, onOpenPrefs, onToggleGitPanel, gitPanelOpen
       ],
     },
     {
-      id: 'window',
-      label: 'Window',
-      items: [
-        { label: 'Minimize', onClick: win('minimize') },
-        { label: maximized ? 'Restore' : 'Maximize', onClick: win('maximize-toggle') },
-        { separator: true },
-        { label: 'Close', accel: 'Alt+F4', danger: true, onClick: win('close') },
-      ],
-    },
-    {
       id: 'help',
       label: 'Help',
       items: [
-        { label: 'Documentation', onClick: () => window.open('https://github.com/proofofplay/popbot/blob/main/docs/GUIDE.md', '_blank') },
-        { label: 'Configuration Guide', onClick: () => window.open('https://github.com/proofofplay/popbot/blob/main/docs/CONFIGURATION.md', '_blank') },
+        { label: 'Documentation', onClick: () => window.open(`${REPO_URL}/blob/main/docs/GUIDE.md`, '_blank') },
+        { label: 'Configuration Guide', onClick: () => window.open(`${REPO_URL}/blob/main/docs/CONFIGURATION.md`, '_blank') },
         { separator: true },
-        { label: 'Report an Issue', onClick: () => window.open('https://github.com/proofofplay/popbot/issues', '_blank') },
+        { label: 'Report an Issue', onClick: () => window.open(`${REPO_URL}/issues`, '_blank') },
+        { separator: true },
+        { label: 'About PopBot', onClick: onOpenAbout },
       ],
     },
   ];

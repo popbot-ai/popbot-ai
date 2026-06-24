@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type MouseEvent } from 'react';
 import { RAW_CHAT_REPO_ID, type ChatRecord } from '@shared/persistence';
 import { Titlebar } from './components/Titlebar';
+import { AboutDialog } from './components/AboutDialog';
 import { PanelA } from './components/PanelA';
 import { PanelB } from './components/PanelB';
 import { MonitorCard } from './components/MonitorCard';
@@ -173,6 +174,8 @@ export default function App(): JSX.Element {
   const [closingChat, setClosingChat] = useState<ChatRecord | null>(null);
   /** True when a chat-create failed because the slot pool is full. */
   const [noSlotsOpen, setNoSlotsOpen] = useState(false);
+  /** About dialog (Help ▸ About PopBot, or the native macOS app menu). */
+  const [aboutOpen, setAboutOpen] = useState(false);
   const { get: getSetting, set: setAppSetting, loading: settingsLoading } = useSettings();
   const [gitPanelOpen, setGitPanelOpen] = useState<boolean>(false);
   // Hydrate sidebar state once settings have loaded; remembers last
@@ -902,6 +905,9 @@ export default function App(): JSX.Element {
   // Surface "newer release on GitHub" pushes from main as a clickable
   // toast that opens the release page. Reuses the review-toast slot —
   // collisions are rare given the main-side 3h quiet window.
+  // Native macOS app menu → "About PopBot" opens our custom dialog.
+  useEffect(() => window.popbot.updates.onShowAbout(() => setAboutOpen(true)), []);
+
   const { available: update, dismiss: dismissUpdate } = useUpdates();
   useEffect(() => {
     if (!update) return;
@@ -1019,13 +1025,14 @@ export default function App(): JSX.Element {
   return (
     <HighlightProvider>
     <div
-      className={`app${window.popbot.platform === 'win32' ? ' platform-win' : ''}`}
+      className={`app${window.popbot.platform === 'win32' ? ' platform-win' : window.popbot.platform === 'linux' ? ' platform-linux' : ''}`}
       data-screen-label="PopBot · Main"
     >
       <Titlebar
         onOpenModal={setModal}
         onOpenPrefs={() => openPrefsAt()}
         onNewChat={() => void handleNewChat('lite')}
+        onOpenAbout={() => setAboutOpen(true)}
         gitPanelOpen={gitPanelOpen}
         onToggleGitPanel={toggleGitPanel}
         onNotificationAction={routeAction}
@@ -1344,6 +1351,7 @@ export default function App(): JSX.Element {
         />
       )}
       {modal && <Modal kind={modal} onClose={() => setModal(null)} />}
+      {aboutOpen && <AboutDialog onClose={() => setAboutOpen(false)} />}
     </div>
     </HighlightProvider>
   );

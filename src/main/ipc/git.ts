@@ -23,7 +23,7 @@ import type {
 } from '@shared/git';
 import { getChat } from '../persistence/chats';
 import { backfillChatFields } from '../persistence/chatBackfill';
-import { getRepo } from '../persistence/repos';
+import { getRepo, listRepos } from '../persistence/repos';
 import { getSetting } from '../persistence/settings';
 import { worktreePathForChat } from '../git/chatPaths';
 import {
@@ -64,9 +64,16 @@ function resolveRepoCwd(opts: { chatId?: string | null; repoId?: string | null }
     const repo = getRepo(opts.repoId);
     if (repo?.repoPath && existsSync(repo.repoPath)) return repo.repoPath;
   }
+  // Prefer the multi-repo store (the "Add Repository" flow writes there),
+  // then fall back to the legacy single-repo `git` setting. Without the
+  // store fallback, a repo added via the new flow left the legacy setting
+  // empty and git operations reported 'no-worktree'.
+  for (const r of listRepos()) {
+    if (r.repoPath && existsSync(r.repoPath)) return r.repoPath;
+  }
   const s = getSetting<GitSettingsLite>('git');
-  if (!s?.repoPath || !existsSync(s.repoPath)) return { error: 'no-worktree' };
-  return s.repoPath;
+  if (s?.repoPath && existsSync(s.repoPath)) return s.repoPath;
+  return { error: 'no-worktree' };
 }
 
 export function registerGitHandlers(): void {

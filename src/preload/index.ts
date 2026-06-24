@@ -175,6 +175,12 @@ const api: PopBotApi = {
       ipcRenderer.on(IpcChannel.UpdateAvailable, listener);
       return () => ipcRenderer.removeListener(IpcChannel.UpdateAvailable, listener);
     },
+    check: () => ipcRenderer.invoke(IpcChannel.UpdatesCheck),
+    onShowAbout: (handler: () => void) => {
+      const listener = (): void => handler();
+      ipcRenderer.on(IpcChannel.ShowAbout, listener);
+      return () => ipcRenderer.removeListener(IpcChannel.ShowAbout, listener);
+    },
   },
   notifications: {
     list: (limit?: number) => ipcRenderer.invoke(IpcChannel.NotificationsList, limit),

@@ -20,6 +20,15 @@ fixShellPath();
 // "Electron" if even that isn't set, which leaks into the macOS app
 // menu's first item.
 app.setName('PopBot');
+
+// WSLg doesn't forward the Windows display scale factor, so the UI
+// renders too small next to native Windows apps. Match the Windows
+// scaling (default 1.25 / 125%; override with POPBOT_SCALE). Real Linux
+// desktops follow their own DE scaling, so this is WSL-only. Must run
+// before the app `ready` event.
+if (process.platform === 'linux' && (process.env.WSL_DISTRO_NAME || process.env.WSL_INTEROP)) {
+  app.commandLine.appendSwitch('force-device-scale-factor', process.env.POPBOT_SCALE || '1.25');
+}
 import { clearStaleRunningStatuses } from './persistence/chats';
 import { getSetting, setSetting } from './persistence/settings';
 import { AgentHost } from './agents/AgentHost';
@@ -42,7 +51,7 @@ import { registerSlackHandlers } from './ipc/slack';
 import { startSlackPoller, stopSlackPoller } from './slack/poll';
 import { pruneOlderThan } from './persistence/notifications';
 import { attachWebContents as attachTermWindow, disposeAll as disposeAllPtys } from './term/ptyManager';
-import { startUpdateChecker, stopUpdateChecker } from './updates/check';
+import { startUpdateChecker, stopUpdateChecker, checkForUpdates } from './updates/check';
 
 const isDev = !app.isPackaged;
 
@@ -161,11 +170,12 @@ function createMainWindow(): BrowserWindow {
   //    (system menu bar lives at the top of the screen).
   //  - Windows: hide the OS title bar but keep native min/max/close via
   //    the Window Controls Overlay (titleBarOverlay); the app draws its
-  //    own menu bar in the freed space. `autoHideMenuBar` hides the
-  //    native menu bar while keeping its accelerators alive.
-  //  - Linux: titleBarOverlay is NOT supported, so a frameless window
-  //    would have no window controls. Use the standard native frame +
-  //    native menu bar instead — reliable across the many Linux WMs.
+  //    own menu bar in the freed space.
+  //  - Linux: `titleBarOverlay` is unreliable across WMs/WSLg, so go
+  //    FULLY frameless (`frame: false`) and draw our own window controls
+  //    (the menu bar already has the win.action IPC). Works on every WM.
+  //  `autoHideMenuBar` hides the native menu bar (we render our own)
+  //  while keeping its accelerators alive.
   const TITLEBAR_H = 40;
   const chrome: Electron.BrowserWindowConstructorOptions = isMac
     ? { titleBarStyle: 'hiddenInset', trafficLightPosition: { x: 14, y: 14 } }
@@ -181,7 +191,7 @@ function createMainWindow(): BrowserWindow {
             height: TITLEBAR_H,
           },
         }
-      : {}; // Linux: native frame + native menu.
+      : { frame: false, autoHideMenuBar: true }; // Linux: fully frameless.
   const window = new BrowserWindow({
     x: saved.bounds?.x,
     y: saved.bounds?.y,
@@ -222,6 +232,27 @@ function createMainWindow(): BrowserWindow {
 
   window.on('ready-to-show', () => window.show());
 
+  // Safety net: the window is created hidden and normally revealed on the
+  // renderer's first paint (`ready-to-show`). Under some environments —
+  // notably WSLg with software rendering — that event can be delayed or
+  // never fire, leaving the window permanently invisible. Show it anyway
+  // after a short grace period (no-op if it's already visible).
+  setTimeout(() => {
+    if (!window.isDestroyed() && !window.isVisible()) {
+      console.warn('[window] ready-to-show did not fire in 2.5s — showing anyway');
+      window.show();
+    }
+  }, 2500);
+
+  // Surface renderer load / crash failures to the terminal so a blank
+  // window isn't a silent mystery.
+  window.webContents.on('did-fail-load', (_e, code, desc, url) => {
+    console.error(`[window] did-fail-load: ${code} ${desc} (${url})`);
+  });
+  window.webContents.on('render-process-gone', (_e, details) => {
+    console.error('[window] render-process-gone:', details);
+  });
+
   window.webContents.setWindowOpenHandler(({ url }) => {
     void openUrlInPreferredBrowser(url);
     return { action: 'deny' };
@@ -229,7 +260,13 @@ function createMainWindow(): BrowserWindow {
 
   if (isDev && process.env.ELECTRON_RENDERER_URL) {
     void window.loadURL(process.env.ELECTRON_RENDERER_URL);
-    window.webContents.openDevTools({ mode: 'detach' });
+    // Skip the auto-opened detached DevTools under WSL — it spawns a
+    // confusing second top-level window (and renders poorly under WSLg's
+    // software compositor). Open it manually via View → Toggle DevTools
+    // (or Ctrl+Shift+I) when needed.
+    const underWsl = process.platform === 'linux'
+      && (process.env.WSL_DISTRO_NAME || process.env.WSL_INTEROP);
+    if (!underWsl) window.webContents.openDevTools({ mode: 'detach' });
   } else {
     void window.loadFile(join(__dirname, '../renderer/index.html'));
   }
@@ -238,8 +275,16 @@ function createMainWindow(): BrowserWindow {
   return window;
 }
 
+/** Open the About dialog in the focused (or first) window. Used by the
+ *  native macOS app menu, which can't render our in-app menu bar. */
+function sendShowAbout(): void {
+  const win = BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0];
+  if (win && !win.isDestroyed()) win.webContents.send(IpcChannel.ShowAbout);
+}
+
 function registerCoreHandlers(): void {
   ipcMain.handle(IpcChannel.AppGetVersion, () => app.getVersion());
+  ipcMain.handle(IpcChannel.UpdatesCheck, () => checkForUpdates());
   // Quit from the custom titlebar menu (Windows, where the native menu
   // bar is hidden). Routes through app.quit() so the before-quit flush
   // (SDK session JSONLs) still runs.
@@ -285,7 +330,7 @@ function installAppMenu(): void {
     ...(isMac ? [{
       label: app.name,
       submenu: [
-        { role: 'about' as const },
+        { label: 'About PopBot', click: () => sendShowAbout() },
         { type: 'separator' as const },
         { role: 'hide' as const },
         { role: 'hideOthers' as const },

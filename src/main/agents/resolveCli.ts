@@ -11,22 +11,46 @@
  *    user's rc/profile that a packaged GUI launch (with launchd's
  *    minimal PATH) would otherwise miss. `command -v` is POSIX and
  *    works under bash, zsh, and fish.
+ *
+ * In BOTH cases we exclude the project's own `node_modules/.bin`. npm
+ * prepends it to PATH when running scripts, and some agent SDKs ship a
+ * runnable CLI shim there (e.g. `@openai/codex-sdk` → `node_modules/.bin/
+ * codex`). Without this filter the probe would treat that dev-dependency
+ * as a user-installed agent and report it "online" even when the user
+ * hasn't installed the CLI — falsely satisfying the readiness gate.
  */
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
+import { delimiter } from 'node:path';
 
 const execFileP = promisify(execFile);
 
+/** True for a PATH entry / resolved path inside any `node_modules/.bin`. */
+function isNodeModulesBin(p: string): boolean {
+  return /node_modules[\\/]\.bin/i.test(p);
+}
+
+/** process.env.PATH with the project's node_modules/.bin entries removed. */
+function userPath(): string {
+  return (process.env.PATH || '')
+    .split(delimiter)
+    .filter((p) => p && !isNodeModulesBin(p))
+    .join(delimiter);
+}
+
 export async function resolveCliPath(name: string): Promise<string> {
+  const env = { ...process.env, PATH: userPath() };
   if (process.platform === 'win32') {
     const { stdout } = await execFileP('where.exe', [name], {
       timeout: 5000,
       encoding: 'utf8',
+      env,
     });
     const matches = stdout
       .split(/\r?\n/)
       .map((s) => s.trim())
-      .filter(Boolean);
+      .filter(Boolean)
+      .filter((m) => !isNodeModulesBin(m));
     if (matches.length === 0) throw new Error(`${name} not found on PATH`);
     // Prefer a native executable over a .cmd/.ps1 shim so the agent SDK
     // can spawn it without going through cmd.exe.
@@ -37,8 +61,11 @@ export async function resolveCliPath(name: string): Promise<string> {
   const { stdout } = await execFileP(shell, ['-ilc', `command -v ${name}`], {
     timeout: 5000,
     encoding: 'utf8',
+    env,
   });
   const binaryPath = stdout.trim().split('\n').pop()?.trim() || '';
-  if (!binaryPath) throw new Error(`${name} not found on user shell PATH`);
+  if (!binaryPath || isNodeModulesBin(binaryPath)) {
+    throw new Error(`${name} not found on user shell PATH`);
+  }
   return binaryPath;
 }
