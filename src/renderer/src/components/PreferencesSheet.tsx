@@ -375,8 +375,18 @@ function IconSelect({ value, onChange, options }: { value: string; onChange: (v:
     const onDown = (e: globalThis.MouseEvent): void => {
       if (!ref.current?.contains(e.target as Node)) setOpen(false);
     };
+    // Capture-phase Escape so it closes only this dropdown without also
+    // bubbling to a parent modal / global hotkeys (same approach as
+    // BaseBranchPicker in BaseBranchDialog).
+    const onKey = (e: KeyboardEvent): void => {
+      if (e.key === 'Escape') { e.stopPropagation(); setOpen(false); btnRef.current?.focus(); }
+    };
     window.addEventListener('mousedown', onDown);
-    return () => window.removeEventListener('mousedown', onDown);
+    window.addEventListener('keydown', onKey, true);
+    return () => {
+      window.removeEventListener('mousedown', onDown);
+      window.removeEventListener('keydown', onKey, true);
+    };
   }, [open]);
 
   // Each time we open, start the cursor on the current selection.
@@ -389,11 +399,11 @@ function IconSelect({ value, onChange, options }: { value: string; onChange: (v:
     btnRef.current?.focus();
   };
 
+  // Arrow/Enter/Space while focus is within the component. Escape is
+  // handled by the capture-phase listener above so it can't leak to a
+  // parent.
   const onKeyDown = (e: React.KeyboardEvent): void => {
     switch (e.key) {
-      case 'Escape':
-        if (open) { e.preventDefault(); setOpen(false); btnRef.current?.focus(); }
-        break;
       case 'ArrowDown':
         e.preventDefault();
         if (!open) setOpen(true);
@@ -419,6 +429,7 @@ function IconSelect({ value, onChange, options }: { value: string; onChange: (v:
     <div className="tracker-dd" ref={ref} onKeyDown={onKeyDown}>
       <button
         ref={btnRef}
+        type="button"
         className="tracker-dd-btn"
         onClick={() => setOpen((o) => !o)}
         aria-haspopup="listbox"
@@ -433,6 +444,7 @@ function IconSelect({ value, onChange, options }: { value: string; onChange: (v:
           {options.map((t, i) => (
             <button
               key={t.id}
+              type="button"
               className={`tracker-dd-item${t.id === value ? ' selected' : ''}${i === active ? ' active' : ''}`}
               role="option"
               aria-selected={t.id === value}

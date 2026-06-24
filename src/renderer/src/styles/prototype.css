@@ -4674,8 +4674,9 @@ input.input.mono, select.input.mono { font-family: var(--font-mono); font-size: 
   font-weight: 600;
 }
 
-/* Ticket-source: one line (label + tracker dropdown), then a grouped
-   config box for the selected tracker. */
+/* Shared selector layout for the Integrations "config box" sections
+   (Ticket source AND Game engine): one line (label + dropdown), then a
+   grouped config box for the selected option. */
 .tracker-select-row {
   display: flex;
   align-items: center;
@@ -4702,7 +4703,8 @@ input.input.mono, select.input.mono { font-family: var(--font-mono); font-size: 
 }
 .tracker-config-body { padding: 4px 14px 12px; }
 
-/* Custom tracker dropdown — square panels + per-option icons. */
+/* Custom IconSelect dropdown (ticket source + game engine) — square
+   panels + per-option icons. */
 .tracker-dd { position: relative; }
 .tracker-dd-btn,
 .tracker-dd-menu { width: 200px; background: var(--bg-3); border: 1px solid var(--line-3); }
