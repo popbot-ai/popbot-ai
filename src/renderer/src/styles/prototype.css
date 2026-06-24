@@ -4714,6 +4714,7 @@ input.input.mono, select.input.mono { font-family: var(--font-mono); font-size: 
 .tracker-dd-btn:hover { border-color: var(--line-4, var(--acc)); }
 .tracker-dd-caret { margin-left: auto; font-size: 10px; color: var(--fg-2); }
 .tracker-dd-ico { width: 16px; height: 16px; border-radius: 3px; flex: 0 0 auto; }
+.tracker-dd-ico-fa { width: 16px; text-align: center; font-size: 13px; color: var(--fg-1); flex: 0 0 auto; }
 .tracker-dd-menu {
   position: absolute; top: calc(100% + 2px); left: 0;
   z-index: 30; padding: 2px;

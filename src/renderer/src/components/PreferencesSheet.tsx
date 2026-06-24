@@ -72,7 +72,6 @@ const SECTIONS: NavSection[] = [
   { id: 'repos', label: 'Repositories', icon: 'fa-code-fork' },
   { id: 'git', label: 'Source control', icon: 'fa-code-branch' },
   { id: 'apps', label: 'External apps', icon: 'fa-arrow-up-right-from-square' },
-  { id: 'unity', label: 'Unity', icon: 'fa-cube' },
   { id: 'templates', label: 'Prompt templates', icon: 'fa-file-lines' },
   { id: 'reviews', label: 'Code reviews', icon: 'fa-code-pull-request' },
   { id: 'notify', label: 'Notifications', icon: 'fa-bell' },
@@ -118,7 +117,6 @@ export function PreferencesSheet({
             {section === 'repos' && <PrefsRepos onReposChanged={onReposChanged} />}
             {section === 'git' && <PrefsGit />}
             {section === 'apps' && <PrefsApps />}
-            {section === 'unity' && <PrefsUnity />}
             {section === 'templates' && <PrefsTemplates />}
             {section === 'reviews' && <PrefsReviews />}
             {section === 'notify' && <PrefsNotifications />}
@@ -342,18 +340,26 @@ function PrefsAttachments(): JSX.Element {
   );
 }
 
+interface SelectChoice { id: string; label: string; icon: JSX.Element }
+
 /** Issue trackers selectable as the ticket source. Only Linear ships
  *  today; Jira (roughed in at shared/ticketProvider.ts) slots in here. */
-const TRACKERS: Array<{ id: string; label: string; icon: string }> = [
-  { id: 'linear', label: 'Linear', icon: linearIcon },
+const TRACKERS: SelectChoice[] = [
+  { id: 'linear', label: 'Linear', icon: <img src={linearIcon} alt="" className="tracker-dd-ico" /> },
 ];
 
-/** Custom (non-native) tracker dropdown — square panels + an icon per
- *  option, which a native <select> can't render. */
-function TrackerDropdown({ value, onChange }: { value: string; onChange: (v: string) => void }): JSX.Element {
+/** Game engines selectable as the launch target. Only Unity ships today. */
+const ENGINES: SelectChoice[] = [
+  { id: 'unity', label: 'Unity', icon: <i className="fa-solid fa-cube tracker-dd-ico-fa" /> },
+];
+
+/** Custom (non-native) dropdown — square panels + an icon per option,
+ *  which a native <select> can't render. Used for the ticket-source and
+ *  game-engine selectors. */
+function IconSelect({ value, onChange, options }: { value: string; onChange: (v: string) => void; options: SelectChoice[] }): JSX.Element {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement | null>(null);
-  const current = TRACKERS.find((t) => t.id === value) ?? TRACKERS[0];
+  const current = options.find((t) => t.id === value) ?? options[0];
 
   useEffect(() => {
     if (!open) return;
@@ -367,13 +373,13 @@ function TrackerDropdown({ value, onChange }: { value: string; onChange: (v: str
   return (
     <div className="tracker-dd" ref={ref}>
       <button className="tracker-dd-btn" onClick={() => setOpen((o) => !o)} aria-haspopup="listbox" aria-expanded={open}>
-        <img src={current.icon} alt="" className="tracker-dd-ico" />
+        {current.icon}
         <span>{current.label}</span>
         <i className="fa-solid fa-chevron-down tracker-dd-caret" />
       </button>
       {open && (
         <div className="tracker-dd-menu" role="listbox">
-          {TRACKERS.map((t) => (
+          {options.map((t) => (
             <button
               key={t.id}
               className={`tracker-dd-item${t.id === value ? ' selected' : ''}`}
@@ -381,7 +387,7 @@ function TrackerDropdown({ value, onChange }: { value: string; onChange: (v: str
               aria-selected={t.id === value}
               onClick={() => { onChange(t.id); setOpen(false); }}
             >
-              <img src={t.icon} alt="" className="tracker-dd-ico" />
+              {t.icon}
               <span>{t.label}</span>
             </button>
           ))}
@@ -400,6 +406,9 @@ function PrefsIntegrations({ onLinearChanged }: { onLinearChanged?: () => void }
   // shared/ticketProvider.ts and slots in as another <option> when its
   // client + queue wiring land — no structural change here.
   const tracker = get<string>('ticketSource', 'linear') ?? 'linear';
+  // Game engine launched for a chat's worktree. Same always-shown,
+  // default-to-the-only-option model as the ticket source.
+  const engine = get<string>('gameEngine', 'unity') ?? 'unity';
 
   if (loading) return <div className="pref-section"><h3>Ticket source</h3></div>;
 
@@ -411,7 +420,7 @@ function PrefsIntegrations({ onLinearChanged }: { onLinearChanged?: () => void }
             option (no "(None)"); more slot in as <option>s here. */}
         <div className="tracker-select-row">
           <h3 style={{ margin: 0 }}>Ticket source</h3>
-          <TrackerDropdown value={tracker} onChange={(v) => void set('ticketSource', v)} />
+          <IconSelect value={tracker} onChange={(v) => void set('ticketSource', v)} options={TRACKERS} />
         </div>
         <p className="pref-section-desc">
           The issue tracker that feeds the Tickets queue in Panel A, so you can
@@ -435,6 +444,27 @@ function PrefsIntegrations({ onLinearChanged }: { onLinearChanged?: () => void }
                 onLinearChanged?.();
               }}
             />
+          </div>
+        </div>
+      </div>
+
+      {/* Game engine — same selector model as the ticket source. */}
+      <div className="pref-section">
+        <div className="tracker-select-row">
+          <h3 style={{ margin: 0 }}>Game engine</h3>
+          <IconSelect value={engine} onChange={(v) => void set('gameEngine', v)} options={ENGINES} />
+        </div>
+        <p className="pref-section-desc">
+          The engine PopBot launches from a chat's worktree (the engine icon
+          on each chat column).
+        </p>
+        <div className="tracker-config">
+          <div className="tracker-config-head">
+            <i className="fa-solid fa-cube tracker-dd-ico-fa" />
+            <span>Unity</span>
+          </div>
+          <div className="tracker-config-body">
+            <UnityConfig />
           </div>
         </div>
       </div>
@@ -755,7 +785,7 @@ function PrefsApps(): JSX.Element {
   );
 }
 
-function PrefsUnity(): JSX.Element {
+function UnityConfig(): JSX.Element {
   const { get, set, loading } = useSettings();
   const initial = get<AppsSettings>('apps', {}) ?? {};
   const [versions, setVersions] = useState<Array<{ version: string; binary: string }>>([]);
@@ -772,15 +802,14 @@ function PrefsUnity(): JSX.Element {
   };
   useEffect(() => { void refresh(); }, []);
 
-  if (loading) return <div className="pref-section"><h3>Unity</h3></div>;
+  if (loading) return <p className="pref-section-desc">Loading…</p>;
 
   const dirty =
     picked !== (initial.unityBinary ?? '') ||
     subpath !== (initial.unityProjectSubpath ?? '');
 
   return (
-    <div className="pref-section">
-      <h3>Unity</h3>
+    <>
       <p className="pref-section-desc">
         Pick which installed Unity Editor version popbot launches when you
         click the Unity slot icon. Versions are scanned from{' '}
@@ -889,7 +918,7 @@ function PrefsUnity(): JSX.Element {
           </div>
         </div>
       </div>
-    </div>
+    </>
   );
 }
 
