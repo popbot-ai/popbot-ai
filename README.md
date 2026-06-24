@@ -130,3 +130,5 @@ If your team is reaching for more than one coding agent at a time without losing
 ## License
 
 [MIT](LICENSE) © 2026 Proof of Play, Inc. Third-party components and trademarks are listed in [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md) — note that the `@anthropic-ai/claude-agent-sdk` runtime dependency is proprietary and used under Anthropic's terms, not the MIT grant.
+
+<!-- Sample trivial change for PR workflow validation. -->
