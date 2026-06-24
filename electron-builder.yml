@@ -65,4 +65,13 @@ dmg:
       y: 220
       type: link
       path: /Applications
-publish: null
+# GitHub provider — used to GENERATE update metadata (latest-mac.yml,
+# latest.yml, latest-linux.yml + blockmaps) during the build. CI builds
+# with `--publish never`, so electron-builder never uploads directly; the
+# release workflow attaches these files to the GitHub Release. The in-app
+# update check reads releases from this repo, and this metadata is what a
+# future electron-updater auto-installer would consume.
+publish:
+  provider: github
+  owner: popbot-ai
+  repo: popbot-ai
