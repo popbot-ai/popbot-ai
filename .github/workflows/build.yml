@@ -52,6 +52,13 @@ jobs:
           node-version: 20
           cache: npm
 
+      # node-gyp compiles node-pty from source (no prebuilt for Electron's
+      # ABI) and needs Python's `distutils`, which was removed in Python
+      # 3.12 — the runners' default. Pin 3.11, which still bundles it.
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
       # Installs JS deps and (via the postinstall shim) rebuilds the native
       # modules against Electron's ABI for this runner's OS.
       - name: Install dependencies
