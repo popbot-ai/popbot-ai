@@ -1,7 +1,7 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { hotkey } from '../lib/hotkeys';
+import linearIcon from '../assets/notif/linear.png';
 import type { LinearProjectDto } from '@shared/linear';
-import type { SlotInfo } from '@shared/ipc';
 import {
   ATTACHMENT_TTL_DAYS_DEFAULT,
   ATTACHMENT_TTL_DAYS_MAX,
@@ -45,9 +45,6 @@ interface PreferencesSheetProps {
   /** Called after the user saves or disconnects Linear settings, so the
    *  Linear-backed views (PanelA tickets) can re-fetch. */
   onLinearChanged?: () => void;
-  /** Called after slot config changes (count saved, slots initialized
-   *  or deleted) so the slot status strip can refresh. */
-  onSlotsChanged?: () => void;
   /** Called after a repo is created / updated / deleted — used by
    *  the chat list so denormalized `repoColor`/`repoMode` updates
    *  show up live instead of needing a reload. */
@@ -71,11 +68,10 @@ interface NavSection {
 const SECTIONS: NavSection[] = [
   { id: 'integ', label: 'Integrations', icon: 'fa-plug' },
   { id: 'agents', label: 'Agents', icon: 'fa-robot' },
-  { id: 'runtime', label: 'Runtime & Slots', icon: 'fa-microchip' },
+  { id: 'runtime', label: 'Runtime', icon: 'fa-microchip' },
   { id: 'repos', label: 'Repositories', icon: 'fa-code-fork' },
   { id: 'git', label: 'Source control', icon: 'fa-code-branch' },
   { id: 'apps', label: 'External apps', icon: 'fa-arrow-up-right-from-square' },
-  { id: 'unity', label: 'Unity', icon: 'fa-cube' },
   { id: 'templates', label: 'Prompt templates', icon: 'fa-file-lines' },
   { id: 'reviews', label: 'Code reviews', icon: 'fa-code-pull-request' },
   { id: 'notify', label: 'Notifications', icon: 'fa-bell' },
@@ -85,11 +81,15 @@ const SECTIONS: NavSection[] = [
 export function PreferencesSheet({
   onClose,
   onLinearChanged,
-  onSlotsChanged,
   onReposChanged,
   initialSection,
 }: PreferencesSheetProps): JSX.Element {
-  const [section, setSection] = useState(initialSection ?? 'integ');
+  // Fall back to the first section if we're handed (or deep-linked to) an
+  // id that no longer has a render branch — otherwise the content pane
+  // renders empty with nothing highlighted in the nav.
+  const known = (id: string | undefined): string =>
+    SECTIONS.some((s) => s.id === id) ? (id as string) : SECTIONS[0].id;
+  const [section, setSection] = useState(() => known(initialSection));
 
   return (
     <>
@@ -118,16 +118,10 @@ export function PreferencesSheet({
           <div className="prefs-content">
             {section === 'integ' && <PrefsIntegrations onLinearChanged={onLinearChanged} />}
             {section === 'agents' && <PrefsAgents />}
-            {section === 'runtime' && (
-              <>
-                <PrefsRuntime onJumpToSection={setSection} onSlotsChanged={onSlotsChanged} />
-                <PrefsAttachments />
-              </>
-            )}
+            {section === 'runtime' && <PrefsAttachments />}
             {section === 'repos' && <PrefsRepos onReposChanged={onReposChanged} />}
             {section === 'git' && <PrefsGit />}
             {section === 'apps' && <PrefsApps />}
-            {section === 'unity' && <PrefsUnity />}
             {section === 'templates' && <PrefsTemplates />}
             {section === 'reviews' && <PrefsReviews />}
             {section === 'notify' && <PrefsNotifications />}
@@ -149,12 +143,6 @@ interface LinearSettings {
   teamKey?: string;
   projectId?: string;
 }
-
-interface SlotsSettings {
-  maxCount?: number;
-}
-
-const DEFAULT_SLOT_COUNT = 3;
 
 function PrefsAgents(): JSX.Element {
   const { get, set, loading } = useSettings();
@@ -283,290 +271,6 @@ function AgentEffortField<T extends ClaudeReasoningEffort | CodexReasoningEffort
   );
 }
 
-interface InitProgress {
-  current: number;
-  total: number;
-  message: string;
-  cancelled?: boolean;
-  done?: boolean;
-  results: Array<{ slotId: number; ok: boolean; error?: string }>;
-}
-
-function PrefsRuntime({ onJumpToSection, onSlotsChanged }: { onJumpToSection: (id: string) => void; onSlotsChanged?: () => void }): JSX.Element {
-  const { get, set, loading } = useSettings();
-  const slots = get<SlotsSettings>('slots', {}) ?? {};
-  const gitCfg = get<GitSettings>('git', {}) ?? {};
-  const gitReady = Boolean(gitCfg.repoPath?.trim() && gitCfg.defaultBase?.trim());
-  const current = slots.maxCount ?? DEFAULT_SLOT_COUNT;
-  const [value, setValue] = useState(current);
-  const [savedAt, setSavedAt] = useState<number | null>(null);
-  const [statusList, setStatusList] = useState<SlotInfo[]>([]);
-  const [maxLoaded, setMaxLoaded] = useState(0);
-  const [initMsg, setInitMsg] = useState<string | null>(null);
-  const [initErr, setInitErr] = useState<string | null>(null);
-  const [progress, setProgress] = useState<InitProgress | null>(null);
-  const cancelRef = useRef(false);
-
-  // useState's initial value is captured before useSettings finishes
-  // loading — so on first paint `value` could be the default-3 even
-  // when the saved setting is 8. Sync once the saved value lands (and
-  // also after the user saves a new one).
-  useEffect(() => { setValue(current); }, [current]);
-
-  const refreshStatus = async () => {
-    const res = await window.popbot.chats.listSlots();
-    if (res.ok) {
-      setStatusList(res.slots);
-      setMaxLoaded(res.maxCount);
-    } else {
-      setStatusList([]);
-      setMaxLoaded(0);
-    }
-  };
-  useEffect(() => { void refreshStatus(); }, [savedAt]);
-
-  if (loading) return <div className="pref-section"><h3>Workspace slots</h3></div>;
-
-  const dirty = value !== current;
-  const readyCount = statusList.filter((s) => s.ready).length;
-  const occupiedCount = statusList.filter((s) => s.occupant != null).length;
-  const initializing = progress != null && !progress.done;
-
-  /** Loop slots 1..N calling the per-slot IPC, updating progress between
-   *  each. Lets the user cancel — we just stop calling the next one. */
-  const initializeAll = async () => {
-    cancelRef.current = false;
-    const max = current;
-    setInitMsg(null);
-    setInitErr(null);
-    setProgress({ current: 0, total: max, message: 'Starting…', results: [] });
-
-    const results: Array<{ slotId: number; ok: boolean; error?: string }> = [];
-    for (let i = 1; i <= max; i++) {
-      if (cancelRef.current) {
-        setProgress((p) => p && { ...p, cancelled: true, done: true, message: 'Cancelled.' });
-        break;
-      }
-      setProgress({
-        current: i,
-        total: max,
-        message: `Setting up slot ${i} of ${max}…`,
-        results,
-      });
-      const res = await window.popbot.chats.initializeOneSlot(i);
-      results.push({
-        slotId: i,
-        ok: 'ok' in res ? res.ok : false,
-        error: 'error' in res ? res.error : undefined,
-      });
-    }
-    if (!cancelRef.current) {
-      setProgress({
-        current: max,
-        total: max,
-        message: 'Done.',
-        results,
-        done: true,
-      });
-    }
-    void refreshStatus();
-    onSlotsChanged?.();
-  };
-
-  return (
-    <div className="pref-section">
-      <h3>Workspace slots</h3>
-      <p className="pref-section-desc">
-        Each chat that needs a workspace holds one slot from this pool.
-        A slot is a long-lived git worktree at <span className="mono">&lt;worktreesDir&gt;/slot-N</span>{' '}
-        on a parking branch <span className="mono">popbot/slot-N</span>. Closing
-        a chat parks the slot back to that branch and fast-forwards it to
-        latest <span className="mono">develop</span>.
-      </p>
-      {!gitReady && (
-        <div className="pref-gate">
-          <i className="fa-solid fa-circle-exclamation" />
-          <div>
-            <b>Set up Source control first.</b> Slots can't be initialized
-            until the repo path and base branch are configured.
-          </div>
-          <button className="btn primary sm" onClick={() => onJumpToSection('git')}>
-            Open Source control
-          </button>
-        </div>
-      )}
-      <div className="pref-rows" style={!gitReady ? { opacity: 0.5, pointerEvents: 'none' } : undefined}>
-        <div className="pref-row">
-          <div className="pref-label">
-            <div className="pref-label-title">Maximum concurrent slots</div>
-            <div className="pref-label-desc">
-              Default {DEFAULT_SLOT_COUNT}. Changing this only resizes the
-              pool — existing slot worktrees stay on disk.
-            </div>
-          </div>
-          <div className="pref-control" style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-            <div className="num-stepper">
-              <button
-                className="num-stepper-btn"
-                disabled={value <= 1}
-                onClick={() => setValue((v) => Math.max(1, v - 1))}
-                title="Decrease"
-              >
-                <i className="fa-solid fa-minus" />
-              </button>
-              <div className="num-stepper-value mono">{value}</div>
-              <button
-                className="num-stepper-btn"
-                disabled={value >= 16}
-                onClick={() => setValue((v) => Math.min(16, v + 1))}
-                title="Increase"
-              >
-                <i className="fa-solid fa-plus" />
-              </button>
-            </div>
-            <button
-              className="btn primary sm"
-              disabled={!dirty || value < 1}
-              onClick={async () => {
-                await set('slots', { maxCount: Math.max(1, value) } satisfies SlotsSettings);
-                setSavedAt(Date.now());
-                onSlotsChanged?.();
-              }}
-            >
-              Save
-            </button>
-            {savedAt && !dirty && (
-              <span style={{ color: 'var(--fg-3)', fontSize: 11 }}>Saved.</span>
-            )}
-          </div>
-        </div>
-
-        <div className="pref-row">
-          <div className="pref-label">
-            <div className="pref-label-title">Slot status</div>
-            <div className="pref-label-desc">
-              {maxLoaded === 0
-                ? 'Configure Source Control to see slot status.'
-                : `${readyCount}/${maxLoaded} ready · ${occupiedCount} in use`}
-            </div>
-          </div>
-          <div className="pref-control" style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-            <button
-              className="btn primary sm"
-              disabled={initializing}
-              onClick={() => void initializeAll()}
-            >
-              {initializing ? 'Initializing…' : 'Initialize slots'}
-            </button>
-            <button
-              className="btn danger sm"
-              disabled={initializing}
-              title="Remove all slot worktrees + parking branches"
-              onClick={async () => {
-                setInitErr(null);
-                const res = await window.popbot.chats.deleteAllSlots();
-                if (!res.ok) {
-                  if (res.reason === 'git-not-configured') {
-                    setInitErr('Configure Source control first.');
-                  } else {
-                    setInitErr(
-                      `Close these chats first: ${res.chatNames.join(', ')}`,
-                    );
-                  }
-                  return;
-                }
-                setInitMsg(`Removed ${res.removed} slot${res.removed === 1 ? '' : 's'}.`);
-                void refreshStatus();
-                onSlotsChanged?.();
-              }}
-            >
-              Delete all slots
-            </button>
-            {initMsg && !initErr && (
-              <span style={{ color: 'var(--fg-3)', fontSize: 11 }}>{initMsg}</span>
-            )}
-          </div>
-        </div>
-
-        {initErr && (
-          <div className="pref-row wide">
-            <div className="pref-error">
-              <i className="fa-solid fa-circle-exclamation" />
-              <div>{initErr}</div>
-              <button
-                className="btn ghost sm"
-                onClick={() => setInitErr(null)}
-                style={{ marginLeft: 'auto' }}
-              >
-                Dismiss
-              </button>
-            </div>
-          </div>
-        )}
-
-        {progress && (
-          <div className="pref-row wide">
-            <div className="init-progress">
-              <div className="init-progress-head">
-                <div className="init-progress-msg">
-                  {!progress.done && <i className="fa-solid fa-circle-notch fa-spin" />}
-                  <span>{progress.message}</span>
-                </div>
-                {!progress.done ? (
-                  <button
-                    className="btn ghost sm"
-                    onClick={() => { cancelRef.current = true; }}
-                  >
-                    Cancel
-                  </button>
-                ) : (
-                  <button
-                    className="btn ghost sm"
-                    onClick={() => setProgress(null)}
-                  >
-                    Dismiss
-                  </button>
-                )}
-              </div>
-              <div className="init-progress-bar">
-                <i style={{ width: `${(progress.current / progress.total) * 100}%` }} />
-              </div>
-              {progress.results.some((r) => !r.ok) && (
-                <div className="init-progress-errors">
-                  {progress.results.filter((r) => !r.ok).map((r) => (
-                    <div key={r.slotId}>Slot {r.slotId}: {r.error}</div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
-        {statusList.some((s) => s.ready || s.occupant != null) && (
-          <div className="pref-row wide">
-            <div className="slot-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))' }}>
-              {statusList
-                .filter((s) => s.ready || s.occupant != null)
-                .map((s) => (
-                  <div key={s.slotId} className={`slot-cell ${s.occupant ? 'taken' : 'free'}`} style={{ cursor: 'default' }}>
-                    <div className="slot-num">Slot {s.slotId}</div>
-                    {s.occupant ? (
-                      <div className="slot-chat">{s.occupant.chatName}</div>
-                    ) : (
-                      <div style={{ color: 'var(--st-done)', fontSize: 11 }}>
-                        <i className="fa-solid fa-check" /> Parked, ready
-                      </div>
-                    )}
-                  </div>
-                ))}
-            </div>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
 function PrefsAttachments(): JSX.Element {
   const { get, set, loading } = useSettings();
   const initial = get<AttachmentsSettings>('attachments', {}) ?? {};
@@ -641,60 +345,215 @@ function PrefsAttachments(): JSX.Element {
   );
 }
 
-/** Jira (the most popular tracker) is roughed in — see
- *  src/shared/ticketProvider.ts — but hidden for the MVP. Flip this once
- *  the Jira client + queue wiring land; the Tracker selector then appears
- *  and lets the user pick between providers. */
-const JIRA_ENABLED = false;
+interface SelectChoice { id: string; label: string; icon: ReactNode }
+
+/** Issue trackers selectable as the ticket source. Only Linear ships
+ *  today; Jira (roughed in at shared/ticketProvider.ts) slots in here. */
+const TRACKERS: SelectChoice[] = [
+  { id: 'linear', label: 'Linear', icon: <img src={linearIcon} alt="" className="tracker-dd-ico" /> },
+];
+
+/** Game engines selectable as the launch target. Only Unity ships today. */
+const ENGINES: SelectChoice[] = [
+  { id: 'unity', label: 'Unity', icon: <i className="fa-solid fa-cube tracker-dd-ico-fa" /> },
+];
+
+/** Custom (non-native) dropdown — square panels + an icon per option,
+ *  which a native <select> can't render. Used for the ticket-source and
+ *  game-engine selectors. */
+function IconSelect({ value, onChange, options }: { value: string; onChange: (v: string) => void; options: SelectChoice[] }): JSX.Element {
+  const [open, setOpen] = useState(false);
+  // Which option the keyboard cursor is on while the menu is open.
+  const [active, setActive] = useState(0);
+  const ref = useRef<HTMLDivElement | null>(null);
+  const btnRef = useRef<HTMLButtonElement | null>(null);
+  const itemRefs = useRef<Array<HTMLButtonElement | null>>([]);
+  const currentIndex = Math.max(0, options.findIndex((t) => t.id === value));
+  const current = options[currentIndex] ?? options[0];
+
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e: globalThis.MouseEvent): void => {
+      if (!ref.current?.contains(e.target as Node)) setOpen(false);
+    };
+    // Capture-phase Escape so it closes only this dropdown without also
+    // bubbling to a parent modal / global hotkeys (same approach as
+    // BaseBranchPicker in BaseBranchDialog).
+    const onKey = (e: KeyboardEvent): void => {
+      if (e.key === 'Escape') { e.stopPropagation(); setOpen(false); btnRef.current?.focus(); }
+    };
+    window.addEventListener('mousedown', onDown);
+    window.addEventListener('keydown', onKey, true);
+    return () => {
+      window.removeEventListener('mousedown', onDown);
+      window.removeEventListener('keydown', onKey, true);
+    };
+  }, [open]);
+
+  // Each time we open, start the cursor on the current selection.
+  useEffect(() => { if (open) setActive(currentIndex); }, [open, currentIndex]);
+
+  // Move DOM focus to the active option so screen readers announce it and
+  // keyboard users see a real focus ring while arrowing through the menu.
+  useEffect(() => { if (open) itemRefs.current[active]?.focus(); }, [open, active]);
+
+  const choose = (i: number): void => {
+    const opt = options[i];
+    if (opt) onChange(opt.id);
+    setOpen(false);
+    btnRef.current?.focus();
+  };
+
+  // Arrow/Enter/Space while focus is within the component. Escape is
+  // handled by the capture-phase listener above so it can't leak to a
+  // parent.
+  const onKeyDown = (e: React.KeyboardEvent): void => {
+    switch (e.key) {
+      case 'ArrowDown':
+        e.preventDefault();
+        if (!open) setOpen(true);
+        else setActive((i) => (i + 1) % options.length);
+        break;
+      case 'ArrowUp':
+        e.preventDefault();
+        if (!open) setOpen(true);
+        else setActive((i) => (i - 1 + options.length) % options.length);
+        break;
+      case 'Enter':
+      case ' ':
+        e.preventDefault();
+        if (!open) setOpen(true);
+        else choose(active);
+        break;
+      default:
+        break;
+    }
+  };
+
+  return (
+    <div className="tracker-dd" ref={ref} onKeyDown={onKeyDown}>
+      <button
+        ref={btnRef}
+        type="button"
+        className="tracker-dd-btn"
+        onClick={() => setOpen((o) => !o)}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+      >
+        {current.icon}
+        <span>{current.label}</span>
+        <i className="fa-solid fa-chevron-down tracker-dd-caret" />
+      </button>
+      {open && (
+        <div className="tracker-dd-menu" role="listbox">
+          {options.map((t, i) => (
+            <button
+              key={t.id}
+              ref={(el) => { itemRefs.current[i] = el; }}
+              type="button"
+              className={`tracker-dd-item${t.id === value ? ' selected' : ''}${i === active ? ' active' : ''}`}
+              role="option"
+              aria-selected={t.id === value}
+              onClick={() => choose(i)}
+              onMouseEnter={() => setActive(i)}
+            >
+              {t.icon}
+              <span>{t.label}</span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 function PrefsIntegrations({ onLinearChanged }: { onLinearChanged?: () => void }): JSX.Element {
   const { get, set, remove, loading } = useSettings();
   const linear = get<LinearSettings>('linear', {}) ?? {};
+  // Which tracker feeds the Tickets queue. The selector is ALWAYS shown —
+  // picking a tracker is the model even when only one ships (you always
+  // have one; there's no "(None)"). Jira is roughed in at
+  // shared/ticketProvider.ts and slots in as another <option> when its
+  // client + queue wiring land — no structural change here.
+  const rawTracker = get<string>('ticketSource', 'linear') ?? 'linear';
+  // Game engine launched for a chat's worktree. Same always-shown,
+  // default-to-the-only-option model as the ticket source.
+  const rawEngine = get<string>('gameEngine', 'unity') ?? 'unity';
+
+  // Validate the persisted value against the options that actually ship.
+  // A stale/unsupported id (e.g. ticketSource:'jira' from an older build)
+  // would otherwise render the fallback button with nothing selected while
+  // the invalid value lingers in storage.
+  const tracker = TRACKERS.some((t) => t.id === rawTracker) ? rawTracker : TRACKERS[0].id;
+  const engine = ENGINES.some((e) => e.id === rawEngine) ? rawEngine : ENGINES[0].id;
+
+  // Heal a stale value in place so it stops being dead/invalid state. Only
+  // writes when the stored value differs from the normalized one, so this
+  // can't loop.
+  useEffect(() => {
+    if (!loading && rawTracker !== tracker) void set('ticketSource', tracker);
+  }, [loading, rawTracker, tracker]);
+  useEffect(() => {
+    if (!loading && rawEngine !== engine) void set('gameEngine', engine);
+  }, [loading, rawEngine, engine]);
 
   if (loading) return <div className="pref-section"><h3>Ticket source</h3></div>;
 
   return (
     <>
       <div className="pref-section">
-        <h3>Ticket source</h3>
+        {/* One line: the section label + the tracker selector. Always
+            shown — picking a tracker is the model even with a single
+            option (no "(None)"); more slot in as <option>s here. */}
+        <div className="tracker-select-row">
+          <h3 style={{ margin: 0 }}>Ticket source</h3>
+          <IconSelect value={tracker} onChange={(v) => void set('ticketSource', v)} options={TRACKERS} />
+        </div>
         <p className="pref-section-desc">
-          Feeds the Tickets queue in Panel A so you can spawn agents straight from
-          your tracker.{JIRA_ENABLED ? ' Only one ticket source can be active at a time.' : ''}
+          The issue tracker that feeds the Tickets queue in Panel A, so you can
+          spawn agents straight from your tracker.
         </p>
-        {/* Role selector: which tracker fills the ticket-source role.
-            Hidden while Linear is the only shipped provider; reappears
-            when Jira is enabled. */}
-        {JIRA_ENABLED && (
-          <div className="pref-rows" style={{ marginBottom: 8 }}>
-            <div className="pref-row">
-              <div className="pref-label">
-                <div className="pref-label-title">Tracker</div>
-                <div className="pref-label-desc">Pick your issue tracker.</div>
-              </div>
-              <div className="pref-control">
-                <select className="pref-input" value="linear" onChange={() => undefined} style={{ width: 200 }}>
-                  <option value="linear">Linear</option>
-                  <option value="jira">Jira</option>
-                </select>
-              </div>
-            </div>
+        {/* The selected tracker's config, grouped in its own box. */}
+        <div className="tracker-config">
+          <div className="tracker-config-head">
+            <img src={linearIcon} alt="" className="tracker-dd-ico" />
+            <span>Linear</span>
           </div>
-        )}
-        {/* The selected tracker's config — shown directly (the values
-            needed for the integration to function), not behind a CTA. The
-            app header makes it obvious these properties belong to Linear. */}
-        <h4 className="pref-subhead" style={{ marginTop: 14 }}>Linear settings</h4>
-        <LinearForm
-          initial={linear}
-          onSave={async (next) => {
-            await set('linear', next);
-            onLinearChanged?.();
-          }}
-          onDisconnect={async () => {
-            await remove('linear');
-            onLinearChanged?.();
-          }}
-        />
+          <div className="tracker-config-body">
+            <LinearForm
+              initial={linear}
+              onSave={async (next) => {
+                await set('linear', next);
+                onLinearChanged?.();
+              }}
+              onDisconnect={async () => {
+                await remove('linear');
+                onLinearChanged?.();
+              }}
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Game engine — same selector model as the ticket source. */}
+      <div className="pref-section">
+        <div className="tracker-select-row">
+          <h3 style={{ margin: 0 }}>Game engine</h3>
+          <IconSelect value={engine} onChange={(v) => void set('gameEngine', v)} options={ENGINES} />
+        </div>
+        <p className="pref-section-desc">
+          The engine PopBot launches from a chat's worktree (the engine icon
+          on each chat column).
+        </p>
+        <div className="tracker-config">
+          <div className="tracker-config-head">
+            <i className="fa-solid fa-cube tracker-dd-ico-fa" />
+            <span>Unity</span>
+          </div>
+          <div className="tracker-config-body">
+            <UnityConfig />
+          </div>
+        </div>
       </div>
 
       {/* Slack (chat / notifications source) is parked — it was never
@@ -741,36 +600,21 @@ function PrefsGit(): JSX.Element {
   const { get, set, loading } = useSettings();
   const initial = get<GitSettings>('git', {}) ?? {};
   const [username, setUsername] = useState(initial.username ?? '');
-  const [repoPath, setRepoPath] = useState(initial.repoPath ?? '');
-  const [repoName, setRepoName] = useState(initial.repoName ?? '');
-  const [repoColor, setRepoColor] = useState(initial.repoColor ?? '#6b7cff');
-  const [slotPrefix, setSlotPrefix] = useState(initial.slotPrefix ?? 'slot');
-  const [worktreesDir, setWorktreesDir] = useState(initial.worktreesDir ?? '');
-  const [defaultBase, setDefaultBase] = useState(initial.defaultBase ?? 'develop');
   const [savedAt, setSavedAt] = useState<number | null>(null);
 
-  // Same sync-on-load fix as PrefsRuntime / PrefsApps. Without this,
+  // Same sync-on-load fix as PrefsApps / UnityConfig. Without this,
   // useState captures defaults while useSettings is still loading and
   // a subsequent Save overwrites real persisted values with defaults.
   useEffect(() => { setUsername(initial.username ?? ''); }, [initial.username]);
-  useEffect(() => { setRepoPath(initial.repoPath ?? ''); }, [initial.repoPath]);
-  useEffect(() => { setRepoName(initial.repoName ?? ''); }, [initial.repoName]);
-  useEffect(() => { setRepoColor(initial.repoColor ?? '#6b7cff'); }, [initial.repoColor]);
-  useEffect(() => { setSlotPrefix(initial.slotPrefix ?? 'slot'); }, [initial.slotPrefix]);
-  useEffect(() => { setWorktreesDir(initial.worktreesDir ?? ''); }, [initial.worktreesDir]);
-  useEffect(() => { setDefaultBase(initial.defaultBase ?? 'develop'); }, [initial.defaultBase]);
 
   if (loading) return <div className="pref-section"><h3>Source control</h3></div>;
-
-  const required = username.trim() && repoPath.trim() && defaultBase.trim();
 
   return (
     <div className="pref-section">
       <h3>Source control</h3>
       <p className="pref-section-desc">
-        PopBot allocates one git worktree per slot. Each chat checks out its
-        branch in that worktree; closing the chat parks the slot back to
-        <span className="mono"> popbot/slot-N</span> so it never holds main/develop.
+        Global git identity. Per-repository settings — path, base branch,
+        slots, and color — live under <b>Repositories</b>.
       </p>
       <div className="pref-rows">
         <div className="pref-row">
@@ -791,145 +635,14 @@ function PrefsGit(): JSX.Element {
           </div>
         </div>
         <div className="pref-row">
-          <div className="pref-label">
-            <div className="pref-label-title">Repo path</div>
-            <div className="pref-label-desc">Absolute path to the source repository.</div>
-          </div>
-          <div className="pref-control" style={{ display: 'flex', gap: 6, alignItems: 'center', minWidth: 0 }}>
-            <input
-              className="pref-input mono narrow"
-              placeholder="/Users/you/code/my-app"
-              value={repoPath}
-              onChange={(e) => setRepoPath(e.target.value)}
-              style={{ width: 280 }}
-            />
-            <button
-              type="button"
-              className="btn sm"
-              title="Browse for a folder"
-              onClick={async () => {
-                const picked = await window.popbot.files.pickDirectory({
-                  title: 'Choose the source repository',
-                  defaultPath: repoPath || undefined,
-                });
-                if (picked) setRepoPath(picked);
-              }}
-            >
-              <i className="fa-solid fa-folder-open" />&nbsp;Browse…
-            </button>
-          </div>
-        </div>
-        <div className="pref-row">
-          <div className="pref-label">
-            <div className="pref-label-title">Repo short name</div>
-            <div className="pref-label-desc">
-              Folder segment + branch prefix for this repo. Used as the
-              parent directory of slot worktrees
-              (<span className="mono">&lt;workspaces&gt;/&lt;name&gt;/&lt;slotPrefix&gt;-N</span>)
-              and the prefix on parking branches.
-            </div>
-          </div>
-          <div className="pref-control">
-            <input
-              className="pref-input mono"
-              placeholder="app"
-              value={repoName}
-              onChange={(e) => setRepoName(e.target.value)}
-              style={{ width: 160 }}
-            />
-          </div>
-        </div>
-        <div className="pref-row">
-          <div className="pref-label">
-            <div className="pref-label-title">Repo color</div>
-            <div className="pref-label-desc">
-              Slot pill background color for chats in this repo. Any CSS
-              color string.
-            </div>
-          </div>
-          <div className="pref-control" style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-            <input
-              type="color"
-              value={repoColor}
-              onChange={(e) => setRepoColor(e.target.value)}
-              style={{ width: 40, height: 28, padding: 0, border: 'none', background: 'transparent', cursor: 'pointer' }}
-            />
-            <input
-              className="pref-input mono"
-              placeholder="#6b7cff"
-              value={repoColor}
-              onChange={(e) => setRepoColor(e.target.value)}
-              style={{ width: 120 }}
-            />
-          </div>
-        </div>
-        <div className="pref-row">
-          <div className="pref-label">
-            <div className="pref-label-title">Slot prefix</div>
-            <div className="pref-label-desc">
-              Folder + branch prefix per slot. Worktrees become
-              <span className="mono"> &lt;prefix&gt;-N</span>; parking
-              branches use the same prefix.
-            </div>
-          </div>
-          <div className="pref-control">
-            <input
-              className="pref-input mono"
-              placeholder="slot"
-              value={slotPrefix}
-              onChange={(e) => setSlotPrefix(e.target.value)}
-              style={{ width: 160 }}
-            />
-          </div>
-        </div>
-        <div className="pref-row">
-          <div className="pref-label">
-            <div className="pref-label-title">Worktrees directory</div>
-            <div className="pref-label-desc">
-              Where slot worktrees live. Defaults to
-              <span className="mono"> ~/popbot/workspaces/&lt;repoName&gt;</span>.
-            </div>
-          </div>
-          <div className="pref-control" style={{ flex: 1, minWidth: 280 }}>
-            <input
-              className="pref-input mono"
-              placeholder="(default)"
-              value={worktreesDir}
-              onChange={(e) => setWorktreesDir(e.target.value)}
-              style={{ width: '100%' }}
-            />
-          </div>
-        </div>
-        <div className="pref-row">
-          <div className="pref-label">
-            <div className="pref-label-title">Default base branch</div>
-            <div className="pref-label-desc">New chat branches fork from here.</div>
-          </div>
-          <div className="pref-control">
-            <input
-              className="pref-input mono"
-              value={defaultBase}
-              onChange={(e) => setDefaultBase(e.target.value)}
-              style={{ width: 160 }}
-            />
-          </div>
-        </div>
-        <div className="pref-row">
           <div className="pref-label" />
           <div className="pref-control" style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
             <button
               className="btn primary sm"
-              disabled={!required}
               onClick={async () => {
-                await set('git', {
-                  username: username.trim(),
-                  repoPath: repoPath.trim(),
-                  repoName: repoName.trim() || undefined,
-                  repoColor: repoColor.trim() || undefined,
-                  slotPrefix: slotPrefix.trim() || undefined,
-                  worktreesDir: worktreesDir.trim() || undefined,
-                  defaultBase: defaultBase.trim(),
-                } satisfies GitSettings);
+                // Merge so we only edit the username and preserve any
+                // legacy git fields still used as runtime fallbacks.
+                await set('git', { ...initial, username: username.trim() });
                 setSavedAt(Date.now());
               }}
             >
@@ -1004,7 +717,6 @@ function PrefsApps(): JSX.Element {
   const [terminalApp, setTerminalApp] = useState(initial.terminalApp || 'iTerm');
   const [windowsShell, setWindowsShell] = useState(initial.windowsShell || 'powershell');
   const [editorApp, setEditorApp] = useState(initial.editorApp || 'vscode');
-  const [unityBinary, setUnityBinary] = useState(initial.unityBinary || '');
   const [browserChromeProfile, setBrowserChromeProfile] = useState(initial.browserChromeProfile || '');
   const [savedAt, setSavedAt] = useState<number | null>(null);
 
@@ -1018,7 +730,6 @@ function PrefsApps(): JSX.Element {
   useEffect(() => { setTerminalApp(initial.terminalApp || 'iTerm'); }, [initial.terminalApp]);
   useEffect(() => { setWindowsShell(initial.windowsShell || 'powershell'); }, [initial.windowsShell]);
   useEffect(() => { setEditorApp(initial.editorApp || 'vscode'); }, [initial.editorApp]);
-  useEffect(() => { setUnityBinary(initial.unityBinary || ''); }, [initial.unityBinary]);
   useEffect(() => { setBrowserChromeProfile(initial.browserChromeProfile || ''); }, [initial.browserChromeProfile]);
 
   if (loading) return <div className="pref-section"><h3>External apps</h3></div>;
@@ -1027,7 +738,6 @@ function PrefsApps(): JSX.Element {
     terminalApp !== (initial.terminalApp || 'iTerm') ||
     windowsShell !== (initial.windowsShell || 'powershell') ||
     editorApp !== (initial.editorApp || 'vscode') ||
-    unityBinary !== (initial.unityBinary || '') ||
     browserChromeProfile !== (initial.browserChromeProfile || '');
 
   return (
@@ -1112,24 +822,6 @@ function PrefsApps(): JSX.Element {
         </div>
         <div className="pref-row">
           <div className="pref-label">
-            <div className="pref-label-title">Unity Editor</div>
-            <div className="pref-label-desc">
-              Absolute path to the Unity binary (e.g. <span className="mono">/Applications/Unity/Hub/Editor/6.3.0f1/Unity.app/Contents/MacOS/Unity</span>).
-              Set to launch slots directly; leave blank to route through Unity Hub.
-            </div>
-          </div>
-          <div className="pref-control" style={{ flex: 1, minWidth: 280 }}>
-            <input
-              className="pref-input mono"
-              placeholder="(use Unity Hub)"
-              value={unityBinary}
-              onChange={(e) => setUnityBinary(e.target.value)}
-              style={{ width: '100%' }}
-            />
-          </div>
-        </div>
-        <div className="pref-row">
-          <div className="pref-label">
             <div className="pref-label-title">Chrome profile for URLs</div>
             <div className="pref-label-desc">
               Pin URL opens to a specific Chrome profile so they always land
@@ -1159,10 +851,10 @@ function PrefsApps(): JSX.Element {
               disabled={!dirty}
               onClick={async () => {
                 await set('apps', {
+                  ...initial,
                   terminalApp,
                   windowsShell,
                   editorApp,
-                  unityBinary: unityBinary.trim() || undefined,
                   browserChromeProfile: browserChromeProfile.trim() || undefined,
                 } satisfies AppsSettings);
                 setSavedAt(Date.now());
@@ -1180,7 +872,7 @@ function PrefsApps(): JSX.Element {
   );
 }
 
-function PrefsUnity(): JSX.Element {
+function UnityConfig(): JSX.Element {
   const { get, set, loading } = useSettings();
   const initial = get<AppsSettings>('apps', {}) ?? {};
   const [versions, setVersions] = useState<Array<{ version: string; binary: string }>>([]);
@@ -1197,15 +889,22 @@ function PrefsUnity(): JSX.Element {
   };
   useEffect(() => { void refresh(); }, []);
 
-  if (loading) return <div className="pref-section"><h3>Unity</h3></div>;
+  // useState captured initial.* on first render, but useSettings starts
+  // empty while loading — so without this the fields render blank and a
+  // Save would clobber the real apps.unityBinary/unityProjectSubpath with
+  // empty defaults. Re-sync once the persisted values land. Same
+  // sync-on-load pattern as PrefsApps/PrefsGit.
+  useEffect(() => { setPicked(initial.unityBinary ?? ''); }, [initial.unityBinary]);
+  useEffect(() => { setSubpath(initial.unityProjectSubpath ?? ''); }, [initial.unityProjectSubpath]);
+
+  if (loading) return <p className="pref-section-desc">Loading…</p>;
 
   const dirty =
     picked !== (initial.unityBinary ?? '') ||
     subpath !== (initial.unityProjectSubpath ?? '');
 
   return (
-    <div className="pref-section">
-      <h3>Unity</h3>
+    <>
       <p className="pref-section-desc">
         Pick which installed Unity Editor version popbot launches when you
         click the Unity slot icon. Versions are scanned from{' '}
@@ -1314,7 +1013,7 @@ function PrefsUnity(): JSX.Element {
           </div>
         </div>
       </div>
-    </div>
+    </>
   );
 }
 

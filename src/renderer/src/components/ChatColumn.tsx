@@ -676,14 +676,16 @@ function SlotAppButtons({
     const res = await window.popbot.apps.open(kind, worktreePath);
     if (!res.ok) {
       // Specific routing: Unity-not-configured opens the prefs page
-      // instead of nagging with an alert.
+      // instead of nagging with an alert. Unity config now lives under
+      // Integrations (the standalone Unity section was removed), so we
+      // deep-link there rather than the now-nonexistent 'unity' section.
       if (
         kind === 'unity' &&
         'reason' in res &&
         res.reason === 'unity-not-configured' &&
         onOpenPrefs
       ) {
-        onOpenPrefs('unity');
+        onOpenPrefs('integ');
         return;
       }
       // eslint-disable-next-line no-alert
