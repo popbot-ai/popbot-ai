@@ -82,26 +82,25 @@ A tag build signs when `WIN_CSC_LINK` is present; otherwise unsigned.
 
 ## Auto-update
 
-**Today it's a notifier, not an auto-installer.**
-[`src/main/updates/check.ts`](../src/main/updates/check.ts) polls this
-repo's `releases/latest` on startup and every 10 minutes; when a newer
-`v*` tag exists, it shows a toast with a **Download** link to the release
-page. The user downloads and installs the new build manually.
+In-app auto-update is wired with **electron-updater**
+([`src/main/updates/autoUpdate.ts`](../src/main/updates/autoUpdate.ts)).
+In packaged builds it polls this repo's releases, **silently downloads** a
+newer version in the background, and shows a **"Restart to install"** toast
+when it's staged — clicking quits and relaunches into the new version. It
+reads the `latest*.yml` + `.blockmap` metadata the release workflow
+attaches; the `publish: github` config in `electron-builder.yml` embeds the
+`app-update.yml` the client needs.
 
-For that to work, the release process must publish **non-draft,
-non-prerelease** GitHub Releases (the default for `softprops/action-gh-release`)
-with the platform installers attached — which the workflow does. No extra
-wiring needed; cutting a release is sufficient for the notifier to surface it.
+**Signing is required for the install step.** macOS rejects unsigned
+updates, so in-app install only works once releases are signed + notarized
+(the tag-build path with the Apple secrets set). Until then — and whenever
+the updater hits an error (no metadata, network failure) — it **falls back**
+to a manual "Download" toast that opens the release page, driven by the
+lightweight GitHub check in
+[`src/main/updates/check.ts`](../src/main/updates/check.ts). That same
+lightweight check also backs the About dialog's on-demand "Check for
+updates" and works everywhere, including dev and unsigned builds.
 
-**Upgrading to true in-app auto-update** (download + install without a
-trip to the browser) is a future, client-side change once signed releases
-are confirmed working:
-
-1. `npm i electron-updater`.
-2. In the main process, replace the `check.ts` notifier with `autoUpdater`
-   (`electron-updater`), pointed at the GitHub provider.
-3. The release assets already carry the required `latest*.yml` + `.blockmap`
-   metadata, so no release-process changes are needed.
-
-macOS in-app auto-update **requires** the build to be signed + notarized
-(unsigned updates are rejected), which is why this waits on signing.
+For any of this to surface a release, the workflow must publish
+**non-draft, non-prerelease** Releases with the platform installers
+attached — which it does. Auto-update is disabled in dev.

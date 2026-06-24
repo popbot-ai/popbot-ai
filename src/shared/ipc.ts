@@ -34,7 +34,7 @@ import type {
 import type { ListReviewsResult } from './reviews';
 import type { SentryTestResult } from './sentry';
 import type { SlackTestResult } from './slack';
-import type { UpdateInfo, UpdateCheckResult } from './updates';
+import type { UpdateInfo, UpdateCheckResult, UpdateProgress, UpdateReady } from './updates';
 import type {
   AgentBackendId,
   ChatRecord,
@@ -203,9 +203,21 @@ export const IpcChannel = {
   /** Push channel — main → renderer. */
   AgentEvent: 'pb:agent:event',
 
-  /** Push channel — main → renderer. Latest GitHub release is newer
-   *  than the running app's version. */
+  /** Push channel — main → renderer. A newer release exists but can't be
+   *  installed in-app (unsigned build / updater error) — surface a
+   *  manual "Download" link to the release page. */
   UpdateAvailable: 'pb:updates:available',
+
+  /** Push channel — main → renderer. electron-updater download progress
+   *  (0–100). */
+  UpdateProgress: 'pb:updates:progress',
+
+  /** Push channel — main → renderer. An update finished downloading and
+   *  is staged — the renderer offers "Restart to install". */
+  UpdateDownloaded: 'pb:updates:downloaded',
+
+  /** Quit and install the staged update (autoUpdater.quitAndInstall). */
+  UpdatesInstall: 'pb:updates:install',
 
   /** On-demand update check (About dialog). Returns UpdateCheckResult. */
   UpdatesCheck: 'pb:updates:check',
@@ -706,9 +718,18 @@ export interface PopBotApi {
     onEvent(handler: (event: AgentEvent) => void): () => void;
   };
   updates: {
-    /** Subscribe to "newer release available" pushes from the main
-     *  process update poller. Returns an unsubscribe function. */
+    /** Subscribe to "newer release available, download manually" pushes
+     *  (unsigned build / updater error fallback). Returns an unsubscribe
+     *  function. */
     onAvailable(handler: (info: UpdateInfo) => void): () => void;
+    /** Subscribe to download-progress pushes (0–100). Returns an
+     *  unsubscribe function. */
+    onProgress(handler: (progress: UpdateProgress) => void): () => void;
+    /** Subscribe to "update downloaded, ready to install" pushes.
+     *  Returns an unsubscribe function. */
+    onDownloaded(handler: (info: UpdateReady) => void): () => void;
+    /** Quit and install the staged update. The app relaunches. */
+    install(): void;
     /** Run an on-demand update check (About dialog). */
     check(): Promise<UpdateCheckResult>;
     /** Subscribe to "open the About dialog" pushes (native macOS menu).
