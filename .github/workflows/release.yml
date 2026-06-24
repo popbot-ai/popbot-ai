@@ -157,6 +157,10 @@ jobs:
           tag_name: ${{ needs.version.outputs.tag }}
           name: PopBot ${{ needs.version.outputs.tag }}
           prerelease: ${{ inputs.channel == 'prerelease' }}
+          # Only a real release is ever the "Latest" (what the site's
+          # /releases/latest and the in-app updater point at). Prereleases
+          # never claim it.
+          make_latest: ${{ inputs.channel == 'release' }}
           generate_release_notes: true
           body: |
             ### Which file do I download?
