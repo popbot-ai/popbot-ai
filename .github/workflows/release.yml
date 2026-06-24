@@ -1,0 +1,167 @@
+name: Release
+
+# One-button release, run entirely from the Actions UI:
+#   Actions → Release → Run workflow → pick bump + channel.
+#
+#   channel = prerelease → publishes a GitHub *prerelease* tagged
+#       vX.Y.Z-rc.<run> (signed + notarized). Not marked "latest" and
+#       ignored by the in-app auto-updater, so it's safe to test.
+#   channel = release    → publishes vX.Y.Z as the latest release.
+#
+# Nothing is committed to main (avoids branch protection): the version is
+# set in package.json only for the build, and the tag is created by the
+# release step at the current main commit. The next version is computed
+# from the latest *final* tag, so numbering stays consistent.
+
+on:
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: Version bump (from the latest final release)
+        type: choice
+        options: [patch, minor, major]
+        default: patch
+      channel:
+        description: Channel
+        type: choice
+        options: [prerelease, release]
+        default: prerelease
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  version:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.v.outputs.version }}
+      tag: ${{ steps.v.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - id: v
+        run: |
+          # Base off the latest FINAL tag (ignore prereleases, which contain '-').
+          LAST=$(git tag -l 'v*' | grep -vE '-' | sed 's/^v//' | sort -V | tail -1)
+          BASE="${LAST:-$(node -p "require('./package.json').version")}"
+          IFS='.' read -r MA MI PA <<< "$BASE"
+          case "${{ inputs.bump }}" in
+            patch) PA=$((PA+1)) ;;
+            minor) MI=$((MI+1)); PA=0 ;;
+            major) MA=$((MA+1)); MI=0; PA=0 ;;
+          esac
+          NEW="${MA}.${MI}.${PA}"
+          if [ "${{ inputs.channel }}" = "prerelease" ]; then
+            NEW="${NEW}-rc.${{ github.run_number }}"
+          fi
+          echo "version=$NEW"  >> "$GITHUB_OUTPUT"
+          echo "tag=v$NEW"     >> "$GITHUB_OUTPUT"
+          echo "Building v$NEW (${{ inputs.channel }})"
+
+  build:
+    needs: version
+    strategy:
+      fail-fast: false
+      matrix:
+        # windows-2022, not windows-latest: see build.yml for the VS-2026 /
+        # node-gyp reason.
+        os: [macos-latest, windows-2022, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      # Python 3.11 still bundles distutils, which node-gyp needs to build node-pty.
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        run: npm ci
+      - name: Set release version (not committed)
+        shell: bash
+        run: npm version "${{ needs.version.outputs.version }}" --no-git-tag-version --allow-same-version
+      - name: Type-check
+        run: npm run typecheck
+      - name: Build renderer + main
+        run: npm run build
+
+      - name: Package + sign (macOS)
+        if: matrix.os == 'macos-latest'
+        env:
+          CSC_LINK: ${{ secrets.MAC_CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.MAC_CSC_KEY_PASSWORD }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          if [ -n "$CSC_LINK" ] && [ -n "$CSC_KEY_PASSWORD" ] && [ -n "$APPLE_ID" ] \
+             && [ -n "$APPLE_APP_SPECIFIC_PASSWORD" ] && [ -n "$APPLE_TEAM_ID" ]; then
+            echo "Signing + notarizing"
+            npx electron-builder --mac --publish never --config electron-builder.yml
+          else
+            echo "::warning::macOS signing secrets incomplete — building UNSIGNED"
+            unset CSC_LINK CSC_KEY_PASSWORD APPLE_ID APPLE_APP_SPECIFIC_PASSWORD APPLE_TEAM_ID
+            export CSC_IDENTITY_AUTO_DISCOVERY=false
+            npx electron-builder --mac --publish never -c.mac.notarize=false --config electron-builder.yml
+          fi
+
+      - name: Package + sign (Windows)
+        if: matrix.os == 'windows-2022'
+        env:
+          CSC_LINK: ${{ secrets.WIN_CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.WIN_CSC_KEY_PASSWORD }}
+        shell: bash
+        run: |
+          [ -n "$CSC_LINK" ] || { echo "::warning::no Windows cert — building UNSIGNED"; unset CSC_LINK CSC_KEY_PASSWORD; }
+          npx electron-builder --win --publish never --config electron-builder.yml
+
+      - name: Package (Linux)
+        if: matrix.os == 'ubuntu-latest'
+        run: npx electron-builder --linux --publish never --config electron-builder.yml
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: popbot-${{ matrix.os }}
+          retention-days: 14
+          if-no-files-found: error
+          path: |
+            release/*.dmg
+            release/*.exe
+            release/*.AppImage
+            release/*.zip
+            release/*.blockmap
+            release/latest*.yml
+
+  publish:
+    needs: [version, build]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download all build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+      - name: Publish ${{ inputs.channel }} ${{ needs.version.outputs.tag }}
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ needs.version.outputs.tag }}
+          name: PopBot ${{ needs.version.outputs.tag }}
+          prerelease: ${{ inputs.channel == 'prerelease' }}
+          generate_release_notes: true
+          files: |
+            dist/*.dmg
+            dist/*.exe
+            dist/*.AppImage
+            dist/*.zip
+            dist/*.blockmap
+            dist/latest*.yml
