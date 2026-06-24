@@ -1,5 +1,6 @@
 /**
- * Lightweight GitHub-releases helpers.
+ * Lightweight "is there a newer stable build" helper, backed by a small
+ * version pointer on the R2 download host (written by the release workflow).
  *
  * Two consumers:
  *  - the About dialog's on-demand "Check for updates" (`checkForUpdates`),
@@ -7,14 +8,16 @@
  *  - the auto-updater's manual-download fallback (`fetchLatest`), used when
  *    electron-updater can't install in-app (see autoUpdate.ts).
  *
- * Uses the raw public releases API (no `gh`, no auth token) so it works for
- * every user out of the box; failures (offline, rate-limited, no releases)
- * silently no-op.
+ * Plain public HTTPS GET (no auth); failures (offline, not published yet)
+ * silently no-op. Main-process fetch, so no CORS concerns.
  */
 import { app } from 'electron';
 import type { UpdateCheckResult } from '@shared/updates';
 
-const REPO = 'popbot-ai/popbot-ai';
+/** Stable-channel version pointer, e.g. {"version":"0.0.19"}. */
+const STABLE_VERSION_URL = 'https://download.popbot.app/stable/version.json';
+/** Where to send users for a manual download (the marketing/download site). */
+const DOWNLOAD_PAGE = 'https://popbot.app';
 
 function parseSemver(s: string): [number, number, number] | null {
   const m = /^(\d+)\.(\d+)\.(\d+)/.exec(s);
@@ -36,18 +39,14 @@ export interface LatestRelease { tag: string; name: string; htmlUrl: string }
 
 export async function fetchLatest(): Promise<LatestRelease | null> {
   try {
-    const res = await fetch(`https://api.github.com/repos/${REPO}/releases/latest`, {
-      headers: {
-        Accept: 'application/vnd.github+json',
-        // GitHub rejects API requests without a User-Agent.
-        'User-Agent': 'PopBot',
-      },
+    const res = await fetch(STABLE_VERSION_URL, {
+      headers: { 'User-Agent': 'PopBot', Accept: 'application/json' },
       signal: AbortSignal.timeout(15_000),
     });
     if (!res.ok) return null;
-    const obj = (await res.json()) as { tag_name?: string; name?: string; html_url?: string };
-    if (typeof obj.tag_name !== 'string' || typeof obj.html_url !== 'string') return null;
-    return { tag: obj.tag_name, name: obj.name ?? obj.tag_name, htmlUrl: obj.html_url };
+    const obj = (await res.json()) as { version?: string };
+    if (typeof obj.version !== 'string') return null;
+    return { tag: `v${obj.version}`, name: `PopBot v${obj.version}`, htmlUrl: DOWNLOAD_PAGE };
   } catch {
     return null;
   }
@@ -68,7 +67,7 @@ export async function checkForUpdates(): Promise<UpdateCheckResult> {
       updateAvailable: false,
       htmlUrl: null,
       name: null,
-      error: "Couldn't reach GitHub to check for updates.",
+      error: "Couldn't reach the update server.",
     };
   }
   const latestVer = latest.tag.replace(/^v/, '');
