@@ -104,3 +104,41 @@ updates" and works everywhere, including dev and unsigned builds.
 For any of this to surface a release, the workflow must publish
 **non-draft, non-prerelease** Releases with the platform installers
 attached — which it does. Auto-update is disabled in dev.
+
+### Verifying auto-update (first end-to-end test)
+
+The auto-update path can only be verified against **two real signed
+releases** — not in dev (it's disabled) and not against a single release
+(there's nothing newer to pull). Do this once, after signing is set up:
+
+1. **Confirm signing is on.** Add the macOS (and optionally Windows)
+   secrets from the table above. The first signed release must succeed —
+   on macOS, unsigned/un-notarized builds can download but **fail to
+   install**, so this whole test is meaningless unsigned.
+2. **Cut release N**, e.g. `npm run release` → `v0.0.18`. Wait for the
+   workflow to publish the Release with assets + `latest*.yml`.
+3. **Install N from the published Release** on each OS you support
+   (macOS `.dmg`, Windows `.exe`, Linux `.AppImage`). Launch it — verify
+   Help ▸ About shows the right version.
+4. **Cut release N+1**, e.g. `npm run release` → `v0.0.19`.
+5. **Leave the N install running.** Within ~30s of launch (and then every
+   6h) it checks; on a signed build it downloads N+1 silently, then shows
+   the **"Restart to install"** toast. Click it.
+6. **Confirm it relaunched into N+1** — Help ▸ About now shows the new
+   version. That proves download → stage → quitAndInstall → relaunch works
+   on that OS.
+
+Per-platform notes:
+- **macOS:** Squirrel.Mac applies the update from the `.zip` asset (not the
+  `.dmg`); both must be in the Release. Gatekeeper rejects an unsigned/
+  un-notarized update — if "Restart to install" does nothing, re-check
+  notarization on the build.
+- **Linux:** the running app must be the **`.AppImage`** (auto-update
+  replaces the AppImage in place); a distro-packaged build won't self-update.
+- **Windows:** the NSIS install updates in place; SmartScreen may warn
+  until the build is signed with `WIN_CSC_LINK`.
+
+If step 5 instead shows a **"Download"** toast (opening the release page),
+the in-app updater hit an error and fell back — check the diagnostic log
+(`update.error` / `update.check.failed` entries) for why, most often an
+unsigned macOS build.
