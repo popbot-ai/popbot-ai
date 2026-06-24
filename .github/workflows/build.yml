@@ -1,0 +1,171 @@
+name: Build
+
+# Builds PopBot on macOS, Windows, and Linux.
+#
+#  - Pull requests / pushes to main  -> validation build only, always
+#    UNSIGNED (artifacts attach to the workflow run; nothing published).
+#    Secrets are never used here, so fork PRs can't reach them.
+#  - Pushing a `v*` tag              -> signed + notarized build of all
+#    three platforms, published to a GitHub Release. Only the repo owner
+#    can push tags, so this is the only path that touches signing secrets.
+#
+# Native modules (better-sqlite3, node-pty) are compiled per-OS against
+# Electron's ABI, so each platform builds on its own runner.
+#
+# Signing secrets live in this repo's GitHub Actions secrets (encrypted,
+# not in the tree, masked in logs). Until they're set, tag builds fall
+# back to unsigned and CI still passes. See docs/RELEASING.md.
+
+on:
+  push:
+    # No paths-ignore here: it would also apply to tag pushes and could
+    # silently skip a release build. Branch pushes run on every commit.
+    branches: [main]
+    tags:
+      - 'v*'
+  pull_request:
+    branches: [main]
+    paths-ignore:
+      - '**/*.md'
+      - 'docs/**'
+  workflow_dispatch: {}
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        # windows-2022 (not windows-latest): windows-latest migrated to
+        # Server 2025 + Visual Studio 2026, which node-gyp 9.4.1 (bundled by
+        # @electron/rebuild) doesn't recognize, so it can't compile node-pty.
+        # VS 2022 is the newest node-gyp here understands. Revisit when
+        # electron-builder ships a node-gyp that supports VS 2026.
+        os: [macos-latest, windows-2022, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      # node-gyp compiles node-pty from source (no prebuilt for Electron's
+      # ABI) and needs Python's `distutils`, which was removed in Python
+      # 3.12 — the runners' default. Pin 3.11, which still bundles it.
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      # Installs JS deps and (via the postinstall shim) rebuilds the native
+      # modules against Electron's ABI for this runner's OS.
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type-check
+        run: npm run typecheck
+
+      - name: Build renderer + main
+        run: npm run build
+
+      # macOS: sign + notarize ONLY on a tag build with the FULL Apple
+      # credential set present. PR/manual runs — and tag builds with a
+      # partial/missing secret set — build unsigned so CI stays green and
+      # notarization never fails late.
+      - name: Package (macOS)
+        if: matrix.os == 'macos-latest'
+        env:
+          CSC_LINK: ${{ secrets.MAC_CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.MAC_CSC_KEY_PASSWORD }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          IS_TAG: ${{ startsWith(github.ref, 'refs/tags/v') }}
+        run: |
+          if [ "$IS_TAG" = "true" ] && [ -n "$CSC_LINK" ] && [ -n "$CSC_KEY_PASSWORD" ] \
+             && [ -n "$APPLE_ID" ] && [ -n "$APPLE_APP_SPECIFIC_PASSWORD" ] && [ -n "$APPLE_TEAM_ID" ]; then
+            echo "Tag build with full Apple credential set — signing + notarizing"
+            npx electron-builder --mac --publish never --config electron-builder.yml
+          else
+            echo "Building unsigned (PR/manual run, or signing secrets incomplete)"
+            # Clear signing creds so electron-builder can't auto-sign from a
+            # partial/PR-available secret set — this path must stay unsigned.
+            unset CSC_LINK CSC_KEY_PASSWORD APPLE_ID APPLE_APP_SPECIFIC_PASSWORD APPLE_TEAM_ID
+            export CSC_IDENTITY_AUTO_DISCOVERY=false
+            npx electron-builder --mac --publish never -c.mac.notarize=false --config electron-builder.yml
+          fi
+
+      # Windows: sign only on a tag build when WIN_CSC_LINK is set; else unsigned.
+      - name: Package (Windows)
+        if: matrix.os == 'windows-2022'
+        env:
+          CSC_LINK: ${{ secrets.WIN_CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.WIN_CSC_KEY_PASSWORD }}
+          IS_TAG: ${{ startsWith(github.ref, 'refs/tags/v') }}
+        shell: bash
+        run: |
+          if [ "$IS_TAG" = "true" ] && [ -n "$CSC_LINK" ]; then
+            echo "Tag build with Windows cert — signing"
+          else
+            echo "Building unsigned"
+            unset CSC_LINK CSC_KEY_PASSWORD
+          fi
+          npx electron-builder --win --publish never --config electron-builder.yml
+
+      - name: Package (Linux)
+        if: matrix.os == 'ubuntu-latest'
+        run: npx electron-builder --linux --publish never --config electron-builder.yml
+
+      # Distributable artifacts + electron-updater metadata (latest*.yml,
+      # blockmaps) — not the multi-hundred-MB unpacked app directories.
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: popbot-${{ matrix.os }}
+          retention-days: 14
+          if-no-files-found: error
+          path: |
+            release/*.dmg
+            release/*.exe
+            release/*.AppImage
+            release/*.zip
+            release/*.blockmap
+            release/latest*.yml
+
+  release:
+    # Publish a GitHub Release only for tag pushes, once all platforms built.
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download all build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      # fail_on_unmatched_files is left off: not every platform emits every
+      # glob (e.g. blockmaps depend on target type), and a missing optional
+      # artifact shouldn't abort the release. `if-no-files-found: error` on
+      # the upload step already guarantees each platform produced output.
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: PopBot ${{ github.ref_name }}
+          generate_release_notes: true
+          files: |
+            dist/*.dmg
+            dist/*.exe
+            dist/*.AppImage
+            dist/*.zip
+            dist/*.blockmap
+            dist/latest*.yml

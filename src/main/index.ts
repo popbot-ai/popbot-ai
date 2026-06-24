@@ -65,7 +65,8 @@ import { registerSlackHandlers } from './ipc/slack';
 import { startSlackPoller, stopSlackPoller } from './slack/poll';
 import { pruneOlderThan } from './persistence/notifications';
 import { attachWebContents as attachTermWindow, disposeAll as disposeAllPtys } from './term/ptyManager';
-import { startUpdateChecker, stopUpdateChecker, checkForUpdates } from './updates/check';
+import { checkForUpdates } from './updates/check';
+import { startAutoUpdater, stopAutoUpdater, quitAndInstallUpdate } from './updates/autoUpdate';
 
 const isDev = !app.isPackaged;
 
@@ -299,6 +300,7 @@ function sendShowAbout(): void {
 function registerCoreHandlers(): void {
   ipcMain.handle(IpcChannel.AppGetVersion, () => app.getVersion());
   ipcMain.handle(IpcChannel.UpdatesCheck, () => checkForUpdates());
+  ipcMain.on(IpcChannel.UpdatesInstall, () => quitAndInstallUpdate());
   // Quit from the custom titlebar menu (Windows, where the native menu
   // bar is hidden). Routes through app.quit() so the before-quit flush
   // (SDK session JSONLs) still runs.
@@ -481,7 +483,7 @@ void app.whenReady().then(async () => {
   }
   const win = createMainWindow();
   attachTermWindow(win.webContents);
-  startUpdateChecker();
+  startAutoUpdater();
   startSentryPoller();
   startSlackPoller();
   // Loud failure if `claude` isn't on PATH — without this the user sees
@@ -513,7 +515,7 @@ app.on('before-quit', (event) => {
   // found" when trying to resume.
   event.preventDefault();
   isQuitting = true;
-  stopUpdateChecker();
+  stopAutoUpdater();
   stopSentryPoller();
   stopSlackPoller();
   disposeAllPtys();

@@ -10,6 +10,20 @@ export interface UpdateInfo {
   name: string;
 }
 
+/** electron-updater download progress push. */
+export interface UpdateProgress {
+  /** Percent downloaded, 0–100. */
+  percent: number;
+}
+
+/** Payload for the "update downloaded, ready to install" push. */
+export interface UpdateReady {
+  /** The version that was downloaded and staged (no `v` prefix). */
+  version: string;
+  /** Release name, if known (e.g. "PopBot v0.0.18"). */
+  name: string;
+}
+
 /** Result of an on-demand update check (Help ▸ About ▸ Check for updates). */
 export interface UpdateCheckResult {
   /** The version this app is running (no `v` prefix). */

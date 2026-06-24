@@ -44,6 +44,14 @@ nsis:
   oneClick: false
   perMachine: false
   allowToChangeInstallationDirectory: true
+linux:
+  target:
+    - AppImage
+    - zip
+  category: Development
+  synopsis: Multi-chat, multi-slot agentic coding tool
+  # electron-builder derives the Linux icon set from build/icon.png
+  # (1024x1024) automatically — no platform-specific icon needed.
 dmg:
   # Volume icon shown when the .dmg is mounted. Without this,
   # electron-builder falls back to a default flat square — looks bad
@@ -57,4 +65,13 @@ dmg:
       y: 220
       type: link
       path: /Applications
-publish: null
+# GitHub provider — used to GENERATE update metadata (latest-mac.yml,
+# latest.yml, latest-linux.yml + blockmaps) during the build. CI builds
+# with `--publish never`, so electron-builder never uploads directly; the
+# release workflow attaches these files to the GitHub Release. The in-app
+# update check reads releases from this repo, and this metadata is what the
+# in-app electron-updater (src/main/updates/autoUpdate.ts) consumes.
+publish:
+  provider: github
+  owner: popbot-ai
+  repo: popbot-ai

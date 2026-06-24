@@ -908,7 +908,14 @@ export default function App(): JSX.Element {
   // Native macOS app menu → "About PopBot" opens our custom dialog.
   useEffect(() => window.popbot.updates.onShowAbout(() => setAboutOpen(true)), []);
 
-  const { available: update, dismiss: dismissUpdate } = useUpdates();
+  const {
+    available: update,
+    downloaded: updateReady,
+    dismiss: dismissUpdate,
+    install: installUpdate,
+  } = useUpdates();
+  // Manual-download fallback (unsigned build / updater error): open the
+  // release page in the browser.
   useEffect(() => {
     if (!update) return;
     setToast({
@@ -921,6 +928,16 @@ export default function App(): JSX.Element {
       },
     });
   }, [update, dismissUpdate]);
+  // In-app auto-update staged and ready: clicking quits and relaunches into
+  // the new version.
+  useEffect(() => {
+    if (!updateReady) return;
+    setToast({
+      message: `Update ready — ${updateReady.name}`,
+      detail: `v${updateReady.version} downloaded. Click to restart and install.`,
+      onClick: () => installUpdate(),
+    });
+  }, [updateReady, installUpdate]);
 
   /** Best-effort default repo for "no-prompt" chat creation paths
    *  (review chats, Slack chats) — they don't surface the

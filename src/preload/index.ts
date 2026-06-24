@@ -1,6 +1,6 @@
 import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron';
 import type { AgentEvent } from '@shared/agent';
-import type { UpdateInfo } from '@shared/updates';
+import type { UpdateInfo, UpdateProgress, UpdateReady } from '@shared/updates';
 import type { NotificationRecord, NotifyInput } from '@shared/notifications';
 import type {
   GitCommitInput,
@@ -175,6 +175,17 @@ const api: PopBotApi = {
       ipcRenderer.on(IpcChannel.UpdateAvailable, listener);
       return () => ipcRenderer.removeListener(IpcChannel.UpdateAvailable, listener);
     },
+    onProgress: (handler: (progress: UpdateProgress) => void) => {
+      const listener = (_e: IpcRendererEvent, progress: UpdateProgress) => handler(progress);
+      ipcRenderer.on(IpcChannel.UpdateProgress, listener);
+      return () => ipcRenderer.removeListener(IpcChannel.UpdateProgress, listener);
+    },
+    onDownloaded: (handler: (info: UpdateReady) => void) => {
+      const listener = (_e: IpcRendererEvent, info: UpdateReady) => handler(info);
+      ipcRenderer.on(IpcChannel.UpdateDownloaded, listener);
+      return () => ipcRenderer.removeListener(IpcChannel.UpdateDownloaded, listener);
+    },
+    install: () => ipcRenderer.send(IpcChannel.UpdatesInstall),
     check: () => ipcRenderer.invoke(IpcChannel.UpdatesCheck),
     onShowAbout: (handler: () => void) => {
       const listener = (): void => handler();
