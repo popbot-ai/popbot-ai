@@ -36,7 +36,6 @@ mac:
 win:
   target:
     - nsis
-    - zip
   # No code-signing wired up for Windows yet — builds are unsigned, so
   # SmartScreen will warn on first launch. Set CSC_LINK / CSC_KEY_PASSWORD
   # (a .pfx) at build time to sign.
@@ -47,7 +46,6 @@ nsis:
 linux:
   target:
     - AppImage
-    - zip
   category: Development
   synopsis: Multi-chat, multi-slot agentic coding tool
   # electron-builder derives the Linux icon set from build/icon.png

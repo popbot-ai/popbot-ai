@@ -158,6 +158,16 @@ jobs:
           name: PopBot ${{ needs.version.outputs.tag }}
           prerelease: ${{ inputs.channel == 'prerelease' }}
           generate_release_notes: true
+          body: |
+            ### Which file do I download?
+            - **macOS** → the `.dmg`
+            - **Windows** → the `Setup … .exe`
+            - **Linux** → the `.AppImage`
+
+            The `.yml`, `.blockmap`, and `-mac.zip` files are used by the in-app
+            auto-updater — you can ignore them.
+
+            ---
           files: |
             dist/*.dmg
             dist/*.exe
