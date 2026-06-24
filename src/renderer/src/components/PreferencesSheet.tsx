@@ -367,6 +367,7 @@ function IconSelect({ value, onChange, options }: { value: string; onChange: (v:
   const [active, setActive] = useState(0);
   const ref = useRef<HTMLDivElement | null>(null);
   const btnRef = useRef<HTMLButtonElement | null>(null);
+  const itemRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const currentIndex = Math.max(0, options.findIndex((t) => t.id === value));
   const current = options[currentIndex] ?? options[0];
 
@@ -391,6 +392,10 @@ function IconSelect({ value, onChange, options }: { value: string; onChange: (v:
 
   // Each time we open, start the cursor on the current selection.
   useEffect(() => { if (open) setActive(currentIndex); }, [open, currentIndex]);
+
+  // Move DOM focus to the active option so screen readers announce it and
+  // keyboard users see a real focus ring while arrowing through the menu.
+  useEffect(() => { if (open) itemRefs.current[active]?.focus(); }, [open, active]);
 
   const choose = (i: number): void => {
     const opt = options[i];
@@ -444,6 +449,7 @@ function IconSelect({ value, onChange, options }: { value: string; onChange: (v:
           {options.map((t, i) => (
             <button
               key={t.id}
+              ref={(el) => { itemRefs.current[i] = el; }}
               type="button"
               className={`tracker-dd-item${t.id === value ? ' selected' : ''}${i === active ? ' active' : ''}`}
               role="option"
@@ -596,7 +602,7 @@ function PrefsGit(): JSX.Element {
   const [username, setUsername] = useState(initial.username ?? '');
   const [savedAt, setSavedAt] = useState<number | null>(null);
 
-  // Same sync-on-load fix as PrefsRuntime / PrefsApps. Without this,
+  // Same sync-on-load fix as PrefsApps / UnityConfig. Without this,
   // useState captures defaults while useSettings is still loading and
   // a subsequent Save overwrites real persisted values with defaults.
   useEffect(() => { setUsername(initial.username ?? ''); }, [initial.username]);

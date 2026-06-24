@@ -677,8 +677,8 @@ function SlotAppButtons({
     if (!res.ok) {
       // Specific routing: Unity-not-configured opens the prefs page
       // instead of nagging with an alert. Unity config now lives under
-      // Integrations (the standalone Unity section was removed), so deep
-      // -link there rather than the now-nonexistent 'unity' section.
+      // Integrations (the standalone Unity section was removed), so we
+      // deep-link there rather than the now-nonexistent 'unity' section.
       if (
         kind === 'unity' &&
         'reason' in res &&
