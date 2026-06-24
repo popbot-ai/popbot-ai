@@ -21,13 +21,25 @@ fixShellPath();
 // menu's first item.
 app.setName('PopBot');
 
-// WSLg doesn't forward the Windows display scale factor, so the UI
-// renders too small next to native Windows apps. Match the Windows
-// scaling (default 1.25 / 125%; override with POPBOT_SCALE). Real Linux
-// desktops follow their own DE scaling, so this is WSL-only. Must run
-// before the app `ready` event.
-if (process.platform === 'linux' && (process.env.WSL_DISTRO_NAME || process.env.WSL_INTEROP)) {
-  app.commandLine.appendSwitch('force-device-scale-factor', process.env.POPBOT_SCALE || '1.25');
+// Linux graphics init (must run before the app `ready` event).
+if (process.platform === 'linux') {
+  // Let Electron pick the right windowing backend instead of forcing
+  // X11: `auto` uses native Wayland when WAYLAND_DISPLAY is set, else
+  // X11. This is Electron's recommended cross-desktop default — X11
+  // desktops keep working, Wayland desktops (GNOME/KDE/Sway) go native,
+  // and it fixes WSLg, where the default XWayland path frequently fails
+  // to present a frame (blank window / "nothing shows").
+  app.commandLine.appendSwitch('ozone-platform-hint', 'auto');
+
+  // The rest is genuinely WSL-specific — real distros have a working GPU
+  // and their own DE scaling, so we don't touch those.
+  if (process.env.WSL_DISTRO_NAME || process.env.WSL_INTEROP) {
+    // WSLg runs the GPU in software; hardware compositing is unreliable.
+    app.disableHardwareAcceleration();
+    // WSLg doesn't forward the Windows display scale (default 1.25 /
+    // 125%; override with POPBOT_SCALE).
+    app.commandLine.appendSwitch('force-device-scale-factor', process.env.POPBOT_SCALE || '1.25');
+  }
 }
 import { clearStaleRunningStatuses } from './persistence/chats';
 import { getSetting, setSetting } from './persistence/settings';
