@@ -104,7 +104,7 @@ jobs:
 
       # Windows: sign only on a tag build when WIN_CSC_LINK is set; else unsigned.
       - name: Package (Windows)
-        if: matrix.os == 'windows-latest'
+        if: matrix.os == 'windows-2022'
         env:
           CSC_LINK: ${{ secrets.WIN_CSC_LINK }}
           CSC_KEY_PASSWORD: ${{ secrets.WIN_CSC_KEY_PASSWORD }}
