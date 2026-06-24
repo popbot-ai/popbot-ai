@@ -20,6 +20,15 @@ fixShellPath();
 // "Electron" if even that isn't set, which leaks into the macOS app
 // menu's first item.
 app.setName('PopBot');
+
+// WSLg doesn't forward the Windows display scale factor, so the UI
+// renders too small next to native Windows apps. Match the Windows
+// scaling (default 1.25 / 125%; override with POPBOT_SCALE). Real Linux
+// desktops follow their own DE scaling, so this is WSL-only. Must run
+// before the app `ready` event.
+if (process.platform === 'linux' && (process.env.WSL_DISTRO_NAME || process.env.WSL_INTEROP)) {
+  app.commandLine.appendSwitch('force-device-scale-factor', process.env.POPBOT_SCALE || '1.25');
+}
 import { clearStaleRunningStatuses } from './persistence/chats';
 import { getSetting, setSetting } from './persistence/settings';
 import { AgentHost } from './agents/AgentHost';
@@ -42,7 +51,7 @@ import { registerSlackHandlers } from './ipc/slack';
 import { startSlackPoller, stopSlackPoller } from './slack/poll';
 import { pruneOlderThan } from './persistence/notifications';
 import { attachWebContents as attachTermWindow, disposeAll as disposeAllPtys } from './term/ptyManager';
-import { startUpdateChecker, stopUpdateChecker } from './updates/check';
+import { startUpdateChecker, stopUpdateChecker, checkForUpdates } from './updates/check';
 
 const isDev = !app.isPackaged;
 
@@ -154,6 +163,35 @@ function persistWindowState(win: BrowserWindow): void {
 function createMainWindow(): BrowserWindow {
   const saved = readSavedWindowState();
   const bounds = saved.bounds ?? DEFAULT_BOUNDS;
+  const isMac = process.platform === 'darwin';
+  const isWin = process.platform === 'win32';
+  // Window chrome, per platform:
+  //  - macOS: inset traffic lights; the app draws the rest of the bar
+  //    (system menu bar lives at the top of the screen).
+  //  - Windows: hide the OS title bar but keep native min/max/close via
+  //    the Window Controls Overlay (titleBarOverlay); the app draws its
+  //    own menu bar in the freed space.
+  //  - Linux: `titleBarOverlay` is unreliable across WMs/WSLg, so go
+  //    FULLY frameless (`frame: false`) and draw our own window controls
+  //    (the menu bar already has the win.action IPC). Works on every WM.
+  //  `autoHideMenuBar` hides the native menu bar (we render our own)
+  //  while keeping its accelerators alive.
+  const TITLEBAR_H = 40;
+  const chrome: Electron.BrowserWindowConstructorOptions = isMac
+    ? { titleBarStyle: 'hiddenInset', trafficLightPosition: { x: 14, y: 14 } }
+    : isWin
+      ? {
+          titleBarStyle: 'hidden',
+          autoHideMenuBar: true,
+          // Match the side panels' surface so the native caption-button
+          // area blends with our custom titlebar + the left/right panels.
+          titleBarOverlay: {
+            color: '#14181f',
+            symbolColor: '#9aa4b2',
+            height: TITLEBAR_H,
+          },
+        }
+      : { frame: false, autoHideMenuBar: true }; // Linux: fully frameless.
   const window = new BrowserWindow({
     x: saved.bounds?.x,
     y: saved.bounds?.y,
@@ -163,8 +201,7 @@ function createMainWindow(): BrowserWindow {
     minHeight: 640,
     show: false,
     backgroundColor: '#0e0e12',
-    titleBarStyle: 'hiddenInset',
-    trafficLightPosition: { x: 14, y: 14 },
+    ...chrome,
     icon: ICON_PATH,
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
@@ -186,7 +223,35 @@ function createMainWindow(): BrowserWindow {
   window.on('resize', scheduleSave);
   window.on('close', () => persistWindowState(window));
 
+  // Keep the custom menu bar's Maximize/Restore labels in sync.
+  const sendMax = (maximized: boolean): void => {
+    if (!window.isDestroyed()) window.webContents.send(IpcChannel.WinMaximizeChanged, maximized);
+  };
+  window.on('maximize', () => sendMax(true));
+  window.on('unmaximize', () => sendMax(false));
+
   window.on('ready-to-show', () => window.show());
+
+  // Safety net: the window is created hidden and normally revealed on the
+  // renderer's first paint (`ready-to-show`). Under some environments —
+  // notably WSLg with software rendering — that event can be delayed or
+  // never fire, leaving the window permanently invisible. Show it anyway
+  // after a short grace period (no-op if it's already visible).
+  setTimeout(() => {
+    if (!window.isDestroyed() && !window.isVisible()) {
+      console.warn('[window] ready-to-show did not fire in 2.5s — showing anyway');
+      window.show();
+    }
+  }, 2500);
+
+  // Surface renderer load / crash failures to the terminal so a blank
+  // window isn't a silent mystery.
+  window.webContents.on('did-fail-load', (_e, code, desc, url) => {
+    console.error(`[window] did-fail-load: ${code} ${desc} (${url})`);
+  });
+  window.webContents.on('render-process-gone', (_e, details) => {
+    console.error('[window] render-process-gone:', details);
+  });
 
   window.webContents.setWindowOpenHandler(({ url }) => {
     void openUrlInPreferredBrowser(url);
@@ -195,7 +260,13 @@ function createMainWindow(): BrowserWindow {
 
   if (isDev && process.env.ELECTRON_RENDERER_URL) {
     void window.loadURL(process.env.ELECTRON_RENDERER_URL);
-    window.webContents.openDevTools({ mode: 'detach' });
+    // Skip the auto-opened detached DevTools under WSL — it spawns a
+    // confusing second top-level window (and renders poorly under WSLg's
+    // software compositor). Open it manually via View → Toggle DevTools
+    // (or Ctrl+Shift+I) when needed.
+    const underWsl = process.platform === 'linux'
+      && (process.env.WSL_DISTRO_NAME || process.env.WSL_INTEROP);
+    if (!underWsl) window.webContents.openDevTools({ mode: 'detach' });
   } else {
     void window.loadFile(join(__dirname, '../renderer/index.html'));
   }
@@ -204,8 +275,48 @@ function createMainWindow(): BrowserWindow {
   return window;
 }
 
+/** Open the About dialog in the focused (or first) window. Used by the
+ *  native macOS app menu, which can't render our in-app menu bar. */
+function sendShowAbout(): void {
+  const win = BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0];
+  if (win && !win.isDestroyed()) win.webContents.send(IpcChannel.ShowAbout);
+}
+
 function registerCoreHandlers(): void {
   ipcMain.handle(IpcChannel.AppGetVersion, () => app.getVersion());
+  ipcMain.handle(IpcChannel.UpdatesCheck, () => checkForUpdates());
+  // Quit from the custom titlebar menu (Windows, where the native menu
+  // bar is hidden). Routes through app.quit() so the before-quit flush
+  // (SDK session JSONLs) still runs.
+  ipcMain.handle(IpcChannel.AppQuit, () => app.quit());
+  // Window / edit / view commands from the custom menu bar. Acts on the
+  // window that sent the request so it works regardless of which window
+  // (we only have one today, but keep it correct).
+  ipcMain.handle(IpcChannel.WinAction, (e, name: import('@shared/ipc').WinActionName) => {
+    const win = BrowserWindow.fromWebContents(e.sender);
+    if (!win) return;
+    const wc = win.webContents;
+    switch (name) {
+      case 'minimize': win.minimize(); return;
+      case 'maximize-toggle':
+        if (win.isMaximized()) win.unmaximize(); else win.maximize();
+        return win.isMaximized();
+      case 'close': win.close(); return;
+      case 'is-maximized': return win.isMaximized();
+      case 'undo': wc.undo(); return;
+      case 'redo': wc.redo(); return;
+      case 'cut': wc.cut(); return;
+      case 'copy': wc.copy(); return;
+      case 'paste': wc.paste(); return;
+      case 'select-all': wc.selectAll(); return;
+      case 'reload': wc.reload(); return;
+      case 'force-reload': wc.reloadIgnoringCache(); return;
+      case 'toggle-devtools': wc.toggleDevTools(); return;
+      case 'zoom-in': wc.setZoomLevel(wc.getZoomLevel() + 0.5); return;
+      case 'zoom-out': wc.setZoomLevel(wc.getZoomLevel() - 0.5); return;
+      case 'zoom-reset': wc.setZoomLevel(0); return;
+    }
+  });
 }
 
 /** Build the application menu. We mostly want Electron's defaults
@@ -219,7 +330,7 @@ function installAppMenu(): void {
     ...(isMac ? [{
       label: app.name,
       submenu: [
-        { role: 'about' as const },
+        { label: 'About PopBot', click: () => sendShowAbout() },
         { type: 'separator' as const },
         { role: 'hide' as const },
         { role: 'hideOthers' as const },

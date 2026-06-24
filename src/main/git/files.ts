@@ -33,6 +33,37 @@ async function git(cwd: string, args: string[]): Promise<{ stdout: string; stder
   }
 }
 
+/** Slug a name into a git-ref-safe branch username segment. */
+function slugUsername(s: string): string {
+  return s.trim().toLowerCase().replace(/[^a-z0-9-]+/g, '-').replace(/^-+|-+$/g, '');
+}
+
+/**
+ * Derive a branch-name username without asking the user, in priority:
+ *   1. The GitHub login (`gh api user`) — branches/PRs target GitHub.
+ *   2. The local-part of `git config user.email`.
+ *   3. `git config user.name`.
+ * Returns '' if none resolve (caller falls back to a default).
+ */
+export async function deriveGitUsername(cwd: string): Promise<string> {
+  try {
+    const { stdout } = await execFileP('gh', ['api', 'user', '--jq', '.login'], { timeout: 4000 });
+    const login = slugUsername(stdout);
+    if (login) return login;
+  } catch { /* gh missing / not authed */ }
+  try {
+    const { stdout } = await execFileP('git', ['config', 'user.email'], { cwd, timeout: 3000 });
+    const local = slugUsername(stdout.trim().split('@')[0] ?? '');
+    if (local) return local;
+  } catch { /* no email configured */ }
+  try {
+    const { stdout } = await execFileP('git', ['config', 'user.name'], { cwd, timeout: 3000 });
+    const name = slugUsername(stdout);
+    if (name) return name;
+  } catch { /* no name configured */ }
+  return '';
+}
+
 function classifyStatus(x: string, y: string): GitFileStatus {
   if (x === '?' && y === '?') return 'untracked';
   if (x === 'U' || y === 'U' || (x === 'A' && y === 'A') || (x === 'D' && y === 'D')) return 'conflict';
@@ -230,43 +261,41 @@ export async function commitFiles(
  * `origin/` remote branches because release-candidate branches often
  * exist only on origin.
  */
-export async function listBaseBranches(wt: string, limit = 3): Promise<GitBaseBranches> {
-  // Refresh remote-tracking refs first so newly-cut release-candidate
-  // branches (e.g. rc-1.29 created today on origin but never fetched
-  // locally) actually appear in the listing. Fail-soft: if we're
-  // offline or origin rejects, fall back to the cached refs we
-  // already have rather than blocking chat creation.
+/** Branches floated to the top of the picker — the usual base branches.
+ *  Everything else stays in most-recently-committed order. */
+const PRIORITY_BRANCHES = ['main', 'master', 'develop', 'development', 'trunk'];
+
+export async function listBaseBranches(wt: string): Promise<GitBaseBranches> {
+  // Refresh remote-tracking refs first so branches created on origin but
+  // never fetched locally still appear. Fail-soft: offline / origin
+  // rejects → fall back to cached refs rather than blocking chat create.
   await git(wt, ['fetch', 'origin', '--prune', '--quiet']).catch(() => undefined);
-  const [local, remote, develop] = await Promise.all([
-    git(wt, ['for-each-ref', '--format=%(refname:short)', 'refs/heads/rc-1.*']).catch(() => ({ stdout: '', stderr: '' })),
-    git(wt, ['for-each-ref', '--format=%(refname:short)', 'refs/remotes/origin/rc-1.*']).catch(() => ({ stdout: '', stderr: '' })),
-    // Probe for develop in either local or remote — `--verify --quiet`
-    // exits 0/1 cleanly, no stderr to parse.
-    Promise.all([
-      git(wt, ['rev-parse', '--verify', '--quiet', 'refs/heads/develop']).then(() => true).catch(() => false),
-      git(wt, ['rev-parse', '--verify', '--quiet', 'refs/remotes/origin/develop']).then(() => true).catch(() => false),
-    ]).then(([a, b]) => a || b),
-  ]);
-  // Merge local + remote, dedupe by name (after stripping `origin/`),
-  // then sort by the numeric version. "Latest" for rc-1.X means
-  // highest X — a stale rc-1.27 with recent local commits should not
-  // outrank rc-1.29 just because committerdate puts it first.
+  // Every local + origin branch, newest commit first. No naming-convention
+  // filtering — the picker searches this list and the user chooses.
+  const { stdout } = await git(wt, [
+    'for-each-ref',
+    '--format=%(refname:short)',
+    '--sort=-committerdate',
+    'refs/heads/',
+    'refs/remotes/origin/',
+  ]).catch(() => ({ stdout: '', stderr: '' }));
   const seen = new Set<string>();
-  const versions: Array<{ name: string; version: number }> = [];
-  const VERSION_RE = /^rc-1\.(\d+)$/;
-  for (const line of [...local.stdout.split('\n'), ...remote.stdout.split('\n')]) {
+  const branches: string[] = [];
+  for (const line of stdout.split('\n')) {
     const name = line.replace(/^origin\//, '').trim();
-    if (!name || seen.has(name)) continue;
+    // Skip the symbolic origin/HEAD ref and any duplicates.
+    if (!name || name === 'HEAD' || name.endsWith('/HEAD') || seen.has(name)) continue;
     seen.add(name);
-    const m = VERSION_RE.exec(name);
-    // Skip names that don't parse cleanly (rc-1.x-foo, etc.) — we
-    // only want canonical release-candidate branches in the picker.
-    if (!m) continue;
-    versions.push({ name, version: Number(m[1]) });
+    branches.push(name);
   }
-  versions.sort((a, b) => b.version - a.version);
-  const candidates = versions.slice(0, limit).map((v) => v.name);
-  return { hasDevelop: develop, releaseCandidates: candidates };
+  // Stable-sort the well-known base branches to the front, preserving the
+  // committerdate order for everything else.
+  branches.sort((a, b) => {
+    const ai = PRIORITY_BRANCHES.indexOf(a);
+    const bi = PRIORITY_BRANCHES.indexOf(b);
+    return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi);
+  });
+  return { branches };
 }
 
 /**

@@ -7,6 +7,7 @@ import type {
   GitStatusResult,
 } from '@shared/git';
 import { useGitStatus } from '../lib/useGitStatus';
+import { hotkey } from '../lib/hotkeys';
 import { ConfirmDialog } from './ConfirmDialog';
 import { BaseBranchDialog } from './BaseBranchDialog';
 import {
@@ -683,7 +684,7 @@ export function GitPanel({
                       : !chatId
                   }
                   onClick={() => void runAction()}
-                  title={`${MODE_META[mode].label} (⌘↵)`}
+                  title={`${MODE_META[mode].label} (${hotkey('Enter')})`}
                 >
                   <i className={`fa-solid ${MODE_META[mode].icon}`} />
                   &nbsp;{MODE_META[mode].label}

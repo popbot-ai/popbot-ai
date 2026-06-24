@@ -41,7 +41,7 @@ function resolvePaths(): ResolvedGitPaths | null {
   const s = getSetting<GitSettingsView>('git');
   if (!s?.repoPath) return null;
   const repoName = (s.repoName?.trim()
-    || basename(s.repoPath.replace(/\/+$/, '')).toLowerCase()
+    || basename(s.repoPath).toLowerCase()
     || 'app');
   return {
     worktreesDir: s.worktreesDir || join(homedir(), 'popbot', 'workspaces', repoName),
@@ -113,7 +113,7 @@ export function worktreesDirForRepo(repo: Pick<RepoRecord, 'id'>): string {
     // per-install override. Honor it for the seed repo so existing
     // slot folders keep working without re-init.
     const legacyName = (s.repoName?.trim()
-      || (s.repoPath ? basename(s.repoPath.replace(/\/+$/, '')).toLowerCase() : '')
+      || (s.repoPath ? basename(s.repoPath).toLowerCase() : '')
       || 'app');
     if (repo.id === legacyName) return s.worktreesDir;
   }

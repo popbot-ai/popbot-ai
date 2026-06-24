@@ -17,6 +17,8 @@ import {
 import type { PickedAttachment } from '@shared/ipc';
 import type { GitPrInfo } from '@shared/git';
 import { fmtTokens } from '../fixtures/data';
+import type { Readiness } from '../lib/useReadiness';
+import { hotkey } from '../lib/hotkeys';
 import { LiveChatBody } from './LiveChatBody';
 import { useAppsRunning } from '../lib/useAppsRunning';
 import { LinearStateIcon, isPausedState, PAUSED_COLOR } from '../lib/linearIcons';
@@ -483,7 +485,7 @@ export function ChatColumn({
                   was later configured with prefix `ops`. */}
               {chat.repoSlotPrefix
                 ? `${chat.repoSlotPrefix}-${chat.slotId}`
-                : (chat.worktreePath?.split('/').pop() ?? `Slot ${chat.slotId}`)}
+                : (chat.worktreePath?.split(/[/\\]/).pop() ?? `Slot ${chat.slotId}`)}
             </span>
           )}
           {/* Ephemeral chats have no slot id — they get an outline-style
@@ -498,7 +500,7 @@ export function ChatColumn({
               style={chat.repoColor ? { color: chat.repoColor, borderColor: chat.repoColor } : undefined}
               title={`Worktree · ${chat.worktreePath}`}
             >
-              {chat.worktreePath.split('/').pop()}
+              {chat.worktreePath.split(/[/\\]/).pop()}
             </span>
           )}
           {chat.branch && (
@@ -668,7 +670,7 @@ function SlotAppButtons({
   // Main reports running state by slot basename (e.g. 'slot-3') so
   // we don't have to worry about per-app path conventions in the
   // renderer (Unity's project-subpath setting, etc.).
-  const slotName = worktreePath ? worktreePath.split('/').pop() ?? '' : '';
+  const slotName = worktreePath ? worktreePath.split(/[/\\]/).pop() ?? '' : '';
   const open = async (kind: 'terminal' | 'editor' | 'git' | 'unity') => {
     if (!worktreePath) return;
     const res = await window.popbot.apps.open(kind, worktreePath);
@@ -730,11 +732,261 @@ function SlotAppButtons({
 interface EmptyColumnProps {
   /** When omitted, no close button renders (used for the always-on starting page). */
   onClose?: () => void;
-  onCreateLite: () => void;
-  onCreateClientTest: () => void;
+  /** Start a new chat (the BaseBranchDialog handles repo / branch /
+   *  workspace-mode choices). */
+  onNewChat: () => void;
+  /** Jump into Preferences (optionally at a specific section) for setup. */
+  onOpenPrefs?: (section?: string) => void;
+  /** Shared readiness state (agents + repo) from the parent, so the
+   *  checklist here and the gating of the central + stay in sync. */
+  readiness: Readiness;
 }
 
-export function EmptyColumn({ onClose, onCreateLite, onCreateClientTest }: EmptyColumnProps): JSX.Element {
+/** One line in the readiness checklist: a status dot + label, and an
+ *  optional call-to-action when the item still needs setup. */
+function ReadyRow({
+  state,
+  label,
+  detail,
+  action,
+  okText = 'Ready',
+}: {
+  state: 'ok' | 'missing' | 'optional';
+  label: string;
+  detail?: string;
+  action?: { text: string; onClick: () => void; icon?: string };
+  /** Confirmation shown in the right column when the item is active
+   *  (no setup action) — keeps that column from sitting empty. */
+  okText?: string;
+}): JSX.Element {
+  const icon =
+    state === 'ok' ? 'fa-circle-check'
+      : state === 'optional' ? 'fa-circle-minus'
+        : 'fa-circle-exclamation';
+  const color =
+    state === 'ok' ? 'var(--ok, #46c878)'
+      : state === 'optional' ? 'var(--fg-3)'
+        : 'var(--warn, #e6b04a)';
+  return (
+    <div className="ready-row">
+      <i className={`fa-solid ${icon}`} style={{ color, width: 16, textAlign: 'center', flex: '0 0 auto' }} />
+      <span className="ready-label">{label}</span>
+      {detail && <span className="ready-detail">{detail}</span>}
+      <div className="ready-right">
+        {action ? (
+          <button className="btn primary sm ready-action" onClick={action.onClick}>
+            {action.icon && <i className={`fa-solid ${action.icon}`} />} {action.text}
+          </button>
+        ) : (
+          <span className="ready-ok"><i className="fa-solid fa-check" /> {okText}</span>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Modal that explains the agent capability and points the user to the
+ * VENDOR's official install instructions. We deliberately don't repeat
+ * Anthropic's / OpenAI's install commands here — they change, and we
+ * don't want to be the reason someone installs the CLI incorrectly. We
+ * just describe the 1-2-3 flow and link out to the source of truth.
+ */
+function InstallHelpDialog({
+  provider,
+  onClose,
+}: {
+  provider: 'claude' | 'codex';
+  onClose: () => void;
+}): JSX.Element {
+  const info = provider === 'claude'
+    ? {
+        title: 'Enable the Claude agent',
+        cli: 'Claude Code CLI',
+        vendor: 'Anthropic',
+        intro: 'PopBot runs Anthropic’s official Claude Code CLI — it doesn’t bundle or install it for you. Once the CLI is installed and signed in, PopBot detects it automatically and the Claude agent turns on.',
+        docsUrl: 'https://docs.claude.com/en/docs/claude-code/setup',
+        signin: 'Run claude once and sign in with your Anthropic account.',
+      }
+    : {
+        title: 'Enable the Codex agent',
+        cli: 'Codex CLI',
+        vendor: 'OpenAI',
+        intro: 'Codex is optional — an alternative agent PopBot can drive. PopBot runs OpenAI’s official Codex CLI and doesn’t install it for you. Once it’s installed and signed in, PopBot detects it automatically.',
+        docsUrl: 'https://developers.openai.com/codex/cli/',
+        signin: 'Run codex once and sign in with your OpenAI account.',
+      };
+  const steps: Array<{ title: string; desc: string; cta?: { text: string; onClick: () => void } }> = [
+    {
+      title: `Install the ${info.cli}`,
+      desc: `Follow ${info.vendor}’s official install guide for your operating system.`,
+      cta: { text: `Open ${info.vendor}’s install guide`, onClick: () => window.open(info.docsUrl, '_blank') },
+    },
+    { title: 'Sign in', desc: info.signin },
+    { title: 'Restart PopBot', desc: 'PopBot re-checks on launch and enables the agent automatically.' },
+  ];
+  return (
+    <>
+      <div className="scrim" onClick={onClose} />
+      <div className="modal" data-screen-label={`Modal · install-${provider}`}>
+        <div className="modal-head">
+          <h2>{info.title}</h2>
+        </div>
+        <div className="modal-body">
+          <p className="install-intro">{info.intro}</p>
+          <ol className="install-steps">
+            {steps.map((s, i) => (
+              <li key={i} className="install-step">
+                <span className="install-step-num">{i + 1}</span>
+                <div className="install-step-body">
+                  <div className="install-step-title">{s.title}</div>
+                  <div className="install-step-desc">{s.desc}</div>
+                  {s.cta && (
+                    <button className="btn primary sm" onClick={s.cta.onClick}>
+                      <i className="fa-solid fa-arrow-up-right-from-square" /> {s.cta.text}
+                    </button>
+                  )}
+                </div>
+              </li>
+            ))}
+          </ol>
+        </div>
+        <div className="modal-foot">
+          <button className="btn primary" onClick={onClose}>Got it</button>
+        </div>
+      </div>
+    </>
+  );
+}
+
+/**
+ * The agents + repository readiness checklist. Shared by the empty-chat
+ * pane and the "finish setup" gate modal so both surfaces stay in sync.
+ * Owns its own install-help dialog.
+ */
+export function ReadinessChecklist({
+  readiness: r,
+  onOpenPrefs,
+}: {
+  readiness: Readiness;
+  onOpenPrefs?: (section?: string) => void;
+}): JSX.Element {
+  const [installHelp, setInstallHelp] = useState<'claude' | 'codex' | null>(null);
+  const claudeOk = r.backends?.claude.ok ?? false;
+  const codexOk = r.backends?.codex.ok ?? false;
+  return (
+    <>
+      <div className="ready-card">
+        <div className="ready-card-head">
+          <span>{r.loading ? 'Checking setup…' : r.ready ? 'Ready to go' : 'Finish setup'}</span>
+          <button
+            className="ready-recheck"
+            title="Re-check (after installing a CLI or adding a repo)"
+            onClick={() => r.refresh()}
+            disabled={r.loading}
+          >
+            <i className={`fa-solid fa-arrows-rotate${r.loading ? ' fa-spin' : ''}`} />
+          </button>
+        </div>
+        <ReadyRow
+          state={claudeOk ? 'ok' : 'missing'}
+          label="Claude"
+          detail={claudeOk
+            ? (r.backends?.claude.version?.replace(/\s*\(.*\)$/, '') ?? '')
+            : 'not found'}
+          okText="Online"
+          action={claudeOk ? undefined : {
+            text: 'How to install',
+            onClick: () => setInstallHelp('claude'),
+          }}
+        />
+        <ReadyRow
+          state={codexOk ? 'ok' : 'optional'}
+          label="Codex"
+          detail={codexOk
+            ? (r.backends?.codex.version?.replace(/\s*\(.*\)$/, '') ?? '')
+            : 'optional'}
+          okText="Online"
+          action={codexOk ? undefined : {
+            text: 'How to install',
+            onClick: () => setInstallHelp('codex'),
+          }}
+        />
+        <ReadyRow
+          state={r.hasRepo ? 'ok' : 'missing'}
+          label="Repository"
+          detail={r.hasRepo
+            ? (r.repoCount > 1 ? `${r.repoCount} repos` : (r.repoName ?? ''))
+            : 'none'}
+          okText="Ready"
+          action={r.hasRepo ? undefined : {
+            text: 'Add repository',
+            icon: 'fa-code-fork',
+            onClick: () => onOpenPrefs?.('repos'),
+          }}
+        />
+      </div>
+      {installHelp && (
+        <InstallHelpDialog provider={installHelp} onClose={() => setInstallHelp(null)} />
+      )}
+    </>
+  );
+}
+
+/**
+ * Tiny acknowledgement shown when the user tries to start a chat (via
+ * the +, a shortcut, a ticket, a PR, …) before setup is complete. It
+ * deliberately does NOT reproduce the checklist — that already lives in
+ * the center pane; this just keeps the button from feeling broken and
+ * points the user there.
+ */
+export function ReadinessGateModal({
+  readiness,
+  onClose,
+}: {
+  readiness: Readiness;
+  onClose: () => void;
+}): JSX.Element {
+  const missing = !readiness.hasAgent && !readiness.hasRepo
+    ? 'an AI provider and at least one git repository'
+    : !readiness.hasAgent
+      ? 'an AI provider (Claude or Codex)'
+      : 'at least one git repository';
+  return (
+    <>
+      <div className="scrim" onClick={onClose} />
+      <div className="modal" data-screen-label="Modal · finish-setup">
+        <div className="modal-head">
+          <h2>Finish setup first</h2>
+        </div>
+        <div className="modal-body">
+          PopBot needs {missing} before it can start a chat. Complete the setup steps
+          shown in the center of the screen, then try again.
+        </div>
+        <div className="modal-foot">
+          <button className="btn primary" onClick={onClose}>Got it</button>
+        </div>
+      </div>
+    </>
+  );
+}
+
+export function EmptyColumn({
+  onClose,
+  onNewChat,
+  onOpenPrefs,
+  readiness: r,
+}: EmptyColumnProps): JSX.Element {
+  // Block chat creation until a repo + at least one agent are ready.
+  // While the probe is in-flight, don't disable (avoid a flash of the
+  // disabled state on a machine that's actually set up).
+  const blocked = !r.loading && !r.ready;
+  const gateReason = !r.hasAgent
+    ? 'Install an agent CLI (Claude or Codex) to start a chat.'
+    : !r.hasRepo
+      ? 'Add a repository before starting a chat.'
+      : undefined;
+
   return (
     <div className="col" data-screen-label="Chat · Empty">
       <div className="col-head">
@@ -744,17 +996,33 @@ export function EmptyColumn({ onClose, onCreateLite, onCreateClientTest }: Empty
         <span className="col-name" style={{ color: 'var(--fg-2)' }}>New chat</span>
       </div>
       <div className="col-empty">
-        <div style={{ fontFamily: 'var(--font-mono)', color: 'var(--fg-3)', fontSize: 22 }}>＋</div>
         <h3>Start a new chat</h3>
-        <p>Click a ticket or PR on the left to seed a chat, or pick a starting point below.</p>
-        <div className="options">
-          <button className="btn" onClick={onCreateLite}>+ Lite chat</button>
-          <button className="btn primary" onClick={onCreateClientTest}>+ Client Test chat</button>
-        </div>
-        <div style={{ fontSize: 10.5, color: 'var(--fg-3)', marginTop: 12, lineHeight: 1.6 }}>
-          <span className="kbd">⌘T</span> new chat · <span className="kbd">⌘⇧T</span> from clipboard URL ·{' '}
-          <span className="kbd">⌘K</span> palette
-        </div>
+        <p>Click a ticket or PR on the left to seed a chat, or start one below.</p>
+
+        {/* Once the required pieces (an AI provider + a repo) are ready,
+            the setup checklist disappears — just show the create buttons.
+            Until then, show the checklist (with a re-check button) and a
+            guidance line instead of dead create buttons. */}
+        {r.ready ? (
+          <>
+            <div className="options">
+              <button className="btn primary" onClick={onNewChat}>+ New chat</button>
+            </div>
+            <div style={{ fontSize: 10.5, color: 'var(--fg-3)', marginTop: 12, lineHeight: 1.6 }}>
+              <span className="kbd">{hotkey('T')}</span> new chat · <span className="kbd">{hotkey('T', { shift: true })}</span> from clipboard URL ·{' '}
+              <span className="kbd">{hotkey('K')}</span> palette
+            </div>
+          </>
+        ) : (
+          <>
+            <ReadinessChecklist readiness={r} onOpenPrefs={onOpenPrefs} />
+            {blocked && (
+              <div style={{ fontSize: 12, color: 'var(--warn, #e6b04a)', marginTop: 4 }}>
+                {gateReason} Use the buttons above to finish setup.
+              </div>
+            )}
+          </>
+        )}
       </div>
     </div>
   );

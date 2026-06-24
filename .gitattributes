@@ -1,0 +1,15 @@
+# Normalize line endings. Without this, a Windows checkout with
+# core.autocrlf=true can rewrite shell scripts / shebang files to CRLF,
+# which breaks them on macOS/Linux ("bad interpreter").
+* text=auto eol=lf
+
+# Scripts must stay LF on every platform.
+*.sh   text eol=lf
+*.mjs  text eol=lf
+
+# Binary assets — never touch.
+*.png  binary
+*.ico  binary
+*.icns binary
+*.woff2 binary
+*.ttf  binary

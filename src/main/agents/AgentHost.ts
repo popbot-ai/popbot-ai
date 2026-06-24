@@ -53,16 +53,39 @@ import { persistChatAttachments } from '../attachments/store';
 
 /**
  * Where the Claude SDK stores per-session JSONLs. The SDK encodes a
- * cwd by replacing `/` with `-` (e.g. `/Users/you/code/my-app` →
- * `-Users-you-code-my-app`) and stores transcripts under
- * `~/.claude/projects/<encoded>/<session-id>.jsonl`. We replicate the
- * encoding so we can confirm a session JSONL is actually on disk
- * before asking the SDK to resume it — that lets us turn "SDK rejects
- * pinned id" loops into a clean "spawn fresh" path with diagnostics.
+ * cwd by NFC-normalizing it, then replacing every non-alphanumeric char
+ * with `-` (e.g. `/Users/you/code/my-app` → `-Users-you-code-my-app`,
+ * and on Windows `C:\Users\you\app` → `C--Users-you-app`), and stores
+ * transcripts under `~/.claude/projects/<encoded>/<session-id>.jsonl`.
+ * We replicate that encoding so we can confirm a session JSONL is
+ * actually on disk before asking the SDK to resume it — that lets us
+ * turn "SDK rejects pinned id" loops into a clean "spawn fresh" path
+ * with diagnostics.
+ *
+ * IMPORTANT — why the `/`-only replacement was wrong: it leaves Windows
+ * backslashes / drive-colon untouched, so the path never matches what
+ * the SDK wrote, the existence check always fails, and the boot-time
+ * pin repair wrongly wipes every chat's session_id.
+ *
+ * CAVEAT — long paths: when the encoded string exceeds 200 chars the SDK
+ * truncates to the first 200 + `-` + an internal hash of the original
+ * path. We deliberately do NOT reproduce that hash here (it's an
+ * undocumented SDK internal we can't track reliably), so we return null
+ * for the over-length case. Returning null is the safe choice: every
+ * caller treats it as "can't determine the JSONL path" and skips — in
+ * particular `repairBrokenSessionPins()` leaves the pin intact rather
+ * than wiping a valid session_id. Such sessions still self-heal via the
+ * worktree-scan discovery path. (Realistic trigger: very long Windows
+ * user paths or deeply-nested workspaces.)
  */
+const SDK_ENCODED_DIR_MAX = 200;
+
 export function sdkSessionJsonlPath(cwd: string, sessionId: string): string | null {
   if (!cwd || !sessionId) return null;
-  const encoded = cwd.replace(/\//g, '-');
+  const encoded = cwd.normalize('NFC').replace(/[^a-zA-Z0-9]/g, '-');
+  // Over the SDK's truncation threshold we can't faithfully reproduce
+  // the hashed directory name; bail rather than guess a wrong path.
+  if (encoded.length > SDK_ENCODED_DIR_MAX) return null;
   return join(homedir(), '.claude', 'projects', encoded, `${sessionId}.jsonl`);
 }
 

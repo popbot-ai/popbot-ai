@@ -26,10 +26,11 @@ export class VSCodeEditor implements ExternalEditor {
   readonly id = 'vscode';
   readonly displayName = 'Visual Studio Code';
   fileUrl(absPath: string, line?: number): string {
-    // VS Code expects an absolute path; tolerate relative inputs by
-    // prefixing a slash (rare for our tool-row paths but cheap to
-    // guard).
-    const abs = absPath.startsWith('/') ? absPath : `/${absPath}`;
+    // Normalize to a file-URL path: Windows `C:\a\b` → `/C:/a/b`
+    // (backslashes → `/`, leading slash before the drive letter);
+    // POSIX paths pass through. VS Code expects an absolute path.
+    let abs = absPath.replace(/\\/g, '/');
+    if (!abs.startsWith('/')) abs = `/${abs}`;
     return `vscode://file${abs}${line ? `:${line}` : ''}`;
   }
 }

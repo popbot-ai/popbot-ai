@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type MouseEvent } from 'react';
 import { RAW_CHAT_REPO_ID, type ChatRecord } from '@shared/persistence';
 import { Titlebar } from './components/Titlebar';
+import { AboutDialog } from './components/AboutDialog';
 import { PanelA } from './components/PanelA';
 import { PanelB } from './components/PanelB';
 import { MonitorCard } from './components/MonitorCard';
-import { ChatColumn, EmptyColumn } from './components/ChatColumn';
+import { ChatColumn, EmptyColumn, ReadinessGateModal } from './components/ChatColumn';
 import { PanelD } from './components/PanelD';
 import { GitPanel } from './components/GitPanel';
 import { DiffOverlay } from './components/DiffOverlay';
@@ -34,6 +35,8 @@ import type { NotificationAction, NotificationRecord } from '@shared/notificatio
 import { NotificationToastStack } from './components/NotificationToast';
 import type { CreateChatInput } from '@shared/ipc';
 import { useChats } from './lib/useChats';
+import { useReadiness } from './lib/useReadiness';
+import { hotkey } from './lib/hotkeys';
 import {
   type Chat as ChatFixture,
   type Ticket,
@@ -95,6 +98,25 @@ export default function App(): JSX.Element {
   const [settingsForId, setSettingsForId] = useState<string | null>(null);
   const [prefsOpen, setPrefsOpen] = useState(false);
   const [prefsSection, setPrefsSection] = useState<string | undefined>(undefined);
+  // Bumped whenever setup might have changed (Preferences closed, repos
+  // edited) so the readiness checklist re-probes agents + repos.
+  const [readinessVersion, setReadinessVersion] = useState(0);
+  // Single source of truth for "can the user create a chat yet" — needs
+  // at least one AI provider (claude/codex) AND one repository. Drives
+  // both the empty-pane checklist and the gating of every create
+  // affordance (central +, ⌘T/⌘K, PanelB +, ticket / PR / Slack spawn).
+  const readiness = useReadiness(readinessVersion);
+  // When the user tries to start a chat any other way before setup is
+  // done, we pop the same checklist as the center pane.
+  const [gateOpen, setGateOpen] = useState(false);
+  /** Returns true when a chat can be created; otherwise pops the
+   *  "finish setup" gate modal and returns false. Probe-in-flight is
+   *  treated as ready so we never block on a transient null. */
+  const requireReady = useCallback((): boolean => {
+    if (readiness.loading || readiness.ready) return true;
+    setGateOpen(true);
+    return false;
+  }, [readiness.loading, readiness.ready]);
   const [linearVersion, setLinearVersion] = useState(0);
   // Fire a notification for each Linear issue that wasn't in the
   // previous poll's set. The hook itself silently establishes a
@@ -152,6 +174,8 @@ export default function App(): JSX.Element {
   const [closingChat, setClosingChat] = useState<ChatRecord | null>(null);
   /** True when a chat-create failed because the slot pool is full. */
   const [noSlotsOpen, setNoSlotsOpen] = useState(false);
+  /** About dialog (Help ▸ About PopBot, or the native macOS app menu). */
+  const [aboutOpen, setAboutOpen] = useState(false);
   const { get: getSetting, set: setAppSetting, loading: settingsLoading } = useSettings();
   const [gitPanelOpen, setGitPanelOpen] = useState<boolean>(false);
   // Hydrate sidebar state once settings have loaded; remembers last
@@ -537,8 +561,16 @@ export default function App(): JSX.Element {
       .replace(/-+/g, '-')
       .replace(/^-|-$/g, '');
 
+  // Branch-name username, auto-derived from gh/git (Source-control
+  // override wins). Loaded once so ticket branches read `you/<slug>`.
+  const [branchUsername, setBranchUsername] = useState('pop');
+  useEffect(() => {
+    void window.popbot.git.username().then((u) => { if (u) setBranchUsername(u); });
+  }, []);
+
   const ticketBranch = (t: Ticket): string => {
-    const username = (getSetting<{ username?: string }>('git', {})?.username ?? 'pop').trim() || 'pop';
+    const override = getSetting<{ username?: string }>('git', {})?.username?.trim();
+    const username = override || branchUsername || 'pop';
     return `${username}/${t.id.toLowerCase()}-${slugifyTitle(t.title)}`;
   };
 
@@ -587,6 +619,7 @@ export default function App(): JSX.Element {
       chats.find((c) => c.ticket === t.id) ??
       closedChats.find((c) => c.ticket === t.id);
     if (existing) { void focusOrAttach(existing); return; }
+    if (!requireReady()) return;
     const branch = ticketBranch(t);
     setPendingCreate({
       subtitle: `${t.id} · ${t.title.slice(0, 60)}`,
@@ -684,6 +717,7 @@ export default function App(): JSX.Element {
     // The re-review template is still the right prompt here (it's a
     // re-review request from GitHub's perspective even if PopBot's
     // history is empty).
+    if (!requireReady()) return;
     await createWithSlot(
       {
         name: `[CR] PR #${r.number} · ${r.title.slice(0, 80)}`,
@@ -712,6 +746,7 @@ export default function App(): JSX.Element {
       chats.find((c) => c.pr === r.number) ??
       closedChats.find((c) => c.pr === r.number);
     if (existing) { void focusOrAttach(existing); return; }
+    if (!requireReady()) return;
     // Review chats are read-only against the configured repo: no slot,
     // no worktree, no branch checkout. The agent gets the repo as cwd
     // (via AgentHost's repo-fallback) so `gh` works.
@@ -870,6 +905,9 @@ export default function App(): JSX.Element {
   // Surface "newer release on GitHub" pushes from main as a clickable
   // toast that opens the release page. Reuses the review-toast slot —
   // collisions are rare given the main-side 3h quiet window.
+  // Native macOS app menu → "About PopBot" opens our custom dialog.
+  useEffect(() => window.popbot.updates.onShowAbout(() => setAboutOpen(true)), []);
+
   const { available: update, dismiss: dismissUpdate } = useUpdates();
   useEffect(() => {
     if (!update) return;
@@ -900,11 +938,16 @@ export default function App(): JSX.Element {
     );
 
   const handleSpawnFromSlack = async (s: SlackItem) => {
+    if (!requireReady()) return;
     // Slack chats are exploratory — no slot, no worktree → no base branch.
     await createWithSlot({ name: `${s.ch} · ${s.who}`, type: 'lite', repoId: defaultRepoId() });
   };
 
   const handleNewChat = (type: 'lite' | 'client_test' = 'lite') => {
+    // Hard prerequisites: an AI provider AND a repository. Until both are
+    // set up, pop the "finish setup" checklist instead of opening a
+    // create flow that can't complete.
+    if (!requireReady()) return;
     // No ticket / PR context to source name & branch from — the dialog
     // will collect a subject from the user and derive the branch as
     // `<username>/<slug>`. createWithSlot calls scrollToChat on success
@@ -981,10 +1024,15 @@ export default function App(): JSX.Element {
 
   return (
     <HighlightProvider>
-    <div className="app" data-screen-label="PopBot · Main">
+    <div
+      className={`app${window.popbot.platform === 'win32' ? ' platform-win' : window.popbot.platform === 'linux' ? ' platform-linux' : ''}`}
+      data-screen-label="PopBot · Main"
+    >
       <Titlebar
         onOpenModal={setModal}
         onOpenPrefs={() => openPrefsAt()}
+        onNewChat={() => void handleNewChat('lite')}
+        onOpenAbout={() => setAboutOpen(true)}
         gitPanelOpen={gitPanelOpen}
         onToggleGitPanel={toggleGitPanel}
         onNotificationAction={routeAction}
@@ -1012,7 +1060,7 @@ export default function App(): JSX.Element {
                 ?? closedChats.find((c) => c.id === chatId);
               if (found) void focusOrAttach(found);
             }}
-            onOpenPrefs={() => openPrefsAt()}
+            onOpenPrefs={openPrefsAt}
             linearStatus={linearStatus}
             refreshLinear={refreshLinear}
             onNewReviews={onNewReviews}
@@ -1064,6 +1112,15 @@ export default function App(): JSX.Element {
         <div className="center">
           <div className="center-head" ref={centerHeadRef}>
             <div className="thumbstrip" ref={thumbstripRef}>
+              {fixtures.length === 0 && (
+                <div className="thumbstrip-empty">
+                  <i className="fa-regular fa-images" />
+                  <div className="thumbstrip-empty-text">
+                    <strong>Thumbnails Panel</strong>
+                    <span>Miniature versions of your chats will display here when you open chats.</span>
+                  </div>
+                </div>
+              )}
               {fixtures.map((c, idx) => {
                 const isVisible = idx >= windowStart && idx < windowStart + visibleCols;
                 const isWindowStart = idx === windowStart;
@@ -1103,10 +1160,10 @@ export default function App(): JSX.Element {
               />
             )}
             <div className="center-actions">
-              <button className="iconbtn" title="Command palette ⌘K">⌘K</button>
+              <button className="iconbtn" title={`Command palette ${hotkey('K')}`}>{hotkey('K')}</button>
               <button
                 className="iconbtn primary"
-                title="New chat ⌘T"
+                title={`New chat ${hotkey('T')}`}
                 onClick={() => void handleNewChat('lite')}
               >
                 +
@@ -1132,8 +1189,9 @@ export default function App(): JSX.Element {
             ))}
             {visibleChats.length === 0 && !loading && (
               <EmptyColumn
-                onCreateLite={() => void handleNewChat('lite')}
-                onCreateClientTest={() => void handleNewChat('client_test')}
+                onNewChat={() => void handleNewChat('lite')}
+                onOpenPrefs={openPrefsAt}
+                readiness={readiness}
               />
             )}
           </div>
@@ -1224,15 +1282,21 @@ export default function App(): JSX.Element {
       {settingsChat && <ChatSettingsSheet chat={settingsChat} onClose={() => setSettingsForId(null)} />}
       {prefsOpen && (
         <PreferencesSheet
-          onClose={() => setPrefsOpen(false)}
+          onClose={() => { setPrefsOpen(false); setReadinessVersion((v) => v + 1); }}
           onLinearChanged={() => setLinearVersion((v) => v + 1)}
           onSlotsChanged={() => setSlotConfigVersion((v) => v + 1)}
           // Repo create / update / delete touches the denormalized
           // `repoColor`/`repoMode` columns on chats — refetch the
           // chat list so frame colors and slot pills update live
           // instead of waiting for the next reload.
-          onReposChanged={() => void refresh()}
+          onReposChanged={() => { void refresh(); setReadinessVersion((v) => v + 1); }}
           initialSection={prefsSection}
+        />
+      )}
+      {gateOpen && (
+        <ReadinessGateModal
+          readiness={readiness}
+          onClose={() => setGateOpen(false)}
         />
       )}
       {busy && <BusyOverlay message={busy.message} detail={busy.detail} />}
@@ -1287,6 +1351,7 @@ export default function App(): JSX.Element {
         />
       )}
       {modal && <Modal kind={modal} onClose={() => setModal(null)} />}
+      {aboutOpen && <AboutDialog onClose={() => setAboutOpen(false)} />}
     </div>
     </HighlightProvider>
   );

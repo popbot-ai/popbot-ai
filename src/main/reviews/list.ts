@@ -16,10 +16,37 @@ import { existsSync } from 'node:fs';
 import { promisify } from 'node:util';
 import type { ListReviewsResult, ReviewItem } from '@shared/reviews';
 import { getSetting } from '../persistence/settings';
+import { listRepos } from '../persistence/repos';
 
 const execFileP = promisify(execFile);
 
 interface GitSettingsLite { repoPath?: string }
+
+/**
+ * All configured repo paths the Reviews tab spans — every repo in the
+ * multi-repo store (the "Add Repository" flow writes there), plus the
+ * legacy single-repo `git` setting for back-compat. Deduped, existing on
+ * disk. Empty → 'no-repo'.
+ *
+ * The Reviews panel aggregates PRs across ALL of these, not just one
+ * (GitHub search accepts multiple `repo:` qualifiers in a single query).
+ */
+function configuredRepoPaths(): string[] {
+  const paths: string[] = [];
+  for (const r of listRepos()) {
+    if (r.repoPath && existsSync(r.repoPath) && !paths.includes(r.repoPath)) {
+      paths.push(r.repoPath);
+    }
+  }
+  const legacy = getSetting<GitSettingsLite>('git')?.repoPath;
+  if (legacy && existsSync(legacy) && !paths.includes(legacy)) paths.push(legacy);
+  return paths;
+}
+
+/** First configured repo (single-repo call sites like get-PR-by-number). */
+function resolveReviewRepoPath(): string | null {
+  return configuredRepoPaths()[0] ?? null;
+}
 
 interface ReviewsSettings {
   /** Substrings (case-insensitive) — any match in the PR title drops
@@ -57,13 +84,84 @@ interface GhPr {
   updatedAt: string;
 }
 
-async function ghPrSearch(cwd: string, search: string): Promise<GhPr[]> {
+/** GraphQL PR search — same fields as GH_FIELDS, via the search API. */
+const SEARCH_GQL = `query($q: String!) {
+  search(query: $q, type: ISSUE, first: 100) {
+    nodes {
+      ... on PullRequest {
+        number title url isDraft createdAt updatedAt
+        author { login }
+        headRefName baseRefName
+      }
+    }
+  }
+}`;
+
+interface GqlSearchResponse {
+  data?: { search?: { nodes?: Array<Partial<GhPr> & { author?: { login?: string } | null }> } };
+}
+
+const nameWithOwnerCache = new Map<string, string>();
+
+/** `owner/name` for the repo at `cwd`, cached. Needed because GraphQL
+ *  search isn't scoped by working directory the way `gh pr list` is. */
+async function ghNameWithOwner(cwd: string): Promise<string> {
+  const cached = nameWithOwnerCache.get(cwd);
+  if (cached) return cached;
   const { stdout } = await execFileP(
     'gh',
-    ['pr', 'list', '--state', 'open', '--limit', '100', '--search', search, '--json', GH_FIELDS],
+    ['repo', 'view', '--json', 'nameWithOwner', '-q', '.nameWithOwner'],
+    { cwd, maxBuffer: 64 * 1024 },
+  );
+  const repo = stdout.trim();
+  if (repo) nameWithOwnerCache.set(cwd, repo);
+  return repo;
+}
+
+/** Build the `repo:owner/name …` search prefix spanning every configured
+ *  repo, so one search covers them all. Repos whose remote can't be
+ *  resolved (not a GitHub repo) are skipped. Empty when none resolve. */
+async function reposQualifier(paths: string[]): Promise<string> {
+  const owners = await Promise.all(paths.map((p) => ghNameWithOwner(p).catch(() => '')));
+  return owners.filter(Boolean).map((o) => `repo:${o}`).join(' ');
+}
+
+/**
+ * Run a PR search (scoped to `qualifier`'s repos) and return the matches.
+ *
+ * We go through `gh api graphql` rather than `gh pr list --search`: gh
+ * 2.95.0 regressed the latter (its search GraphQL request returns a
+ * malformed body → "invalid character '{' looking for beginning of
+ * object key string", failing for ANY search). `gh search prs` works but
+ * can't return `headRefName`/`baseRefName`, which we need — so we issue
+ * the search query directly. GitHub's search syntax (`@me`,
+ * `review-requested:`, etc.) is preserved verbatim. `cwd` only needs to
+ * be a directory where `gh` is authed (search itself isn't cwd-scoped).
+ */
+async function ghPrSearch(qualifier: string, search: string, cwd: string): Promise<GhPr[]> {
+  const q = `${qualifier} ${search}`;
+  const { stdout } = await execFileP(
+    'gh',
+    ['api', 'graphql', '-f', `query=${SEARCH_GQL}`, '-F', `q=${q}`],
     { cwd, maxBuffer: 4 * 1024 * 1024 },
   );
-  return JSON.parse(stdout) as GhPr[];
+  const parsed = JSON.parse(stdout) as GqlSearchResponse;
+  const nodes = parsed.data?.search?.nodes ?? [];
+  // type: ISSUE search can include issues; non-PR nodes come back as
+  // empty objects via the inline fragment, so filter by `number`.
+  return nodes
+    .filter((n) => typeof n.number === 'number')
+    .map((n) => ({
+      number: n.number as number,
+      title: n.title ?? '',
+      url: n.url ?? '',
+      author: { login: n.author?.login ?? '' },
+      headRefName: n.headRefName ?? '',
+      baseRefName: n.baseRefName ?? '',
+      isDraft: n.isDraft ?? false,
+      createdAt: n.createdAt ?? '',
+      updatedAt: n.updatedAt ?? '',
+    }));
 }
 
 function classifyError(err: unknown): ListReviewsResult {
@@ -102,13 +200,13 @@ export async function listRecentOpenPrs(): Promise<
   | { ok: true; prs: ReviewItem[] }
   | { ok: false; reason: 'gh-not-found' | 'gh-not-authed' | 'no-repo' | 'error'; error?: string }
 > {
-  const s = getSetting<GitSettingsLite>('git');
-  if (!s?.repoPath || !existsSync(s.repoPath)) {
-    return { ok: false, reason: 'no-repo' };
-  }
+  const paths = configuredRepoPaths();
+  if (!paths.length) return { ok: false, reason: 'no-repo' };
+  const qualifier = await reposQualifier(paths);
+  if (!qualifier) return { ok: false, reason: 'no-repo' };
   const search = `is:pr is:open updated:>${searchSinceIsoDate()}`;
   try {
-    const rows = await ghPrSearch(s.repoPath, search);
+    const rows = await ghPrSearch(qualifier, search, paths[0]);
     const prs: ReviewItem[] = rows.map((pr) => ({
       number: pr.number,
       title: pr.title,
@@ -144,15 +242,13 @@ export async function getReviewByNumber(prNumber: number): Promise<
   | { ok: true; pr: ReviewItem }
   | { ok: false; reason: 'not-found' | 'gh-not-found' | 'gh-not-authed' | 'no-repo' | 'error'; error?: string }
 > {
-  const s = getSetting<GitSettingsLite>('git');
-  if (!s?.repoPath || !existsSync(s.repoPath)) {
-    return { ok: false, reason: 'no-repo' };
-  }
+  const repoPath = resolveReviewRepoPath();
+  if (!repoPath) return { ok: false, reason: 'no-repo' };
   try {
     const { stdout } = await execFileP(
       'gh',
       ['pr', 'view', String(prNumber), '--json', GH_FIELDS],
-      { cwd: s.repoPath, maxBuffer: 1024 * 1024 },
+      { cwd: repoPath, maxBuffer: 1024 * 1024 },
     );
     const data = JSON.parse(stdout) as GhPr;
     const pr: ReviewItem = {
@@ -183,11 +279,11 @@ export async function getReviewByNumber(prNumber: number): Promise<
 }
 
 export async function listPendingReviews(): Promise<ListReviewsResult> {
-  const s = getSetting<GitSettingsLite>('git');
-  if (!s?.repoPath || !existsSync(s.repoPath)) {
-    return { ok: false, reason: 'no-repo' };
-  }
-  const cwd = s.repoPath;
+  const paths = configuredRepoPaths();
+  if (!paths.length) return { ok: false, reason: 'no-repo' };
+  const qualifier = await reposQualifier(paths);
+  if (!qualifier) return { ok: false, reason: 'no-repo' };
+  const cwd = paths[0];
   let requestedFresh: GhPr[] = [];
   let requestedReReview: GhPr[] = [];
   let unreviewed: GhPr[] = [];
@@ -205,9 +301,9 @@ export async function listPendingReviews(): Promise<ListReviewsResult> {
     // because that rule's premise is "PRs with no reviews of any
     // kind" — once you've reviewed, the rule no longer applies.
     [requestedFresh, requestedReReview, unreviewed] = await Promise.all([
-      ghPrSearch(cwd, 'is:pr is:open review-requested:@me -reviewed-by:@me -author:@me'),
-      ghPrSearch(cwd, 'is:pr is:open review-requested:@me reviewed-by:@me -author:@me'),
-      ghPrSearch(cwd, 'is:pr is:open review:none -is:draft -reviewed-by:@me -author:@me'),
+      ghPrSearch(qualifier, 'is:pr is:open review-requested:@me -reviewed-by:@me -author:@me', cwd),
+      ghPrSearch(qualifier, 'is:pr is:open review-requested:@me reviewed-by:@me -author:@me', cwd),
+      ghPrSearch(qualifier, 'is:pr is:open review:none -is:draft -reviewed-by:@me -author:@me', cwd),
     ]);
   } catch (err) {
     return classifyError(err);

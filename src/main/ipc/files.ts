@@ -26,11 +26,14 @@ function resolveChatCwd(chatId: string | null): string | null {
 }
 
 /** Build the URL-scheme deep link for the configured editor (VS Code or
- *  Cursor). Both accept `<scheme>://file/<abs>:<line>`. */
+ *  Cursor). Both accept `<scheme>://file/<abs>:<line>`. Normalizes
+ *  Windows paths: `C:\a\b` → `/C:/a/b` (backslashes → `/`, leading slash
+ *  before the drive letter); POSIX paths pass through unchanged. */
 function editorUrlFor(absPath: string, line?: number): string {
   const editor = (getSetting<{ editorApp?: string }>('apps')?.editorApp || 'vscode').toLowerCase();
   const scheme = editor === 'cursor' ? 'cursor' : 'vscode';
-  const abs = absPath.startsWith('/') ? absPath : `/${absPath}`;
+  let abs = absPath.replace(/\\/g, '/');
+  if (!abs.startsWith('/')) abs = `/${abs}`;
   const lineSuffix = line ? `:${line}` : '';
   return `${scheme}://file${abs}${lineSuffix}`;
 }

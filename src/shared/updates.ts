@@ -9,3 +9,19 @@ export interface UpdateInfo {
   /** Release name as set on GitHub (e.g. "PopBot v0.0.4"). */
   name: string;
 }
+
+/** Result of an on-demand update check (Help ▸ About ▸ Check for updates). */
+export interface UpdateCheckResult {
+  /** The version this app is running (no `v` prefix). */
+  current: string;
+  /** Latest release version, or null if the check couldn't complete. */
+  latest: string | null;
+  /** True when `latest` is strictly newer than `current`. */
+  updateAvailable: boolean;
+  /** GitHub release page for the latest release, if known. */
+  htmlUrl: string | null;
+  /** Latest release name, if known. */
+  name: string | null;
+  /** Present when the check failed (offline, rate-limited, no releases). */
+  error?: string;
+}

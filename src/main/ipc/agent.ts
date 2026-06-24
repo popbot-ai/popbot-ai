@@ -1,11 +1,14 @@
 import { ipcMain } from 'electron';
 import {
   IpcChannel,
+  type AgentBackendsStatus,
   type ApprovePermissionInput,
   type ConfigureAgentInput,
   type SendMessageInput,
 } from '@shared/ipc';
 import { AgentHost } from '../agents/AgentHost';
+import { probeClaude } from '../agents/claudeProbe';
+import { probeCodex } from '../agents/codexProbe';
 
 export function registerAgentHandlers(): void {
   ipcMain.handle(IpcChannel.AgentSend, async (_e, input: SendMessageInput) => {
@@ -18,6 +21,16 @@ export function registerAgentHandlers(): void {
 
   ipcMain.handle(IpcChannel.AgentConfigure, async (_e, input: ConfigureAgentInput) => {
     return AgentHost.configureAgent(input);
+  });
+
+  ipcMain.handle(IpcChannel.AgentBackendsStatus, async (): Promise<AgentBackendsStatus> => {
+    // Re-probe both CLIs on demand so the readiness panel reflects the
+    // live state (the user may have installed claude/codex since boot).
+    const [claude, codex] = await Promise.all([probeClaude(), probeCodex()]);
+    return {
+      claude: { ok: claude.ok, version: claude.version, error: claude.error },
+      codex: { ok: codex.ok, version: codex.version, error: codex.error },
+    };
   });
 
   ipcMain.handle(IpcChannel.AgentApprove, (_e, input: ApprovePermissionInput) => {

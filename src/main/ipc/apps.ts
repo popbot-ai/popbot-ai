@@ -11,7 +11,7 @@ import { ipcMain } from 'electron';
 import { existsSync, readdirSync } from 'node:fs';
 import { execFile, spawn } from 'node:child_process';
 import { basename, join } from 'node:path';
-import { homedir } from 'node:os';
+import { homedir, tmpdir } from 'node:os';
 import { promisify } from 'node:util';
 import { IpcChannel } from '@shared/ipc';
 import { getSetting } from '../persistence/settings';
@@ -36,10 +36,106 @@ interface AppsSettings {
   unityProjectSubpath?: string;
 }
 
+const isMac = process.platform === 'darwin';
+const isWindows = process.platform === 'win32';
+
 async function openApp(appName: string, path: string): Promise<void> {
   // `open -a "<App>" <path>` activates an existing instance pointed
   // at <path> when supported, else launches a fresh one.
   await execFileP('open', ['-a', appName, path]);
+}
+
+/**
+ * Is `bin` resolvable on the Windows PATH? Uses `where.exe`, which exits
+ * 0 (and prints the resolved path) when found, non-zero otherwise. We
+ * probe before spawning because the actual launch is detached + shelled
+ * (`shell: true`), so a missing binary never produces a synchronous throw
+ * nor a child `'error'` event — the shell just exits non-zero out of band.
+ * Without this probe every launch would report success even when nothing
+ * opened. `where` accepts the bare command name and matches `.exe`/`.cmd`
+ * PATHEXT entries (so `code` resolves `code.cmd`, `wt` resolves `wt.exe`).
+ */
+async function windowsHasCommand(bin: string): Promise<boolean> {
+  try {
+    await execFileP('where', [bin]);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Windows launcher for the per-slot icon row. macOS routes everything
+ * through `open -a`; Windows has no single equivalent, so we map each
+ * app kind to its native invocation:
+ *
+ *   - editor:   the editor's CLI shim (`code` / `cursor`), which opens
+ *     (or focuses) the folder. Spawned via the shell because they're
+ *     `.cmd` files on PATH.
+ *   - terminal: Windows Terminal (`wt.exe -d <path>`) when available,
+ *     else a `cmd.exe` window rooted at the worktree.
+ *   - git:      GitHub Desktop via its `github` CLI shim if present.
+ *
+ * Each branch PROBES the target binary with `where.exe` first (see
+ * `windowsHasCommand`) and returns `{ ok: false, error }` when it's
+ * missing, so the renderer can surface a real "not installed" message
+ * instead of a silent no-op. The detached spawn that follows can't
+ * report failure on its own — that's exactly why the probe exists.
+ */
+async function openAppWindows(
+  kind: 'terminal' | 'editor' | 'git',
+  cfg: AppsSettings,
+  worktreePath: string,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const spawnDetached = (file: string, args: string[]): void => {
+    const child = spawn(file, args, { detached: true, stdio: 'ignore', shell: true });
+    // Missing binaries are caught by the `where` probe above; this only
+    // guards against late spawn errors so they don't crash the process.
+    child.once('error', () => { /* best-effort: already probed */ });
+    child.unref();
+  };
+  try {
+    switch (kind) {
+      case 'editor': {
+        const editor = (cfg.editorApp || 'vscode').toLowerCase();
+        const bin = editor === 'cursor' ? 'cursor' : 'code';
+        if (!(await windowsHasCommand(bin))) {
+          const name = editor === 'cursor' ? 'Cursor' : 'VS Code';
+          return {
+            ok: false,
+            error: `${name} command (\`${bin}\`) not found on PATH. Install ${name} and enable its shell command.`,
+          };
+        }
+        spawnDetached(bin, [`"${worktreePath}"`]);
+        return { ok: true };
+      }
+      case 'terminal': {
+        // Prefer Windows Terminal; fall back to a plain cmd window
+        // rooted at the worktree when `wt` isn't installed. `cmd.exe`
+        // always exists, so the fallback never needs a probe.
+        if (await windowsHasCommand('wt')) {
+          spawnDetached('cmd', ['/c', 'start', 'wt', '-d', `"${worktreePath}"`]);
+        } else {
+          spawnDetached('cmd', ['/c', 'start', 'cmd', '/k', 'cd', '/d', `"${worktreePath}"`]);
+        }
+        return { ok: true };
+      }
+      case 'git': {
+        // GitHub Desktop installs a `github` CLI shim that opens the
+        // repo at <path>.
+        if (!(await windowsHasCommand('github'))) {
+          return {
+            ok: false,
+            error: 'GitHub Desktop (`github` command) not found on PATH. Install GitHub Desktop to use this action.',
+          };
+        }
+        spawnDetached('github', [`"${worktreePath}"`]);
+        return { ok: true };
+      }
+    }
+  } catch (err) {
+    return { ok: false, error: (err as Error).message };
+  }
 }
 
 /**
@@ -82,6 +178,10 @@ const PS_CACHE_MS = 1500;
 let psCache: { ts: number; projects: RunningUnityProject[] } | null = null;
 
 async function listRunningUnityProjects(): Promise<RunningUnityProject[]> {
+  // Unity detection relies on `ps` (Unix). No Windows equivalent wired
+  // up yet — return empty rather than spawning a missing binary on the
+  // renderer's 2s poll.
+  if (!isMac) return [];
   const now = Date.now();
   if (psCache && now - psCache.ts < PS_CACHE_MS) return psCache.projects;
   const out: RunningUnityProject[] = [];
@@ -182,6 +282,10 @@ let appsCache: { ts: number; result: RunningAppsByKind } | null = null;
  * Result is cached briefly to coalesce simultaneous renderer ticks.
  */
 async function listRunningAppsForSlots(): Promise<RunningAppsByKind> {
+  // Detection uses `pgrep`/`lsof`/`ps` (Unix). On Windows we have no
+  // per-slot running signal yet, so short-circuit to empty instead of
+  // firing missing-binary spawns every poll tick.
+  if (!isMac) return { terminal: [], editor: [], git: [], unity: [] };
   const now = Date.now();
   if (appsCache && now - appsCache.ts < APPS_CACHE_MS) return appsCache.result;
 
@@ -327,6 +431,12 @@ export function registerAppsHandlers(): void {
         return { ok: false as const, error: 'Worktree path not found' };
       }
       const cfg = getSetting<AppsSettings>('apps') ?? {};
+      // Windows: terminal/editor/git map to native launchers. Unity on
+      // Windows isn't wired up yet, so it falls through to the macOS
+      // path below (which returns a clear "not configured" error).
+      if (isWindows && (kind === 'terminal' || kind === 'editor' || kind === 'git')) {
+        return openAppWindows(kind, cfg, worktreePath);
+      }
       try {
         switch (kind) {
           case 'terminal': {
@@ -403,7 +513,7 @@ export function registerAppsHandlers(): void {
               // skips the project picker; -logFile is per-slot so we
               // don't fight other slots for the default log path.
               const slotName = basename(worktreePath); // e.g. 'slot-3'
-              const logPath = `/tmp/unity-${slotName}.log`;
+              const logPath = join(tmpdir(), `unity-${slotName}.log`);
               try {
                 await new Promise<void>((resolve, reject) => {
                   const child = spawn(

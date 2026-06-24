@@ -33,6 +33,17 @@ mac:
   # popbot-windowmover native helper not yet built — re-add the
   # extraResources block when the binary lands under
   # `native/popbot-windowmover/build/`.
+win:
+  target:
+    - nsis
+    - zip
+  # No code-signing wired up for Windows yet — builds are unsigned, so
+  # SmartScreen will warn on first launch. Set CSC_LINK / CSC_KEY_PASSWORD
+  # (a .pfx) at build time to sign.
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
 dmg:
   # Volume icon shown when the .dmg is mounted. Without this,
   # electron-builder falls back to a default flat square — looks bad

@@ -7,6 +7,7 @@
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { dlog } from '../diagLog';
+import { resolveCliPath } from './resolveCli';
 
 const execFileP = promisify(execFile);
 
@@ -26,13 +27,7 @@ export function getCodexBinaryPath(): string | null {
 
 export async function probeCodex(): Promise<CodexProbeResult> {
   try {
-    const shell = process.env.SHELL || '/bin/zsh';
-    const { stdout: shellOut } = await execFileP(shell, ['-ilc', 'command -v codex'], {
-      timeout: 5000,
-      encoding: 'utf8',
-    });
-    const binaryPath = shellOut.trim().split('\n').pop()?.trim() || '';
-    if (!binaryPath) throw new Error('codex not found on user shell PATH');
+    const binaryPath = await resolveCliPath('codex');
     const { stdout: verOut } = await execFileP(binaryPath, ['--version'], {
       timeout: 5000,
       env: process.env,

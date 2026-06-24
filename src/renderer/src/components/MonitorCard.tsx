@@ -219,7 +219,7 @@ export function MonitorCard({ chat, isFocused, isForeground, isVisible = true, r
               <div key={i} className="tline tool">
                 <i className="fa-solid fa-pen-to-square tline-icon" />
                 <span className="tline-mono">
-                  <b>{a.path?.split('/').pop()}</b>{' '}
+                  <b>{a.path?.split(/[/\\]/).pop()}</b>{' '}
                   <span style={{ color: 'var(--st-done)' }}>+{a.add}</span>{' '}
                   <span style={{ color: 'var(--st-err)' }}>−{a.rem}</span>
                 </span>

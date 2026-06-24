@@ -1127,7 +1127,7 @@ function ToolBlock({ body }: { body: MessageBodyTool }): JSX.Element {
   // For file-path hints, render just the basename inline; the full path
   // goes in the tooltip. Keeps the row scannable when paths are deep.
   const displayHint = filePath
-    ? filePath.slice(filePath.lastIndexOf('/') + 1) || filePath
+    ? (filePath.split(/[/\\]/).pop() || filePath)
     : hint;
   // For Edit / MultiEdit / Write rows, locate the change in the file
   // so the file-link jumps the editor directly to the diff. We search

@@ -34,7 +34,7 @@ import type {
 import type { ListReviewsResult } from './reviews';
 import type { SentryTestResult } from './sentry';
 import type { SlackTestResult } from './slack';
-import type { UpdateInfo } from './updates';
+import type { UpdateInfo, UpdateCheckResult } from './updates';
 import type {
   AgentBackendId,
   ChatRecord,
@@ -145,6 +145,9 @@ export const IpcChannel = {
   GitListBaseBranches: 'pb:git:list-target-branches',
   /** Detect an existing PR for the chat's branch via the `gh` CLI. */
   GitDetectPr: 'pb:git:detect-pr',
+  /** Derive the branch-name username (settings override → gh login →
+   *  git user.email/name → 'pop'). */
+  GitUsername: 'pb:git:username',
 
   /** Open / re-attach the chat's persistent PTY. Returns the rolling
    *  output buffer to seed a freshly-mounted xterm. */
@@ -165,6 +168,21 @@ export const IpcChannel = {
   AgentStop: 'pb:agent:stop',
   AgentConfigure: 'pb:agent:configure',
   AgentApprove: 'pb:agent:approve',
+  /** Probe whether the claude / codex CLIs are installed + runnable.
+   *  Powers the "what's online" readiness panel in the empty chat pane. */
+  AgentBackendsStatus: 'pb:agent:backends-status',
+
+  /** Quit the app — used by the custom titlebar app menu on Windows,
+   *  where the native menu bar (with its Quit accelerator) is hidden. */
+  AppQuit: 'pb:app:quit',
+  /** Window / edit / view command dispatched by the custom menu bar
+   *  (frameless Windows/Linux). One channel, action string — see
+   *  {@link WinActionName}. Returns the maximized state for the
+   *  maximize/is-maximized actions, otherwise void. */
+  WinAction: 'pb:win:action',
+  /** Push — main → renderer — when the window is (un)maximized, so the
+   *  menu bar can swap its Maximize/Restore labels live. */
+  WinMaximizeChanged: 'pb:win:maximize-changed',
   /** Manual session-recovery trigger from the chat's Retry button. */
   AgentRecover: 'pb:agent:recover',
   /** List on-disk Claude sessions for the chat's worktree — used by
@@ -188,6 +206,13 @@ export const IpcChannel = {
   /** Push channel — main → renderer. Latest GitHub release is newer
    *  than the running app's version. */
   UpdateAvailable: 'pb:updates:available',
+
+  /** On-demand update check (About dialog). Returns UpdateCheckResult. */
+  UpdatesCheck: 'pb:updates:check',
+
+  /** Push channel — main → renderer. Open the About dialog (fired from
+   *  the native macOS app menu). */
+  ShowAbout: 'pb:app:show-about',
 
   /** Multi-repo configuration. Each repo is either slot-pool or
    *  ephemeral; mode is set at create and is immutable thereafter
@@ -395,12 +420,50 @@ export interface ConfigureAgentInput {
   codexReasoningEffort?: CodexReasoningEffort;
 }
 
+/** Result of probing a single agent CLI backend (claude / codex). */
+export interface AgentBackendStatus {
+  /** True when the CLI was found on PATH and `--version` ran. */
+  ok: boolean;
+  /** Version string from `--version`, when ok. */
+  version?: string;
+  /** Failure reason when not ok (e.g. "claude not found on PATH"). */
+  error?: string;
+}
+
+/** Online/offline state of the agent CLI backends. */
+export interface AgentBackendsStatus {
+  claude: AgentBackendStatus;
+  codex: AgentBackendStatus;
+}
+
+/** Commands the custom menu bar can dispatch to the host window. */
+export type WinActionName =
+  | 'minimize' | 'maximize-toggle' | 'close' | 'is-maximized'
+  | 'undo' | 'redo' | 'cut' | 'copy' | 'paste' | 'select-all'
+  | 'reload' | 'force-reload' | 'toggle-devtools'
+  | 'zoom-in' | 'zoom-out' | 'zoom-reset';
+
 /** Surface exposed on `window.popbot` by the preload script. */
 export type PickedAttachment = ChatAttachment;
 
 export interface PopBotApi {
+  /** Host OS (`process.platform`: 'darwin' | 'win32' | 'linux' | …),
+   *  surfaced synchronously so the renderer can branch its chrome (e.g.
+   *  the custom Windows titlebar) without an async round-trip. */
+  platform: string;
   app: {
     getVersion(): Promise<string>;
+    /** Quit the whole app (custom titlebar menu on Windows). */
+    quit(): Promise<void>;
+  };
+  /** Window chrome controls for the custom menu bar (frameless platforms). */
+  win: {
+    /** Dispatch a window/edit/view command. Resolves to the maximized
+     *  state for 'maximize-toggle' / 'is-maximized', else undefined. */
+    action(name: WinActionName): Promise<boolean | void>;
+    /** Subscribe to (un)maximize so the menu can relabel. Returns an
+     *  unsubscribe function. */
+    onMaximizeChange(handler: (maximized: boolean) => void): () => void;
   };
   chats: {
     list(): Promise<ChatRecord[]>;
@@ -599,6 +662,9 @@ export interface PopBotApi {
      *  Pre-chat callers (e.g. the new-chat dialog) pass `repoId`.
      *  Existing in-chat callers continue to pass `chatId`. */
     listBaseBranches(input: { chatId?: string | null; repoId?: string | null }): Promise<GitBaseBranchesResult>;
+    /** The branch-name username (e.g. `benjcooley`), auto-derived from
+     *  gh/git when not explicitly set in Source-control settings. */
+    username(): Promise<string>;
     detectPr(chatId: string): Promise<GitDetectPrResult>;
   };
   agent: {
@@ -628,6 +694,10 @@ export interface PopBotApi {
      *  with the existing transcript. Capped to keep the prompt size
      *  reasonable; older turns get trimmed first. */
     restartWithContext(chatId: string): Promise<void>;
+    /** Probe the agent CLI backends (claude / codex) and report whether
+     *  each is installed + runnable. Drives the readiness panel so the
+     *  user can see which agents are online before starting a chat. */
+    backendsStatus(): Promise<AgentBackendsStatus>;
     /**
      * Subscribe to the agent event push stream. The handler fires for
      * events from any chat; filter on `chatId` if needed.
@@ -639,6 +709,11 @@ export interface PopBotApi {
     /** Subscribe to "newer release available" pushes from the main
      *  process update poller. Returns an unsubscribe function. */
     onAvailable(handler: (info: UpdateInfo) => void): () => void;
+    /** Run an on-demand update check (About dialog). */
+    check(): Promise<UpdateCheckResult>;
+    /** Subscribe to "open the About dialog" pushes (native macOS menu).
+     *  Returns an unsubscribe function. */
+    onShowAbout(handler: () => void): () => void;
   };
   notifications: {
     /** Most-recent notifications (default 50). */

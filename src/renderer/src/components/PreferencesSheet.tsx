@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { hotkey } from '../lib/hotkeys';
 import type { LinearProjectDto } from '@shared/linear';
 import type { SlotInfo } from '@shared/ipc';
 import {
@@ -97,7 +98,7 @@ export function PreferencesSheet({
         <div className="prefs-head">
           <h2><i className="fa-solid fa-gear" /> Preferences</h2>
           <input className="prefs-search" placeholder="Search preferences…" />
-          <button className="iconbtn" onClick={onClose} style={{ width: 28, height: 28 }} title="Close ⌘W">
+          <button className="iconbtn" onClick={onClose} style={{ width: 28, height: 28 }} title={`Close ${hotkey('W')}`}>
             <i className="fa-solid fa-xmark" />
           </button>
         </div>
@@ -640,64 +641,83 @@ function PrefsAttachments(): JSX.Element {
   );
 }
 
+/** Jira (the most popular tracker) is roughed in — see
+ *  src/shared/ticketProvider.ts — but hidden for the MVP. Flip this once
+ *  the Jira client + queue wiring land; the Tracker selector then appears
+ *  and lets the user pick between providers. */
+const JIRA_ENABLED = false;
+
 function PrefsIntegrations({ onLinearChanged }: { onLinearChanged?: () => void }): JSX.Element {
   const { get, set, remove, loading } = useSettings();
   const linear = get<LinearSettings>('linear', {}) ?? {};
-  const isConnected = Boolean(linear.apiKey);
-  const [editing, setEditing] = useState(false);
 
-  if (loading) return <div className="pref-section"><h3>Linear</h3></div>;
+  if (loading) return <div className="pref-section"><h3>Ticket source</h3></div>;
 
   return (
     <>
       <div className="pref-section">
-        <h3>Linear</h3>
-        <p className="pref-section-desc">Tickets feed in Panel A.</p>
-        {isConnected || editing ? (
-          <LinearForm
-            initial={linear}
-            onSave={async (next) => {
-              await set('linear', next);
-              setEditing(false);
-              onLinearChanged?.();
-            }}
-            onDisconnect={async () => {
-              await remove('linear');
-              setEditing(false);
-              onLinearChanged?.();
-            }}
-          />
-        ) : (
-          <div className="pref-connect-cta">
-            <i className="fa-solid fa-ticket" />
-            <h4>Connect to Linear</h4>
-            <p>Pull your tickets into Panel A so you can spawn agents straight from the queue.</p>
-            <button className="btn primary" onClick={() => setEditing(true)}>
-              <i className="fa-solid fa-plug" /> Connect Linear
-            </button>
-            <p className="hint">
-              You'll need a Personal API Key from <span className="mono">linear.app/settings/api</span>.
-            </p>
+        <h3>Ticket source</h3>
+        <p className="pref-section-desc">
+          Feeds the Tickets queue in Panel A so you can spawn agents straight from
+          your tracker.{JIRA_ENABLED ? ' Only one ticket source can be active at a time.' : ''}
+        </p>
+        {/* Role selector: which tracker fills the ticket-source role.
+            Hidden while Linear is the only shipped provider; reappears
+            when Jira is enabled. */}
+        {JIRA_ENABLED && (
+          <div className="pref-rows" style={{ marginBottom: 8 }}>
+            <div className="pref-row">
+              <div className="pref-label">
+                <div className="pref-label-title">Tracker</div>
+                <div className="pref-label-desc">Pick your issue tracker.</div>
+              </div>
+              <div className="pref-control">
+                <select className="pref-input" value="linear" onChange={() => undefined} style={{ width: 200 }}>
+                  <option value="linear">Linear</option>
+                  <option value="jira">Jira</option>
+                </select>
+              </div>
+            </div>
           </div>
         )}
+        {/* The selected tracker's config — shown directly (the values
+            needed for the integration to function), not behind a CTA. The
+            app header makes it obvious these properties belong to Linear. */}
+        <h4 className="pref-subhead" style={{ marginTop: 14 }}>Linear settings</h4>
+        <LinearForm
+          initial={linear}
+          onSave={async (next) => {
+            await set('linear', next);
+            onLinearChanged?.();
+          }}
+          onDisconnect={async () => {
+            await remove('linear');
+            onLinearChanged?.();
+          }}
+        />
       </div>
 
-      <hr style={{
-        border: 0, borderTop: '1px solid var(--line-1)',
-        margin: '24px 0 0',
-      }} />
+      {/* Slack (chat / notifications source) is parked — it was never
+          tested end-to-end, so we don't ship it as a working integration
+          yet. Re-add the section once it's verified. */}
+      {/* <PrefsSlack /> */}
 
-      <PrefsSlack />
-
-      <hr style={{
-        border: 0, borderTop: '1px solid var(--line-1)',
-        margin: '24px 0 0',
-      }} />
-
-      <PrefsSentry />
+      {/* Sentry / crash-reporting is parked too. This panel is "where work
+          comes from"; crash reporting isn't a work source today — though as
+          a workflow tool we could turn crashes into work later. Re-add a
+          dedicated section if/when it earns one. (The main-process Sentry +
+          Slack pollers are no-ops without config.) */}
+      {/* <PrefsSentry /> */}
     </>
   );
 }
+
+// Parked integrations — still defined so re-enabling is a one-line change
+// in PrefsIntegrations above, but not currently rendered (Slack untested,
+// Sentry not a work source yet). These references keep TypeScript's
+// no-unused-locals check happy without exporting the components.
+void PrefsSlack;
+void PrefsSentry;
 
 interface GitSettings {
   username?: string;
@@ -938,6 +958,9 @@ function PrefsGit(): JSX.Element {
 interface AppsSettings {
   /** macOS app name to launch for "Terminal" — see open(1)'s -a flag. */
   terminalApp?: string;
+  /** Windows shell for the in-app terminal panel: 'powershell' (default)
+   *  | 'cmd' | 'pwsh' (PowerShell 7). Read by the main-process PTY. */
+  windowsShell?: string;
   /** Editor handler id ('vscode' | 'cursor'). Maps to URL scheme. */
   editorApp?: string;
   /** macOS app name for the git client. Defaults to 'GitHub Desktop'. */
@@ -967,10 +990,19 @@ const EDITOR_OPTIONS = [
   // when someone needs it.
 ] as const;
 
+const WINDOWS_SHELL_OPTIONS = [
+  { value: 'powershell', label: 'PowerShell' },
+  { value: 'cmd', label: 'Command Prompt (cmd)' },
+  { value: 'pwsh', label: 'PowerShell 7 (pwsh)' },
+] as const;
+
+const IS_WINDOWS = window.popbot.platform === 'win32';
+
 function PrefsApps(): JSX.Element {
   const { get, set, loading } = useSettings();
   const initial = get<AppsSettings>('apps', {}) ?? {};
   const [terminalApp, setTerminalApp] = useState(initial.terminalApp || 'iTerm');
+  const [windowsShell, setWindowsShell] = useState(initial.windowsShell || 'powershell');
   const [editorApp, setEditorApp] = useState(initial.editorApp || 'vscode');
   const [unityBinary, setUnityBinary] = useState(initial.unityBinary || '');
   const [browserChromeProfile, setBrowserChromeProfile] = useState(initial.browserChromeProfile || '');
@@ -984,6 +1016,7 @@ function PrefsApps(): JSX.Element {
   // overwrites the real saved values with those defaults. Same
   // pattern PrefsRuntime uses at line ~150.
   useEffect(() => { setTerminalApp(initial.terminalApp || 'iTerm'); }, [initial.terminalApp]);
+  useEffect(() => { setWindowsShell(initial.windowsShell || 'powershell'); }, [initial.windowsShell]);
   useEffect(() => { setEditorApp(initial.editorApp || 'vscode'); }, [initial.editorApp]);
   useEffect(() => { setUnityBinary(initial.unityBinary || ''); }, [initial.unityBinary]);
   useEffect(() => { setBrowserChromeProfile(initial.browserChromeProfile || ''); }, [initial.browserChromeProfile]);
@@ -992,6 +1025,7 @@ function PrefsApps(): JSX.Element {
 
   const dirty =
     terminalApp !== (initial.terminalApp || 'iTerm') ||
+    windowsShell !== (initial.windowsShell || 'powershell') ||
     editorApp !== (initial.editorApp || 'vscode') ||
     unityBinary !== (initial.unityBinary || '') ||
     browserChromeProfile !== (initial.browserChromeProfile || '');
@@ -1023,6 +1057,29 @@ function PrefsApps(): JSX.Element {
             </select>
           </div>
         </div>
+        {IS_WINDOWS && (
+          <div className="pref-row">
+            <div className="pref-label">
+              <div className="pref-label-title">Terminal shell (Windows)</div>
+              <div className="pref-label-desc">
+                Shell used by the in-app terminal panel. Applies to terminals
+                opened after the change.
+              </div>
+            </div>
+            <div className="pref-control">
+              <select
+                className="pref-input"
+                value={windowsShell}
+                onChange={(e) => setWindowsShell(e.target.value)}
+                style={{ width: 200 }}
+              >
+                {WINDOWS_SHELL_OPTIONS.map((o) => (
+                  <option key={o.value} value={o.value}>{o.label}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+        )}
         <div className="pref-row">
           <div className="pref-label">
             <div className="pref-label-title">Code editor</div>
@@ -1103,6 +1160,7 @@ function PrefsApps(): JSX.Element {
               onClick={async () => {
                 await set('apps', {
                   terminalApp,
+                  windowsShell,
                   editorApp,
                   unityBinary: unityBinary.trim() || undefined,
                   browserChromeProfile: browserChromeProfile.trim() || undefined,
@@ -1649,8 +1707,17 @@ function LinearForm({
     <div className="pref-rows">
       <div className="pref-row">
         <div className="pref-label">
-          <div className="pref-label-title">API key</div>
-          <div className="pref-label-desc">Stored locally in this app's database.</div>
+          <div className="pref-label-title">Personal API key</div>
+          <div className="pref-label-desc">
+            Stored locally in this app's database.{' '}
+            <a
+              href="https://linear.app/settings/api"
+              onClick={(e) => { e.preventDefault(); window.open('https://linear.app/settings/api', '_blank'); }}
+              style={{ color: 'var(--acc)', cursor: 'pointer' }}
+            >
+              Get a key →
+            </a>
+          </div>
         </div>
         <div className="pref-control" style={{ flex: 1, minWidth: 280 }}>
           <input
@@ -2409,7 +2476,7 @@ function emptyDraft(): NewRepoDraft {
     id: '',
     repoPath: '',
     color: DEFAULT_REPO_COLOR,
-    defaultBase: 'develop',
+    defaultBase: 'main',
     slotPrefix: 'slot',
     slotCount: 4,
     mode: 'slots',
@@ -2517,7 +2584,7 @@ function PrefsRepos({ onReposChanged }: { onReposChanged?: () => void }): JSX.El
       </div>
       <div style={{ marginTop: 16 }}>
         <button className="btn primary" onClick={() => setNewRepo(emptyDraft())}>
-          <i className="fa-solid fa-plus" />&nbsp;New repository
+          <i className="fa-solid fa-plus" />&nbsp;Add Repository
         </button>
       </div>
 
@@ -2565,10 +2632,12 @@ function PrefsRepos({ onReposChanged }: { onReposChanged?: () => void }): JSX.El
  * of the wizard depends on it (step 3 only renders for slots). */
 /** Derive a sensible default repo id + slot prefix from a repo path —
  *  basename, lowercased, trailing `.git` stripped, non-alnum→dash.
+ *  Handles both POSIX (`/`) and Windows (`\`) separators.
  *  E.g. `/Users/me/code/MyGame/` → `mygame`,
+ *       `C:\Users\me\code\MyGame` → `mygame`,
  *       `/Users/me/widgets.git`  → `widgets`. */
 function deriveRepoId(path: string): string {
-  const basename = path.replace(/\/+$/, '').split('/').pop() ?? '';
+  const basename = path.replace(/[/\\]+$/, '').split(/[/\\]/).pop() ?? '';
   return basename.toLowerCase().replace(/\.git$/, '').replace(/[^a-z0-9-]+/g, '-').replace(/^-+|-+$/g, '');
 }
 
@@ -2679,9 +2748,11 @@ function NewRepoWizard({
             <label className={`mode-card ${draft.mode === 'slots' ? 'selected' : ''}`}
                    onClick={() => onChange({ ...draft, mode: 'slots' })}>
               <div className="mode-card-head">
-                <strong>Slot pool</strong>
+                <i className="fa-solid fa-layer-group mode-card-icon slots" />
+                <strong>Slots</strong>
                 <span className="mode-card-pill">keeps build caches warm across chats</span>
               </div>
+              <p className="mode-card-lead">Permanent worktree slots reused by chats.</p>
               <p className="mode-card-desc">
                 A fixed pool of N pre-allocated worktrees. Chats borrow a
                 slot, work in it, then park back when closed. Each slot
@@ -2695,9 +2766,11 @@ function NewRepoWizard({
             <label className={`mode-card ${draft.mode === 'ephemeral' ? 'selected' : ''}`}
                    onClick={() => onChange({ ...draft, mode: 'ephemeral' })}>
               <div className="mode-card-head">
+                <i className="fa-solid fa-wind mode-card-icon ephemeral" />
                 <strong>Ephemeral</strong>
                 <span className="mode-card-pill">good for pure-code repos</span>
               </div>
+              <p className="mode-card-lead">Temporary worktrees removed when a chat is closed.</p>
               <p className="mode-card-desc">
                 Each chat gets its own worktree, created when the chat opens
                 and removed when it closes. No pool, no parking branches.
@@ -2844,7 +2917,7 @@ function NewRepoWizard({
               )}
               <button className="btn primary" disabled={!canAdvance || submitting} onClick={onNext}>
                 {step === lastInteractive
-                  ? (submitting ? 'Creating…' : 'Create repository')
+                  ? (submitting ? 'Adding…' : 'Add Repository')
                   : 'Next'}
               </button>
             </div>
