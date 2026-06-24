@@ -34,11 +34,13 @@ if (process.platform === 'linux') {
   // The rest is genuinely WSL-specific — real distros have a working GPU
   // and their own DE scaling, so we don't touch those.
   if (process.env.WSL_DISTRO_NAME || process.env.WSL_INTEROP) {
-    // WSLg runs the GPU in software; hardware compositing is unreliable.
-    app.disableHardwareAcceleration();
     // WSLg doesn't forward the Windows display scale (default 1.25 /
     // 125%; override with POPBOT_SCALE).
     app.commandLine.appendSwitch('force-device-scale-factor', process.env.POPBOT_SCALE || '1.25');
+    // WSLg's GL can be flaky with hardware compositing; allow forcing
+    // software rendering as an escape hatch (POPBOT_SOFTWARE_GL=1) without
+    // making it the default — modern WSLg has working GPU passthrough.
+    if (process.env.POPBOT_SOFTWARE_GL === '1') app.disableHardwareAcceleration();
   }
 }
 import { clearStaleRunningStatuses } from './persistence/chats';
