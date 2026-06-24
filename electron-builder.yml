@@ -69,8 +69,8 @@ dmg:
 # latest.yml, latest-linux.yml + blockmaps) during the build. CI builds
 # with `--publish never`, so electron-builder never uploads directly; the
 # release workflow attaches these files to the GitHub Release. The in-app
-# update check reads releases from this repo, and this metadata is what a
-# future electron-updater auto-installer would consume.
+# update check reads releases from this repo, and this metadata is what the
+# in-app electron-updater (src/main/updates/autoUpdate.ts) consumes.
 publish:
   provider: github
   owner: popbot-ai
