@@ -48,6 +48,9 @@ linux:
     - AppImage
   category: Development
   synopsis: Multi-chat, multi-slot agentic coding tool
+  # Put "linux" in the filename — .AppImage alone doesn't read as "the
+  # Linux download" the way .dmg/.exe do for mac/Windows.
+  artifactName: ${productName}-${version}-linux-${arch}.${ext}
   # electron-builder derives the Linux icon set from build/icon.png
   # (1024x1024) automatically — no platform-specific icon needed.
 dmg:
