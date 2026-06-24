@@ -36,8 +36,13 @@ if [ -n "$(git status --porcelain)" ]; then
 fi
 
 BRANCH=$(git rev-parse --abbrev-ref HEAD)
-if [ "$BRANCH" = "HEAD" ]; then
-  echo "Detached HEAD — check out a branch before releasing." >&2
+# Releases are cut from main only — a v* tag triggers a published release,
+# so tagging off a feature branch would ship non-main code. Override with
+# RELEASE_BRANCH=<name> only if you really mean to.
+RELEASE_BRANCH="${RELEASE_BRANCH:-main}"
+if [ "$BRANCH" != "$RELEASE_BRANCH" ]; then
+  echo "On branch '$BRANCH', but releases are cut from '$RELEASE_BRANCH'." >&2
+  echo "Check out $RELEASE_BRANCH (or set RELEASE_BRANCH=$BRANCH to override)." >&2
   exit 1
 fi
 
@@ -74,8 +79,11 @@ git commit -m "chore: release ${VERSION}" >/dev/null
 git tag -a "$VERSION" -m "$NAME"
 
 echo "==> Pushing commit + tag to origin"
-git push origin "$BRANCH"
-git push origin "$VERSION"
+# --atomic: branch and tag push as one transaction, so we never land the
+# release commit on main without the v* tag that triggers CI publishing
+# (or vice versa). If the push fails, the local commit + tag remain — fix
+# the cause and re-run the push.
+git push --atomic origin "$BRANCH" "$VERSION"
 
 echo "==> Done. CI is now building macOS/Windows/Linux for $VERSION."
 echo "    Watch it: gh run watch  (or the repo's Actions tab)"

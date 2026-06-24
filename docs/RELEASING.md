@@ -21,8 +21,11 @@ workflow, which builds all three platforms and publishes the GitHub
 Release with the artifacts attached. Watch it with `gh run watch` or the
 Actions tab.
 
-The next version is computed from the latest `v*` tag (or, before the
-first tag exists, from `package.json` — so the first release is `v0.0.18`).
+The next version is computed from the latest `v*` tag, bumped per the
+argument above. Before any tag exists, it falls back to the version in
+`package.json` (so the first release is the next bump above that). The
+script refuses to run from any branch other than `main` (override with
+`RELEASE_BRANCH=<name>`).
 
 ## What gets produced
 
@@ -69,7 +72,11 @@ Gatekeeper / Windows SmartScreen warn on first launch) and CI still passes.
 | `APPLE_APP_SPECIFIC_PASSWORD` | app-specific password from appleid.apple.com |
 | `APPLE_TEAM_ID` | Apple Developer Team ID |
 
-A tag build signs + notarizes when `MAC_CSC_LINK` **and** `APPLE_ID` are present.
+A tag build signs + notarizes only when the **full set** is present —
+`MAC_CSC_LINK`, `APPLE_ID`, `APPLE_APP_SPECIFIC_PASSWORD`, **and**
+`APPLE_TEAM_ID` (plus `MAC_CSC_KEY_PASSWORD` for the cert). If any is
+missing it builds unsigned rather than failing notarization late, so a
+half-configured secret set won't break CI.
 
 ### Windows (optional)
 

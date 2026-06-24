@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import type { UpdateInfo, UpdateReady } from '@shared/updates';
 
 /**
@@ -36,11 +36,11 @@ export function useUpdates(): {
     };
   }, []);
 
-  return {
-    available,
-    progress,
-    downloaded,
-    dismiss: () => setAvailable(null),
-    install: () => window.popbot.updates.install(),
-  };
+  // Stable identities: App.tsx uses these in useEffect deps, and a fresh
+  // function each render would re-fire the toast effect on every commit
+  // (a self-sustaining render loop while an update is pending).
+  const dismiss = useCallback(() => setAvailable(null), []);
+  const install = useCallback(() => window.popbot.updates.install(), []);
+
+  return { available, progress, downloaded, dismiss, install };
 }

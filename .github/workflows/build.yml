@@ -18,6 +18,9 @@ name: Build
 
 on:
   push:
+    # No paths-ignore here: it would also apply to tag pushes and could
+    # silently skip a release build. Branch pushes run on every commit.
+    branches: [main]
     tags:
       - 'v*'
   pull_request:
@@ -60,9 +63,10 @@ jobs:
       - name: Build renderer + main
         run: npm run build
 
-      # macOS: sign + notarize ONLY on a tag build with the Apple secrets
-      # present. PR/manual runs (and tag builds before secrets are set)
-      # build unsigned — fast, and never touch secrets.
+      # macOS: sign + notarize ONLY on a tag build with the FULL Apple
+      # credential set present. PR/manual runs — and tag builds with a
+      # partial/missing secret set — build unsigned so CI stays green and
+      # notarization never fails late.
       - name: Package (macOS)
         if: matrix.os == 'macos-latest'
         env:
@@ -73,13 +77,14 @@ jobs:
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
           IS_TAG: ${{ startsWith(github.ref, 'refs/tags/v') }}
         run: |
-          if [ "$IS_TAG" = "true" ] && [ -n "$CSC_LINK" ] && [ -n "$APPLE_ID" ]; then
-            echo "Tag build with Apple secrets — signing + notarizing"
-            npx electron-builder --mac --publish never
+          if [ "$IS_TAG" = "true" ] && [ -n "$CSC_LINK" ] && [ -n "$APPLE_ID" ] \
+             && [ -n "$APPLE_APP_SPECIFIC_PASSWORD" ] && [ -n "$APPLE_TEAM_ID" ]; then
+            echo "Tag build with full Apple credential set — signing + notarizing"
+            npx electron-builder --mac --publish never --config electron-builder.yml
           else
-            echo "Building unsigned (PR/manual run, or secrets not set)"
+            echo "Building unsigned (PR/manual run, or signing secrets incomplete)"
             export CSC_IDENTITY_AUTO_DISCOVERY=false
-            npx electron-builder --mac --publish never -c.mac.notarize=false
+            npx electron-builder --mac --publish never -c.mac.notarize=false --config electron-builder.yml
           fi
 
       # Windows: sign only on a tag build when WIN_CSC_LINK is set; else unsigned.
@@ -97,11 +102,11 @@ jobs:
             echo "Building unsigned"
             unset CSC_LINK CSC_KEY_PASSWORD
           fi
-          npx electron-builder --win --publish never
+          npx electron-builder --win --publish never --config electron-builder.yml
 
       - name: Package (Linux)
         if: matrix.os == 'ubuntu-latest'
-        run: npx electron-builder --linux --publish never
+        run: npx electron-builder --linux --publish never --config electron-builder.yml
 
       # Distributable artifacts + electron-updater metadata (latest*.yml,
       # blockmaps) — not the multi-hundred-MB unpacked app directories.
@@ -133,12 +138,15 @@ jobs:
           path: dist
           merge-multiple: true
 
+      # fail_on_unmatched_files is left off: not every platform emits every
+      # glob (e.g. blockmaps depend on target type), and a missing optional
+      # artifact shouldn't abort the release. `if-no-files-found: error` on
+      # the upload step already guarantees each platform produced output.
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           name: PopBot ${{ github.ref_name }}
           generate_release_notes: true
-          fail_on_unmatched_files: true
           files: |
             dist/*.dmg
             dist/*.exe
