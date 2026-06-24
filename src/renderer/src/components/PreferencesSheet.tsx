@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { hotkey } from '../lib/hotkeys';
 import linearIcon from '../assets/notif/linear.png';
 import type { LinearProjectDto } from '@shared/linear';
@@ -84,7 +84,12 @@ export function PreferencesSheet({
   onReposChanged,
   initialSection,
 }: PreferencesSheetProps): JSX.Element {
-  const [section, setSection] = useState(initialSection ?? 'integ');
+  // Fall back to the first section if we're handed (or deep-linked to) an
+  // id that no longer has a render branch — otherwise the content pane
+  // renders empty with nothing highlighted in the nav.
+  const known = (id: string | undefined): string =>
+    SECTIONS.some((s) => s.id === id) ? (id as string) : SECTIONS[0].id;
+  const [section, setSection] = useState(() => known(initialSection));
 
   return (
     <>
@@ -340,7 +345,7 @@ function PrefsAttachments(): JSX.Element {
   );
 }
 
-interface SelectChoice { id: string; label: string; icon: JSX.Element }
+interface SelectChoice { id: string; label: string; icon: ReactNode }
 
 /** Issue trackers selectable as the ticket source. Only Linear ships
  *  today; Jira (roughed in at shared/ticketProvider.ts) slots in here. */
@@ -358,8 +363,12 @@ const ENGINES: SelectChoice[] = [
  *  game-engine selectors. */
 function IconSelect({ value, onChange, options }: { value: string; onChange: (v: string) => void; options: SelectChoice[] }): JSX.Element {
   const [open, setOpen] = useState(false);
+  // Which option the keyboard cursor is on while the menu is open.
+  const [active, setActive] = useState(0);
   const ref = useRef<HTMLDivElement | null>(null);
-  const current = options.find((t) => t.id === value) ?? options[0];
+  const btnRef = useRef<HTMLButtonElement | null>(null);
+  const currentIndex = Math.max(0, options.findIndex((t) => t.id === value));
+  const current = options[currentIndex] ?? options[0];
 
   useEffect(() => {
     if (!open) return;
@@ -370,22 +379,65 @@ function IconSelect({ value, onChange, options }: { value: string; onChange: (v:
     return () => window.removeEventListener('mousedown', onDown);
   }, [open]);
 
+  // Each time we open, start the cursor on the current selection.
+  useEffect(() => { if (open) setActive(currentIndex); }, [open, currentIndex]);
+
+  const choose = (i: number): void => {
+    const opt = options[i];
+    if (opt) onChange(opt.id);
+    setOpen(false);
+    btnRef.current?.focus();
+  };
+
+  const onKeyDown = (e: React.KeyboardEvent): void => {
+    switch (e.key) {
+      case 'Escape':
+        if (open) { e.preventDefault(); setOpen(false); btnRef.current?.focus(); }
+        break;
+      case 'ArrowDown':
+        e.preventDefault();
+        if (!open) setOpen(true);
+        else setActive((i) => (i + 1) % options.length);
+        break;
+      case 'ArrowUp':
+        e.preventDefault();
+        if (!open) setOpen(true);
+        else setActive((i) => (i - 1 + options.length) % options.length);
+        break;
+      case 'Enter':
+      case ' ':
+        e.preventDefault();
+        if (!open) setOpen(true);
+        else choose(active);
+        break;
+      default:
+        break;
+    }
+  };
+
   return (
-    <div className="tracker-dd" ref={ref}>
-      <button className="tracker-dd-btn" onClick={() => setOpen((o) => !o)} aria-haspopup="listbox" aria-expanded={open}>
+    <div className="tracker-dd" ref={ref} onKeyDown={onKeyDown}>
+      <button
+        ref={btnRef}
+        className="tracker-dd-btn"
+        onClick={() => setOpen((o) => !o)}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+      >
         {current.icon}
         <span>{current.label}</span>
         <i className="fa-solid fa-chevron-down tracker-dd-caret" />
       </button>
       {open && (
         <div className="tracker-dd-menu" role="listbox">
-          {options.map((t) => (
+          {options.map((t, i) => (
             <button
               key={t.id}
-              className={`tracker-dd-item${t.id === value ? ' selected' : ''}`}
+              className={`tracker-dd-item${t.id === value ? ' selected' : ''}${i === active ? ' active' : ''}`}
               role="option"
               aria-selected={t.id === value}
-              onClick={() => { onChange(t.id); setOpen(false); }}
+              onClick={() => choose(i)}
+              onMouseEnter={() => setActive(i)}
             >
               {t.icon}
               <span>{t.label}</span>
@@ -405,10 +457,27 @@ function PrefsIntegrations({ onLinearChanged }: { onLinearChanged?: () => void }
   // have one; there's no "(None)"). Jira is roughed in at
   // shared/ticketProvider.ts and slots in as another <option> when its
   // client + queue wiring land — no structural change here.
-  const tracker = get<string>('ticketSource', 'linear') ?? 'linear';
+  const rawTracker = get<string>('ticketSource', 'linear') ?? 'linear';
   // Game engine launched for a chat's worktree. Same always-shown,
   // default-to-the-only-option model as the ticket source.
-  const engine = get<string>('gameEngine', 'unity') ?? 'unity';
+  const rawEngine = get<string>('gameEngine', 'unity') ?? 'unity';
+
+  // Validate the persisted value against the options that actually ship.
+  // A stale/unsupported id (e.g. ticketSource:'jira' from an older build)
+  // would otherwise render the fallback button with nothing selected while
+  // the invalid value lingers in storage.
+  const tracker = TRACKERS.some((t) => t.id === rawTracker) ? rawTracker : TRACKERS[0].id;
+  const engine = ENGINES.some((e) => e.id === rawEngine) ? rawEngine : ENGINES[0].id;
+
+  // Heal a stale value in place so it stops being dead/invalid state. Only
+  // writes when the stored value differs from the normalized one, so this
+  // can't loop.
+  useEffect(() => {
+    if (!loading && rawTracker !== tracker) void set('ticketSource', tracker);
+  }, [loading, rawTracker, tracker]);
+  useEffect(() => {
+    if (!loading && rawEngine !== engine) void set('gameEngine', engine);
+  }, [loading, rawEngine, engine]);
 
   if (loading) return <div className="pref-section"><h3>Ticket source</h3></div>;
 
@@ -801,6 +870,14 @@ function UnityConfig(): JSX.Element {
     setScanning(false);
   };
   useEffect(() => { void refresh(); }, []);
+
+  // useState captured initial.* on first render, but useSettings starts
+  // empty while loading — so without this the fields render blank and a
+  // Save would clobber the real apps.unityBinary/unityProjectSubpath with
+  // empty defaults. Re-sync once the persisted values land. Same
+  // sync-on-load pattern as PrefsApps/PrefsGit.
+  useEffect(() => { setPicked(initial.unityBinary ?? ''); }, [initial.unityBinary]);
+  useEffect(() => { setSubpath(initial.unityProjectSubpath ?? ''); }, [initial.unityProjectSubpath]);
 
   if (loading) return <p className="pref-section-desc">Loading…</p>;
 

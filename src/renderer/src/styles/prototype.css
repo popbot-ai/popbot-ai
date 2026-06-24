@@ -4725,7 +4725,8 @@ input.input.mono, select.input.mono { font-family: var(--font-mono); font-size: 
   background: transparent; border: 0; color: var(--fg-0);
   font-size: 12px; text-align: left; cursor: pointer;
 }
-.tracker-dd-item:hover { background: var(--bg-4); }
+.tracker-dd-item:hover,
+.tracker-dd-item.active { background: var(--bg-4); }
 .tracker-dd-item.selected { background: var(--acc-line, var(--bg-4)); }
 
 /* Dropdowns read as square panels (vs. the 3px on text inputs). */
