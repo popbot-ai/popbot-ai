@@ -13,6 +13,8 @@ mac:
     - dmg
     - zip
   category: public.app-category.developer-tools
+  # "mac" in the filename for both the .dmg and the updater .zip.
+  artifactName: ${productName}-${version}-mac-${arch}.${ext}
   # Code signing + notarization. electron-builder picks the certificate
   # by name match against the user's keychain. To sign + notarize your
   # own build, set CSC_NAME to your "Developer ID Application" subject
@@ -36,7 +38,7 @@ mac:
 win:
   target:
     - nsis
-    - zip
+  artifactName: ${productName}-${version}-win-${arch}.${ext}
   # No code-signing wired up for Windows yet — builds are unsigned, so
   # SmartScreen will warn on first launch. Set CSC_LINK / CSC_KEY_PASSWORD
   # (a .pfx) at build time to sign.
@@ -47,9 +49,11 @@ nsis:
 linux:
   target:
     - AppImage
-    - zip
   category: Development
   synopsis: Multi-chat, multi-slot agentic coding tool
+  # Put "linux" in the filename — .AppImage alone doesn't read as "the
+  # Linux download" the way .dmg/.exe do for mac/Windows.
+  artifactName: ${productName}-${version}-linux-${arch}.${ext}
   # electron-builder derives the Linux icon set from build/icon.png
   # (1024x1024) automatically — no platform-specific icon needed.
 dmg:
