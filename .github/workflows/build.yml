@@ -42,7 +42,12 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [macos-latest, windows-latest, ubuntu-latest]
+        # windows-2022 (not windows-latest): windows-latest migrated to
+        # Server 2025 + Visual Studio 2026, which node-gyp 9.4.1 (bundled by
+        # @electron/rebuild) doesn't recognize, so it can't compile node-pty.
+        # VS 2022 is the newest node-gyp here understands. Revisit when
+        # electron-builder ships a node-gyp that supports VS 2026.
+        os: [macos-latest, windows-2022, ubuntu-latest]
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
