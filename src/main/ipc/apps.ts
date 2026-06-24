@@ -46,6 +46,25 @@ async function openApp(appName: string, path: string): Promise<void> {
 }
 
 /**
+ * Is `bin` resolvable on the Windows PATH? Uses `where.exe`, which exits
+ * 0 (and prints the resolved path) when found, non-zero otherwise. We
+ * probe before spawning because the actual launch is detached + shelled
+ * (`shell: true`), so a missing binary never produces a synchronous throw
+ * nor a child `'error'` event — the shell just exits non-zero out of band.
+ * Without this probe every launch would report success even when nothing
+ * opened. `where` accepts the bare command name and matches `.exe`/`.cmd`
+ * PATHEXT entries (so `code` resolves `code.cmd`, `wt` resolves `wt.exe`).
+ */
+async function windowsHasCommand(bin: string): Promise<boolean> {
+  try {
+    await execFileP('where', [bin]);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Windows launcher for the per-slot icon row. macOS routes everything
  * through `open -a`; Windows has no single equivalent, so we map each
  * app kind to its native invocation:
@@ -57,8 +76,11 @@ async function openApp(appName: string, path: string): Promise<void> {
  *     else a `cmd.exe` window rooted at the worktree.
  *   - git:      GitHub Desktop via its `github` CLI shim if present.
  *
- * Returns an error result the caller can surface when the target app
- * isn't installed, rather than throwing.
+ * Each branch PROBES the target binary with `where.exe` first (see
+ * `windowsHasCommand`) and returns `{ ok: false, error }` when it's
+ * missing, so the renderer can surface a real "not installed" message
+ * instead of a silent no-op. The detached spawn that follows can't
+ * report failure on its own — that's exactly why the probe exists.
  */
 async function openAppWindows(
   kind: 'terminal' | 'editor' | 'git',
@@ -67,7 +89,9 @@ async function openAppWindows(
 ): Promise<{ ok: true } | { ok: false; error: string }> {
   const spawnDetached = (file: string, args: string[]): void => {
     const child = spawn(file, args, { detached: true, stdio: 'ignore', shell: true });
-    child.once('error', () => { /* surfaced via try/catch in caller */ });
+    // Missing binaries are caught by the `where` probe above; this only
+    // guards against late spawn errors so they don't crash the process.
+    child.once('error', () => { /* best-effort: already probed */ });
     child.unref();
   };
   try {
@@ -75,17 +99,36 @@ async function openAppWindows(
       case 'editor': {
         const editor = (cfg.editorApp || 'vscode').toLowerCase();
         const bin = editor === 'cursor' ? 'cursor' : 'code';
+        if (!(await windowsHasCommand(bin))) {
+          const name = editor === 'cursor' ? 'Cursor' : 'VS Code';
+          return {
+            ok: false,
+            error: `${name} command (\`${bin}\`) not found on PATH. Install ${name} and enable its shell command.`,
+          };
+        }
         spawnDetached(bin, [`"${worktreePath}"`]);
         return { ok: true };
       }
       case 'terminal': {
-        // Prefer Windows Terminal; fall back to a plain cmd window.
-        spawnDetached('cmd', ['/c', 'start', 'wt', '-d', `"${worktreePath}"`]);
+        // Prefer Windows Terminal; fall back to a plain cmd window
+        // rooted at the worktree when `wt` isn't installed. `cmd.exe`
+        // always exists, so the fallback never needs a probe.
+        if (await windowsHasCommand('wt')) {
+          spawnDetached('cmd', ['/c', 'start', 'wt', '-d', `"${worktreePath}"`]);
+        } else {
+          spawnDetached('cmd', ['/c', 'start', 'cmd', '/k', 'cd', '/d', `"${worktreePath}"`]);
+        }
         return { ok: true };
       }
       case 'git': {
         // GitHub Desktop installs a `github` CLI shim that opens the
-        // repo at <path>. No-op-friendly: errors fall through below.
+        // repo at <path>.
+        if (!(await windowsHasCommand('github'))) {
+          return {
+            ok: false,
+            error: 'GitHub Desktop (`github` command) not found on PATH. Install GitHub Desktop to use this action.',
+          };
+        }
         spawnDetached('github', [`"${worktreePath}"`]);
         return { ok: true };
       }

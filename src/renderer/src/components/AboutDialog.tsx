@@ -26,10 +26,23 @@ export function AboutDialog({ onClose }: AboutDialogProps): JSX.Element {
   const runCheck = (): void => {
     setChecking(true);
     setResult(null);
-    void window.popbot.updates.check().then((r) => {
-      setResult(r);
-      setChecking(false);
-    });
+    void window.popbot.updates
+      .check()
+      .then((r) => setResult(r))
+      .catch((err: unknown) => {
+        // IPC invoke can reject (renderer/main desync, unexpected main
+        // error). Surface a friendly message instead of leaving the
+        // dialog stuck on "Checking…" forever.
+        setResult({
+          current: version,
+          latest: null,
+          updateAvailable: false,
+          htmlUrl: null,
+          name: null,
+          error: err instanceof Error ? err.message : 'Update check failed. Please try again.',
+        });
+      })
+      .finally(() => setChecking(false));
   };
 
   useEffect(() => {

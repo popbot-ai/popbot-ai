@@ -19,10 +19,10 @@ function WindowControls(): JSX.Element {
   }, []);
   return (
     <div className="win-controls">
-      <button className="win-ctl" title="Minimize" onClick={() => void window.popbot.win.action('minimize')}>
+      <button type="button" className="win-ctl" title="Minimize" aria-label="Minimize" onClick={() => void window.popbot.win.action('minimize')}>
         <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden><rect x="0" y="4.5" width="10" height="1" fill="currentColor" /></svg>
       </button>
-      <button className="win-ctl" title={maximized ? 'Restore' : 'Maximize'} onClick={() => void window.popbot.win.action('maximize-toggle')}>
+      <button type="button" className="win-ctl" title={maximized ? 'Restore' : 'Maximize'} aria-label={maximized ? 'Restore' : 'Maximize'} onClick={() => void window.popbot.win.action('maximize-toggle')}>
         {maximized ? (
           <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden>
             <rect x="0.5" y="2.5" width="6" height="6" fill="none" stroke="currentColor" strokeWidth="1" />
@@ -32,7 +32,7 @@ function WindowControls(): JSX.Element {
           <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden><rect x="0.5" y="0.5" width="9" height="9" fill="none" stroke="currentColor" strokeWidth="1" /></svg>
         )}
       </button>
-      <button className="win-ctl win-ctl-close" title="Close" onClick={() => void window.popbot.win.action('close')}>
+      <button type="button" className="win-ctl win-ctl-close" title="Close" aria-label="Close" onClick={() => void window.popbot.win.action('close')}>
         <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden><path d="M0.5 0.5 L9.5 9.5 M9.5 0.5 L0.5 9.5" stroke="currentColor" strokeWidth="1.1" /></svg>
       </button>
     </div>
