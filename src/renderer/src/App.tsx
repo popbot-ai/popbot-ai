@@ -1284,12 +1284,16 @@ export default function App(): JSX.Element {
         <PreferencesSheet
           onClose={() => { setPrefsOpen(false); setReadinessVersion((v) => v + 1); }}
           onLinearChanged={() => setLinearVersion((v) => v + 1)}
-          onSlotsChanged={() => setSlotConfigVersion((v) => v + 1)}
           // Repo create / update / delete touches the denormalized
-          // `repoColor`/`repoMode` columns on chats — refetch the
-          // chat list so frame colors and slot pills update live
-          // instead of waiting for the next reload.
-          onReposChanged={() => { void refresh(); setReadinessVersion((v) => v + 1); }}
+          // `repoColor`/`repoMode` columns on chats — refetch the chat
+          // list so frame colors and slot pills update live. It also
+          // covers per-repo slot config now (slots moved out of the
+          // global Runtime panel), so bump the slot strip too.
+          onReposChanged={() => {
+            void refresh();
+            setReadinessVersion((v) => v + 1);
+            setSlotConfigVersion((v) => v + 1);
+          }}
           initialSection={prefsSection}
         />
       )}
