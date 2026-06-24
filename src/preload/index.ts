@@ -21,8 +21,18 @@ import {
 } from '@shared/ipc';
 
 const api: PopBotApi = {
+  platform: process.platform,
   app: {
     getVersion: () => ipcRenderer.invoke(IpcChannel.AppGetVersion),
+    quit: () => ipcRenderer.invoke(IpcChannel.AppQuit),
+  },
+  win: {
+    action: (name) => ipcRenderer.invoke(IpcChannel.WinAction, name),
+    onMaximizeChange: (handler: (maximized: boolean) => void) => {
+      const listener = (_e: IpcRendererEvent, maximized: boolean) => handler(maximized);
+      ipcRenderer.on(IpcChannel.WinMaximizeChanged, listener);
+      return () => ipcRenderer.removeListener(IpcChannel.WinMaximizeChanged, listener);
+    },
   },
   chats: {
     list: () => ipcRenderer.invoke(IpcChannel.ChatsList),
@@ -122,6 +132,7 @@ const api: PopBotApi = {
     listBaseBranches: (input: { chatId?: string | null; repoId?: string | null }) =>
       ipcRenderer.invoke(IpcChannel.GitListBaseBranches, input),
     detectPr: (chatId: string) => ipcRenderer.invoke(IpcChannel.GitDetectPr, chatId),
+    username: () => ipcRenderer.invoke(IpcChannel.GitUsername),
   },
   term: {
     open: (chatId: string, cwd: string, cols?: number, rows?: number) =>
@@ -151,6 +162,7 @@ const api: PopBotApi = {
       ipcRenderer.invoke(IpcChannel.AgentValidateSession, chatId),
     restartWithContext: (chatId: string) =>
       ipcRenderer.invoke(IpcChannel.AgentRestartWithContext, chatId),
+    backendsStatus: () => ipcRenderer.invoke(IpcChannel.AgentBackendsStatus),
     onEvent: (handler: (event: AgentEvent) => void) => {
       const listener = (_e: IpcRendererEvent, event: AgentEvent) => handler(event);
       ipcRenderer.on(IpcChannel.AgentEvent, listener);

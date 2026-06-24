@@ -11,6 +11,7 @@
 import { spawn, type IPty } from 'node-pty';
 import type { WebContents } from 'electron';
 import { IpcChannel } from '@shared/ipc';
+import { getSetting } from '../persistence/settings';
 
 /** Cap on the rolling per-chat buffer. ~1MB of bytes; xterm's own
  *  scrollback covers anything past the replay window. */
@@ -27,6 +28,37 @@ interface Entry {
 
 const sessions = new Map<string, Entry>();
 let webContents: WebContents | null = null;
+
+/**
+ * The shell to spawn for the in-app terminal, per platform.
+ *
+ *  - Windows: user-selectable via Preferences → External apps
+ *    (`apps.windowsShell`): PowerShell (default), Command Prompt (cmd),
+ *    or PowerShell 7 (pwsh). No `-l` — that's a POSIX login-shell flag
+ *    PowerShell/cmd don't understand.
+ *  - macOS / Linux: the user's login shell (`$SHELL`, default zsh),
+ *    started as a login shell so it sources the user's rc/profile.
+ *
+ * `POPBOT_TERMINAL_SHELL` (absolute path to any shell binary) overrides
+ * everything, on any platform.
+ */
+function resolveShell(): { file: string; args: string[] } {
+  const override = process.env.POPBOT_TERMINAL_SHELL;
+  if (override) return { file: override, args: [] };
+  if (process.platform === 'win32') {
+    const choice = getSetting<{ windowsShell?: string }>('apps')?.windowsShell || 'powershell';
+    switch (choice) {
+      case 'cmd':
+        return { file: process.env.ComSpec || 'cmd.exe', args: [] };
+      case 'pwsh':
+        return { file: 'pwsh.exe', args: ['-NoLogo'] };
+      case 'powershell':
+      default:
+        return { file: 'powershell.exe', args: ['-NoLogo'] };
+    }
+  }
+  return { file: process.env.SHELL || '/bin/zsh', args: ['-l'] };
+}
 
 export function attachWebContents(wc: WebContents): void {
   webContents = wc;
@@ -49,8 +81,8 @@ export function open(chatId: string, cwd: string, cols = 100, rows = 30): { ok: 
     entry = undefined;
   }
   if (!entry) {
-    const shell = process.env.SHELL || '/bin/zsh';
-    const pty = spawn(shell, ['-l'], {
+    const { file: shell, args: shellArgs } = resolveShell();
+    const pty = spawn(shell, shellArgs, {
       name: 'xterm-256color',
       cols,
       rows,

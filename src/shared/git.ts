@@ -91,14 +91,13 @@ export type GitFilesInCommitResult =
   | { ok: true; files: GitFileChange[] }
   | { ok: false; error: string };
 
-/** Candidate target branches for PR creation, surfaced in the
- *  panel's "→ <target>" dropdown. */
+/** Candidate base branches for a new chat / PR target. Just the repo's
+ *  branches — no naming-convention heuristics. The picker searches this
+ *  list; common defaults (main/master/develop) are floated to the top. */
 export interface GitBaseBranches {
-  /** True when a `develop` branch (local or remote) exists. */
-  hasDevelop: boolean;
-  /** Up to N most recent rc-1.x branch names (e.g. 'rc-1.234'),
-   *  sorted by committer date descending. */
-  releaseCandidates: string[];
+  /** All branch names (local + origin, de-duplicated), most-recently
+   *  committed first, with main/master/develop floated to the front. */
+  branches: string[];
 }
 export type GitBaseBranchesResult =
   | { ok: true; branches: GitBaseBranches }

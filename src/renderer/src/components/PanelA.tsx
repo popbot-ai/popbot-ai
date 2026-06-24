@@ -30,7 +30,7 @@ interface PanelAProps {
   /** Reopen-and-focus an existing chat by id. Used by the
    *  WorkItemSearch picker when the user clicks a chat result. */
   onFocusChat?: (chatId: string) => void;
-  onOpenPrefs?: () => void;
+  onOpenPrefs?: (section?: string) => void;
   /** Linear poll status — lifted to App so the same data feeds the
    *  per-chat status chip on every column without each chip running
    *  its own poll. */
@@ -54,6 +54,11 @@ const PRIORITY_LABEL: Record<number, Ticket['priority']> = {
   3: 'med',
   4: 'low',
 };
+
+/** Slack inbox tab — FEATURE IN PROGRESS. Hidden from the UI (never
+ *  tested end-to-end) but all the code is retained behind this flag so
+ *  it's a one-line re-enable once verified. */
+const SLACK_TAB_ENABLED = false;
 
 /** Late-stage workflow states that have moved past "needs dev work."
  *  Once a ticket is in QA / deploy queue, surfacing it on the Tickets
@@ -637,9 +642,11 @@ export function PanelA({
               </span>
             )}
           </button>
-          <button className="panel-tab" aria-selected={tab === 'slack'} onClick={() => setTab('slack')}>
-            Slack
-          </button>
+          {SLACK_TAB_ENABLED && (
+            <button className="panel-tab" aria-selected={tab === 'slack'} onClick={() => setTab('slack')}>
+              Slack
+            </button>
+          )}
         </div>
         <div className="panel-actions">
           {tab === 'tickets' && unseenTickets > 0 && (
@@ -758,8 +765,8 @@ export function PanelA({
               Once configured, this tab will surface unread DMs and channel mentions.
             </p>
             {onOpenPrefs && (
-              <button className="btn primary sm" onClick={onOpenPrefs}>
-                <i className="fa-solid fa-plug" /> Open Preferences
+              <button className="btn primary sm" onClick={() => onOpenPrefs('integ')}>
+                <i className="fa-solid fa-plug" /> Connect Slack
               </button>
             )}
           </div>
@@ -856,7 +863,7 @@ export function PanelA({
 interface ReviewListProps {
   status: ReturnType<typeof useReviews>['status'];
   onSpawn: (r: ReviewItem) => void;
-  onOpenPrefs?: () => void;
+  onOpenPrefs?: (section?: string) => void;
   /** PR-number → chat-state map. Rows for PRs with an existing chat
    *  badge accordingly + their click is "go to that chat" rather than
    *  "spawn a fresh one" (the spawn handler upstream handles both). */
@@ -884,6 +891,97 @@ interface ReviewListProps {
   onContextMenu?: (review: ReviewItem, x: number, y: number) => void;
 }
 
+/** One step in the GitHub readiness checklist: a status dot + label,
+ *  and either a CTA button (when this step is the blocker) or nothing.
+ *  Steps gated behind an earlier unmet step render muted/pending. */
+function ReviewStep({
+  state,
+  label,
+  hint,
+  action,
+}: {
+  state: 'ok' | 'needed' | 'pending';
+  label: string;
+  hint?: string;
+  action?: { text: string; onClick: () => void };
+}): JSX.Element {
+  const icon = state === 'ok' ? 'fa-circle-check'
+    : state === 'needed' ? 'fa-circle-exclamation'
+      : 'fa-circle';
+  const color = state === 'ok' ? 'var(--ok, #46c878)'
+    : state === 'needed' ? 'var(--warn, #e6b04a)'
+      : 'var(--fg-3)';
+  return (
+    <div className="reviews-step">
+      <i className={`fa-solid ${icon}`} style={{ color, width: 15, textAlign: 'center', flex: '0 0 auto' }} />
+      <span style={{ color: state === 'pending' ? 'var(--fg-3)' : 'var(--fg-2)', fontSize: 12.5 }}>{label}</span>
+      {hint && <span style={{ color: 'var(--fg-3)', fontSize: 11 }}>· {hint}</span>}
+      {action && (
+        <button className="btn ghost sm" style={{ marginLeft: 'auto' }} onClick={action.onClick}>
+          {action.text}
+        </button>
+      )}
+    </div>
+  );
+}
+
+/** GitHub-readiness checklist for the Reviews tab. Walks gh-installed →
+ *  signed-in → repo-configured, deriving each step's state from the
+ *  reviews status discriminant. Shows green checks for satisfied steps
+ *  and an actionable button for the first one that's missing — replacing
+ *  the old bare one-line error text. `footer` is rendered below the
+ *  checklist (e.g. the "no PRs waiting" note once everything's green). */
+function ReviewsReadiness({
+  status,
+  onOpenPrefs,
+  footer,
+}: {
+  status: ReturnType<typeof useReviews>['status'];
+  onOpenPrefs?: (section?: string) => void;
+  footer?: JSX.Element;
+}): JSX.Element {
+  const ghInstalled = status.kind !== 'gh-not-found';
+  const ghAuthed = ghInstalled && status.kind !== 'gh-not-authed';
+  const hasRepo = ghAuthed && status.kind !== 'no-repo';
+  const allReady = ghInstalled && ghAuthed && hasRepo;
+  return (
+    <div className="empty reviews-readiness">
+      <div className="ico"><i className="fa-brands fa-github" /></div>
+      <div style={{ fontWeight: 600, color: 'var(--fg-2)' }}>
+        {allReady ? 'GitHub connected' : 'Connect GitHub to see reviews'}
+      </div>
+      <div className="reviews-steps">
+        <ReviewStep
+          state={ghInstalled ? 'ok' : 'needed'}
+          label="GitHub CLI installed"
+          action={ghInstalled ? undefined : {
+            text: 'Install gh',
+            onClick: () => window.open('https://cli.github.com', '_blank'),
+          }}
+        />
+        <ReviewStep
+          state={!ghInstalled ? 'pending' : ghAuthed ? 'ok' : 'needed'}
+          label="Signed in to GitHub"
+          hint={ghInstalled && !ghAuthed ? 'run gh auth login' : undefined}
+          action={ghInstalled && !ghAuthed ? {
+            text: 'How to sign in',
+            onClick: () => window.open('https://cli.github.com/manual/gh_auth_login', '_blank'),
+          } : undefined}
+        />
+        <ReviewStep
+          state={!ghAuthed ? 'pending' : hasRepo ? 'ok' : 'needed'}
+          label="Repository configured"
+          action={ghAuthed && !hasRepo && onOpenPrefs ? {
+            text: 'Add repository',
+            onClick: () => onOpenPrefs('repos'),
+          } : undefined}
+        />
+      </div>
+      {footer}
+    </div>
+  );
+}
+
 function ReviewList({
   status,
   onSpawn,
@@ -900,27 +998,10 @@ function ReviewList({
   if (status.kind === 'loading') {
     return <div className="row-empty">Loading reviews…</div>;
   }
-  if (status.kind === 'gh-not-found') {
-    return (
-      <div className="row-empty">
-        <p>The <span className="mono">gh</span> CLI isn't on PATH. Install it to see PR reviews.</p>
-      </div>
-    );
-  }
-  if (status.kind === 'gh-not-authed') {
-    return (
-      <div className="row-empty">
-        <p>GitHub CLI isn't authenticated. Run <span className="mono">gh auth login</span> in your terminal.</p>
-      </div>
-    );
-  }
-  if (status.kind === 'no-repo') {
-    return (
-      <div className="row-empty">
-        <p>No repo configured.</p>
-        {onOpenPrefs && <button className="btn ghost sm" onClick={onOpenPrefs}>Open Preferences</button>}
-      </div>
-    );
+  // gh missing / not signed in / no repo → the progressive readiness
+  // checklist (green checks for what's done, a button for what's next).
+  if (status.kind === 'gh-not-found' || status.kind === 'gh-not-authed' || status.kind === 'no-repo') {
+    return <ReviewsReadiness status={status} onOpenPrefs={onOpenPrefs} />;
   }
   if (status.kind === 'error') {
     return <div className="row-empty error">Couldn't load reviews: {status.message}</div>;
@@ -931,7 +1012,16 @@ function ReviewList({
   const ignoredSet = new Set(ignoredPrs ?? []);
   const visibleReviews = status.reviews.filter((r) => !ignoredSet.has(r.number));
   if (visibleReviews.length === 0) {
-    return <div className="row-empty">No PRs need your review right now.</div>;
+    // Everything's connected (status is ok) — show the all-green
+    // checklist so the user can see GitHub is wired up correctly, then
+    // the "nothing waiting" note underneath.
+    return (
+      <ReviewsReadiness
+        status={status}
+        onOpenPrefs={onOpenPrefs}
+        footer={<div className="reviews-empty-note">No PRs need your review right now.</div>}
+      />
+    );
   }
   return (
     <>
@@ -1069,7 +1159,7 @@ function ReviewRow({ review: r, linked, onClick, avatarColor, linkedTitle, isNew
 interface LinearTicketsProps {
   status: ReturnType<typeof useLinearIssues>['status'];
   onSpawn: (t: Ticket) => void;
-  onOpenPrefs?: () => void;
+  onOpenPrefs?: (section?: string) => void;
   onRefresh: () => void;
   ticketChats?: Map<string, { open: boolean; focused: boolean; slotId: number | null; pr: number | null }>;
   /** Linear identifiers the user has chosen to ignore — filtered out
@@ -1395,10 +1485,10 @@ function LinearTickets({
     return (
       <div className="empty">
         <div className="ico"><i className="fa-solid fa-ticket" /></div>
-        <div>Linear isn't connected.</div>
+        <div>No ticket source connected.</div>
         {onOpenPrefs && (
-          <button className="btn primary sm" onClick={onOpenPrefs}>
-            <i className="fa-solid fa-plug" /> Connect Linear
+          <button className="btn primary sm" onClick={() => onOpenPrefs('integ')}>
+            <i className="fa-solid fa-plug" /> Connect to Issue Tracker
           </button>
         )}
       </div>
@@ -1410,7 +1500,7 @@ function LinearTickets({
         <div className="ico"><i className="fa-solid fa-circle-exclamation" /></div>
         <div>Linear API key was rejected.</div>
         {onOpenPrefs && (
-          <button className="btn primary sm" onClick={onOpenPrefs}>Reconnect</button>
+          <button className="btn primary sm" onClick={() => onOpenPrefs('integ')}>Reconnect</button>
         )}
       </div>
     );

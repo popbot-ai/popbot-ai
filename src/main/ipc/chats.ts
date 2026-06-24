@@ -102,7 +102,7 @@ function readGitSettings(): {
   // keep working until the user opens Preferences and confirms. Final
   // fallback `app` matches the current sole-repo default.
   const repoName = (s.repoName?.trim()
-    || basename(s.repoPath.replace(/\/+$/, '')).toLowerCase()
+    || basename(s.repoPath).toLowerCase()
     || 'app');
   const slotPrefix = s.slotPrefix?.trim() || 'slot';
   return {
@@ -248,10 +248,13 @@ export function registerChatHandlers(): void {
     // we allocate a slot from the pool or spin up an ephemeral worktree.
     const repo = resolveRepo(input.repoId);
     if (!repo) return { ok: false, reason: 'git-not-configured' };
+    // The repo record is the source of truth (repoPath, defaultBase,
+    // slotCount). The legacy single-repo `settings.git` is only a
+    // fallback for pre-multi-repo installs — NOT required. A valid repo
+    // + git/gh is enough; don't force the user into Source-control prefs.
     const gitCfg = readGitSettings();
-    if (!gitCfg) return { ok: false, reason: 'git-not-configured' };
     const branch = input.branch?.trim() || `popbot/chat-${Date.now()}`;
-    const baseBranch = input.baseBranch?.trim() || repo.defaultBase || gitCfg.defaultBase;
+    const baseBranch = input.baseBranch?.trim() || repo.defaultBase || gitCfg?.defaultBase || 'main';
 
     if (repo.mode === 'ephemeral') {
       // input.slotId is meaningless in ephemeral mode — the renderer
@@ -285,7 +288,7 @@ export function registerChatHandlers(): void {
       });
       try {
         await ensureChatWorktree({
-          repoPath: repo.repoPath || gitCfg.repoPath,
+          repoPath: repo.repoPath || gitCfg?.repoPath || '',
           worktreePath,
           branch,
           baseBranch,
@@ -304,9 +307,11 @@ export function registerChatHandlers(): void {
       return updated ? { ok: true, chat: updated } : { ok: false, reason: 'worktree-failed', message: 'Lost chat after create' };
     }
 
-    // Slot-pool mode — original flow.
-    const slotsCfg = readSlotsSettings();
-    if (!slotsCfg) return { ok: false, reason: 'slots-not-configured' };
+    // Slot-pool mode — original flow. Pool size comes from the repo's
+    // own slotCount (set in the Add Repository wizard); fall back to the
+    // legacy global slots setting only for pre-multi-repo installs.
+    const maxSlots = repo.slotCount || readSlotsSettings()?.maxCount || 0;
+    if (maxSlots < 1) return { ok: false, reason: 'slots-not-configured' };
     let slotId: number;
     if (input.slotId != null) {
       const taken = listSlotOccupants();
@@ -315,7 +320,7 @@ export function registerChatHandlers(): void {
       }
       slotId = input.slotId;
     } else {
-      const picked = allocateSlotPreferring(slotsCfg.maxCount, null);
+      const picked = allocateSlotPreferring(maxSlots, null);
       if (picked === null) return { ok: false, reason: 'no-free-slot' };
       slotId = picked;
     }
@@ -326,10 +331,10 @@ export function registerChatHandlers(): void {
 
     try {
       await ensureSlotWorktree({
-        repoPath: repo.repoPath || gitCfg.repoPath,
+        repoPath: repo.repoPath || gitCfg?.repoPath || '',
         worktreePath,
         parkBranch: parkingBranch(repo.id, slotId),
-        baseBranch: repo.defaultBase || gitCfg.defaultBase,
+        baseBranch: repo.defaultBase || gitCfg?.defaultBase || 'main',
       });
       await refreshSlotForAllocation({ worktreePath, baseBranch });
       await checkoutBranch({ worktreePath, branch, baseBranch });

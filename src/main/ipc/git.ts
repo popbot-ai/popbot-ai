@@ -5,6 +5,8 @@
  */
 import { ipcMain } from 'electron';
 import { existsSync } from 'node:fs';
+import { join } from 'node:path';
+import { homedir } from 'node:os';
 import { IpcChannel } from '@shared/ipc';
 import type {
   GitCommitInput,
@@ -26,6 +28,7 @@ import { getSetting } from '../persistence/settings';
 import { worktreePathForChat } from '../git/chatPaths';
 import {
   commitFiles,
+  deriveGitUsername,
   detectPr,
   fileDiff,
   listFilesInCommit,
@@ -39,7 +42,7 @@ function resolveWorktree(chatId: string): string | { error: 'no-worktree' | 'not
   const wt = worktreePathForChat(chat);
   if (!wt) return { error: 'no-worktree' };
   if (!existsSync(wt)) return { error: 'no-worktree' };
-  if (!existsSync(`${wt}/.git`)) return { error: 'not-a-git-repo' };
+  if (!existsSync(join(wt, '.git'))) return { error: 'not-a-git-repo' };
   return wt;
 }
 
@@ -146,6 +149,15 @@ export function registerGitHandlers(): void {
     },
   );
 
+  ipcMain.handle(IpcChannel.GitUsername, async (): Promise<string> => {
+    // Explicit override in Source-control settings wins; otherwise derive
+    // from gh/git. Global git config + gh are readable from anywhere, so
+    // home is a safe cwd.
+    const override = getSetting<{ username?: string }>('git')?.username?.trim();
+    if (override) return override;
+    return (await deriveGitUsername(homedir())) || 'pop';
+  });
+
   ipcMain.handle(
     IpcChannel.GitDetectPr,
     async (_e, chatId: string): Promise<GitDetectPrResult> => {
@@ -162,7 +174,7 @@ export function registerGitHandlers(): void {
       // PR number; cwd falls back to the configured repo root.
       let cwd: string | null = worktreePathForChat(filled);
       let prNumber: number | undefined;
-      if (cwd && existsSync(cwd) && existsSync(`${cwd}/.git`)) {
+      if (cwd && existsSync(cwd) && existsSync(join(cwd, '.git'))) {
         // worktree path looks healthy; let `gh` resolve PR by branch
       } else {
         // Slot-less or worktree gone — fall back to repo root.

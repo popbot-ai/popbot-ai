@@ -53,16 +53,23 @@ import { persistChatAttachments } from '../attachments/store';
 
 /**
  * Where the Claude SDK stores per-session JSONLs. The SDK encodes a
- * cwd by replacing `/` with `-` (e.g. `/Users/you/code/my-app` →
- * `-Users-you-code-my-app`) and stores transcripts under
+ * cwd by replacing every non-alphanumeric char with `-` (e.g.
+ * `/Users/you/code/my-app` → `-Users-you-code-my-app`, and on Windows
+ * `C:\Users\you\app` → `C--Users-you-app`) and stores transcripts under
  * `~/.claude/projects/<encoded>/<session-id>.jsonl`. We replicate the
- * encoding so we can confirm a session JSONL is actually on disk
- * before asking the SDK to resume it — that lets us turn "SDK rejects
- * pinned id" loops into a clean "spawn fresh" path with diagnostics.
+ * encoding EXACTLY (see @anthropic-ai/claude-agent-sdk) so we can
+ * confirm a session JSONL is actually on disk before asking the SDK to
+ * resume it — that lets us turn "SDK rejects pinned id" loops into a
+ * clean "spawn fresh" path with diagnostics.
+ *
+ * NOTE: this MUST match the SDK's encoding. A `/`-only replacement
+ * leaves Windows backslashes / drive-colon untouched, so the path never
+ * matches what the SDK wrote, the existence check always fails, and the
+ * boot-time pin repair wrongly wipes every chat's session_id.
  */
 export function sdkSessionJsonlPath(cwd: string, sessionId: string): string | null {
   if (!cwd || !sessionId) return null;
-  const encoded = cwd.replace(/\//g, '-');
+  const encoded = cwd.replace(/[^a-zA-Z0-9]/g, '-');
   return join(homedir(), '.claude', 'projects', encoded, `${sessionId}.jsonl`);
 }
 

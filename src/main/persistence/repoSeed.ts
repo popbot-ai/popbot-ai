@@ -31,7 +31,7 @@ export function seedDefaultRepoFromSettings(): void {
     return;
   }
   const id = (git.repoName?.trim()
-    || basename(git.repoPath.replace(/\/+$/, '')).toLowerCase()
+    || basename(git.repoPath).toLowerCase()
     || 'app');
   const slots = getSetting<SlotsSettings>('slots');
   const slotCount = typeof slots?.maxCount === 'number' && slots.maxCount > 0

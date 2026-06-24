@@ -154,6 +154,34 @@ function persistWindowState(win: BrowserWindow): void {
 function createMainWindow(): BrowserWindow {
   const saved = readSavedWindowState();
   const bounds = saved.bounds ?? DEFAULT_BOUNDS;
+  const isMac = process.platform === 'darwin';
+  const isWin = process.platform === 'win32';
+  // Window chrome, per platform:
+  //  - macOS: inset traffic lights; the app draws the rest of the bar
+  //    (system menu bar lives at the top of the screen).
+  //  - Windows: hide the OS title bar but keep native min/max/close via
+  //    the Window Controls Overlay (titleBarOverlay); the app draws its
+  //    own menu bar in the freed space. `autoHideMenuBar` hides the
+  //    native menu bar while keeping its accelerators alive.
+  //  - Linux: titleBarOverlay is NOT supported, so a frameless window
+  //    would have no window controls. Use the standard native frame +
+  //    native menu bar instead — reliable across the many Linux WMs.
+  const TITLEBAR_H = 40;
+  const chrome: Electron.BrowserWindowConstructorOptions = isMac
+    ? { titleBarStyle: 'hiddenInset', trafficLightPosition: { x: 14, y: 14 } }
+    : isWin
+      ? {
+          titleBarStyle: 'hidden',
+          autoHideMenuBar: true,
+          // Match the side panels' surface so the native caption-button
+          // area blends with our custom titlebar + the left/right panels.
+          titleBarOverlay: {
+            color: '#14181f',
+            symbolColor: '#9aa4b2',
+            height: TITLEBAR_H,
+          },
+        }
+      : {}; // Linux: native frame + native menu.
   const window = new BrowserWindow({
     x: saved.bounds?.x,
     y: saved.bounds?.y,
@@ -163,8 +191,7 @@ function createMainWindow(): BrowserWindow {
     minHeight: 640,
     show: false,
     backgroundColor: '#0e0e12',
-    titleBarStyle: 'hiddenInset',
-    trafficLightPosition: { x: 14, y: 14 },
+    ...chrome,
     icon: ICON_PATH,
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
@@ -186,6 +213,13 @@ function createMainWindow(): BrowserWindow {
   window.on('resize', scheduleSave);
   window.on('close', () => persistWindowState(window));
 
+  // Keep the custom menu bar's Maximize/Restore labels in sync.
+  const sendMax = (maximized: boolean): void => {
+    if (!window.isDestroyed()) window.webContents.send(IpcChannel.WinMaximizeChanged, maximized);
+  };
+  window.on('maximize', () => sendMax(true));
+  window.on('unmaximize', () => sendMax(false));
+
   window.on('ready-to-show', () => window.show());
 
   window.webContents.setWindowOpenHandler(({ url }) => {
@@ -206,6 +240,38 @@ function createMainWindow(): BrowserWindow {
 
 function registerCoreHandlers(): void {
   ipcMain.handle(IpcChannel.AppGetVersion, () => app.getVersion());
+  // Quit from the custom titlebar menu (Windows, where the native menu
+  // bar is hidden). Routes through app.quit() so the before-quit flush
+  // (SDK session JSONLs) still runs.
+  ipcMain.handle(IpcChannel.AppQuit, () => app.quit());
+  // Window / edit / view commands from the custom menu bar. Acts on the
+  // window that sent the request so it works regardless of which window
+  // (we only have one today, but keep it correct).
+  ipcMain.handle(IpcChannel.WinAction, (e, name: import('@shared/ipc').WinActionName) => {
+    const win = BrowserWindow.fromWebContents(e.sender);
+    if (!win) return;
+    const wc = win.webContents;
+    switch (name) {
+      case 'minimize': win.minimize(); return;
+      case 'maximize-toggle':
+        if (win.isMaximized()) win.unmaximize(); else win.maximize();
+        return win.isMaximized();
+      case 'close': win.close(); return;
+      case 'is-maximized': return win.isMaximized();
+      case 'undo': wc.undo(); return;
+      case 'redo': wc.redo(); return;
+      case 'cut': wc.cut(); return;
+      case 'copy': wc.copy(); return;
+      case 'paste': wc.paste(); return;
+      case 'select-all': wc.selectAll(); return;
+      case 'reload': wc.reload(); return;
+      case 'force-reload': wc.reloadIgnoringCache(); return;
+      case 'toggle-devtools': wc.toggleDevTools(); return;
+      case 'zoom-in': wc.setZoomLevel(wc.getZoomLevel() + 0.5); return;
+      case 'zoom-out': wc.setZoomLevel(wc.getZoomLevel() - 0.5); return;
+      case 'zoom-reset': wc.setZoomLevel(0); return;
+    }
+  });
 }
 
 /** Build the application menu. We mostly want Electron's defaults

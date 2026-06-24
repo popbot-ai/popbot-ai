@@ -11,7 +11,7 @@ import { ipcMain } from 'electron';
 import { existsSync, readdirSync } from 'node:fs';
 import { execFile, spawn } from 'node:child_process';
 import { basename, join } from 'node:path';
-import { homedir } from 'node:os';
+import { homedir, tmpdir } from 'node:os';
 import { promisify } from 'node:util';
 import { IpcChannel } from '@shared/ipc';
 import { getSetting } from '../persistence/settings';
@@ -36,10 +36,63 @@ interface AppsSettings {
   unityProjectSubpath?: string;
 }
 
+const isMac = process.platform === 'darwin';
+const isWindows = process.platform === 'win32';
+
 async function openApp(appName: string, path: string): Promise<void> {
   // `open -a "<App>" <path>` activates an existing instance pointed
   // at <path> when supported, else launches a fresh one.
   await execFileP('open', ['-a', appName, path]);
+}
+
+/**
+ * Windows launcher for the per-slot icon row. macOS routes everything
+ * through `open -a`; Windows has no single equivalent, so we map each
+ * app kind to its native invocation:
+ *
+ *   - editor:   the editor's CLI shim (`code` / `cursor`), which opens
+ *     (or focuses) the folder. Spawned via the shell because they're
+ *     `.cmd` files on PATH.
+ *   - terminal: Windows Terminal (`wt.exe -d <path>`) when available,
+ *     else a `cmd.exe` window rooted at the worktree.
+ *   - git:      GitHub Desktop via its `github` CLI shim if present.
+ *
+ * Returns an error result the caller can surface when the target app
+ * isn't installed, rather than throwing.
+ */
+async function openAppWindows(
+  kind: 'terminal' | 'editor' | 'git',
+  cfg: AppsSettings,
+  worktreePath: string,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const spawnDetached = (file: string, args: string[]): void => {
+    const child = spawn(file, args, { detached: true, stdio: 'ignore', shell: true });
+    child.once('error', () => { /* surfaced via try/catch in caller */ });
+    child.unref();
+  };
+  try {
+    switch (kind) {
+      case 'editor': {
+        const editor = (cfg.editorApp || 'vscode').toLowerCase();
+        const bin = editor === 'cursor' ? 'cursor' : 'code';
+        spawnDetached(bin, [`"${worktreePath}"`]);
+        return { ok: true };
+      }
+      case 'terminal': {
+        // Prefer Windows Terminal; fall back to a plain cmd window.
+        spawnDetached('cmd', ['/c', 'start', 'wt', '-d', `"${worktreePath}"`]);
+        return { ok: true };
+      }
+      case 'git': {
+        // GitHub Desktop installs a `github` CLI shim that opens the
+        // repo at <path>. No-op-friendly: errors fall through below.
+        spawnDetached('github', [`"${worktreePath}"`]);
+        return { ok: true };
+      }
+    }
+  } catch (err) {
+    return { ok: false, error: (err as Error).message };
+  }
 }
 
 /**
@@ -82,6 +135,10 @@ const PS_CACHE_MS = 1500;
 let psCache: { ts: number; projects: RunningUnityProject[] } | null = null;
 
 async function listRunningUnityProjects(): Promise<RunningUnityProject[]> {
+  // Unity detection relies on `ps` (Unix). No Windows equivalent wired
+  // up yet — return empty rather than spawning a missing binary on the
+  // renderer's 2s poll.
+  if (!isMac) return [];
   const now = Date.now();
   if (psCache && now - psCache.ts < PS_CACHE_MS) return psCache.projects;
   const out: RunningUnityProject[] = [];
@@ -182,6 +239,10 @@ let appsCache: { ts: number; result: RunningAppsByKind } | null = null;
  * Result is cached briefly to coalesce simultaneous renderer ticks.
  */
 async function listRunningAppsForSlots(): Promise<RunningAppsByKind> {
+  // Detection uses `pgrep`/`lsof`/`ps` (Unix). On Windows we have no
+  // per-slot running signal yet, so short-circuit to empty instead of
+  // firing missing-binary spawns every poll tick.
+  if (!isMac) return { terminal: [], editor: [], git: [], unity: [] };
   const now = Date.now();
   if (appsCache && now - appsCache.ts < APPS_CACHE_MS) return appsCache.result;
 
@@ -327,6 +388,12 @@ export function registerAppsHandlers(): void {
         return { ok: false as const, error: 'Worktree path not found' };
       }
       const cfg = getSetting<AppsSettings>('apps') ?? {};
+      // Windows: terminal/editor/git map to native launchers. Unity on
+      // Windows isn't wired up yet, so it falls through to the macOS
+      // path below (which returns a clear "not configured" error).
+      if (isWindows && (kind === 'terminal' || kind === 'editor' || kind === 'git')) {
+        return openAppWindows(kind, cfg, worktreePath);
+      }
       try {
         switch (kind) {
           case 'terminal': {
@@ -403,7 +470,7 @@ export function registerAppsHandlers(): void {
               // skips the project picker; -logFile is per-slot so we
               // don't fight other slots for the default log path.
               const slotName = basename(worktreePath); // e.g. 'slot-3'
-              const logPath = `/tmp/unity-${slotName}.log`;
+              const logPath = join(tmpdir(), `unity-${slotName}.log`);
               try {
                 await new Promise<void>((resolve, reject) => {
                   const child = spawn(

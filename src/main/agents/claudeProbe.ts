@@ -9,6 +9,7 @@ import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { notify } from '../notifications/dispatcher';
 import { dlog } from '../diagLog';
+import { resolveCliPath } from './resolveCli';
 
 const execFileP = promisify(execFile);
 
@@ -32,18 +33,10 @@ export function getClaudeBinaryPath(): string | null {
 
 export async function probeClaude(): Promise<ClaudeProbeResult> {
   try {
-    // Resolve the absolute path via the user's actual login shell —
-    // not via `which` against process.env.PATH, because (a) fixShellPath's
-    // patched PATH may have missed paths from non-interactive shells and
-    // (b) users on non-bash/zsh shells have their own resolution rules.
-    // `command -v` is POSIX and works under bash, zsh, and fish.
-    const shell = process.env.SHELL || '/bin/zsh';
-    const { stdout: shellOut } = await execFileP(shell, ['-ilc', 'command -v claude'], {
-      timeout: 5000,
-      encoding: 'utf8',
-    });
-    const binaryPath = shellOut.trim().split('\n').pop()?.trim() || '';
-    if (!binaryPath) throw new Error('claude not found on user shell PATH');
+    // Resolve the absolute path cross-platform (login shell on POSIX,
+    // `where.exe` on Windows) — see resolveCli for why we don't just
+    // `which` against process.env.PATH.
+    const binaryPath = await resolveCliPath('claude');
     // Verify the resolved binary actually runs.
     const { stdout: verOut } = await execFileP(binaryPath, ['--version'], {
       timeout: 5000,

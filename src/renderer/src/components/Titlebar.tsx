@@ -1,9 +1,13 @@
 import type { NotificationAction, NotificationRecord } from '@shared/notifications';
 import { NotificationsBell } from './NotificationsBell';
+import { MenuBar } from './MenuBar';
+import { hotkey } from '../lib/hotkeys';
 
 interface TitlebarProps {
   onOpenModal: (kind: string) => void;
   onOpenPrefs: () => void;
+  /** Start a new chat — surfaced in the Windows menu bar (File ▸ New Chat). */
+  onNewChat?: () => void;
   /** True when at least one chat has detected branch/server drift —
    *  surfaces the warning chip in the title bar. */
   driftActive?: boolean;
@@ -26,6 +30,7 @@ interface TitlebarProps {
 export function Titlebar({
   onOpenModal,
   onOpenPrefs,
+  onNewChat,
   driftActive,
   dialupActive,
   gitPanelOpen,
@@ -33,50 +38,69 @@ export function Titlebar({
   onNotificationAction,
   centerFly,
 }: TitlebarProps): JSX.Element {
-  return (
-    <div className="titlebar">
-      {/* Left cell intentionally empty — macOS draws its native traffic
-          light controls here (titleBarStyle: 'hiddenInset'). */}
-      <div />
-      <div className="title">
-        <b>POPBOT</b>
-      </div>
-      <div className="right">
-        {driftActive && (
-          <button
-            className="notify-err"
-            title="Drift detected"
-            onClick={() => onOpenModal('drift')}
-          >
-            <i className="fa-solid fa-triangle-exclamation" />
-          </button>
-        )}
-        {dialupActive && (
-          <button
-            className="notify-warn"
-            title="Capacity needed"
-            onClick={() => onOpenModal('dialup')}
-          >
-            <i className="fa-solid fa-arrow-up-right-from-square" />
-          </button>
-        )}
-        <NotificationsBell
-          onAction={onNotificationAction ?? (() => undefined)}
-          pulseOnArrival={centerFly ?? false}
-        />
-        {onToggleGitPanel && (
-          <button
-            title={gitPanelOpen ? 'Hide git panel' : 'Show git panel'}
-            onClick={onToggleGitPanel}
-            className={gitPanelOpen ? 'titlebar-btn-active' : ''}
-          >
-            <i className="fa-solid fa-code-branch" />
-          </button>
-        )}
-        <button title="Preferences ⌘," onClick={onOpenPrefs}>
-          <i className="fa-solid fa-gear" />
+  // Only Windows draws our custom in-app menu bar — it's the platform
+  // where we hide the native frame/menu (via titleBarOverlay). macOS keeps
+  // its system menu bar; Linux keeps a native frame + native menu.
+  const isWin = window.popbot.platform === 'win32';
+
+  // Shared right-hand app buttons (drift / capacity / bell / git / prefs).
+  const rightButtons = (
+    <div className="right">
+      {driftActive && (
+        <button className="notify-err" title="Drift detected" onClick={() => onOpenModal('drift')}>
+          <i className="fa-solid fa-triangle-exclamation" />
         </button>
+      )}
+      {dialupActive && (
+        <button className="notify-warn" title="Capacity needed" onClick={() => onOpenModal('dialup')}>
+          <i className="fa-solid fa-arrow-up-right-from-square" />
+        </button>
+      )}
+      <NotificationsBell
+        onAction={onNotificationAction ?? (() => undefined)}
+        pulseOnArrival={centerFly ?? false}
+      />
+      {onToggleGitPanel && (
+        <button
+          title={gitPanelOpen ? 'Hide git panel' : 'Show git panel'}
+          onClick={onToggleGitPanel}
+          className={gitPanelOpen ? 'titlebar-btn-active' : ''}
+        >
+          <i className="fa-solid fa-code-branch" />
+        </button>
+      )}
+      <button title={`Preferences ${hotkey(',')}`} onClick={onOpenPrefs}>
+        <i className="fa-solid fa-gear" />
+      </button>
+    </div>
+  );
+
+  // macOS (native traffic lights + system menu bar) and Linux (native
+  // frame + native menu): empty left cell, centered title, right buttons.
+  if (!isWin) {
+    return (
+      <div className="titlebar">
+        <div />
+        <div className="title"><b>POPBOT</b></div>
+        {rightButtons}
       </div>
+    );
+  }
+
+  // Windows: frameless via titleBarOverlay, so we draw a full menu bar on
+  // the left (with the app icon → system menu), a draggable spacer, then
+  // the app buttons. The spacer reserves room on the right for the OS
+  // caption buttons.
+  return (
+    <div className="titlebar titlebar-win">
+      <MenuBar
+        onNewChat={onNewChat}
+        onOpenPrefs={onOpenPrefs}
+        onToggleGitPanel={onToggleGitPanel}
+        gitPanelOpen={gitPanelOpen}
+      />
+      <div className="titlebar-drag" />
+      {rightButtons}
     </div>
   );
 }

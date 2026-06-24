@@ -283,6 +283,10 @@ class ClaudeSession implements AgentSession {
       try {
         // eslint-disable-next-line @typescript-eslint/no-require-imports
         const fs = require('node:fs') as typeof import('node:fs');
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
+        const os = require('node:os') as typeof import('node:os');
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
+        const path = require('node:path') as typeof import('node:path');
         const summary: Record<string, unknown> = { type: msg.type };
         if ('subtype' in msg) summary.subtype = msg.subtype;
         if (msg.type === 'stream_event') {
@@ -298,7 +302,7 @@ class ClaudeSession implements AgentSession {
         if (msg.type === 'assistant' && Array.isArray(msg.message.content)) {
           summary.blocks = msg.message.content.map((b) => b.type);
         }
-        fs.appendFileSync('/tmp/popbot-sdk-debug.log',
+        fs.appendFileSync(path.join(os.tmpdir(), 'popbot-sdk-debug.log'),
           `${new Date().toISOString()} ${JSON.stringify(summary)}\n`);
       } catch {
         // ignore debug failures
