@@ -17,6 +17,7 @@
     "package": "electron-vite build && electron-builder --config electron-builder.yml",
     "package:mac": "electron-vite build && electron-builder --mac --config electron-builder.yml",
     "package:win": "electron-vite build && electron-builder --win --config electron-builder.yml",
+    "package:linux": "electron-vite build && electron-builder --linux --config electron-builder.yml",
     "release": "scripts/release.sh",
     "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json",
     "clean": "rimraf out dist release node_modules/.vite",

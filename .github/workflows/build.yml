@@ -1,0 +1,134 @@
+name: Build
+
+# Builds PopBot on macOS, Windows, and Linux.
+#
+#  - Pull requests / pushes to main  -> validation build only (artifacts
+#    are attached to the workflow run, nothing is published).
+#  - Pushing a `v*` tag              -> builds all three platforms and
+#    publishes them to a GitHub Release for that tag.
+#
+# Native modules (better-sqlite3, node-pty) must be compiled per-OS
+# against Electron's ABI, which is why each platform builds on its own
+# runner instead of cross-compiling.
+
+on:
+  push:
+    tags:
+      - 'v*'
+  pull_request:
+    branches: [main]
+    paths-ignore:
+      - '**/*.md'
+      - 'docs/**'
+  workflow_dispatch: {}
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, windows-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      # Installs JS deps and (via the postinstall shim) rebuilds the
+      # native modules against Electron's ABI for this runner's OS.
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type-check
+        run: npm run typecheck
+
+      - name: Build renderer + main
+        run: npm run build
+
+      # macOS: sign + notarize only when the Apple secrets are present.
+      # Without them, build unsigned (override the yml's notarize:true and
+      # skip keychain identity discovery) so CI stays green until signing
+      # is configured.
+      - name: Package (macOS)
+        if: matrix.os == 'macos-latest'
+        env:
+          CSC_LINK: ${{ secrets.MAC_CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.MAC_CSC_KEY_PASSWORD }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          if [ -n "$CSC_LINK" ] && [ -n "$APPLE_ID" ]; then
+            echo "Apple secrets present — signing + notarizing"
+            npx electron-builder --mac --publish never
+          else
+            echo "No Apple secrets — building unsigned"
+            export CSC_IDENTITY_AUTO_DISCOVERY=false
+            npx electron-builder --mac --publish never -c.mac.notarize=false
+          fi
+
+      # Windows: electron-builder auto-signs when WIN_CSC_LINK is set,
+      # otherwise produces an unsigned build (SmartScreen warns).
+      - name: Package (Windows)
+        if: matrix.os == 'windows-latest'
+        env:
+          CSC_LINK: ${{ secrets.WIN_CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.WIN_CSC_KEY_PASSWORD }}
+        run: npx electron-builder --win --publish never
+
+      - name: Package (Linux)
+        if: matrix.os == 'ubuntu-latest'
+        run: npx electron-builder --linux --publish never
+
+      # Upload only the distributable artifacts + update metadata, not the
+      # multi-hundred-MB unpacked app directories electron-builder leaves
+      # behind in release/.
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: popbot-${{ matrix.os }}
+          retention-days: 14
+          if-no-files-found: error
+          path: |
+            release/*.dmg
+            release/*.exe
+            release/*.AppImage
+            release/*.zip
+            release/*.blockmap
+            release/latest*.yml
+
+  release:
+    # Publish a GitHub Release only for tag pushes, once all platforms
+    # have built successfully.
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download all build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: PopBot ${{ github.ref_name }}
+          generate_release_notes: true
+          fail_on_unmatched_files: true
+          files: |
+            dist/*.dmg
+            dist/*.exe
+            dist/*.AppImage
+            dist/*.zip
+            dist/*.blockmap
+            dist/latest*.yml
