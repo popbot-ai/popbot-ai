@@ -37,9 +37,8 @@ script refuses to run from any branch other than `main` (override with
 
 The `latest*.yml` + `.blockmap` files are electron-updater metadata
 ([`electron-builder.yml`](../electron-builder.yml) `publish: github`
-generates them). The current update check doesn't consume them yet (see
-below), but shipping them now means flipping on true auto-update later is
-a client-only change.
+generates them). The in-app auto-updater consumes them to detect, download,
+and stage updates — see the Auto-update section below.
 
 Workflow: [`.github/workflows/build.yml`](../.github/workflows/build.yml).
 
