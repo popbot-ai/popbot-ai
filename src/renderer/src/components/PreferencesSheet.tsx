@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { hotkey } from '../lib/hotkeys';
+import { useTranslation } from '../lib/i18n';
+import { LOCALES, type Locale, type MessageKey } from '@shared/i18n';
 import linearIcon from '../assets/notif/linear.png';
 import type { LinearProjectDto } from '@shared/linear';
 import {
@@ -56,7 +58,8 @@ interface PreferencesSheetProps {
 
 interface NavSection {
   id: string;
-  label: string;
+  /** i18n key for the nav label (translated at render time). */
+  labelKey: MessageKey;
   icon: string;
 }
 
@@ -66,17 +69,51 @@ interface NavSection {
 // confused first-time users into thinking the prefs were broken; we
 // can put them back here as each one ships.
 const SECTIONS: NavSection[] = [
-  { id: 'integ', label: 'Integrations', icon: 'fa-plug' },
-  { id: 'agents', label: 'Agents', icon: 'fa-robot' },
-  { id: 'runtime', label: 'Runtime', icon: 'fa-microchip' },
-  { id: 'repos', label: 'Repositories', icon: 'fa-code-fork' },
-  { id: 'git', label: 'Source control', icon: 'fa-code-branch' },
-  { id: 'apps', label: 'External apps', icon: 'fa-arrow-up-right-from-square' },
-  { id: 'templates', label: 'Prompt templates', icon: 'fa-file-lines' },
-  { id: 'reviews', label: 'Code reviews', icon: 'fa-code-pull-request' },
-  { id: 'notify', label: 'Notifications', icon: 'fa-bell' },
-  { id: 'permissions', label: 'Permissions', icon: 'fa-shield-halved' },
+  { id: 'integ', labelKey: 'prefs.section.integ', icon: 'fa-plug' },
+  { id: 'agents', labelKey: 'prefs.section.agents', icon: 'fa-robot' },
+  { id: 'runtime', labelKey: 'prefs.section.runtime', icon: 'fa-microchip' },
+  { id: 'repos', labelKey: 'prefs.section.repos', icon: 'fa-code-fork' },
+  { id: 'git', labelKey: 'prefs.section.git', icon: 'fa-code-branch' },
+  { id: 'apps', labelKey: 'prefs.section.apps', icon: 'fa-arrow-up-right-from-square' },
+  { id: 'templates', labelKey: 'prefs.section.templates', icon: 'fa-file-lines' },
+  { id: 'reviews', labelKey: 'prefs.section.reviews', icon: 'fa-code-pull-request' },
+  { id: 'notify', labelKey: 'prefs.section.notify', icon: 'fa-bell' },
+  { id: 'permissions', labelKey: 'prefs.section.permissions', icon: 'fa-shield-halved' },
+  { id: 'language', labelKey: 'prefs.section.language', icon: 'fa-language' },
 ];
+
+/** Language preference pane. Changing the selection applies immediately
+ *  (the provider persists it to settings + tells main to re-localize the
+ *  native menu) — no Save button needed. */
+function PrefsLanguage(): JSX.Element {
+  const { t, locale, setLocale } = useTranslation();
+  return (
+    <div className="pref-section">
+      <h3>{t('language.title')}</h3>
+      <p className="pref-section-desc">{t('language.description')}</p>
+      <div className="pref-rows">
+        <div className="pref-row">
+          <div className="pref-label">
+            <div className="pref-label-title">{t('language.label')}</div>
+            <div className="pref-label-desc">{t('language.systemNote')}</div>
+          </div>
+          <div className="pref-control">
+            <select
+              className="pref-input"
+              value={locale}
+              onChange={(e) => setLocale(e.target.value as Locale)}
+              style={{ width: 220 }}
+            >
+              {LOCALES.map((l) => (
+                <option key={l.code} value={l.code}>{l.nativeName}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export function PreferencesSheet({
   onClose,
@@ -90,15 +127,16 @@ export function PreferencesSheet({
   const known = (id: string | undefined): string =>
     SECTIONS.some((s) => s.id === id) ? (id as string) : SECTIONS[0].id;
   const [section, setSection] = useState(() => known(initialSection));
+  const { t } = useTranslation();
 
   return (
     <>
       <div className="scrim" onClick={onClose} />
       <div className="prefs" data-screen-label="Preferences">
         <div className="prefs-head">
-          <h2><i className="fa-solid fa-gear" /> Preferences</h2>
-          <input className="prefs-search" placeholder="Search preferences…" />
-          <button className="iconbtn" onClick={onClose} style={{ width: 28, height: 28 }} title={`Close ${hotkey('W')}`}>
+          <h2><i className="fa-solid fa-gear" /> {t('prefs.title')}</h2>
+          <input className="prefs-search" placeholder={t('prefs.search')} />
+          <button className="iconbtn" onClick={onClose} style={{ width: 28, height: 28 }} title={`${t('common.close')} ${hotkey('W')}`}>
             <i className="fa-solid fa-xmark" />
           </button>
         </div>
@@ -111,7 +149,7 @@ export function PreferencesSheet({
                 onClick={() => setSection(s.id)}
               >
                 <i className={`fa-solid ${s.icon}`} />
-                <span>{s.label}</span>
+                <span>{t(s.labelKey)}</span>
               </button>
             ))}
           </nav>
@@ -126,6 +164,7 @@ export function PreferencesSheet({
             {section === 'reviews' && <PrefsReviews />}
             {section === 'notify' && <PrefsNotifications />}
             {section === 'permissions' && <PrefsPermissions />}
+            {section === 'language' && <PrefsLanguage />}
           </div>
         </div>
         <div className="prefs-foot">

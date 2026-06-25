@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { createPortal } from 'react-dom';
+import { useTranslation } from '../lib/i18n';
 
 interface ConfirmDialogProps {
   title: string;
@@ -18,12 +19,16 @@ interface ConfirmDialogProps {
 export function ConfirmDialog({
   title,
   message,
-  confirmLabel = 'Confirm',
-  cancelLabel = 'Cancel',
+  confirmLabel,
+  cancelLabel,
   destructive = false,
   onConfirm,
   onCancel,
 }: ConfirmDialogProps): JSX.Element {
+  const { t } = useTranslation();
+  // Fall back to localized defaults when the caller doesn't pass labels.
+  const confirmText = confirmLabel ?? t('common.confirm');
+  const cancelText = cancelLabel ?? t('common.cancel');
   useEffect(() => {
     const onKey = (e: KeyboardEvent): void => {
       if (e.key === 'Escape') onCancel();
@@ -44,13 +49,13 @@ export function ConfirmDialog({
         <div className="confirm-head">{title}</div>
         <div className="confirm-body">{message}</div>
         <div className="confirm-foot">
-          <button className="btn ghost" onClick={onCancel}>{cancelLabel}</button>
+          <button className="btn ghost" onClick={onCancel}>{cancelText}</button>
           <button
             className={`btn ${destructive ? 'danger' : 'primary'}`}
             onClick={onConfirm}
             autoFocus
           >
-            {confirmLabel}
+            {confirmText}
           </button>
         </div>
       </div>
