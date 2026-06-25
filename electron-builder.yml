@@ -69,13 +69,12 @@ dmg:
       y: 220
       type: link
       path: /Applications
-# GitHub provider — used to GENERATE update metadata (latest-mac.yml,
-# latest.yml, latest-linux.yml + blockmaps) during the build. CI builds
-# with `--publish never`, so electron-builder never uploads directly; the
-# release workflow attaches these files to the GitHub Release. The in-app
-# update check reads releases from this repo, and this metadata is what the
-# in-app electron-updater (src/main/updates/autoUpdate.ts) consumes.
+# Generic provider on Cloudflare R2. This generates the update metadata
+# (latest-mac.yml / latest.yml / latest-linux.yml + blockmaps) and bakes the
+# feed URL into app-update.yml, which the in-app electron-updater
+# (src/main/updates/autoUpdate.ts) reads. The release workflow overrides
+# `url` per channel (…/stable or …/beta) via -c.publish.url and uploads the
+# files to R2 itself (electron-builder runs with --publish never).
 publish:
-  provider: github
-  owner: popbot-ai
-  repo: popbot-ai
+  provider: generic
+  url: https://download.popbot.app/stable
