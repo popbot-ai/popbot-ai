@@ -39,6 +39,12 @@ win:
   target:
     - nsis
   artifactName: ${productName}-${version}-win-${arch}.${ext}
+  # Bundle the shado shadow-workspace controller (built by scripts/build-shado.mjs
+  # into native/shado/). Lands at resources/shado/shado.exe in the installed app;
+  # src/main/shado/client.ts resolves it via process.resourcesPath.
+  extraResources:
+    - from: native/shado/bin/win/shado.exe
+      to: shado/shado.exe
   # No code-signing wired up for Windows yet — builds are unsigned, so
   # SmartScreen will warn on first launch. Set CSC_LINK / CSC_KEY_PASSWORD
   # (a .pfx) at build time to sign.

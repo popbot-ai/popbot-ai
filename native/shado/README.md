@@ -1,0 +1,29 @@
+# Bundled `shado` binary
+
+Prebuilt [`shado`](https://github.com/popbot-ai/shado) binaries — the shadow-workspace
+controller PopBot uses for VHDX copy-on-write slots on very large Perforce/game trees.
+
+These are **committed on purpose** so PopBot's release CI can bundle them without
+needing the Go toolchain or the shado source checked out.
+
+## Layout (one folder per platform)
+
+```
+bin/win/shado.exe     Windows  (committed)
+bin/mac/shado         macOS    (planned — APFS clonefile backend)
+bin/linux/shado       Linux    (planned — reflink backend)
+```
+
+electron-builder bundles the current platform's binary to `resources/shado/`
+(see `win.extraResources` in `electron-builder.yml`); `src/main/shado/client.ts`
+resolves it at runtime (packaged or dev).
+
+## Refreshing
+
+```sh
+npm run build:shado        # needs Go + shado source at ../shado (or $SHADO_SRC)
+```
+
+then commit the updated binary.
+
+Current `bin/win/shado.exe` built from **popbot-ai/shado @ d31f610**.
