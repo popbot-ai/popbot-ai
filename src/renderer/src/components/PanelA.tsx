@@ -112,7 +112,14 @@ export function PanelA({
   const [ticketProvider, setTicketProvider] = useState<TicketProviderId>('linear');
   useEffect(() => {
     void window.popbot.settings.get<string>('ticketSource').then((id) => {
-      setTicketProvider((id && id in TICKET_PROVIDERS ? id : 'linear') as TicketProviderId);
+      // Own-property check, not `in`: `'constructor' in TICKET_PROVIDERS` is
+      // true via the prototype, so a corrupted ticketSource could otherwise
+      // slip past the fallback and crash on the capabilities read below.
+      const providerId =
+        typeof id === 'string' && Object.prototype.hasOwnProperty.call(TICKET_PROVIDERS, id)
+          ? (id as TicketProviderId)
+          : 'linear';
+      setTicketProvider(providerId);
     });
   }, [linearStatus]);
   const canChangeStatus = TICKET_PROVIDERS[ticketProvider].capabilities.changeStatus;
@@ -217,7 +224,10 @@ export function PanelA({
     setPinnedPrsData(next);
   }, []);
 
-  useEffect(() => { void refreshPinnedTickets(pinnedTicketIds); }, [pinnedTicketIds, refreshPinnedTickets]);
+  // `ticketProvider` in the deps so switching trackers re-fetches the pinned
+  // rows against the new provider instead of leaving the prior provider's
+  // resolved tickets on screen.
+  useEffect(() => { void refreshPinnedTickets(pinnedTicketIds); }, [pinnedTicketIds, refreshPinnedTickets, ticketProvider]);
   useEffect(() => { void refreshPinnedPrs(pinnedPrNumbers); }, [pinnedPrNumbers, refreshPinnedPrs]);
 
   /** Pull the search-cache from Linear + GitHub. Runs alongside the
@@ -236,7 +246,9 @@ export function PanelA({
       setRecentPrs(prsRes.prs);
     }
   }, []);
-  useEffect(() => { void refreshSearchCaches(); }, [refreshSearchCaches]);
+  // Re-pull the search cache on provider switch too, so the WorkItemSearch
+  // corpus reflects the active tracker rather than the previous one.
+  useEffect(() => { void refreshSearchCaches(); }, [refreshSearchCaches, ticketProvider]);
 
   /** Pin a ticket by identifier. Validates with a single Linear fetch
    *  before persisting so a typo / unknown ticket surfaces an error
@@ -249,16 +261,25 @@ export function PanelA({
     // GitHub identifiers are case-sensitive `owner/repo#number`; upper-casing
     // them would break the lookup. Linear/Jira keys are conventionally upper.
     const trimmed = identifier.trim();
-    const id = ticketProvider === 'github' ? trimmed : trimmed.toUpperCase();
-    if (pinnedTicketIds.includes(id)) return { ok: false, reason: 'duplicate' };
-    const res = await window.popbot.linear.getIssue(id);
+    const lookupId = ticketProvider === 'github' ? trimmed : trimmed.toUpperCase();
+    if (pinnedTicketIds.includes(lookupId)) return { ok: false, reason: 'duplicate' };
+    const res = await window.popbot.linear.getIssue(lookupId);
     if (!res.ok) return res;
+    // Pin and persist the provider's canonical identifier, not the typed
+    // form — a GitHub id entered with off-canonical casing passes lookup but
+    // would otherwise store an id that never matches the auto-list row,
+    // breaking dedupe, unpin, and chat matching.
+    const id = res.issue.identifier;
+    if (pinnedTicketIds.includes(id)) return { ok: false, reason: 'duplicate' };
     setPinnedTicketIds((prev) => {
+      if (prev.includes(id)) return prev;
       const next = [...prev, id];
       void window.popbot.settings.set('panela.pinned.tickets', next);
       return next;
     });
-    setPinnedTicketsData((prev) => [res.issue, ...prev]);
+    setPinnedTicketsData((prev) =>
+      prev.some((issue) => issue.identifier === id) ? prev : [res.issue, ...prev],
+    );
     return { ok: true };
   }, [pinnedTicketIds, ticketProvider]);
 
