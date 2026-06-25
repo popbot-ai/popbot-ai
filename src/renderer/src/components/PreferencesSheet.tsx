@@ -3,7 +3,9 @@ import { hotkey } from '../lib/hotkeys';
 import { useTranslation } from '../lib/i18n';
 import { LOCALES, type Locale, type MessageKey } from '@shared/i18n';
 import linearIcon from '../assets/notif/linear.png';
+import jiraIcon from '../assets/notif/jira.png';
 import type { LinearProjectDto } from '@shared/linear';
+import type { JiraSettings } from '@shared/ticketProvider';
 import {
   ATTACHMENT_TTL_DAYS_DEFAULT,
   ATTACHMENT_TTL_DAYS_MAX,
@@ -392,6 +394,7 @@ interface SelectChoice { id: string; label: string; icon: ReactNode }
  *  today; Jira (roughed in at shared/ticketProvider.ts) slots in here. */
 const TRACKERS: SelectChoice[] = [
   { id: 'linear', label: 'Linear', icon: <img src={linearIcon} alt="" className="tracker-dd-ico" /> },
+  { id: 'jira', label: 'Jira', icon: <img src={jiraIcon} alt="" className="tracker-dd-ico" /> },
 ];
 
 /** Game engines selectable as the launch target. Only Unity ships today. */
@@ -512,6 +515,7 @@ function PrefsIntegrations({ onLinearChanged }: { onLinearChanged?: () => void }
   const { t } = useTranslation();
   const { get, set, remove, loading } = useSettings();
   const linear = get<LinearSettings>('linear', {}) ?? {};
+  const jira = get<JiraSettings>('jira', {}) ?? {};
   // Which tracker feeds the Tickets queue. The selector is ALWAYS shown —
   // picking a tracker is the model even when only one ships (you always
   // have one; there's no "(None)"). Jira is roughed in at
@@ -554,24 +558,39 @@ function PrefsIntegrations({ onLinearChanged }: { onLinearChanged?: () => void }
         <p className="pref-section-desc">
           {t('prefs.integ.ticketSource.desc')}
         </p>
-        {/* The selected tracker's config, grouped in its own box. */}
+        {/* The selected tracker's config, grouped in its own box. Only the
+            active tracker's form is shown; switching the selector swaps it. */}
         <div className="tracker-config">
           <div className="tracker-config-head">
-            <img src={linearIcon} alt="" className="tracker-dd-ico" />
-            <span>Linear</span>
+            {(TRACKERS.find((t) => t.id === tracker) ?? TRACKERS[0]).icon}
+            <span>{(TRACKERS.find((t) => t.id === tracker) ?? TRACKERS[0]).label}</span>
           </div>
           <div className="tracker-config-body">
-            <LinearForm
-              initial={linear}
-              onSave={async (next) => {
-                await set('linear', next);
-                onLinearChanged?.();
-              }}
-              onDisconnect={async () => {
-                await remove('linear');
-                onLinearChanged?.();
-              }}
-            />
+            {tracker === 'jira' ? (
+              <JiraForm
+                initial={jira}
+                onSave={async (next) => {
+                  await set('jira', next);
+                  onLinearChanged?.();
+                }}
+                onDisconnect={async () => {
+                  await remove('jira');
+                  onLinearChanged?.();
+                }}
+              />
+            ) : (
+              <LinearForm
+                initial={linear}
+                onSave={async (next) => {
+                  await set('linear', next);
+                  onLinearChanged?.();
+                }}
+                onDisconnect={async () => {
+                  await remove('linear');
+                  onLinearChanged?.();
+                }}
+              />
+            )}
           </div>
         </div>
       </div>
@@ -1521,6 +1540,234 @@ function LinearForm({
             onClick={() => void save()}
           >
             {saving ? t('prefs.integ.linear.verifying') : t('common.save')}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function JiraForm({
+  initial,
+  onSave,
+  onDisconnect,
+}: {
+  initial: JiraSettings;
+  onSave: (next: JiraSettings) => Promise<void>;
+  onDisconnect: () => Promise<void>;
+}): JSX.Element {
+  const [baseUrl, setBaseUrl] = useState(initial.baseUrl ?? '');
+  const [email, setEmail] = useState(initial.email ?? '');
+  const [apiToken, setApiToken] = useState(initial.apiToken ?? '');
+  const [projectKey, setProjectKey] = useState(initial.projectKey ?? '');
+  const [jql, setJql] = useState(initial.jql ?? '');
+  const [projects, setProjects] = useState<LinearProjectDto[]>([]);
+  const [projectsLoading, setProjectsLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [savedAs, setSavedAs] = useState<{ email: string; name: string } | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const wasConnected = Boolean(initial.apiToken && initial.baseUrl && initial.email);
+
+  const draft = (): JiraSettings => ({
+    baseUrl: baseUrl.trim(),
+    email: email.trim(),
+    apiToken: apiToken.trim(),
+    projectKey: projectKey.trim() || undefined,
+    jql: jql.trim() || undefined,
+  });
+
+  // Load the project list once we have full credentials. Guarded on all
+  // three required fields so we don't fire half-configured requests.
+  useEffect(() => {
+    if (!baseUrl.trim() || !email.trim() || !apiToken.trim()) {
+      setProjects([]);
+      setProjectsLoading(false);
+      return;
+    }
+    let cancelled = false;
+    // Debounce so we don't fire a lookup on every credential keystroke.
+    const timer = window.setTimeout(() => {
+      setProjectsLoading(true);
+      void window.popbot.jira
+        .listProjects({ baseUrl: baseUrl.trim(), email: email.trim(), apiToken: apiToken.trim() })
+        .then((res) => {
+          if (cancelled) return;
+          setProjects(res.projects ?? []);
+        })
+        .catch(() => {
+          // Swallow IPC rejections (e.g. transient failure while typing);
+          // the Save flow surfaces a real error.
+          if (!cancelled) setProjects([]);
+        })
+        .finally(() => {
+          if (!cancelled) setProjectsLoading(false);
+        });
+    }, 400);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [baseUrl, email, apiToken]);
+
+  const save = async (): Promise<void> => {
+    setSaving(true);
+    setError(null);
+    setSavedAs(null);
+    try {
+      const result = await window.popbot.jira.test(draft());
+      if (!result.ok) {
+        setError(
+          result.error === 'auth'
+            ? 'Jira rejected these credentials.'
+            : `Jira error: ${result.error}`,
+        );
+        return;
+      }
+      await onSave(draft());
+      setSavedAs({ email: result.email, name: result.name });
+    } catch (err) {
+      setError(`Jira error: ${err instanceof Error ? err.message : String(err)}`);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const ready = Boolean(baseUrl.trim() && email.trim() && apiToken.trim());
+
+  return (
+    <div className="pref-rows">
+      <div className="pref-row">
+        <div className="pref-label">
+          <div className="pref-label-title">Site URL</div>
+          <div className="pref-label-desc">
+            Your Jira Cloud base URL, e.g. <span className="mono">https://your-domain.atlassian.net</span>.
+          </div>
+        </div>
+        <div className="pref-control" style={{ flex: 1, minWidth: 280 }}>
+          <input
+            className="pref-input mono"
+            placeholder="https://your-domain.atlassian.net"
+            value={baseUrl}
+            onChange={(e) => setBaseUrl(e.target.value)}
+            style={{ width: '100%' }}
+          />
+        </div>
+      </div>
+      <div className="pref-row">
+        <div className="pref-label">
+          <div className="pref-label-title">Account email</div>
+          <div className="pref-label-desc">The Atlassian account the API token belongs to.</div>
+        </div>
+        <div className="pref-control" style={{ flex: 1, minWidth: 280 }}>
+          <input
+            className="pref-input mono"
+            placeholder="you@example.com"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            style={{ width: '100%' }}
+          />
+        </div>
+      </div>
+      <div className="pref-row">
+        <div className="pref-label">
+          <div className="pref-label-title">API token</div>
+          <div className="pref-label-desc">
+            Stored locally in this app's database.{' '}
+            <a
+              href="https://id.atlassian.com/manage-profile/security/api-tokens"
+              onClick={(e) => {
+                e.preventDefault();
+                window.open('https://id.atlassian.com/manage-profile/security/api-tokens', '_blank');
+              }}
+              style={{ color: 'var(--acc)', cursor: 'pointer' }}
+            >
+              Get a token →
+            </a>
+          </div>
+        </div>
+        <div className="pref-control" style={{ flex: 1, minWidth: 280 }}>
+          <input
+            className="pref-input mono"
+            type="password"
+            placeholder="••••••••"
+            value={apiToken}
+            onChange={(e) => setApiToken(e.target.value)}
+            style={{ width: '100%' }}
+          />
+        </div>
+      </div>
+      <div className="pref-row">
+        <div className="pref-label">
+          <div className="pref-label-title">Project</div>
+          <div className="pref-label-desc">
+            Optional — narrow the ticket list to a single project.
+            {projectsLoading && <span style={{ marginLeft: 6, color: 'var(--fg-3)' }}>Loading…</span>}
+          </div>
+        </div>
+        <div className="pref-control" style={{ flex: 1, minWidth: 240 }}>
+          <select
+            className="pref-input"
+            value={projectKey}
+            onChange={(e) => setProjectKey(e.target.value)}
+            disabled={!ready || projectsLoading}
+            style={{ width: '100%' }}
+          >
+            <option value="">All projects</option>
+            {projects.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.name} ({p.id})
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
+      <div className="pref-row">
+        <div className="pref-label">
+          <div className="pref-label-title">JQL filter</div>
+          <div className="pref-label-desc">
+            Optional — extra JQL ANDed into the ticket queries, e.g.{' '}
+            <span className="mono">labels = backend</span>.
+          </div>
+        </div>
+        <div className="pref-control" style={{ flex: 1, minWidth: 280 }}>
+          <input
+            className="pref-input mono"
+            placeholder="labels = backend"
+            value={jql}
+            onChange={(e) => setJql(e.target.value)}
+            style={{ width: '100%' }}
+          />
+        </div>
+      </div>
+      <div className="pref-row">
+        <div className="pref-label">
+          <div className="pref-label-title">Status</div>
+          <div className="pref-label-desc">
+            {error ? (
+              <span className="pill err"><i className="fa-solid fa-circle-xmark" /> {error}</span>
+            ) : savedAs ? (
+              <span className="pill done">
+                <i className="fa-solid fa-circle-check" /> Connected as {savedAs.email}
+              </span>
+            ) : wasConnected ? (
+              <span className="pill done"><i className="fa-solid fa-circle-check" /> Connected</span>
+            ) : (
+              <span className="pill muted"><i className="fa-regular fa-circle" /> Not connected</span>
+            )}
+          </div>
+        </div>
+        <div className="pref-control" style={{ display: 'flex', gap: 8 }}>
+          {wasConnected && (
+            <button className="btn ghost sm" disabled={saving} onClick={() => void onDisconnect()}>
+              Disconnect
+            </button>
+          )}
+          <button
+            className="btn primary sm"
+            disabled={!ready || saving}
+            onClick={() => void save()}
+          >
+            {saving ? 'Verifying…' : 'Save'}
           </button>
         </div>
       </div>

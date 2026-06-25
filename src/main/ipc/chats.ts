@@ -33,25 +33,8 @@ import { listMessages } from '../persistence/messages';
 import { getSetting, setSetting } from '../persistence/settings';
 import { AgentHost } from '../agents/AgentHost';
 import { dispose as disposePty } from '../term/ptyManager';
-import {
-  GitWorktreeError,
-  chatStashPrefix,
-  checkoutBranch,
-  deleteBranch,
-  ensureChatWorktree,
-  ensureSlotWorktree,
-  ephemeralWorktreeSlug,
-  findLatestStashRef,
-  newChatStashName,
-  parkSlot,
-  parkingBranch,
-  popStash,
-  refreshParkBranchInBackground,
-  refreshSlotForAllocation,
-  removeChatWorktree,
-  removeWorktree,
-  worktreeStatus,
-} from '../git/worktrees';
+import { GitWorktreeError, getSourceControlProvider } from '../scm';
+import type { SourceControlProvider } from '../scm';
 import { getRepo } from '../persistence/repos';
 import { slotWorktreePathForRepo, worktreesDirForRepo } from '../git/chatPaths';
 import type { RepoRecord } from '@shared/persistence';
@@ -139,12 +122,13 @@ function resolveRepo(repoId?: string | null): RepoRecord | null {
  *  guarantee uniqueness. Pure path resolution — does not touch disk
  *  beyond an `existsSync` check. */
 function ephemeralPathFor(opts: {
+  scm: SourceControlProvider;
   worktreesDir: string;
   ticket: string | null;
   pr: number | null;
   chatId: string;
 }): string {
-  const slug = ephemeralWorktreeSlug({
+  const slug = opts.scm.ephemeralWorktreeSlug({
     ticket: opts.ticket,
     pr: opts.pr,
     chatId: opts.chatId,
@@ -187,6 +171,7 @@ export function registerChatHandlers(): void {
       if (!gitCfg) return { ok: false, reason: 'git-not-configured' };
 
       const results: SlotInitResult[] = [];
+      const scm = getSourceControlProvider();
       for (let i = 1; i <= slotsCfg.maxCount; i++) {
         const path = slotPathFor(gitCfg.worktreesDir, gitCfg.slotPrefix, i);
         const alreadyReady = existsSync(path);
@@ -195,10 +180,10 @@ export function registerChatHandlers(): void {
           continue;
         }
         try {
-          await ensureSlotWorktree({
+          await scm.ensureSlotWorktree({
             repoPath: gitCfg.repoPath,
             worktreePath: path,
-            parkBranch: parkingBranch(gitCfg.repoName, i),
+            parkBranch: scm.parkingBranch(gitCfg.repoName, i),
             baseBranch: gitCfg.defaultBase,
           });
           results.push({ slotId: i, alreadyReady: false, ok: true });
@@ -248,6 +233,7 @@ export function registerChatHandlers(): void {
     // we allocate a slot from the pool or spin up an ephemeral worktree.
     const repo = resolveRepo(input.repoId);
     if (!repo) return { ok: false, reason: 'git-not-configured' };
+    const scm = getSourceControlProvider(repo);
     // The repo record is the source of truth (repoPath, defaultBase,
     // slotCount). The legacy single-repo `settings.git` is only a
     // fallback for pre-multi-repo installs — NOT required. A valid repo
@@ -257,6 +243,18 @@ export function registerChatHandlers(): void {
     const baseBranch = input.baseBranch?.trim() || repo.defaultBase || gitCfg?.defaultBase || 'main';
 
     if (repo.mode === 'ephemeral') {
+      // Ephemeral (throwaway-per-chat) worktrees are a git-style notion;
+      // providers whose working copies are heavyweight + long-lived
+      // (Perforce) opt out via capabilities. Refuse rather than silently
+      // mis-provisioning. Git always supports it, so this is a no-op
+      // today and the seam for when non-git repos can be created.
+      if (!scm.capabilities.supportsEphemeralRepos) {
+        return {
+          ok: false,
+          reason: 'worktree-failed',
+          message: `${scm.id} repos don't support ephemeral worktrees`,
+        };
+      }
       // input.slotId is meaningless in ephemeral mode — the renderer
       // shouldn't pass it for ephemeral repos, but if it does we just
       // ignore it rather than error (the user got a workspace either way).
@@ -276,6 +274,7 @@ export function registerChatHandlers(): void {
         codexReasoningEffort: input.codexReasoningEffort,
       });
       const worktreePath = ephemeralPathFor({
+        scm,
         // Per-repo workspace dir, NOT the legacy `gitCfg.worktreesDir`
         // (which is scoped to the default seed repo). Without this,
         // ephemeral chats for a non-default repo were getting checked
@@ -287,7 +286,7 @@ export function registerChatHandlers(): void {
         chatId: chat.id,
       });
       try {
-        await ensureChatWorktree({
+        await scm.ensureChatWorktree({
           repoPath: repo.repoPath || gitCfg?.repoPath || '',
           worktreePath,
           branch,
@@ -330,14 +329,14 @@ export function registerChatHandlers(): void {
     const worktreePath = slotWorktreePathForRepo(repo, slotId);
 
     try {
-      await ensureSlotWorktree({
+      await scm.ensureSlotWorktree({
         repoPath: repo.repoPath || gitCfg?.repoPath || '',
         worktreePath,
-        parkBranch: parkingBranch(repo.id, slotId),
+        parkBranch: scm.parkingBranch(repo.id, slotId),
         baseBranch: repo.defaultBase || gitCfg?.defaultBase || 'main',
       });
-      await refreshSlotForAllocation({ worktreePath, baseBranch });
-      await checkoutBranch({ worktreePath, branch, baseBranch });
+      await scm.refreshSlotForAllocation({ worktreePath, baseBranch });
+      await scm.checkoutBranch({ worktreePath, branch, baseBranch });
     } catch (err) {
       const msg = err instanceof GitWorktreeError ? err.message : (err as Error).message;
       return { ok: false, reason: 'worktree-failed', message: msg };
@@ -380,11 +379,12 @@ export function registerChatHandlers(): void {
     if (existsSync(path)) {
       return { slotId, alreadyReady: true, ok: true };
     }
+    const scm = getSourceControlProvider();
     try {
-      await ensureSlotWorktree({
+      await scm.ensureSlotWorktree({
         repoPath: gitCfg.repoPath,
         worktreePath: path,
-        parkBranch: parkingBranch(gitCfg.repoName, slotId),
+        parkBranch: scm.parkingBranch(gitCfg.repoName, slotId),
         baseBranch: gitCfg.defaultBase,
       });
       return { slotId, alreadyReady: false, ok: true };
@@ -416,14 +416,20 @@ export function registerChatHandlers(): void {
       // dir doesn't exist — nothing to do
       return { ok: true, removed: 0 };
     }
+    const scm = getSourceControlProvider();
+    // Match the configured slot prefix, not a hardcoded `slot-`; otherwise a
+    // custom prefix leaves worktrees + parking branches behind while we
+    // report success.
+    const escapedPrefix = gitCfg.slotPrefix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const slotDirPattern = new RegExp(`^${escapedPrefix}-(\\d+)$`);
     for (const name of entries) {
-      const m = /^slot-(\d+)$/.exec(name);
+      const m = slotDirPattern.exec(name);
       if (!m) continue;
       const slotId = Number(m[1]);
       const path = join(gitCfg.worktreesDir, name);
       try {
-        await removeWorktree({ repoPath: gitCfg.repoPath, worktreePath: path });
-        await deleteBranch(gitCfg.repoPath, parkingBranch(gitCfg.repoName, slotId));
+        await scm.removeWorktree({ repoPath: gitCfg.repoPath, worktreePath: path });
+        await scm.deleteBranch(gitCfg.repoPath, scm.parkingBranch(gitCfg.repoName, slotId));
         removed++;
       } catch (err) {
         // eslint-disable-next-line no-console
@@ -448,6 +454,7 @@ export function registerChatHandlers(): void {
     const repo = resolveRepo(chat.repoId);
     const gitCfg = readGitSettings();
     if (!repo || !gitCfg) return { ok: false, reason: 'git-not-configured' };
+    const scm = getSourceControlProvider(repo);
 
     const slotId = allocateSlotPreferring(slotsCfg.maxCount, null);
     if (slotId === null) return { ok: false, reason: 'no-free-slot' };
@@ -459,13 +466,13 @@ export function registerChatHandlers(): void {
     const branch = chat.branch?.trim() || `popbot/chat-${chat.id}`;
     const baseBranch = repo.defaultBase || gitCfg.defaultBase;
     try {
-      await ensureSlotWorktree({
+      await scm.ensureSlotWorktree({
         repoPath: repo.repoPath || gitCfg.repoPath,
         worktreePath,
-        parkBranch: parkingBranch(repo.id, slotId),
+        parkBranch: scm.parkingBranch(repo.id, slotId),
         baseBranch,
       });
-      await checkoutBranch({ worktreePath, branch, baseBranch });
+      await scm.checkoutBranch({ worktreePath, branch, baseBranch });
     } catch (err) {
       const msg = err instanceof GitWorktreeError ? err.message : (err as Error).message;
       return { ok: false, reason: 'worktree-failed', message: msg };
@@ -481,7 +488,8 @@ export function registerChatHandlers(): void {
     if (!chat?.worktreePath) {
       return { hasWorktree: false, dirty: false, files: [], worktreePath: null };
     }
-    const status = await worktreeStatus(chat.worktreePath);
+    const scm = getSourceControlProvider(resolveRepo(chat.repoId));
+    const status = await scm.worktreeStatus(chat.worktreePath);
     return {
       hasWorktree: true,
       dirty: status.dirty,
@@ -508,22 +516,23 @@ export function registerChatHandlers(): void {
       if (chat?.slotId != null && chat.worktreePath) {
         const repo = resolveRepo(chat.repoId);
         const gitCfg = readGitSettings();
+        const scm = getSourceControlProvider(repo);
         const park = repo
-          ? parkingBranch(repo.id, chat.slotId)
-          : gitCfg ? parkingBranch(gitCfg.repoName, chat.slotId) : null;
+          ? scm.parkingBranch(repo.id, chat.slotId)
+          : gitCfg ? scm.parkingBranch(gitCfg.repoName, chat.slotId) : null;
         const baseBranch = repo?.defaultBase || gitCfg?.defaultBase;
         try {
           if (park) {
-            await parkSlot({
+            await scm.parkSlot({
               worktreePath: chat.worktreePath,
               parkBranch: park,
               stash: opts?.stash === true,
               discard: opts?.stash !== true,
-              stashMessage: newChatStashName(chat.id),
+              stashMessage: scm.newChatStashName(chat.id),
             });
           }
           if (park && baseBranch) {
-            refreshParkBranchInBackground({
+            scm.refreshParkBranchInBackground({
               worktreePath: chat.worktreePath,
               parkBranch: park,
               baseBranch,
@@ -539,15 +548,16 @@ export function registerChatHandlers(): void {
       else if (chat?.slotId == null && chat?.worktreePath) {
         const repo = resolveRepo(chat.repoId);
         const gitCfg = readGitSettings();
+        const scm = getSourceControlProvider(repo);
         const repoPath = repo?.repoPath || gitCfg?.repoPath;
         if (repoPath) {
           try {
-            await removeChatWorktree({
+            await scm.removeChatWorktree({
               repoPath,
               worktreePath: chat.worktreePath,
               stash: opts?.stash === true,
               discard: opts?.stash !== true,
-              stashMessage: newChatStashName(chat.id),
+              stashMessage: scm.newChatStashName(chat.id),
             });
           } catch (err) {
             // eslint-disable-next-line no-console
@@ -593,16 +603,18 @@ export function registerChatHandlers(): void {
         return { ok: true, chat: reopened };
       }
       const baseBranch = repo.defaultBase || gitCfg.defaultBase;
+      const scm = getSourceControlProvider(repo);
 
       if (repo.mode === 'ephemeral') {
         const worktreePath = ephemeralPathFor({
+          scm,
           worktreesDir: worktreesDirForRepo(repo),
           ticket: chat.ticket,
           pr: chat.pr,
           chatId: chat.id,
         });
         try {
-          await ensureChatWorktree({
+          await scm.ensureChatWorktree({
             repoPath: repo.repoPath || gitCfg.repoPath,
             worktreePath,
             branch: chat.branch,
@@ -610,8 +622,8 @@ export function registerChatHandlers(): void {
           });
           // Same per-chat stash convention slot mode uses — pop the
           // latest one so dirty work survives close→reopen cycles.
-          const stashRef = await findLatestStashRef(worktreePath, chatStashPrefix(chatId));
-          if (stashRef) await popStash(worktreePath, stashRef);
+          const stashRef = await scm.findLatestStashRef(worktreePath, scm.chatStashPrefix(chatId));
+          if (stashRef) await scm.popStash(worktreePath, stashRef);
         } catch (err) {
           return { ok: false, reason: 'worktree-failed', message: (err as Error).message };
         }
@@ -634,15 +646,15 @@ export function registerChatHandlers(): void {
       if (slotId === null) return { ok: false, reason: 'no-free-slot' };
       const worktreePath = slotWorktreePathForRepo(repo, slotId);
       try {
-        await ensureSlotWorktree({
+        await scm.ensureSlotWorktree({
           repoPath: repo.repoPath || gitCfg.repoPath,
           worktreePath,
-          parkBranch: parkingBranch(repo.id, slotId),
+          parkBranch: scm.parkingBranch(repo.id, slotId),
           baseBranch: repo.defaultBase || gitCfg.defaultBase,
         });
-        await checkoutBranch({ worktreePath, branch: chat.branch, baseBranch: repo.defaultBase || gitCfg.defaultBase });
-        const stashRef = await findLatestStashRef(worktreePath, chatStashPrefix(chatId));
-        if (stashRef) await popStash(worktreePath, stashRef);
+        await scm.checkoutBranch({ worktreePath, branch: chat.branch, baseBranch: repo.defaultBase || gitCfg.defaultBase });
+        const stashRef = await scm.findLatestStashRef(worktreePath, scm.chatStashPrefix(chatId));
+        if (stashRef) await scm.popStash(worktreePath, stashRef);
       } catch (err) {
         return { ok: false, reason: 'worktree-failed', message: (err as Error).message };
       }
@@ -684,10 +696,11 @@ export function registerChatHandlers(): void {
     if (chat?.slotId == null && chat?.worktreePath) {
       const repo = resolveRepo(chat.repoId);
       const gitCfg = readGitSettings();
+      const scm = getSourceControlProvider(repo);
       const repoPath = repo?.repoPath || gitCfg?.repoPath;
       if (repoPath) {
         try {
-          await removeChatWorktree({ repoPath, worktreePath: chat.worktreePath, discard: true });
+          await scm.removeChatWorktree({ repoPath, worktreePath: chat.worktreePath, discard: true });
         } catch (err) {
           // eslint-disable-next-line no-console
           console.warn(`[ephemeral] delete cleanup failed for chat ${chatId}: ${(err as Error).message}`);

@@ -7,6 +7,10 @@ import type {
   GitStatusResult,
 } from '@shared/git';
 import type { MessageKey } from '@shared/i18n';
+// Type-only import → erased at compile time, so the SourceControlPanel ↔
+// GitPanel cycle never exists at runtime. GitPanel is the git
+// implementation of the shared provider-panel contract.
+import type { SourceControlPanelProps } from './SourceControlPanel';
 import { useGitStatus } from '../lib/useGitStatus';
 import { useTranslation } from '../lib/i18n';
 import { hotkey } from '../lib/hotkeys';
@@ -22,27 +26,10 @@ import {
   expandTemplate,
 } from '../lib/templates';
 
-interface GitPanelProps {
-  /** Chat whose worktree drives this panel; null hides the contents. */
-  chatId: string | null;
-  /** Display name for the empty state (e.g. when no chat is focused). */
-  chatName?: string;
-  /** Linear ticket id for prompt template substitution (may be null). */
-  chatTicket?: string | null;
-  /** Slot number, surfaced as `${slot}` in templates. */
-  chatSlot?: number | null;
-  /** Repo this chat lives in — locks the BaseBranchDialog to it so the
-   *  rebase-base picker can't accidentally suggest a branch from a
-   *  different clone. */
-  chatRepoId?: string | null;
-  onClose: () => void;
-  /** Path of the file currently shown in the persistent diff overlay. */
-  diffPath: string | null;
-  /** Open or refresh the diff overlay with a new file. */
-  onOpenDiff: (scope: GitScope, path: string) => void;
-  /** Close the diff overlay (used when scope changes / panel closes). */
-  onCloseDiff: () => void;
-}
+/** GitPanel implements the shared provider-panel contract. The git
+ *  sidebar is the default ("generic") presentation; the field docs live
+ *  on {@link SourceControlPanelProps}. */
+type GitPanelProps = SourceControlPanelProps;
 
 interface StatusMeta {
   icon: string;

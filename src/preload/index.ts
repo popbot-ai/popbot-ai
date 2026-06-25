@@ -125,6 +125,10 @@ const api: PopBotApi = {
     promoteIssue: (identifier: string) =>
       ipcRenderer.invoke(IpcChannel.LinearPromoteIssue, identifier),
   },
+  jira: {
+    test: (settings) => ipcRenderer.invoke(IpcChannel.JiraTest, settings),
+    listProjects: (settings) => ipcRenderer.invoke(IpcChannel.JiraListProjects, settings),
+  },
   git: {
     status: (chatId: string) => ipcRenderer.invoke(IpcChannel.GitStatus, chatId),
     diff: (input: GitDiffInput) => ipcRenderer.invoke(IpcChannel.GitDiff, input),
