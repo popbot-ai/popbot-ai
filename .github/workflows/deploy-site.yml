@@ -41,4 +41,7 @@ jobs:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           workingDirectory: site
+          # v4: an assets-only Worker (static site, no `main` script) isn't
+          # supported by wrangler 3.x — it errors "Missing entry-point".
+          wranglerVersion: '4'
           command: deploy
