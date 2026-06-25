@@ -236,6 +236,11 @@ export const IpcChannel = {
    *  the native macOS app menu). */
   ShowAbout: 'pb:app:show-about',
 
+  /** Renderer → main. The UI language changed; main rebuilds the native
+   *  app menu (macOS app menu / non-mac File menu) so its labels track
+   *  the renderer's language without a restart. */
+  LocaleChanged: 'pb:i18n:locale-changed',
+
   /** Multi-repo configuration. Each repo is either slot-pool or
    *  ephemeral; mode is set at create and is immutable thereafter
    *  (switching mode after chats exist would orphan their worktrees).
@@ -477,6 +482,12 @@ export interface PopBotApi {
     getVersion(): Promise<string>;
     /** Quit the whole app (custom titlebar menu on Windows). */
     quit(): Promise<void>;
+  };
+  /** Localization. The renderer owns the active locale (persisted via
+   *  `settings`); this lets it nudge main to re-localize native chrome. */
+  i18n: {
+    /** Tell main the UI language changed so it rebuilds the native menu. */
+    localeChanged(locale: string): void;
   };
   /** Window chrome controls for the custom menu bar (frameless platforms). */
   win: {

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { UpdateCheckResult } from '@shared/updates';
+import { useTranslation } from '../lib/i18n';
 import popbotIcon from '../assets/popbot-icon.png';
 
 const REPO_URL = 'https://github.com/popbot-ai/popbot-ai';
@@ -19,6 +20,7 @@ const openExternal = (url: string) => (e: React.MouseEvent): void => {
  * (Windows/Linux) or the native app menu (macOS). Auto-checks on open.
  */
 export function AboutDialog({ onClose }: AboutDialogProps): JSX.Element {
+  const { t } = useTranslation();
   const [version, setVersion] = useState('');
   const [checking, setChecking] = useState(false);
   const [result, setResult] = useState<UpdateCheckResult | null>(null);
@@ -60,40 +62,40 @@ export function AboutDialog({ onClose }: AboutDialogProps): JSX.Element {
           <img className="about-icon" src={popbotIcon} alt="PopBot" draggable={false} />
           <div>
             <h2>PopBot</h2>
-            <div className="sub">{version ? `Version ${version}` : 'Version …'}</div>
+            <div className="sub">{version ? t('about.version', { version }) : t('about.versionUnknown')}</div>
           </div>
         </div>
         <div className="modal-body about-body">
           <div className="about-update">
             {checking && (
-              <span className="muted"><i className="fa-solid fa-circle-notch fa-spin" /> Checking for updates…</span>
+              <span className="muted"><i className="fa-solid fa-circle-notch fa-spin" /> {t('about.checking')}</span>
             )}
             {!checking && result?.error && <span className="muted">{result.error}</span>}
             {!checking && result && !result.error && !result.updateAvailable && (
-              <span className="about-ok"><i className="fa-solid fa-circle-check" /> You’re up to date.</span>
+              <span className="about-ok"><i className="fa-solid fa-circle-check" /> {t('about.upToDate')}</span>
             )}
             {!checking && result?.updateAvailable && (
               <span className="about-upd">
-                <i className="fa-solid fa-circle-arrow-up" /> Update available: <b>{result.latest}</b>
+                <i className="fa-solid fa-circle-arrow-up" /> {t('about.updateAvailable')} <b>{result.latest}</b>
                 {result.htmlUrl && (
-                  <> — <a href={result.htmlUrl} onClick={openExternal(result.htmlUrl)}>Download</a></>
+                  <> — <a href={result.htmlUrl} onClick={openExternal(result.htmlUrl)}>{t('about.download')}</a></>
                 )}
               </span>
             )}
           </div>
           <div className="about-links">
-            <a href={REPO_URL} onClick={openExternal(REPO_URL)}>GitHub</a>
+            <a href={REPO_URL} onClick={openExternal(REPO_URL)}>{t('about.github')}</a>
             <span className="dot">·</span>
             <a href={`${REPO_URL}/blob/main/docs/GUIDE.md`} onClick={openExternal(`${REPO_URL}/blob/main/docs/GUIDE.md`)}>
-              Documentation
+              {t('about.documentation')}
             </a>
           </div>
         </div>
         <div className="modal-foot">
           <button className="btn ghost" onClick={runCheck} disabled={checking}>
-            {checking ? 'Checking…' : 'Check for updates'}
+            {checking ? t('about.checkingShort') : t('about.checkBtn')}
           </button>
-          <button className="btn primary" onClick={onClose}>Close</button>
+          <button className="btn primary" onClick={onClose}>{t('common.close')}</button>
         </div>
       </div>
     </>

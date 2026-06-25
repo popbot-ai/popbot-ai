@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { WinActionName } from '@shared/ipc';
+import { useTranslation } from '../lib/i18n';
 import popbotIcon from '../assets/popbot-icon.png';
 
 /**
@@ -43,6 +44,7 @@ const win = (name: WinActionName) => (): void => { void window.popbot.win.action
 const REPO_URL = 'https://github.com/popbot-ai/popbot-ai';
 
 export function MenuBar({ onNewChat, onOpenPrefs, onToggleGitPanel, gitPanelOpen, onOpenAbout }: MenuBarProps): JSX.Element {
+  const { t } = useTranslation();
   // Which menu is open, by id. The app-icon system menu uses id '__sys'.
   const [open, setOpen] = useState<string | null>(null);
   const barRef = useRef<HTMLDivElement | null>(null);
@@ -72,48 +74,48 @@ export function MenuBar({ onNewChat, onOpenPrefs, onToggleGitPanel, gitPanelOpen
   const menus: Array<{ id: string; label: string; items: MenuItem[] }> = [
     {
       id: 'file',
-      label: 'File',
+      label: t('menu.file'),
       items: [
-        { label: 'New Chat', accel: 'Ctrl+T', onClick: onNewChat },
-        { label: 'Preferences…', accel: 'Ctrl+,', onClick: onOpenPrefs },
+        { label: t('menu.newChat'), accel: 'Ctrl+T', onClick: onNewChat },
+        { label: t('menu.preferences'), accel: 'Ctrl+,', onClick: onOpenPrefs },
         { separator: true },
-        { label: 'Quit PopBot', accel: 'Ctrl+Q', danger: true, onClick: () => void window.popbot.app.quit() },
+        { label: t('menu.quit'), accel: 'Ctrl+Q', danger: true, onClick: () => void window.popbot.app.quit() },
       ],
     },
     {
       id: 'edit',
-      label: 'Edit',
+      label: t('menu.edit'),
       items: [
-        { label: 'Undo', accel: 'Ctrl+Z', onClick: win('undo') },
-        { label: 'Redo', accel: 'Ctrl+Y', onClick: win('redo') },
+        { label: t('menu.undo'), accel: 'Ctrl+Z', onClick: win('undo') },
+        { label: t('menu.redo'), accel: 'Ctrl+Y', onClick: win('redo') },
         { separator: true },
-        { label: 'Cut', accel: 'Ctrl+X', onClick: win('cut') },
-        { label: 'Copy', accel: 'Ctrl+C', onClick: win('copy') },
-        { label: 'Paste', accel: 'Ctrl+V', onClick: win('paste') },
-        { label: 'Select All', accel: 'Ctrl+A', onClick: win('select-all') },
+        { label: t('menu.cut'), accel: 'Ctrl+X', onClick: win('cut') },
+        { label: t('menu.copy'), accel: 'Ctrl+C', onClick: win('copy') },
+        { label: t('menu.paste'), accel: 'Ctrl+V', onClick: win('paste') },
+        { label: t('menu.selectAll'), accel: 'Ctrl+A', onClick: win('select-all') },
       ],
     },
     {
       id: 'view',
-      label: 'View',
+      label: t('menu.view'),
       items: [
-        { label: 'Git Panel', checked: gitPanelOpen, onClick: onToggleGitPanel },
+        { label: t('menu.gitPanel'), checked: gitPanelOpen, onClick: onToggleGitPanel },
         { separator: true },
-        { label: 'Reset Zoom', accel: 'Ctrl+0', onClick: win('zoom-reset') },
-        { label: 'Zoom In', accel: 'Ctrl++', onClick: win('zoom-in') },
-        { label: 'Zoom Out', accel: 'Ctrl+-', onClick: win('zoom-out') },
+        { label: t('menu.resetZoom'), accel: 'Ctrl+0', onClick: win('zoom-reset') },
+        { label: t('menu.zoomIn'), accel: 'Ctrl++', onClick: win('zoom-in') },
+        { label: t('menu.zoomOut'), accel: 'Ctrl+-', onClick: win('zoom-out') },
       ],
     },
     {
       id: 'help',
-      label: 'Help',
+      label: t('menu.help'),
       items: [
-        { label: 'Documentation', onClick: () => window.open(`${REPO_URL}/blob/main/docs/GUIDE.md`, '_blank') },
-        { label: 'Configuration Guide', onClick: () => window.open(`${REPO_URL}/blob/main/docs/CONFIGURATION.md`, '_blank') },
+        { label: t('menu.documentation'), onClick: () => window.open(`${REPO_URL}/blob/main/docs/GUIDE.md`, '_blank') },
+        { label: t('menu.configGuide'), onClick: () => window.open(`${REPO_URL}/blob/main/docs/CONFIGURATION.md`, '_blank') },
         { separator: true },
-        { label: 'Report an Issue', onClick: () => window.open(`${REPO_URL}/issues`, '_blank') },
+        { label: t('menu.reportIssue'), onClick: () => window.open(`${REPO_URL}/issues`, '_blank') },
         { separator: true },
-        { label: 'About PopBot', onClick: onOpenAbout },
+        { label: t('menu.about'), onClick: onOpenAbout },
       ],
     },
   ];
