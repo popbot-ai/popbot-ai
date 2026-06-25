@@ -4,8 +4,9 @@ import { useTranslation } from '../lib/i18n';
 import { LOCALES, type Locale, type MessageKey } from '@shared/i18n';
 import linearIcon from '../assets/notif/linear.png';
 import jiraIcon from '../assets/notif/jira.png';
+import githubIcon from '../assets/notif/github.png';
 import type { LinearProjectDto } from '@shared/linear';
-import type { JiraSettings } from '@shared/ticketProvider';
+import type { GithubTestResult, JiraSettings } from '@shared/ticketProvider';
 import {
   ATTACHMENT_TTL_DAYS_DEFAULT,
   ATTACHMENT_TTL_DAYS_MAX,
@@ -389,11 +390,13 @@ function PrefsAttachments(): JSX.Element {
 
 interface SelectChoice { id: string; label: string; icon: ReactNode }
 
-/** Issue trackers selectable as the ticket source. Only Linear ships
- *  today; Jira (roughed in at shared/ticketProvider.ts) slots in here. */
+/** Issue trackers selectable as the ticket source. Each has its own config
+ *  form below; capabilities (status changes, project scoping, etc.) are
+ *  declared in shared/ticketProvider.ts and feature-detected by the UI. */
 const TRACKERS: SelectChoice[] = [
   { id: 'linear', label: 'Linear', icon: <img src={linearIcon} alt="" className="tracker-dd-ico" /> },
   { id: 'jira', label: 'Jira', icon: <img src={jiraIcon} alt="" className="tracker-dd-ico" /> },
+  { id: 'github', label: 'GitHub', icon: <img src={githubIcon} alt="" className="tracker-dd-ico" /> },
 ];
 
 /** Game engines selectable as the launch target. Only Unity ships today. */
@@ -565,7 +568,9 @@ function PrefsIntegrations({ onLinearChanged }: { onLinearChanged?: () => void }
             <span>{(TRACKERS.find((t) => t.id === tracker) ?? TRACKERS[0]).label}</span>
           </div>
           <div className="tracker-config-body">
-            {tracker === 'jira' ? (
+            {tracker === 'github' ? (
+              <GithubForm />
+            ) : tracker === 'jira' ? (
               <JiraForm
                 initial={jira}
                 onSave={async (next) => {
@@ -1787,6 +1792,88 @@ function JiraForm({
             {saving ? 'Verifying…' : 'Save'}
           </button>
         </div>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * GitHub Issues config. Unlike Linear/Jira there are no credentials to
+ * enter: the provider shells out to the `gh` CLI (already authenticated for
+ * the Reviews tab + git actions) and spans the same repos configured in the
+ * Repositories section. So this form is informational + a status check that
+ * confirms `gh` is installed/authenticated and reports the repo span.
+ */
+function GithubForm(): JSX.Element {
+  const [checking, setChecking] = useState(false);
+  const [result, setResult] = useState<GithubTestResult | null>(null);
+
+  const check = async (): Promise<void> => {
+    setChecking(true);
+    setResult(null);
+    try {
+      setResult(await window.popbot.github.test());
+    } catch (err) {
+      setResult({ ok: false, reason: 'error', error: err instanceof Error ? err.message : String(err) });
+    } finally {
+      setChecking(false);
+    }
+  };
+
+  // Verify on mount so the status line reflects reality without a click.
+  useEffect(() => {
+    void check();
+  }, []);
+
+  const statusPill = (): JSX.Element => {
+    if (checking && !result) {
+      return <span className="pill muted"><i className="fa-regular fa-circle" /> Checking…</span>;
+    }
+    if (!result) {
+      return <span className="pill muted"><i className="fa-regular fa-circle" /> Not checked</span>;
+    }
+    if (result.ok) {
+      return (
+        <span className="pill done">
+          <i className="fa-solid fa-circle-check" /> Authenticated as {result.login} · {result.repoCount}{' '}
+          {result.repoCount === 1 ? 'repo' : 'repos'}
+        </span>
+      );
+    }
+    const msg =
+      result.reason === 'gh-not-found'
+        ? 'The gh CLI isn’t installed or isn’t on PATH.'
+        : result.reason === 'gh-not-authed'
+          ? 'gh is installed but not authenticated — run `gh auth login`.'
+          : result.reason === 'no-repo'
+            ? 'No repositories configured — add one in the Repositories section.'
+            : `GitHub error: ${result.error ?? 'unknown'}`;
+    return <span className="pill err"><i className="fa-solid fa-circle-xmark" /> {msg}</span>;
+  };
+
+  return (
+    <div className="pref-rows">
+      <div className="pref-row">
+        <div className="pref-label">
+          <div className="pref-label-title">Authentication</div>
+          <div className="pref-label-desc">
+            GitHub Issues use the <span className="mono">gh</span> CLI you’ve already authenticated for
+            reviews and git actions — there’s nothing to enter here. The queue spans the same
+            repositories configured in the Repositories section.
+          </div>
+        </div>
+        <div className="pref-control" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <button className="btn ghost sm" disabled={checking} onClick={() => void check()}>
+            {checking ? 'Checking…' : 'Re-check'}
+          </button>
+        </div>
+      </div>
+      <div className="pref-row">
+        <div className="pref-label">
+          <div className="pref-label-title">Status</div>
+          <div className="pref-label-desc">{statusPill()}</div>
+        </div>
+        <div className="pref-control" />
       </div>
     </div>
   );

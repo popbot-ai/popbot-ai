@@ -52,7 +52,7 @@ import { probeCodexForPath } from './agents/codexProbe';
 import { registerChatHandlers } from './ipc/chats';
 import { registerAgentHandlers } from './ipc/agent';
 import { registerSettingsHandlers } from './ipc/settings';
-import { registerLinearHandlers } from './ipc/linear';
+import { registerTicketHandlers } from './ipc/tickets';
 import { registerFilesHandlers } from './ipc/files';
 import { registerAppsHandlers } from './ipc/apps';
 import { registerGitHandlers } from './ipc/git';
@@ -476,7 +476,7 @@ void app.whenReady().then(async () => {
   registerChatHandlers();
   registerAgentHandlers();
   registerSettingsHandlers();
-  registerLinearHandlers();
+  registerTicketHandlers();
   registerFilesHandlers();
   registerAppsHandlers();
   registerGitHandlers();

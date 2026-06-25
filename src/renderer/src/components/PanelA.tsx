@@ -2,6 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react
 import { createPortal } from 'react-dom';
 import type { LinearIssueDto, LinearWorkflowStateDto } from '@shared/linear';
 import type { ReviewItem } from '@shared/reviews';
+import { TICKET_PROVIDERS, type TicketProviderId } from '@shared/ticketProvider';
 import { Tooltip } from './Tooltip';
 import { useHighlight, usePulseActive } from '../lib/highlightBus';
 import {
@@ -103,6 +104,18 @@ export function PanelA({
   ticketChats,
 }: PanelAProps): JSX.Element {
   const [tab, setTab] = useState<'tickets' | 'reviews' | 'slack'>('tickets');
+  // Which tracker feeds the queue, so the UI can feature-detect provider
+  // capabilities (e.g. hide the inline status picker for GitHub Issues,
+  // which have no workflow states). Re-read whenever the issue list changes
+  // — switching trackers in Preferences bumps the version, which re-fetches
+  // and gives `linearStatus` a fresh identity, so this self-corrects.
+  const [ticketProvider, setTicketProvider] = useState<TicketProviderId>('linear');
+  useEffect(() => {
+    void window.popbot.settings.get<string>('ticketSource').then((id) => {
+      setTicketProvider((id && id in TICKET_PROVIDERS ? id : 'linear') as TicketProviderId);
+    });
+  }, [linearStatus]);
+  const canChangeStatus = TICKET_PROVIDERS[ticketProvider].capabilities.changeStatus;
   const handleNewReviews = useCallback(
     (fresh: ReviewItem[]) => onNewReviews?.(fresh),  // playPing now happens in the App-level notify subscriber
     [onNewReviews],
@@ -707,6 +720,7 @@ export function PanelA({
             onSpawn={onSpawnFromTicket}
             onOpenPrefs={onOpenPrefs}
             onRefresh={refreshAll}
+            canChangeStatus={canChangeStatus}
             ticketChats={ticketChats}
             ignoredTickets={ignoredTickets}
             isNew={(id) => seenTickets ? !seenTickets.has(id) : false}
@@ -1160,6 +1174,10 @@ interface LinearTicketsProps {
   onSpawn: (t: Ticket) => void;
   onOpenPrefs?: (section?: string) => void;
   onRefresh: () => void;
+  /** Whether the active tracker supports changing an issue's status from
+   *  PopBot (Linear/Jira do; GitHub Issues don't). Off → the row renders a
+   *  read-only status glyph instead of the interactive picker. */
+  canChangeStatus: boolean;
   ticketChats?: Map<string, { open: boolean; focused: boolean; slotId: number | null; pr: number | null }>;
   /** Linear identifiers the user has chosen to ignore — filtered out
    *  of the rendered list. Mirrors the PR-ignore behavior. */
@@ -1387,10 +1405,13 @@ function IssueTooltip({ issue }: { issue: LinearIssueDto }): JSX.Element {
   );
 }
 
-function LinearRow({ issue, onSpawn, onRefresh, chatLink, isNew, onMarkSeen, onContextMenu }: {
+function LinearRow({ issue, onSpawn, onRefresh, canChangeStatus, chatLink, isNew, onMarkSeen, onContextMenu }: {
   issue: LinearIssueDto;
   onSpawn: (t: Ticket) => void;
   onRefresh: () => void;
+  /** When false, the status is shown as a read-only glyph (the active
+   *  tracker can't change status from PopBot — e.g. GitHub Issues). */
+  canChangeStatus: boolean;
   chatLink?: { open: boolean; focused: boolean; slotId: number | null; pr: number | null };
   isNew: boolean;
   onMarkSeen?: (identifier: string) => void;
@@ -1453,7 +1474,19 @@ function LinearRow({ issue, onSpawn, onRefresh, chatLink, isNew, onMarkSeen, onC
                   : chatLink.open ? ' chat' : ' closed'}
             </span>
           )}
-          <StatusPicker issue={issue} onChanged={onRefresh} />
+          {canChangeStatus ? (
+            <StatusPicker issue={issue} onChanged={onRefresh} />
+          ) : (
+            // Tracker can't change status from PopBot (e.g. GitHub Issues,
+            // which only have open/closed). Show a read-only status glyph.
+            <span
+              className="status-picker-btn read-only"
+              title={`Status: ${issue.state.name}`}
+              aria-label={`Status: ${issue.state.name}`}
+            >
+              <LinearStateIcon state={issue.state} />
+            </span>
+          )}
           {/* Open-in-Linear is now via right-click → "Open web page". */}
         </span>
       </div>
@@ -1466,6 +1499,7 @@ function LinearTickets({
   onSpawn,
   onOpenPrefs,
   onRefresh,
+  canChangeStatus,
   ticketChats,
   ignoredTickets,
   isNew,
@@ -1590,6 +1624,7 @@ function LinearTickets({
                 issue={issue}
                 onSpawn={onSpawn}
                 onRefresh={onRefresh}
+                canChangeStatus={canChangeStatus}
                 chatLink={ticketChats?.get(issue.identifier)}
                 isNew={isNew?.(issue.identifier) ?? false}
                 onMarkSeen={onMarkSeen}

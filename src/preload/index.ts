@@ -129,6 +129,9 @@ const api: PopBotApi = {
     test: (settings) => ipcRenderer.invoke(IpcChannel.JiraTest, settings),
     listProjects: (settings) => ipcRenderer.invoke(IpcChannel.JiraListProjects, settings),
   },
+  github: {
+    test: () => ipcRenderer.invoke(IpcChannel.GithubTest),
+  },
   git: {
     status: (chatId: string) => ipcRenderer.invoke(IpcChannel.GitStatus, chatId),
     diff: (input: GitDiffInput) => ipcRenderer.invoke(IpcChannel.GitDiff, input),

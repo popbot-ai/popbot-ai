@@ -32,7 +32,7 @@ import type {
   NotifyInput,
 } from './notifications';
 import type { ListReviewsResult } from './reviews';
-import type { JiraSettings } from './ticketProvider';
+import type { GithubTestResult, JiraSettings } from './ticketProvider';
 import type { SentryTestResult } from './sentry';
 import type { SlackTestResult } from './slack';
 import type { UpdateInfo, UpdateCheckResult, UpdateProgress, UpdateReady } from './updates';
@@ -105,6 +105,13 @@ export const IpcChannel = {
   /** List Jira projects visible to the supplied draft credentials — feeds
    *  the project picker in the Jira Preferences form. */
   JiraListProjects: 'pb:jira:list-projects',
+
+  /** Verify the `gh` CLI is installed + authenticated and report how many
+   *  configured repos the Tickets queue will span. GitHub has no
+   *  credentials to enter (it reuses the `gh` login), so this takes no
+   *  args. The shared ticket-data channels (list/get/states/promote) are
+   *  routed by the `ticketSource` setting in main. */
+  GithubTest: 'pb:github:test',
 
   /** Pending PRs (review-requested:@me OR review:none) for the configured repo. */
   ReviewsList: 'pb:reviews:list',
@@ -689,6 +696,13 @@ export interface PopBotApi {
       authFailed?: boolean;
       error?: string;
     }>;
+  };
+  github: {
+    /** Verify the `gh` CLI is installed + authenticated and report how
+     *  many configured repos the Tickets queue spans. No args — GitHub
+     *  reuses the `gh` login rather than its own credentials. Feeds the
+     *  GitHub Preferences form's status line. */
+    test(): Promise<GithubTestResult>;
   };
   term: {
     open(chatId: string, cwd: string, cols?: number, rows?: number): Promise<{ ok: true; buffer: string }>;

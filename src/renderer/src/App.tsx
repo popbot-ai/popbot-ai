@@ -571,7 +571,16 @@ export default function App(): JSX.Element {
   const ticketBranch = (t: Ticket): string => {
     const override = getSetting<{ username?: string }>('git', {})?.username?.trim();
     const username = override || branchUsername || 'pop';
-    return `${username}/${t.id.toLowerCase()}-${slugifyTitle(t.title)}`;
+    // Sanitize the ticket id into a branch-safe slug. Linear/Jira ids
+    // (`ENG-4`) pass through unchanged; GitHub's `owner/repo#123` carries a
+    // slash and hash that aren't valid in a branch ref, so collapse any
+    // non-alphanumeric run to a single dash.
+    const idSlug = t.id
+      .toLowerCase()
+      .replace(/[^a-z0-9-]+/g, '-')
+      .replace(/-+/g, '-')
+      .replace(/^-|-$/g, '');
+    return `${username}/${idSlug}-${slugifyTitle(t.title)}`;
   };
 
   /** Focus an existing chat — and if it doesn't yet have a slot, kick
