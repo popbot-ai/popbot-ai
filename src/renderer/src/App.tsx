@@ -7,7 +7,7 @@ import { PanelB } from './components/PanelB';
 import { MonitorCard } from './components/MonitorCard';
 import { ChatColumn, EmptyColumn, ReadinessGateModal } from './components/ChatColumn';
 import { PanelD } from './components/PanelD';
-import { GitPanel } from './components/GitPanel';
+import { SourceControlPanel } from './components/SourceControlPanel';
 import { DiffOverlay } from './components/DiffOverlay';
 import { BaseBranchDialog } from './components/BaseBranchDialog';
 import { ChatSettingsSheet } from './components/ChatSettingsSheet';
@@ -1242,7 +1242,10 @@ export default function App(): JSX.Element {
               title="Drag to resize"
             />
             <div className="right">
-              <GitPanel
+              {/* Dispatcher: renders the git sidebar today; routes to a
+                  provider-specific panel (e.g. P4Panel) once the focused
+                  repo's SCM is threaded through as `providerId`. */}
+              <SourceControlPanel
                 chatId={focusedRecord?.id ?? null}
                 chatName={focusedRecord?.name}
                 chatTicket={focusedRecord?.ticket ?? null}

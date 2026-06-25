@@ -34,12 +34,7 @@ import {
 } from '../persistence/repos';
 import { listSlotOccupantsForRepo } from '../persistence/chats';
 import { slotWorktreePathForRepo } from '../git/chatPaths';
-import {
-  deleteBranch,
-  ensureSlotWorktree,
-  parkingBranch,
-  removeWorktree,
-} from '../git/worktrees';
+import { getSourceControlProvider } from '../scm';
 
 const ID_PATTERN = /^[a-z0-9][a-z0-9-]*$/;
 
@@ -121,11 +116,12 @@ export function registerReposHandlers(): void {
       if (existsSync(path)) {
         return { ok: true, slotId, alreadyReady: true };
       }
+      const scm = getSourceControlProvider(repo);
       try {
-        await ensureSlotWorktree({
+        await scm.ensureSlotWorktree({
           repoPath: repo.repoPath,
           worktreePath: path,
-          parkBranch: parkingBranch(repo.id, slotId),
+          parkBranch: scm.parkingBranch(repo.id, slotId),
           baseBranch: repo.defaultBase,
         });
         return { ok: true, slotId, alreadyReady: false };
@@ -149,9 +145,10 @@ export function registerReposHandlers(): void {
       const here = occupants.get(slotId);
       if (here) return { ok: false, reason: 'slot-in-use', chatName: here.chatName };
       const path = slotWorktreePathForRepo(repo, slotId);
+      const scm = getSourceControlProvider(repo);
       try {
-        await removeWorktree({ repoPath: repo.repoPath, worktreePath: path });
-        await deleteBranch(repo.repoPath, parkingBranch(repo.id, slotId));
+        await scm.removeWorktree({ repoPath: repo.repoPath, worktreePath: path });
+        await scm.deleteBranch(repo.repoPath, scm.parkingBranch(repo.id, slotId));
         return { ok: true, slotId };
       } catch (err) {
         return { ok: false, slotId, error: (err as Error).message };
