@@ -1,0 +1,44 @@
+name: Deploy site
+
+# Publishes the popbot.app marketing site (site/) to the Cloudflare
+# "popbot-site" Worker.
+#
+# We deploy from here rather than Cloudflare's git-connected Workers Builds
+# because that always runs `npm clean-install` at the repo root — i.e. the
+# whole Electron app, which dies compiling node-pty (distutils gone in the
+# build image's Python 3.13), and Workers Builds has no skip-install option.
+# Here we install ONLY wrangler and run `wrangler deploy` against site/, so
+# the app's package.json is never in scope.
+#
+# Disconnect the Worker's Build → Git repository so this is the sole deployer.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'site/**'
+      - '.github/workflows/deploy-site.yml'
+  workflow_dispatch: {}
+
+concurrency:
+  group: deploy-site
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # wrangler-action installs wrangler itself. site/ has no package.json,
+      # so nothing else is installed — no node-pty, no app build.
+      - name: Deploy site/ to Cloudflare
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: site
+          command: deploy
