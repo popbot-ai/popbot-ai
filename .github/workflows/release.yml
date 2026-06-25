@@ -9,7 +9,12 @@ name: Release
 # Each channel is its own R2 folder with its own update manifest, so a
 # prerelease can never leak into the stable auto-update feed. The app's
 # auto-updater reads …/<channel>/latest*.yml; the website links to the
-# installers in …/stable/.
+# installers in …/<channel>/<version>/.
+#
+# Atomicity: matrix jobs upload only to …/<channel>/<version>/. The channel
+# root (the live auto-update feed) is promoted from there by `finalize`, and
+# only after every platform built and the tag pushed — so a partial or
+# untagged release can never become the advertised feed.
 
 on:
   workflow_dispatch:
@@ -32,10 +37,10 @@ concurrency:
 permissions:
   contents: read
 
+# Non-secret R2 config only. The write credentials (R2_ACCESS_KEY_ID /
+# R2_SECRET_ACCESS_KEY) are injected per-step into the `aws s3` steps so they
+# are NOT exposed to npm ci, the build, or packaging hooks.
 env:
-  # R2 (S3-compatible) target. Credentials come from repo secrets.
-  AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
-  AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
   AWS_DEFAULT_REGION: auto
   R2_ENDPOINT: https://${{ secrets.R2_ACCOUNT_ID }}.r2.cloudflarestorage.com
   R2_BUCKET: popbot
@@ -95,8 +100,10 @@ jobs:
       - name: Build renderer + main
         run: npm run build
 
-      # FEED bakes the channel's R2 URL into app-update.yml so the app
-      # auto-updates from the right folder.
+      # FEED bakes the channel's R2 URL into app-update.yml. macOS MUST be
+      # signed + notarized for a stable release (Gatekeeper rejects unsigned,
+      # and the auto-updater refuses unsigned updates) — so fail rather than
+      # publish an unsigned stable build. A prerelease may build unsigned.
       - name: Package + sign (macOS)
         if: matrix.os == 'macos-latest'
         env:
@@ -106,27 +113,45 @@ jobs:
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
           FEED: ${{ needs.version.outputs.feed }}
+          CHANNEL: ${{ inputs.channel }}
         run: |
           if [ -n "$CSC_LINK" ] && [ -n "$CSC_KEY_PASSWORD" ] && [ -n "$APPLE_ID" ] \
              && [ -n "$APPLE_APP_SPECIFIC_PASSWORD" ] && [ -n "$APPLE_TEAM_ID" ]; then
             echo "Signing + notarizing"
             npx electron-builder --mac --publish never --config electron-builder.yml -c.publish.url="$FEED"
+          elif [ "$CHANNEL" = "release" ]; then
+            echo "::error::macOS signing secrets incomplete — refusing to publish an unsigned stable release."
+            exit 1
           else
-            echo "::warning::macOS signing secrets incomplete — building UNSIGNED"
+            echo "::warning::macOS signing secrets incomplete — building UNSIGNED (prerelease only)"
             unset CSC_LINK CSC_KEY_PASSWORD APPLE_ID APPLE_APP_SPECIFIC_PASSWORD APPLE_TEAM_ID
             export CSC_IDENTITY_AUTO_DISCOVERY=false
             npx electron-builder --mac --publish never -c.mac.notarize=false --config electron-builder.yml -c.publish.url="$FEED"
           fi
 
+      # Windows signing needs BOTH the cert and its password. Windows signing
+      # isn't configured yet, so an unsigned Windows build only triggers a
+      # SmartScreen warning (still installable, auto-update still works) — we
+      # warn loudly on a stable release but don't block it.
       - name: Package + sign (Windows)
         if: matrix.os == 'windows-2022'
         env:
           CSC_LINK: ${{ secrets.WIN_CSC_LINK }}
           CSC_KEY_PASSWORD: ${{ secrets.WIN_CSC_KEY_PASSWORD }}
           FEED: ${{ needs.version.outputs.feed }}
+          CHANNEL: ${{ inputs.channel }}
         shell: bash
         run: |
-          [ -n "$CSC_LINK" ] || { echo "::warning::no Windows cert — building UNSIGNED"; unset CSC_LINK CSC_KEY_PASSWORD; }
+          if [ -n "$CSC_LINK" ] && [ -n "$CSC_KEY_PASSWORD" ]; then
+            echo "Signing"
+          else
+            unset CSC_LINK CSC_KEY_PASSWORD
+            if [ "$CHANNEL" = "release" ]; then
+              echo "::warning::Windows cert not configured — publishing an UNSIGNED stable build (SmartScreen will warn)."
+            else
+              echo "Building unsigned (prerelease)"
+            fi
+          fi
           npx electron-builder --win --publish never --config electron-builder.yml -c.publish.url="$FEED"
 
       - name: Package (Linux)
@@ -135,21 +160,20 @@ jobs:
           FEED: ${{ needs.version.outputs.feed }}
         run: npx electron-builder --linux --publish never --config electron-builder.yml -c.publish.url="$FEED"
 
-      # Upload to BOTH the per-version folder (stable URLs to download from)
-      # and the channel root (the version-independent auto-update feed —
-      # latest*.yml lives here and is overwritten each release).
+      # Upload ONLY to the per-version folder. The channel-root feed is
+      # promoted later by `finalize`, after the whole matrix + tag succeed.
       - name: Upload to R2 + print download links
         shell: bash
         env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
           DIR: ${{ needs.version.outputs.dir }}
           VERSION: ${{ needs.version.outputs.version }}
         run: |
-          inc=(--exclude "*" --include "*.dmg" --include "*.exe" --include "*.AppImage"
-               --include "*.zip" --include "*.blockmap" --include "latest*.yml")
           aws s3 cp release/ "s3://$R2_BUCKET/$DIR/$VERSION/" --recursive \
-            --endpoint-url "$R2_ENDPOINT" --checksum-algorithm CRC32 "${inc[@]}"
-          aws s3 cp release/ "s3://$R2_BUCKET/$DIR/" --recursive \
-            --endpoint-url "$R2_ENDPOINT" --checksum-algorithm CRC32 "${inc[@]}"
+            --endpoint-url "$R2_ENDPOINT" --checksum-algorithm CRC32 \
+            --exclude "*" --include "*.dmg" --include "*.exe" --include "*.AppImage" \
+            --include "*.zip" --include "*.blockmap" --include "latest*.yml"
           # Surface the installer download link for this OS in the run summary.
           base="https://download.popbot.app/$DIR/$VERSION"
           for f in release/*.dmg release/*.exe release/*.AppImage; do
@@ -165,15 +189,30 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@v4
-      # Record the build as a git tag so the next version computes correctly.
-      # (Tags aren't branch-protected; no commit to main.)
+      # Tag first — if this fails the feed is never promoted, so R2 can't
+      # advertise an untagged release. (Tags aren't branch-protected.)
       - name: Tag v${{ needs.version.outputs.version }}
         run: |
           git tag "v${{ needs.version.outputs.version }}"
           git push origin "v${{ needs.version.outputs.version }}"
+      # Promote the version folder to the channel root — this is the moment
+      # the live auto-update feed (latest*.yml) flips to the new version, and
+      # it only happens once every platform built and the tag landed.
+      - name: Promote ${{ needs.version.outputs.dir }} feed
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          DIR: ${{ needs.version.outputs.dir }}
+          VERSION: ${{ needs.version.outputs.version }}
+        run: |
+          aws s3 cp "s3://$R2_BUCKET/$DIR/$VERSION/" "s3://$R2_BUCKET/$DIR/" --recursive \
+            --endpoint-url "$R2_ENDPOINT" --checksum-algorithm CRC32
       # Stable only: publish the version pointer the in-app notifier reads.
       - name: Update stable version pointer
         if: ${{ inputs.channel == 'release' }}
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
         run: |
           printf '{"version":"%s"}' "${{ needs.version.outputs.version }}" > version.json
           aws s3 cp version.json "s3://$R2_BUCKET/stable/version.json" --endpoint-url "$R2_ENDPOINT" --checksum-algorithm CRC32
