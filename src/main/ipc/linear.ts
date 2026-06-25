@@ -17,6 +17,19 @@ import {
   fetchWorkflowStates,
   updateIssueState,
 } from '../linear/client';
+import {
+  JiraAuthError,
+  resolveConn as resolveJiraConn,
+  fetchViewer as jiraFetchViewer,
+  fetchMyIssues as jiraFetchMyIssues,
+  fetchRecentIssues as jiraFetchRecentIssues,
+  fetchIssueByKey as jiraFetchIssueByKey,
+  fetchTransitions as jiraFetchTransitions,
+  transitionIssue as jiraTransitionIssue,
+  fetchProjects as jiraFetchProjects,
+  promoteIssue as jiraPromoteIssue,
+} from '../jira/client';
+import type { JiraSettings, TicketProviderId } from '@shared/ticketProvider';
 import { dlog } from '../diagLog';
 import { getSetting } from '../persistence/settings';
 
@@ -24,6 +37,18 @@ interface LinearSettings {
   apiKey?: string;
   teamKey?: string;
   projectId?: string;
+}
+
+/** Which tracker feeds the Tickets queue. Defaults to Linear. The six
+ *  ticket data channels below are provider-agnostic and dispatch on this;
+ *  the Jira client normalizes to the same DTOs the renderer renders for
+ *  Linear, so no renderer branching is needed. */
+function activeTicketSource(): TicketProviderId {
+  return getSetting<string>('ticketSource') === 'jira' ? 'jira' : 'linear';
+}
+
+function jiraSettings(): JiraSettings {
+  return getSetting<JiraSettings>('jira') ?? {};
 }
 
 interface PanelASearchSettings {
@@ -62,6 +87,16 @@ export function registerLinearHandlers(): void {
     authFailed?: boolean;
     error?: string;
   }> => {
+    if (activeTicketSource() === 'jira') {
+      const s = jiraSettings();
+      if (!resolveJiraConn(s)) return { issues: [], notConfigured: true };
+      try {
+        return { issues: await jiraFetchMyIssues(s) };
+      } catch (err) {
+        if (err instanceof JiraAuthError) return { issues: [], authFailed: true };
+        return { issues: [], error: err instanceof Error ? err.message : String(err) };
+      }
+    }
     const settings = getSetting<LinearSettings>('linear') ?? {};
     if (!settings.apiKey) return { issues: [], notConfigured: true };
     try {
@@ -90,6 +125,16 @@ export function registerLinearHandlers(): void {
     authFailed?: boolean;
     error?: string;
   }> => {
+    if (activeTicketSource() === 'jira') {
+      const s = jiraSettings();
+      if (!resolveJiraConn(s)) return { issues: [], notConfigured: true };
+      try {
+        return { issues: await jiraFetchRecentIssues(s, searchSinceIso()) };
+      } catch (err) {
+        if (err instanceof JiraAuthError) return { issues: [], authFailed: true };
+        return { issues: [], error: err instanceof Error ? err.message : String(err) };
+      }
+    }
     const settings = getSetting<LinearSettings>('linear') ?? {};
     if (!settings.apiKey) return { issues: [], notConfigured: true };
     try {
@@ -113,6 +158,18 @@ export function registerLinearHandlers(): void {
     | { ok: true; issue: LinearIssueDto }
     | { ok: false; reason: 'not-found' | 'not-configured' | 'auth-failed' | 'error'; error?: string }
   > => {
+    if (activeTicketSource() === 'jira') {
+      const s = jiraSettings();
+      if (!resolveJiraConn(s)) return { ok: false, reason: 'not-configured' };
+      try {
+        const issue = await jiraFetchIssueByKey(s, identifier);
+        if (!issue) return { ok: false, reason: 'not-found' };
+        return { ok: true, issue };
+      } catch (err) {
+        if (err instanceof JiraAuthError) return { ok: false, reason: 'auth-failed' };
+        return { ok: false, reason: 'error', error: err instanceof Error ? err.message : String(err) };
+      }
+    }
     const settings = getSetting<LinearSettings>('linear') ?? {};
     if (!settings.apiKey) return { ok: false, reason: 'not-configured' };
     try {
@@ -163,6 +220,18 @@ export function registerLinearHandlers(): void {
     authFailed?: boolean;
     error?: string;
   }> => {
+    if (activeTicketSource() === 'jira') {
+      // For Jira, `teamId` carries the issue key (see jira/client.ts) and
+      // "states" are the issue's available transitions.
+      const s = jiraSettings();
+      if (!resolveJiraConn(s)) return { states: [], notConfigured: true };
+      try {
+        return { states: await jiraFetchTransitions(s, teamId) };
+      } catch (err) {
+        if (err instanceof JiraAuthError) return { states: [], authFailed: true };
+        return { states: [], error: err instanceof Error ? err.message : String(err) };
+      }
+    }
     const settings = getSetting<LinearSettings>('linear') ?? {};
     if (!settings.apiKey) return { states: [], notConfigured: true };
     try {
@@ -180,6 +249,19 @@ export function registerLinearHandlers(): void {
     issueId: string,
     stateId: string,
   ): Promise<{ ok: true; stateName: string | null } | { ok: false; reason: string }> => {
+    if (activeTicketSource() === 'jira') {
+      // `issueId` is the Jira issue key; `stateId` is a transition id.
+      const s = jiraSettings();
+      if (!resolveJiraConn(s)) return { ok: false, reason: 'not-configured' };
+      try {
+        const r = await jiraTransitionIssue(s, issueId, stateId);
+        if (!r.success) return { ok: false, reason: 'rejected' };
+        return { ok: true, stateName: r.stateName };
+      } catch (err) {
+        if (err instanceof JiraAuthError) return { ok: false, reason: 'auth' };
+        return { ok: false, reason: err instanceof Error ? err.message : String(err) };
+      }
+    }
     const settings = getSetting<LinearSettings>('linear') ?? {};
     if (!settings.apiKey) return { ok: false, reason: 'not-configured' };
     try {
@@ -216,6 +298,29 @@ export function registerLinearHandlers(): void {
     | { ok: true; promoted: boolean; stateName?: string }
     | { ok: false; reason: string }
   > => {
+    if (activeTicketSource() === 'jira') {
+      const s = jiraSettings();
+      if (!resolveJiraConn(s)) return { ok: false, reason: 'not-configured' };
+      try {
+        const r = await jiraPromoteIssue(s, identifier);
+        if (!r.promoted && r.reason) {
+          dlog('jira.promote.skipped', { identifier, reason: r.reason });
+          if (r.reason === 'not-found') return { ok: false, reason: 'not-found' };
+          if (r.reason === 'no-in-progress-state') {
+            return { ok: false, reason: 'no-in-progress-state' };
+          }
+        }
+        const result: { ok: true; promoted: boolean; stateName?: string } = {
+          ok: true,
+          promoted: r.promoted,
+        };
+        if (r.stateName !== undefined) result.stateName = r.stateName;
+        return result;
+      } catch (err) {
+        if (err instanceof JiraAuthError) return { ok: false, reason: 'auth' };
+        return { ok: false, reason: err instanceof Error ? err.message : String(err) };
+      }
+    }
     const settings = getSetting<LinearSettings>('linear') ?? {};
     if (!settings.apiKey) return { ok: false, reason: 'not-configured' };
     try {
@@ -260,6 +365,40 @@ export function registerLinearHandlers(): void {
     } catch (err) {
       if (err instanceof LinearAuthError) return { ok: false, reason: 'auth' };
       return { ok: false, reason: err instanceof Error ? err.message : String(err) };
+    }
+  });
+
+  // ----- Jira-only channels ------------------------------------------------
+  // These take draft credentials directly (the Preferences form hasn't
+  // persisted them yet), unlike the shared data channels above which read
+  // the saved `jira` settings.
+
+  /** Verify draft Jira credentials by hitting `myself`. Same result shape
+   *  as LinearTest so the Preferences forms share status rendering. */
+  ipcMain.handle(IpcChannel.JiraTest, async (_e, settings: JiraSettings): Promise<LinearTestResult> => {
+    if (!resolveJiraConn(settings)) return { ok: false, error: 'Missing base URL, email, or API token' };
+    try {
+      const viewer = await jiraFetchViewer(settings);
+      return { ok: true, email: viewer.email, name: viewer.name };
+    } catch (err) {
+      if (err instanceof JiraAuthError) return { ok: false, error: 'auth' };
+      return { ok: false, error: err instanceof Error ? err.message : String(err) };
+    }
+  });
+
+  /** List Jira projects for the supplied draft credentials. */
+  ipcMain.handle(IpcChannel.JiraListProjects, async (_e, settings: JiraSettings): Promise<{
+    projects: LinearProjectDto[];
+    notConfigured?: boolean;
+    authFailed?: boolean;
+    error?: string;
+  }> => {
+    if (!resolveJiraConn(settings)) return { projects: [], notConfigured: true };
+    try {
+      return { projects: await jiraFetchProjects(settings) };
+    } catch (err) {
+      if (err instanceof JiraAuthError) return { projects: [], authFailed: true };
+      return { projects: [], error: err instanceof Error ? err.message : String(err) };
     }
   });
 }

@@ -32,6 +32,7 @@ import type {
   NotifyInput,
 } from './notifications';
 import type { ListReviewsResult } from './reviews';
+import type { JiraSettings } from './ticketProvider';
 import type { SentryTestResult } from './sentry';
 import type { SlackTestResult } from './slack';
 import type { UpdateInfo, UpdateCheckResult, UpdateProgress, UpdateReady } from './updates';
@@ -95,6 +96,15 @@ export const IpcChannel = {
    *  started/completed/canceled states — fired right after a chat is
    *  spawned for the ticket so the workflow reflects active dev. */
   LinearPromoteIssue: 'pb:linear:promote-issue',
+
+  /** Verify Jira Cloud credentials (base URL + email + API token) by
+   *  hitting `myself`. Used by the Jira form's Save button. The other
+   *  ticket data channels (list/get/states/transition/promote) are shared
+   *  with Linear and routed by the `ticketSource` setting in main. */
+  JiraTest: 'pb:jira:test',
+  /** List Jira projects visible to the supplied draft credentials — feeds
+   *  the project picker in the Jira Preferences form. */
+  JiraListProjects: 'pb:jira:list-projects',
 
   /** Pending PRs (review-requested:@me OR review:none) for the configured repo. */
   ReviewsList: 'pb:reviews:list',
@@ -656,6 +666,18 @@ export interface PopBotApi {
       | { ok: true; promoted: boolean; stateName?: string }
       | { ok: false; reason: string }
     >;
+  };
+  jira: {
+    /** Verify draft Jira credentials. Returns the same result shape as
+     *  `linear.test` so the Preferences forms can share status rendering. */
+    test(settings: JiraSettings): Promise<LinearTestResult>;
+    /** List projects for the supplied draft credentials. */
+    listProjects(settings: JiraSettings): Promise<{
+      projects: LinearProjectDto[];
+      notConfigured?: boolean;
+      authFailed?: boolean;
+      error?: string;
+    }>;
   };
   term: {
     open(chatId: string, cwd: string, cols?: number, rows?: number): Promise<{ ok: true; buffer: string }>;
