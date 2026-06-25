@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { hotkey } from '../lib/hotkeys';
 import linearIcon from '../assets/notif/linear.png';
+import jiraIcon from '../assets/notif/jira.png';
 import type { LinearProjectDto } from '@shared/linear';
 import type { JiraSettings } from '@shared/ticketProvider';
 import {
@@ -352,7 +353,7 @@ interface SelectChoice { id: string; label: string; icon: ReactNode }
  *  today; Jira (roughed in at shared/ticketProvider.ts) slots in here. */
 const TRACKERS: SelectChoice[] = [
   { id: 'linear', label: 'Linear', icon: <img src={linearIcon} alt="" className="tracker-dd-ico" /> },
-  { id: 'jira', label: 'Jira', icon: <i className="fa-brands fa-jira tracker-dd-ico-fa" /> },
+  { id: 'jira', label: 'Jira', icon: <img src={jiraIcon} alt="" className="tracker-dd-ico" /> },
 ];
 
 /** Game engines selectable as the launch target. Only Unity ships today. */
