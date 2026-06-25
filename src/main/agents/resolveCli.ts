@@ -25,8 +25,10 @@ import { delimiter } from 'node:path';
 
 const execFileP = promisify(execFile);
 
-/** True for a PATH entry / resolved path inside any `node_modules/.bin`. */
-function isNodeModulesBin(p: string): boolean {
+/** True for a PATH entry / resolved path inside any `node_modules/.bin`.
+ *  Exported for unit tests — it's the guard that stops the agent probe
+ *  false-positiving on an SDK-bundled CLI shim. */
+export function isNodeModulesBin(p: string): boolean {
   return /node_modules[\\/]\.bin/i.test(p);
 }
 
