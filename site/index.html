@@ -53,10 +53,11 @@
         <span class="hero-pill"><i class="fa-solid fa-table-columns"></i> Multi-chat views</span>
         <span class="hero-pill"><i class="fa-solid fa-fire"></i> Warm worktree slots</span>
       </div>
+      <div data-version style="font-size:22px;font-weight:800;color:#fff;letter-spacing:.3px;margin-bottom:9px">v…</div>
       <div class="hero-actions">
-        <a class="btn btn-primary btn-lg" href="#install"><i class="fa-solid fa-download"></i> Get started</a>
-        <a class="btn btn-ghost btn-lg" href="#features">See how it works</a>
+        <a id="dl-main" class="btn btn-primary btn-lg" style="min-width:260px;justify-content:center" href="https://download.popbot.app/stable/" rel="noopener"><i class="fa-solid fa-download"></i> Free Download</a>
       </div>
+      <div style="opacity:.72;font-size:13.5px;margin-top:13px">Also: <a id="dl-alt1" href="https://download.popbot.app/stable/" style="color:inherit;text-decoration:underline"><i class="fa-brands fa-windows"></i> Windows</a> · <a id="dl-alt2" href="https://download.popbot.app/stable/" style="color:inherit;text-decoration:underline"><i class="fa-brands fa-linux"></i> Linux</a> · signed &amp; notarized · <a href="#features" style="color:inherit;text-decoration:underline">see how it works</a>.</div>
     </div>
 
     <!-- floating UI slice -->
@@ -346,14 +347,9 @@
   <div class="wrap">
     <div class="sec-head">
       <span class="eyebrow"><span class="dot"></span>Requirements &amp; install</span>
-      <h2>Up and running in minutes.</h2>
+      <h2>Clone and Run Your Own Version</h2>
     </div>
-    <div class="hero-actions" style="margin-bottom:10px;flex-wrap:wrap">
-      <a id="dl-mac" class="btn btn-primary btn-lg" href="https://download.popbot.app/stable/" rel="noopener"><i class="fa-brands fa-apple"></i> Download for macOS</a>
-      <a id="dl-win" class="btn btn-ghost btn-lg" href="https://download.popbot.app/stable/" rel="noopener"><i class="fa-brands fa-windows"></i> Windows</a>
-      <a id="dl-linux" class="btn btn-ghost btn-lg" href="https://download.popbot.app/stable/" rel="noopener"><i class="fa-brands fa-linux"></i> Linux</a>
-    </div>
-    <div style="opacity:.7;font-size:14px;margin-bottom:28px">Latest: <strong data-version>…</strong> · signed &amp; notarized · or build from source below.</div>
+    <p style="opacity:.8;font-size:15px;margin-bottom:28px">You can run the <a href="#top">prebuilt binaries above</a> — <strong data-version>…</strong>, signed &amp; notarized — or clone the repo and run your own version, customizing it to work the way you want it to.</p>
     <div class="inst">
       <ul class="req-list">
         <li><i class="fa-solid fa-check"></i><span><strong>macOS</strong> — the primary, tested platform. Portable to Windows (Electron + Node), but Windows isn't tested yet.</span></li>
@@ -460,22 +456,55 @@
 })();
 </script>
 <script>
-/* Pull the current stable version from R2 and wire the download buttons. */
+/* Pull the current stable version from R2, detect the visitor's OS, and
+   point the primary button at their installer (others become small links). */
 (function(){
-  fetch('https://download.popbot.app/stable/version.json',{cache:'no-store'})
+  var STABLE='https://download.popbot.app/stable/';
+  var P={
+    mac:  {name:'Mac',     icon:'fa-brands fa-apple',   file:function(v){return 'PopBot-'+v+'-mac-arm64.dmg';}},
+    win:  {name:'Windows', icon:'fa-brands fa-windows', file:function(v){return 'PopBot-'+v+'-win-x64.exe';}},
+    linux:{name:'Linux',   icon:'fa-brands fa-linux',   file:function(v){return 'PopBot-'+v+'-linux-x86_64.AppImage';}}
+  };
+  function detect(){
+    var s=((navigator.userAgentData&&navigator.userAgentData.platform)||navigator.platform||navigator.userAgent||'').toLowerCase();
+    if(s.includes('win')) return 'win';
+    if(s.includes('linux')||s.includes('x11')||s.includes('android')) return 'linux';
+    return 'mac'; // the primary, tested platform — also the safe default
+  }
+  var cur=detect();
+  var alts=['mac','win','linux'].filter(function(k){return k!==cur;});
+  var main=document.getElementById('dl-main');
+  var altEls=[['dl-alt1',alts[0]],['dl-alt2',alts[1]]];
+
+  // Set labels + folder-level links up front — no network needed, so the
+  // platform shows even if the version fetch is blocked (e.g. local preview).
+  if(main){ main.innerHTML='<i class="fa-solid fa-download"></i> '+P[cur].name+' Free Download'; main.href=STABLE; }
+  altEls.forEach(function(pair){
+    var a=document.getElementById(pair[0]), k=pair[1]; if(!a) return;
+    a.innerHTML='<i class="'+P[k].icon+'"></i> '+P[k].name; a.href=STABLE;
+  });
+
+  // Fill in the version number + exact installer URLs once we know the version.
+  function applyVersion(v){
+    if(!v) return;
+    document.querySelectorAll('[data-version]').forEach(function(el){el.textContent='v'+v;});
+    var base=STABLE+v+'/';
+    if(main) main.href=base+P[cur].file(v);
+    altEls.forEach(function(pair){
+      var a=document.getElementById(pair[0]), k=pair[1]; if(a) a.href=base+P[k].file(v);
+    });
+  }
+  // Authoritative source is R2; fall back to a same-origin version.json so
+  // local preview (where the cross-origin fetch is CORS-blocked) still shows it.
+  fetch(STABLE+'version.json',{cache:'no-store'})
     .then(function(r){return r.json();})
-    .then(function(d){
-      var v=d&&d.version; if(!v) return;
-      document.querySelectorAll('[data-version]').forEach(function(el){el.textContent='v'+v;});
-      var base='https://download.popbot.app/stable/'+v;
-      var files={
-        'dl-mac':'PopBot-'+v+'-mac-arm64.dmg',
-        'dl-win':'PopBot-'+v+'-win-x64.exe',
-        'dl-linux':'PopBot-'+v+'-linux-x86_64.AppImage'
-      };
-      Object.keys(files).forEach(function(id){var a=document.getElementById(id); if(a) a.href=base+'/'+files[id];});
-    })
-    .catch(function(){});
+    .then(function(d){ applyVersion(d&&d.version); })
+    .catch(function(){
+      fetch('version.json',{cache:'no-store'})
+        .then(function(r){return r.json();})
+        .then(function(d){ applyVersion(d&&d.version); })
+        .catch(function(){});
+    });
 })();
 </script>
 </body>
