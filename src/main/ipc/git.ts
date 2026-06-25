@@ -26,16 +26,13 @@ import { backfillChatFields } from '../persistence/chatBackfill';
 import { getRepo, listRepos } from '../persistence/repos';
 import { getSetting } from '../persistence/settings';
 import { worktreePathForChat } from '../git/chatPaths';
-import {
-  commitFiles,
-  deriveGitUsername,
-  detectPr,
-  fileDiff,
-  listFilesInCommit,
-  listStatus,
-  listBaseBranches,
-  revertFiles,
-} from '../git/files';
+import { getSourceControlProvider } from '../scm';
+
+/** The source-control provider backing a chat's repo (git today). */
+function providerForChat(chatId: string) {
+  const chat = getChat(chatId);
+  return getSourceControlProvider(chat?.repoId ? getRepo(chat.repoId) : null);
+}
 
 function resolveWorktree(chatId: string): string | { error: 'no-worktree' | 'not-a-git-repo' } {
   const chat = getChat(chatId);
@@ -48,31 +45,43 @@ function resolveWorktree(chatId: string): string | { error: 'no-worktree' | 'not
 
 interface GitSettingsLite { repoPath?: string }
 
+type RepoRow = ReturnType<typeof getRepo>;
+
 /**
  * For repo-scoped queries (e.g. "what base branches exist?") that
  * happen *before* a chat exists. Resolution order:
  *   1. `chatId` → the chat's worktree (in-chat git panel queries)
  *   2. `repoId` → the repo row's `repoPath` (new-chat dialog, multi-repo)
  *   3. legacy `settings.git.repoPath` fallback (single-repo install)
+ *
+ * Returns the resolved `cwd` together with the repo row that owns it (or
+ * null for the legacy fallback) so callers can pick the matching source-
+ * control provider. Resolving cwd and provider separately risks driving
+ * repo B's provider against repo A's path when both ids are supplied.
  */
-function resolveRepoCwd(opts: { chatId?: string | null; repoId?: string | null }): string | { error: 'no-worktree' | 'not-a-git-repo' } {
+function resolveRepoCwd(opts: { chatId?: string | null; repoId?: string | null }):
+  | { cwd: string; repo: RepoRow }
+  | { error: 'no-worktree' | 'not-a-git-repo' } {
   if (opts.chatId) {
     const wt = resolveWorktree(opts.chatId);
-    if (typeof wt === 'string') return wt;
+    if (typeof wt === 'string') {
+      const repoId = getChat(opts.chatId)?.repoId;
+      return { cwd: wt, repo: repoId ? getRepo(repoId) : null };
+    }
   }
   if (opts.repoId) {
     const repo = getRepo(opts.repoId);
-    if (repo?.repoPath && existsSync(repo.repoPath)) return repo.repoPath;
+    if (repo?.repoPath && existsSync(repo.repoPath)) return { cwd: repo.repoPath, repo };
   }
   // Prefer the multi-repo store (the "Add Repository" flow writes there),
   // then fall back to the legacy single-repo `git` setting. Without the
   // store fallback, a repo added via the new flow left the legacy setting
   // empty and git operations reported 'no-worktree'.
   for (const r of listRepos()) {
-    if (r.repoPath && existsSync(r.repoPath)) return r.repoPath;
+    if (r.repoPath && existsSync(r.repoPath)) return { cwd: r.repoPath, repo: r };
   }
   const s = getSetting<GitSettingsLite>('git');
-  if (s?.repoPath && existsSync(s.repoPath)) return s.repoPath;
+  if (s?.repoPath && existsSync(s.repoPath)) return { cwd: s.repoPath, repo: null };
   return { error: 'no-worktree' };
 }
 
@@ -83,7 +92,7 @@ export function registerGitHandlers(): void {
       const wt = resolveWorktree(chatId);
       if (typeof wt !== 'string') return { ok: false, reason: wt.error };
       try {
-        const r = await listStatus(wt);
+        const r = await providerForChat(chatId).listStatus(wt);
         return { ok: true, ...r };
       } catch (err) {
         return { ok: false, reason: 'not-a-git-repo', error: (err as Error).message };
@@ -97,7 +106,7 @@ export function registerGitHandlers(): void {
       const wt = resolveWorktree(input.chatId);
       if (typeof wt !== 'string') return { ok: false, error: wt.error };
       try {
-        const r = await fileDiff(wt, input.scope, input.path);
+        const r = await providerForChat(input.chatId).fileDiff(wt, input.scope, input.path);
         return { ok: true, ...r };
       } catch (err) {
         return { ok: false, error: (err as Error).message };
@@ -111,7 +120,7 @@ export function registerGitHandlers(): void {
       const wt = resolveWorktree(input.chatId);
       if (typeof wt !== 'string') return { ok: false, error: wt.error };
       try {
-        const r = await commitFiles(wt, input.message, input.paths);
+        const r = await providerForChat(input.chatId).commitFiles(wt, input.message, input.paths);
         return { ok: true, sha: r.sha };
       } catch (err) {
         return { ok: false, error: (err as Error).message };
@@ -125,7 +134,7 @@ export function registerGitHandlers(): void {
       const wt = resolveWorktree(input.chatId);
       if (typeof wt !== 'string') return { ok: false, error: wt.error };
       try {
-        await revertFiles(wt, input.paths);
+        await providerForChat(input.chatId).revertFiles(wt, input.paths);
         return { ok: true };
       } catch (err) {
         return { ok: false, error: (err as Error).message };
@@ -145,10 +154,14 @@ export function registerGitHandlers(): void {
       const opts = typeof input === 'object' && input !== null
         ? input
         : { chatId: input };
-      const cwd = resolveRepoCwd(opts);
-      if (typeof cwd !== 'string') return { ok: false, reason: cwd.error };
+      const resolved = resolveRepoCwd(opts);
+      if ('error' in resolved) return { ok: false, reason: resolved.error };
+      // Provider selection follows the SAME repo that owns `cwd`, so we
+      // never list branches with one repo's provider against another
+      // repo's path.
+      const { cwd, repo } = resolved;
       try {
-        const branches = await listBaseBranches(cwd);
+        const branches = await getSourceControlProvider(repo).listBaseBranches(cwd);
         return { ok: true, branches };
       } catch (err) {
         return { ok: false, reason: 'error', error: (err as Error).message };
@@ -162,7 +175,7 @@ export function registerGitHandlers(): void {
     // home is a safe cwd.
     const override = getSetting<{ username?: string }>('git')?.username?.trim();
     if (override) return override;
-    return (await deriveGitUsername(homedir())) || 'pop';
+    return (await getSourceControlProvider().deriveUsername(homedir())) || 'pop';
   });
 
   ipcMain.handle(
@@ -195,7 +208,9 @@ export function registerGitHandlers(): void {
         }
       }
 
-      const result = await detectPr(cwd, prNumber !== undefined ? { prNumber } : {});
+      const result = await getSourceControlProvider(
+        filled.repoId ? getRepo(filled.repoId) : null,
+      ).detectPr(cwd, prNumber !== undefined ? { prNumber } : {});
       // Cross-link: if the resolved PR title mentions a Linear ticket
       // and the chat doesn't have one yet, fold it into the chat
       // record. Idempotent — only writes when ticket is currently null.
@@ -212,7 +227,7 @@ export function registerGitHandlers(): void {
       const wt = resolveWorktree(input.chatId);
       if (typeof wt !== 'string') return { ok: false, error: wt.error };
       try {
-        const files = await listFilesInCommit(wt, input.sha);
+        const files = await providerForChat(input.chatId).listFilesInCommit(wt, input.sha);
         return { ok: true, files };
       } catch (err) {
         return { ok: false, error: (err as Error).message };
