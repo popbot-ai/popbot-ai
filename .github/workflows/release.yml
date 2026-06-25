@@ -175,12 +175,12 @@ jobs:
           # broad `*.exe`/`*.zip` globs don't sweep in the unpacked app tree.
           aws s3 cp release/ "s3://$R2_BUCKET/$DIR/$VERSION/" --recursive \
             --endpoint-url "$R2_ENDPOINT" --checksum-algorithm CRC32 \
-            --exclude "*" --include "*.dmg" --include "*.exe" --include "*.AppImage" \
+            --exclude "*" --include "*.dmg" --include "*.exe" --include "*.deb" \
             --include "*.zip" --include "*.blockmap" --include "latest*.yml" \
             --exclude "*/*"
           # Surface the installer download link for this OS in the run summary.
           base="https://download.popbot.app/$DIR/$VERSION"
-          for f in release/*.dmg release/*.exe release/*.AppImage; do
+          for f in release/*.dmg release/*.exe release/*.deb; do
             [ -e "$f" ] || continue
             n=$(basename "$f")
             echo "- **$RUNNER_OS**: [\`$n\`]($base/$n)" >> "$GITHUB_STEP_SUMMARY"

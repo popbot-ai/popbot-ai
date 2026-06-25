@@ -33,7 +33,7 @@ script refuses to run from any branch other than `main` (override with
 |----------|-----------|
 | macOS    | `.dmg`, `.zip`, `latest-mac.yml`, `.blockmap` |
 | Windows  | NSIS installer `.exe`, `.zip`, `latest.yml`, `.blockmap` |
-| Linux    | `.AppImage`, `.zip`, `latest-linux.yml` |
+| Linux    | `.deb` (no auto-update — see Linux note below) |
 
 The `latest*.yml` + `.blockmap` files are electron-updater metadata
 ([`electron-builder.yml`](../electron-builder.yml) `publish: github`
@@ -124,7 +124,7 @@ releases** — not in dev (it's disabled) and not against a single release
 2. **Cut release N**, e.g. `npm run release` → `v0.0.18`. Wait for the
    workflow to publish the Release with assets + `latest*.yml`.
 3. **Install N from the published Release** on each OS you support
-   (macOS `.dmg`, Windows `.exe`, Linux `.AppImage`). Launch it — verify
+   (macOS `.dmg`, Windows `.exe`, Linux `.deb`). Launch it — verify
    Help ▸ About shows the right version.
 4. **Cut release N+1**, e.g. `npm run release` → `v0.0.19`.
 5. **Leave the N install running.** Within ~30s of launch (and then every
@@ -139,8 +139,12 @@ Per-platform notes:
   `.dmg`); both must be in the Release. Gatekeeper rejects an unsigned/
   un-notarized update — if "Restart to install" does nothing, re-check
   notarization on the build.
-- **Linux:** the running app must be the **`.AppImage`** (auto-update
-  replaces the AppImage in place); a distro-packaged build won't self-update.
+- **Linux:** the `.deb` does **not** self-update — electron-updater only
+  auto-updates AppImage on Linux. Update by installing the new `.deb`
+  (`sudo dpkg -i …` / `sudo apt install ./…`). So skip the auto-update
+  steps (4–6) for Linux; just install N+1 over N and confirm About. To
+  restore in-app Linux auto-update, re-add `AppImage` to the `linux.target`
+  in `electron-builder.yml`.
 - **Windows:** the NSIS install updates in place; SmartScreen may warn
   until the build is signed with `WIN_CSC_LINK`.
 
