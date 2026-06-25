@@ -103,9 +103,11 @@ async function jiraFetch<T>(
 ): Promise<T> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), JIRA_REQUEST_TIMEOUT_MS);
-  let res: Response;
+  // Keep the deadline armed until the body is fully read — a stalled
+  // response stream can hang on res.json()/res.text() just as easily as on
+  // the initial fetch, so clearTimeout lives in the outer finally.
   try {
-    res = await fetch(`${conn.baseUrl}${path}`, {
+    const res = await fetch(`${conn.baseUrl}${path}`, {
       method: init?.method ?? 'GET',
       headers: {
         Authorization: authHeader(conn),
@@ -115,6 +117,21 @@ async function jiraFetch<T>(
       body: init?.body !== undefined ? JSON.stringify(init.body) : undefined,
       signal: controller.signal,
     });
+    if (res.status === 401 || res.status === 403) {
+      throw new JiraAuthError();
+    }
+    if (res.status === 404) {
+      throw new JiraNotFoundError();
+    }
+    if (res.status === 204) {
+      // No content (e.g. successful transition POST).
+      return undefined as T;
+    }
+    if (!res.ok) {
+      const text = await res.text().catch(() => res.statusText);
+      throw new Error(`Jira API ${res.status}: ${text}`);
+    }
+    return (await res.json()) as T;
   } catch (err) {
     if ((err as { name?: string }).name === 'AbortError') {
       throw new Error('Jira API request timed out');
@@ -123,21 +140,6 @@ async function jiraFetch<T>(
   } finally {
     clearTimeout(timeout);
   }
-  if (res.status === 401 || res.status === 403) {
-    throw new JiraAuthError();
-  }
-  if (res.status === 404) {
-    throw new JiraNotFoundError();
-  }
-  if (res.status === 204) {
-    // No content (e.g. successful transition POST).
-    return undefined as T;
-  }
-  if (!res.ok) {
-    const text = await res.text().catch(() => res.statusText);
-    throw new Error(`Jira API ${res.status}: ${text}`);
-  }
-  return (await res.json()) as T;
 }
 
 // ---- Jira → DTO mapping helpers ------------------------------------------
