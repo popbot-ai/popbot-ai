@@ -54,6 +54,37 @@ export class GithubCliMissingError extends Error {
   }
 }
 
+/** Raised when GitHub is selected but no configured repo resolves to a
+ *  GitHub slug. Distinct from "authed but empty queue" so the IPC layer
+ *  can map it to `notConfigured` and nudge the user to add/fix a repo. */
+export class GithubNoRepoError extends Error {
+  constructor(message = 'No configured GitHub repositories could be resolved') {
+    super(message);
+    this.name = 'GithubNoRepoError';
+  }
+}
+
+/** Hard ceiling on any single `gh` call. These run inside IPC handlers, so
+ *  a stalled auth/network request would otherwise hang the handler — and
+ *  the UI waiting on it — indefinitely. */
+const GH_TIMEOUT_MS = 15_000;
+
+/** Single choke point for every `gh` invocation in this module. Enforces a
+ *  timeout (fail fast instead of blocking the UI) and sets
+ *  `GH_PROMPT_DISABLED=1` so `gh` never stalls waiting on an interactive
+ *  prompt in our non-interactive context. */
+function ghExec(
+  args: string[],
+  opts: { cwd?: string; maxBuffer?: number } = {},
+): Promise<{ stdout: string; stderr: string }> {
+  return execFileP('gh', args, {
+    cwd: opts.cwd,
+    maxBuffer: opts.maxBuffer ?? 64 * 1024,
+    timeout: GH_TIMEOUT_MS,
+    env: { ...process.env, GH_PROMPT_DISABLED: '1' },
+  });
+}
+
 interface GitSettingsLite { repoPath?: string }
 
 /**
@@ -82,10 +113,9 @@ const nameWithOwnerCache = new Map<string, string>();
 async function ghNameWithOwner(cwd: string): Promise<string> {
   const cached = nameWithOwnerCache.get(cwd);
   if (cached) return cached;
-  const { stdout } = await execFileP(
-    'gh',
+  const { stdout } = await ghExec(
     ['repo', 'view', '--json', 'nameWithOwner', '-q', '.nameWithOwner'],
-    { cwd, maxBuffer: 64 * 1024 },
+    { cwd },
   );
   const repo = stdout.trim();
   if (repo) nameWithOwnerCache.set(cwd, repo);
@@ -215,12 +245,15 @@ function rethrowGhError(err: unknown): never {
  *  `assignee:`, `updated:>`, …) is preserved verbatim. */
 async function searchIssues(search: string): Promise<LinearIssueDto[]> {
   const resolved = await resolveRepos();
-  if (!resolved) return [];
+  // No resolvable repo isn't an empty result — it's an unconfigured
+  // GitHub setup. Surface it so the source maps it to `notConfigured`
+  // (the renderer then prompts to add/fix a repo) instead of showing an
+  // empty "no active tickets" queue.
+  if (!resolved) throw new GithubNoRepoError();
   const q = `${reposQualifier(resolved.slugs)} ${search}`.trim();
   let stdout: string;
   try {
-    ({ stdout } = await execFileP(
-      'gh',
+    ({ stdout } = await ghExec(
       ['api', 'graphql', '-f', `query=${SEARCH_GQL}`, '-F', `q=${q}`],
       { cwd: resolved.cwd, maxBuffer: 8 * 1024 * 1024 },
     ));
@@ -267,9 +300,19 @@ async function resolveIssueRef(
 
   const resolved = await resolveRepos();
   if (!resolved) return null;
-  const slugLookup = (repo: string): string | undefined =>
-    resolved.slugs.find((s) => s.toLowerCase() === repo.toLowerCase()
-      || (s.split('/').pop() ?? '').toLowerCase() === repo.toLowerCase());
+  // Prefer an exact `owner/name` match; otherwise fall back to the
+  // basename — but ONLY when exactly one configured slug has it. With
+  // `org-a/app` + `org-b/app`, a bare `app#123` is ambiguous, so refuse
+  // rather than silently pick the first and fetch the wrong issue.
+  const slugLookup = (repo: string): string | undefined => {
+    const wanted = repo.toLowerCase();
+    const exact = resolved.slugs.find((s) => s.toLowerCase() === wanted);
+    if (exact) return exact;
+    const basenameMatches = resolved.slugs.filter(
+      (s) => (s.split('/').pop() ?? '').toLowerCase() === wanted,
+    );
+    return basenameMatches.length === 1 ? basenameMatches[0] : undefined;
+  };
 
   // repo#123 (short repo name, resolve owner from configured repos)
   m = /^([\w.-]+)#(\d+)$/.exec(trimmed);
@@ -306,8 +349,7 @@ export async function fetchIssueByIdentifier(
   if (!ref) return null;
   let stdout: string;
   try {
-    ({ stdout } = await execFileP(
-      'gh',
+    ({ stdout } = await ghExec(
       [
         'issue', 'view', String(ref.number),
         '--repo', ref.nameWithOwner,
@@ -338,13 +380,13 @@ export async function checkAuth(): Promise<
   const paths = configuredRepoPaths();
   if (!paths.length) return { ok: false, reason: 'no-repo' };
   try {
-    const { stdout } = await execFileP(
-      'gh',
-      ['api', 'user', '-q', '.login'],
-      { cwd: paths[0], maxBuffer: 64 * 1024 },
-    );
+    const { stdout } = await ghExec(['api', 'user', '-q', '.login'], { cwd: paths[0] });
+    // Authed, but if none of the configured repos resolve to a GitHub slug
+    // the queue would be empty — report that as `no-repo` so the form nudges
+    // the user to add/fix a repo rather than claiming everything is fine.
     const resolved = await resolveRepos();
-    return { ok: true, login: stdout.trim(), repoCount: resolved?.slugs.length ?? 0 };
+    if (!resolved?.slugs.length) return { ok: false, reason: 'no-repo' };
+    return { ok: true, login: stdout.trim(), repoCount: resolved.slugs.length };
   } catch (err) {
     const e = err as { code?: string; stderr?: string; message?: string };
     if (e.code === 'ENOENT') return { ok: false, reason: 'gh-not-found' };

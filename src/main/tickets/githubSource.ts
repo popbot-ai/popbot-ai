@@ -19,6 +19,7 @@ import type { GithubSettings, GithubTestResult } from '@shared/ticketProvider';
 import {
   GithubAuthError,
   GithubCliMissingError,
+  GithubNoRepoError,
   checkAuth,
   fetchIssueByIdentifier,
   fetchMyIssues,
@@ -42,6 +43,12 @@ function settings(): GithubSettings {
  *  installed" both surface as `authFailed` — the renderer's reconnect
  *  affordance points at the GitHub Preferences form, which explains setup. */
 function listError(err: unknown): TicketListResult {
+  // No resolvable repo means GitHub is selected but not set up — surface it
+  // as `notConfigured` so the renderer prompts to add/fix a repo instead of
+  // showing an empty queue or a scary error.
+  if (err instanceof GithubNoRepoError) {
+    return { issues: [], notConfigured: true };
+  }
   if (err instanceof GithubAuthError || err instanceof GithubCliMissingError) {
     return { issues: [], authFailed: true };
   }
@@ -73,6 +80,9 @@ export const githubSource: TicketSource = {
       if (!issue) return { ok: false, reason: 'not-found' };
       return { ok: true, issue };
     } catch (err) {
+      if (err instanceof GithubNoRepoError) {
+        return { ok: false, reason: 'not-configured' };
+      }
       if (err instanceof GithubAuthError || err instanceof GithubCliMissingError) {
         return { ok: false, reason: 'auth-failed' };
       }

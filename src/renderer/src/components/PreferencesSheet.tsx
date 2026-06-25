@@ -554,7 +554,16 @@ function PrefsIntegrations({ onLinearChanged }: { onLinearChanged?: () => void }
             option (no "(None)"); more slot in as <option>s here. */}
         <div className="tracker-select-row">
           <h3 style={{ margin: 0 }}>Ticket source</h3>
-          <IconSelect value={tracker} onChange={(v) => void set('ticketSource', v)} options={TRACKERS} />
+          <IconSelect
+            value={tracker}
+            onChange={(v) => {
+              // Persist the new source, then nudge the Tickets queue to
+              // re-fetch so it reflects the switched provider immediately
+              // (same signal the per-tracker forms fire on save).
+              void set('ticketSource', v).then(() => onLinearChanged?.());
+            }}
+            options={TRACKERS}
+          />
         </div>
         <p className="pref-section-desc">
           The issue tracker that feeds the Tickets queue in Panel A, so you can

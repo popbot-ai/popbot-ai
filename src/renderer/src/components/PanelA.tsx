@@ -246,7 +246,10 @@ export function PanelA({
     | { ok: true }
     | { ok: false; reason: 'not-found' | 'not-configured' | 'auth-failed' | 'duplicate' | 'error'; error?: string }
   > => {
-    const id = identifier.trim().toUpperCase();
+    // GitHub identifiers are case-sensitive `owner/repo#number`; upper-casing
+    // them would break the lookup. Linear/Jira keys are conventionally upper.
+    const trimmed = identifier.trim();
+    const id = ticketProvider === 'github' ? trimmed : trimmed.toUpperCase();
     if (pinnedTicketIds.includes(id)) return { ok: false, reason: 'duplicate' };
     const res = await window.popbot.linear.getIssue(id);
     if (!res.ok) return res;
@@ -257,7 +260,7 @@ export function PanelA({
     });
     setPinnedTicketsData((prev) => [res.issue, ...prev]);
     return { ok: true };
-  }, [pinnedTicketIds]);
+  }, [pinnedTicketIds, ticketProvider]);
 
   const pinPr = useCallback(async (prNumber: number): Promise<
     | { ok: true }
