@@ -170,10 +170,14 @@ jobs:
           DIR: ${{ needs.version.outputs.dir }}
           VERSION: ${{ needs.version.outputs.version }}
         run: |
+          # Top-level distributables only. The trailing `--exclude "*/*"` drops
+          # anything in a subdirectory (mac-arm64/, win-unpacked/, …) so the
+          # broad `*.exe`/`*.zip` globs don't sweep in the unpacked app tree.
           aws s3 cp release/ "s3://$R2_BUCKET/$DIR/$VERSION/" --recursive \
             --endpoint-url "$R2_ENDPOINT" --checksum-algorithm CRC32 \
             --exclude "*" --include "*.dmg" --include "*.exe" --include "*.AppImage" \
-            --include "*.zip" --include "*.blockmap" --include "latest*.yml"
+            --include "*.zip" --include "*.blockmap" --include "latest*.yml" \
+            --exclude "*/*"
           # Surface the installer download link for this OS in the run summary.
           base="https://download.popbot.app/$DIR/$VERSION"
           for f in release/*.dmg release/*.exe release/*.AppImage; do
@@ -205,8 +209,10 @@ jobs:
           DIR: ${{ needs.version.outputs.dir }}
           VERSION: ${{ needs.version.outputs.version }}
         run: |
+          # --copy-props none: R2 doesn't implement object tagging, and aws-cli
+          # otherwise calls GetObjectTagging on each source object and fails.
           aws s3 cp "s3://$R2_BUCKET/$DIR/$VERSION/" "s3://$R2_BUCKET/$DIR/" --recursive \
-            --endpoint-url "$R2_ENDPOINT" --checksum-algorithm CRC32
+            --endpoint-url "$R2_ENDPOINT" --checksum-algorithm CRC32 --copy-props none
       # Stable only: publish the version pointer the in-app notifier reads.
       - name: Update stable version pointer
         if: ${{ inputs.channel == 'release' }}
