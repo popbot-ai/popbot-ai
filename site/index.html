@@ -463,7 +463,7 @@
   var P={
     mac:  {name:'Mac',     icon:'fa-brands fa-apple',   file:function(v){return 'PopBot-'+v+'-mac-arm64.dmg';}},
     win:  {name:'Windows', icon:'fa-brands fa-windows', file:function(v){return 'PopBot-'+v+'-win-x64.exe';}},
-    linux:{name:'Linux',   icon:'fa-brands fa-linux',   file:function(v){return 'PopBot-'+v+'-linux-x86_64.AppImage';}}
+    linux:{name:'Linux',   icon:'fa-brands fa-linux',   file:function(v){return 'PopBot-'+v+'-linux-amd64.deb';}}
   };
   function detect(){
     var s=((navigator.userAgentData&&navigator.userAgentData.platform)||navigator.platform||navigator.userAgent||'').toLowerCase();
