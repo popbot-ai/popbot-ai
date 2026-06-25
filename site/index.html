@@ -459,8 +459,9 @@
 /* Pull the current stable version from R2, detect the visitor's OS, and
    point the primary button at their installer (others become small links). */
 (function(){
+  var STABLE='https://download.popbot.app/stable/';
   var P={
-    mac:  {name:'macOS',   icon:'fa-brands fa-apple',   file:function(v){return 'PopBot-'+v+'-mac-arm64.dmg';}},
+    mac:  {name:'Mac',     icon:'fa-brands fa-apple',   file:function(v){return 'PopBot-'+v+'-mac-arm64.dmg';}},
     win:  {name:'Windows', icon:'fa-brands fa-windows', file:function(v){return 'PopBot-'+v+'-win-x64.exe';}},
     linux:{name:'Linux',   icon:'fa-brands fa-linux',   file:function(v){return 'PopBot-'+v+'-linux-x86_64.AppImage';}}
   };
@@ -470,26 +471,40 @@
     if(s.includes('linux')||s.includes('x11')||s.includes('android')) return 'linux';
     return 'mac'; // the primary, tested platform — also the safe default
   }
-  fetch('https://download.popbot.app/stable/version.json',{cache:'no-store'})
+  var cur=detect();
+  var alts=['mac','win','linux'].filter(function(k){return k!==cur;});
+  var main=document.getElementById('dl-main');
+  var altEls=[['dl-alt1',alts[0]],['dl-alt2',alts[1]]];
+
+  // Set labels + folder-level links up front — no network needed, so the
+  // platform shows even if the version fetch is blocked (e.g. local preview).
+  if(main){ main.innerHTML='<i class="fa-solid fa-download"></i> '+P[cur].name+' Free Download'; main.href=STABLE; }
+  altEls.forEach(function(pair){
+    var a=document.getElementById(pair[0]), k=pair[1]; if(!a) return;
+    a.innerHTML='<i class="'+P[k].icon+'"></i> '+P[k].name; a.href=STABLE;
+  });
+
+  // Fill in the version number + exact installer URLs once we know the version.
+  function applyVersion(v){
+    if(!v) return;
+    document.querySelectorAll('[data-version]').forEach(function(el){el.textContent='v'+v;});
+    var base=STABLE+v+'/';
+    if(main) main.href=base+P[cur].file(v);
+    altEls.forEach(function(pair){
+      var a=document.getElementById(pair[0]), k=pair[1]; if(a) a.href=base+P[k].file(v);
+    });
+  }
+  // Authoritative source is R2; fall back to a same-origin version.json so
+  // local preview (where the cross-origin fetch is CORS-blocked) still shows it.
+  fetch(STABLE+'version.json',{cache:'no-store'})
     .then(function(r){return r.json();})
-    .then(function(d){
-      var v=d&&d.version; if(!v) return;
-      document.querySelectorAll('[data-version]').forEach(function(el){el.textContent='v'+v;});
-      var base='https://download.popbot.app/stable/'+v+'/';
-      var cur=detect();
-      var main=document.getElementById('dl-main');
-      if(main){
-        main.href=base+P[cur].file(v);
-        main.innerHTML='<i class="fa-solid fa-download"></i> Free Download for '+P[cur].name;
-      }
-      var alts=['mac','win','linux'].filter(function(k){return k!==cur;});
-      [['dl-alt1',alts[0]],['dl-alt2',alts[1]]].forEach(function(pair){
-        var a=document.getElementById(pair[0]), k=pair[1]; if(!a) return;
-        a.href=base+P[k].file(v);
-        a.innerHTML='<i class="'+P[k].icon+'"></i> '+P[k].name;
-      });
-    })
-    .catch(function(){});
+    .then(function(d){ applyVersion(d&&d.version); })
+    .catch(function(){
+      fetch('version.json',{cache:'no-store'})
+        .then(function(r){return r.json();})
+        .then(function(d){ applyVersion(d&&d.version); })
+        .catch(function(){});
+    });
 })();
 </script>
 </body>
