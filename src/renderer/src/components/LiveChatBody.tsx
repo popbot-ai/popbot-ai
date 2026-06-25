@@ -654,7 +654,7 @@ interface MessageRowProps {
   ) => void;
 }
 
-function MessageRow({ message, renderAsQuestion, isStale, consumed, qaAnswer, chatId, onQuickReply, onDecide }: MessageRowProps): JSX.Element | null {
+function MessageRowImpl({ message, renderAsQuestion, isStale, consumed, qaAnswer, chatId, onQuickReply, onDecide }: MessageRowProps): JSX.Element | null {
   if (consumed) return null;
   if (message.kind === 'text' || message.kind === 'system') {
     const body = parseBody<MessageBodyText>(message.body, { text: '' });
@@ -734,6 +734,20 @@ function MessageRow({ message, renderAsQuestion, isStale, consumed, qaAnswer, ch
 
   return null;
 }
+
+/** Memoized row. During streaming, `useMessages` patches messages with
+ *  `.map`, returning the SAME object reference for every untouched row —
+ *  only the row receiving a text-delta / tool-result gets a fresh
+ *  reference. With a plain function component, a single delta still
+ *  re-rendered every mounted row (re-parsing markdown, re-reconciling
+ *  the whole subtree, and churning DOM via add/removeChild), which the
+ *  post-commit `useLayoutEffect` then forced a full synchronous layout
+ *  over — the multi-hundred-ms "rendering pauses". Shallow prop equality
+ *  here lets unchanged rows bail out entirely. The handler props
+ *  (`onDecide`/`onQuickReply`) are stable `useCallback` refs from
+ *  ChatColumn, and the value props (`consumed`/`qaAnswer`/`isStale`/…)
+ *  compare equal by value for unchanged rows, so the bail-out holds. */
+const MessageRow = memo(MessageRowImpl);
 
 function AttachmentList({ attachments }: { attachments: ChatAttachment[] }): JSX.Element {
   return (
