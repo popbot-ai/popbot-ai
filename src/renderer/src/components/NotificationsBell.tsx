@@ -1,14 +1,16 @@
 import { useEffect, useRef, useState } from 'react';
 import type { NotificationAction, NotificationRecord, NotificationUrgency } from '@shared/notifications';
+import type { MessageKey, Translator } from '@shared/i18n';
 import { useNotifications } from '../lib/useNotifications';
+import { useTranslation } from '../lib/i18n';
 import githubIcon from '../assets/notif/github.png';
 import linearIcon from '../assets/notif/linear.png';
 import slackIcon from '../assets/notif/slack.png';
 
-const URGENCY_META: Record<NotificationUrgency, { label: string; color: string; bg: string; border: string; dot: string }> = {
-  high: { label: 'High', color: '#ffffff', bg: 'rgba(239,68,68,0.40)',  border: 'rgba(239,68,68,0.85)',  dot: '#ef4444' },
-  med:  { label: 'Med',  color: '#ffffff', bg: 'rgba(245,158,11,0.32)', border: 'rgba(245,158,11,0.75)', dot: '#f59e0b' },
-  low:  { label: 'Low',  color: '#cdd9ec', bg: 'rgba(99,102,241,0.20)', border: 'rgba(99,102,241,0.55)', dot: '#6366f1' },
+const URGENCY_META: Record<NotificationUrgency, { labelKey: MessageKey; color: string; bg: string; border: string; dot: string }> = {
+  high: { labelKey: 'notify.urgency.high', color: '#ffffff', bg: 'rgba(239,68,68,0.40)',  border: 'rgba(239,68,68,0.85)',  dot: '#ef4444' },
+  med:  { labelKey: 'notify.urgency.med',  color: '#ffffff', bg: 'rgba(245,158,11,0.32)', border: 'rgba(245,158,11,0.75)', dot: '#f59e0b' },
+  low:  { labelKey: 'notify.urgency.low',  color: '#cdd9ec', bg: 'rgba(99,102,241,0.20)', border: 'rgba(99,102,241,0.55)', dot: '#6366f1' },
 };
 
 /** Per-kind source identity. The avatar tile uses these so you can
@@ -37,12 +39,12 @@ const ACTION_ICON: Record<string, string> = {
   dismiss:  'fa-check',
 };
 
-function relTime(ts: number): string {
+function relTime(ts: number, t: Translator): string {
   const diff = Date.now() - ts;
-  if (diff < 60_000) return 'now';
-  if (diff < 60 * 60_000) return `${Math.floor(diff / 60_000)}m`;
-  if (diff < 24 * 60 * 60_000) return `${Math.floor(diff / 3_600_000)}h`;
-  return `${Math.floor(diff / 86_400_000)}d`;
+  if (diff < 60_000) return t('time.now');
+  if (diff < 60 * 60_000) return t('time.minutesShort', { count: Math.floor(diff / 60_000) });
+  if (diff < 24 * 60 * 60_000) return t('time.hoursShort', { count: Math.floor(diff / 3_600_000) });
+  return t('time.daysShort', { count: Math.floor(diff / 86_400_000) });
 }
 
 interface BellProps {
@@ -75,6 +77,7 @@ function NotifActionButton({ action, onAct }: {
 }
 
 function NotifItem({ n, onAct }: { n: NotificationRecord; onAct: (a: NotificationAction) => void }): JSX.Element {
+  const { t } = useTranslation();
   const u = URGENCY_META[n.urgency];
   const k = KIND_META[n.kind] ?? KIND_FALLBACK;
   // Source label takes the kind's product name when the dispatched
@@ -94,15 +97,15 @@ function NotifItem({ n, onAct }: { n: NotificationRecord; onAct: (a: Notificatio
         <div className="notif-row1">
           {sourceLabel && <span className="notif-source">{sourceLabel}</span>}
           {n.actor && <span className="notif-actor">· {n.actor.name}</span>}
-          {n.actor?.isVip && <span className="notif-vip" title="VIP — bumped to urgent">VIP</span>}
+          {n.actor?.isVip && <span className="notif-vip" title={t('notify.vipTitle')}>{t('notify.vip')}</span>}
           <span
             className="notif-urgency"
             style={{ color: u.color, background: u.bg, borderColor: u.border }}
           >
-            {u.label}
+            {t(u.labelKey)}
           </span>
           <span className="notif-spacer" />
-          <span className="notif-age">{relTime(n.createdAt)}</span>
+          <span className="notif-age">{relTime(n.createdAt, t)}</span>
         </div>
         <div className="notif-title">{n.title}</div>
         {n.subtitle && <div className="notif-subtitle">{n.subtitle}</div>}
@@ -120,6 +123,7 @@ function NotifItem({ n, onAct }: { n: NotificationRecord; onAct: (a: Notificatio
 }
 
 export function NotificationsBell({ onAction, pulseOnArrival }: BellProps): JSX.Element {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const { items, unread, markAllRead, clearAll } = useNotifications(50);
   const wrapRef = useRef<HTMLDivElement | null>(null);
@@ -176,19 +180,23 @@ export function NotificationsBell({ onAction, pulseOnArrival }: BellProps): JSX.
         data-bell-anchor
         className={`notif-bell ${unread > 0 ? 'has-unread' : ''}`}
         onClick={onToggle}
-        title={unread > 0 ? `${unread} unread notification${unread === 1 ? '' : 's'}` : 'Notifications'}
-        aria-label="Notifications"
+        title={unread > 0
+          ? (unread === 1
+            ? t('notify.bell.unreadTitle', { count: unread })
+            : t('notify.bell.unreadTitlePlural', { count: unread }))
+          : t('notify.bell.title')}
+        aria-label={t('notify.bell.title')}
       >
         <i className="fa-solid fa-bell" />
         {unread > 0 && <span className="notif-badge">{unread > 9 ? '9+' : unread}</span>}
       </button>
       {open && (
-        <div className="notif-pop" role="dialog" aria-label="Notifications">
+        <div className="notif-pop" role="dialog" aria-label={t('notify.head.title')}>
           <div className="notif-pop-arrow" />
           <div className="notif-head">
             <div className="notif-head-title">
               <i className="fa-solid fa-bell" />
-              <span>Notifications</span>
+              <span>{t('notify.head.title')}</span>
               <span className="notif-count">{items.length}</span>
             </div>
           </div>
@@ -196,17 +204,17 @@ export function NotificationsBell({ onAction, pulseOnArrival }: BellProps): JSX.
             <span className="notif-sum-chip" style={{
               color: URGENCY_META.high.color, background: URGENCY_META.high.bg, borderColor: URGENCY_META.high.border,
             }}>
-              <i className="fa-solid fa-circle" /> {counts.high} high
+              <i className="fa-solid fa-circle" /> {t('notify.summary.high', { count: counts.high })}
             </span>
             <span className="notif-sum-chip" style={{
               color: URGENCY_META.med.color, background: URGENCY_META.med.bg, borderColor: URGENCY_META.med.border,
             }}>
-              <i className="fa-solid fa-circle" /> {counts.med} med
+              <i className="fa-solid fa-circle" /> {t('notify.summary.med', { count: counts.med })}
             </span>
             <span className="notif-sum-chip" style={{
               color: URGENCY_META.low.color, background: URGENCY_META.low.bg, borderColor: URGENCY_META.low.border,
             }}>
-              <i className="fa-solid fa-circle" /> {counts.low} low
+              <i className="fa-solid fa-circle" /> {t('notify.summary.low', { count: counts.low })}
             </span>
             <span className="notif-spacer" />
             {/* Auto-mark-as-read fires when the dropdown opens; this
@@ -217,13 +225,13 @@ export function NotificationsBell({ onAction, pulseOnArrival }: BellProps): JSX.
               onClick={() => void clearAll()}
               disabled={items.length === 0}
             >
-              Clear all
+              {t('notify.clearAll')}
             </button>
           </div>
           <div className="notif-list">
             {items.length === 0 ? (
               <div style={{ padding: 24, textAlign: 'center', color: 'var(--fg-3)', fontSize: 12 }}>
-                No notifications yet.
+                {t('notify.empty')}
               </div>
             ) : items.map((n) => (
               <NotifItem

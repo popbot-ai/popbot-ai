@@ -9,13 +9,15 @@ import type {
 import { looksLikeQuestion } from '@shared/questionDetect';
 import { fmtTokens, tokenBarClass, tokenBarPct, type Chat, type ActivityItem } from '../fixtures/data';
 import { useMessages } from '../lib/useMessages';
+import { useTranslation } from '../lib/i18n';
+import type { MessageKey, Translator } from '@shared/i18n';
 
 /**
  * Project a flat MessageRecord into the prototype's ActivityItem shape so
  * the existing thumbnail render code (with its cursor + styling per kind)
  * keeps working.
  */
-function messageToActivity(m: MessageRecord): ActivityItem | null {
+function messageToActivity(m: MessageRecord, t: Translator): ActivityItem | null {
   if (m.kind === 'text') {
     let text = '';
     try {
@@ -40,10 +42,10 @@ function messageToActivity(m: MessageRecord): ActivityItem | null {
     return { kind: 'tool', name, args: cmd };
   }
   if (m.kind === 'permission') {
-    let label = 'permission requested';
+    let label = t('monitor.permissionRequested');
     try {
       const body = JSON.parse(m.body) as MessageBodyPermission;
-      label = `wants ${body.tool}`;
+      label = t('monitor.wantsTool', { tool: body.tool });
     } catch {
       // ignore
     }
@@ -65,6 +67,13 @@ interface MonitorCardProps {
 }
 
 type AttentionKind = 'PLAN' | 'PERMISSION' | 'QUESTION' | 'WAIT';
+
+const ATTENTION_LABEL_KEY: Record<AttentionKind, MessageKey> = {
+  PLAN: 'monitor.attn.plan',
+  PERMISSION: 'monitor.attn.permission',
+  QUESTION: 'monitor.attn.question',
+  WAIT: 'monitor.attn.wait',
+};
 
 function detectAttention(messages: MessageRecord[]): AttentionKind | null {
   for (let i = messages.length - 1; i >= 0; i--) {
@@ -97,21 +106,22 @@ function detectAttention(messages: MessageRecord[]): AttentionKind | null {
 }
 
 export function MonitorCard({ chat, isFocused, isForeground, isVisible = true, refSetter, onClick, onBringForward }: MonitorCardProps): JSX.Element {
+  const { t } = useTranslation();
   // Thumbnail renders the last 6 activity lines, full stop — nothing
   // here ever scrolls. Cap the load to that.
   const { messages } = useMessages(chat.id, 6);
   const activity: ActivityItem[] = useMemo(() => {
     if (messages.length === 0) {
-      return [{ kind: 'say', text: chat.snippet || '(idle)' }];
+      return [{ kind: 'say', text: chat.snippet || t('monitor.idle') }];
     }
     const tail = messages.slice(-6);
     const items: ActivityItem[] = [];
     for (const m of tail) {
-      const a = messageToActivity(m);
+      const a = messageToActivity(m, t);
       if (a) items.push(a);
     }
     return items;
-  }, [messages, chat.snippet]);
+  }, [messages, chat.snippet, t]);
   const tokenPct = tokenBarPct(chat.tokens.used);
 
   const attention = useMemo(
@@ -159,9 +169,9 @@ export function MonitorCard({ chat, isFocused, isForeground, isVisible = true, r
       // repoColor isn't set.
       style={colAccentStyle(chat.repoColor)}
     >
-      {isForeground && <span className="fg-tag">FG</span>}
+      {isForeground && <span className="fg-tag">{t('monitor.foregroundTag')}</span>}
       {attention && (
-        <span className="attn-tag" data-kind={attention.toLowerCase()}>{attention}</span>
+        <span className="attn-tag" data-kind={attention.toLowerCase()}>{t(ATTENTION_LABEL_KEY[attention])}</span>
       )}
 
       <div className="mon-head">
@@ -169,7 +179,7 @@ export function MonitorCard({ chat, isFocused, isForeground, isVisible = true, r
         <span className="mon-name" title={chat.name}>{chat.name}</span>
         <span
           className="mon-tok"
-          title={`${chat.tokens.used.toLocaleString()} / ${chat.tokens.budget.toLocaleString()} tokens`}
+          title={t('monitor.tokensTitle', { used: chat.tokens.used.toLocaleString(), budget: chat.tokens.budget.toLocaleString() })}
         >
           {fmtTokens(chat.tokens.used)}
         </span>
@@ -199,7 +209,7 @@ export function MonitorCard({ chat, isFocused, isForeground, isVisible = true, r
           if (a.kind === 'user') {
             return (
               <div key={i} className="tline user">
-                <span className="tline-tag">you</span>
+                <span className="tline-tag">{t('monitor.youTag')}</span>
                 <span className="tline-text">{a.text}</span>
               </div>
             );
@@ -255,15 +265,15 @@ export function MonitorCard({ chat, isFocused, isForeground, isVisible = true, r
         <button
           className={`mon-fg ${isForeground ? 'on' : ''}`}
           onClick={handleBringForward}
-          title={isForeground ? 'Foregrounded · click to background' : 'Bring Unity & server forward'}
+          title={isForeground ? t('monitor.fg.foregrounded') : t('monitor.fg.bring')}
         >
           {isForeground ? (
             <>
-              <i className="fa-solid fa-circle" /> FG
+              <i className="fa-solid fa-circle" /> {t('monitor.fg.fgShort')}
             </>
           ) : (
             <>
-              <i className="fa-regular fa-circle" /> bring
+              <i className="fa-regular fa-circle" /> {t('monitor.fg.bringShort')}
             </>
           )}
         </button>

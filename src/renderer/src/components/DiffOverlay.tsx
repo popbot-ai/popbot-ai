@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import ReactDiffViewer, { DiffMethod } from 'react-diff-viewer-continued';
 import type { GitDiffResultOrErr, GitScope } from '@shared/git';
+import { useTranslation } from '../lib/i18n';
 
 interface DiffOverlayProps {
   chatId: string;
@@ -21,6 +22,7 @@ interface DiffOverlayProps {
  * backdrop.
  */
 export function DiffOverlay({ chatId, scope, path, onClose }: DiffOverlayProps): JSX.Element {
+  const { t } = useTranslation();
   const [data, setData] = useState<GitDiffResultOrErr | null>(null);
 
   useEffect(() => {
@@ -44,25 +46,25 @@ export function DiffOverlay({ chatId, scope, path, onClose }: DiffOverlayProps):
     <div
       className="diff-overlay"
       role="dialog"
-      aria-label={`Diff for ${path}`}
+      aria-label={t('diff.overlay.ariaLabel', { path })}
       onMouseDown={(e) => e.stopPropagation()}
     >
       <div className="diff-overlay-head">
         <span className="diff-overlay-scope">
-          {scope.kind === 'wip' ? 'Uncommitted' : scope.sha.slice(0, 7)}
+          {scope.kind === 'wip' ? t('diff.overlay.scopeUncommitted') : scope.sha.slice(0, 7)}
         </span>
         <span className="diff-overlay-path" title={path}>{path}</span>
-        <button className="diff-overlay-close" onClick={onClose} title="Close (Esc)">
+        <button className="diff-overlay-close" onClick={onClose} title={t('diff.overlay.closeTitle')}>
           <i className="fa-solid fa-xmark" />
         </button>
       </div>
       <div className="diff-overlay-body">
-        {!data && <div className="diff-overlay-status">Loading diff…</div>}
+        {!data && <div className="diff-overlay-status">{t('diff.overlay.loading')}</div>}
         {data && !data.ok && (
-          <div className="diff-overlay-status error">Error: {data.error}</div>
+          <div className="diff-overlay-status error">{t('diff.overlay.error', { error: data.error })}</div>
         )}
         {data?.ok && data.isBinary && (
-          <div className="diff-overlay-status">Binary file — diff not shown.</div>
+          <div className="diff-overlay-status">{t('diff.overlay.binary')}</div>
         )}
         {data?.ok && !data.isBinary && (
           <ReactDiffViewer

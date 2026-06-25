@@ -18,6 +18,7 @@ import { useEffect, useState } from 'react';
 import type { RepoRecord } from '@shared/persistence';
 import { Tooltip } from './Tooltip';
 import { colAccentStyle } from '../lib/repoColor';
+import { useTranslation } from '../lib/i18n';
 
 interface SlotStatusStripProps {
   /** Bumped externally when chats open/close so the strip refreshes
@@ -34,6 +35,7 @@ interface RepoSlotState {
 }
 
 export function SlotStatusStrip({ version, onClickOccupant, onSetupSlots }: SlotStatusStripProps): JSX.Element | null {
+  const { t } = useTranslation();
   const [data, setData] = useState<RepoSlotState[] | null>(null);
 
   useEffect(() => {
@@ -83,7 +85,7 @@ export function SlotStatusStrip({ version, onClickOccupant, onSetupSlots }: Slot
     return (
       <div className="slot-strip">
         <button className="slot-setup-btn" onClick={onSetupSlots}>
-          <i className="fa-solid fa-microchip" /> Setup worktree slots
+          <i className="fa-solid fa-microchip" /> {t('slots.strip.setupBtn')}
         </button>
       </div>
     );
@@ -119,7 +121,7 @@ export function SlotStatusStrip({ version, onClickOccupant, onSetupSlots }: Slot
                   </div>
                   {occupied
                     ? <div className="tip-slot-chat">{occ.chatName}</div>
-                    : <div className="tip-slot-state">Free</div>}
+                    : <div className="tip-slot-state">{t('slots.strip.free')}</div>}
                 </div>
               );
               return (
@@ -129,7 +131,9 @@ export function SlotStatusStrip({ version, onClickOccupant, onSetupSlots }: Slot
                     className={`slot-pip ${occupied ? 'occupied' : 'empty'}`}
                     onClick={() => occupied && occ.chatId && onClickOccupant?.(occ.chatId)}
                     disabled={!occupied}
-                    aria-label={`${block.repo.id} slot ${slotId}${occupied ? ` · ${occ.chatName}` : ' · free'}`}
+                    aria-label={occupied
+                      ? t('slots.strip.occupiedAria', { repo: block.repo.id, slotId, chatName: occ.chatName })
+                      : t('slots.strip.freeAria', { repo: block.repo.id, slotId })}
                   >{letter}{slotId}</button>
                 </Tooltip>
               );

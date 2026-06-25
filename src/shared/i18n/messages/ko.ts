@@ -2,11 +2,57 @@ import type { PartialMessages } from '../types';
 
 /** Korean (ko). Missing keys fall back to English. */
 export const ko = {
+  // ---------------------------------------------------------------------------
+  // Generic, reused across many surfaces.
+  // ---------------------------------------------------------------------------
   'common.confirm': '확인',
   'common.cancel': '취소',
   'common.close': '닫기',
   'common.done': '완료',
+  'common.save': '저장',
+  'common.saved': '저장되었습니다.',
+  'common.saving': '저장 중…',
+  'common.loading': '불러오는 중…',
+  'common.retry': '다시 시도',
+  'common.reconnect': '재연결',
+  'common.refresh': '새로고침',
+  'common.clear': '지우기',
+  'common.copy': '복사',
+  'common.send': '보내기',
+  'common.dismiss': '닫기',
+  'common.gotIt': '확인했습니다',
+  'common.ok': '확인',
+  'common.back': '뒤로',
+  'common.next': '다음',
+  'common.continue': '계속',
+  'common.edit': '편집',
+  'common.disconnect': '연결 해제',
+  'common.status': '상태',
+  'common.days': '일',
+  'common.minutes': '분',
+  'common.newChat': '새 채팅',
+  'common.noBranch': '(브랜치 없음)',
+  'common.none': '없음',
+  'common.markAsSeen': '확인함으로 표시',
+  'common.dragToResize': '드래그하여 크기 조절',
 
+  // ---------------------------------------------------------------------------
+  // Relative time (App.tsx, PanelA.tsx, ChatSettingsSheet.tsx, notifications).
+  // ---------------------------------------------------------------------------
+  'time.justNow': '방금 전',
+  'time.activeNow': '지금 활동 중',
+  'time.secondsAgo': '{count}초 전',
+  'time.minutesAgo': '{count}분 전',
+  'time.hoursAgo': '{count}시간 전',
+  'time.daysAgo': '{count}일 전',
+  'time.now': '지금',
+  'time.minutesShort': '{count}분',
+  'time.hoursShort': '{count}시간',
+  'time.daysShort': '{count}일',
+
+  // ---------------------------------------------------------------------------
+  // Custom Windows/Linux menu bar (MenuBar.tsx) + native app menu.
+  // ---------------------------------------------------------------------------
   'menu.file': '파일',
   'menu.edit': '편집',
   'menu.view': '보기',
@@ -29,6 +75,9 @@ export const ko = {
   'menu.reportIssue': '문제 신고',
   'menu.about': 'PopBot 정보',
 
+  // ---------------------------------------------------------------------------
+  // About dialog (AboutDialog.tsx).
+  // ---------------------------------------------------------------------------
   'about.version': '버전 {version}',
   'about.versionUnknown': '버전 …',
   'about.checking': '업데이트 확인 중…',
@@ -40,6 +89,632 @@ export const ko = {
   'about.documentation': '문서',
   'about.checkBtn': '업데이트 확인',
 
+  // ---------------------------------------------------------------------------
+  // App shell (App.tsx).
+  // ---------------------------------------------------------------------------
+  'app.busy.worktreeFailed': '워크트리 설정에 실패했습니다',
+  'app.busy.settingUpWorkspace': '작업 공간을 설정하는 중…',
+  'app.busy.checkingOutBranch': '{branch} 체크아웃 중',
+  'app.busy.branchingFrom': '{baseBranch}에서 {branch} 브랜치 생성 중',
+  'app.create.newClientTestChat': '새 클라이언트 테스트 채팅',
+  'app.chat.reviewName': '[CR] PR #{number} · {title}',
+  'app.update.available': '업데이트 사용 가능 — {name}',
+  'app.update.availableDetail': '현재 v{current}을(를) 사용 중입니다. 클릭하여 v{latest}을(를) 다운로드하세요.',
+  'app.update.ready': '업데이트 준비 완료 — {name}',
+  'app.update.readyDetail': 'v{version} 다운로드 완료. 클릭하여 다시 시작하고 설치하세요.',
+  'app.thumbstrip.emptyTitle': '썸네일 패널',
+  'app.thumbstrip.emptyBody':
+    '채팅을 열면 채팅의 축소판이 여기에 표시됩니다.',
+  'app.actions.commandPalette': '명령 팔레트 {shortcut}',
+  'app.actions.newChat': '새 채팅 {shortcut}',
+  'app.noSlots.title': '사용 가능한 작업 공간 슬롯 없음',
+  'app.noSlots.subtitle': '모든 슬롯이 열린 채팅에 의해 사용 중입니다.',
+  'app.noSlots.body':
+    '활성 채팅 중 하나를 닫아 슬롯을 비우거나, {prefsLink}에서 슬롯 한도를 늘리세요.',
+  'app.noSlots.prefsPath': '환경설정 → 런타임 및 슬롯',
+  'app.noSlots.openPreferences': '환경설정 열기',
+
+  // ---------------------------------------------------------------------------
+  // Notifications (App.tsx dispatch, NotificationsBell.tsx, NotificationToast.tsx).
+  // ---------------------------------------------------------------------------
+  'notify.action.openInLinear': 'Linear에서 열기',
+  'notify.action.openOnGitHub': 'GitHub에서 열기',
+  'notify.action.showInPopBot': 'PopBot에서 보기',
+  'notify.ticket.new': '새 티켓',
+  'notify.ticket.newWithProject': '새 티켓 · {project}',
+  'notify.review.new': '리뷰할 새 PR',
+  'notify.review.newWithAuthor': '리뷰할 새 PR · @{author}',
+  'notify.urgency.high': '높음',
+  'notify.urgency.med': '중간',
+  'notify.urgency.low': '낮음',
+  'notify.vip': 'VIP',
+  'notify.vipTitle': 'VIP — 긴급으로 상향됨',
+  'notify.bell.title': '알림',
+  'notify.bell.unreadTitle': '읽지 않은 알림 {count}개',
+  'notify.bell.unreadTitlePlural': '읽지 않은 알림 {count}개',
+  'notify.head.title': '알림',
+  'notify.summary.high': '높음 {count}개',
+  'notify.summary.med': '중간 {count}개',
+  'notify.summary.low': '낮음 {count}개',
+  'notify.clearAll': '모두 지우기',
+  'notify.empty': '아직 알림이 없습니다.',
+  'notify.toast.stackAria': '새 알림',
+
+  // ---------------------------------------------------------------------------
+  // Panel A — incoming tickets / reviews / slack (PanelA.tsx).
+  // ---------------------------------------------------------------------------
+  'panelA.tab.tickets': '티켓',
+  'panelA.tab.reviews': '리뷰',
+  'panelA.tab.slack': 'Slack',
+  'panelA.tab.unseenTitle': '새 항목 {count}개',
+  'panelA.action.markAllTicketsSeen': '새 티켓 {count}개 모두 확인함으로 표시',
+  'panelA.action.markAllReviewsSeen': '새 PR {count}개 모두 확인함으로 표시',
+  'panelA.action.addItem': 'id로 티켓 또는 PR 추가 (예: ENG-12345 또는 PR #1234)',
+  'panelA.action.refresh': '티켓 + PR 새로고침',
+  'panelA.action.filter': '필터',
+  'panelA.refresh.inProgress': '티켓 및 PR 새로고침 중…',
+  'panelA.refresh.done': '새로고침 완료.',
+  'panelA.menu.unpin': '고정 해제',
+  'panelA.menu.ignore': '무시',
+  'panelA.menu.openWebPage': '웹 페이지 열기',
+
+  'slack.empty.notConnected': 'Slack이 아직 연결되지 않았습니다.',
+  'slack.empty.description':
+    '구성을 완료하면 이 탭에 읽지 않은 DM과 채널 멘션이 표시됩니다.',
+  'slack.empty.connectButton': 'Slack 연결',
+
+  'reviews.readiness.connected': 'GitHub 연결됨',
+  'reviews.readiness.connectPrompt': '리뷰를 보려면 GitHub를 연결하세요',
+  'reviews.readiness.installLabel': 'GitHub CLI 설치됨',
+  'reviews.readiness.installAction': 'gh 설치',
+  'reviews.readiness.signedInLabel': 'GitHub에 로그인됨',
+  'reviews.readiness.signedInHint': 'gh auth login 실행',
+  'reviews.readiness.signedInAction': '로그인 방법',
+  'reviews.readiness.repoLabel': '저장소 구성됨',
+  'reviews.readiness.repoAction': '저장소 추가',
+  'reviews.list.loading': '리뷰 불러오는 중…',
+  'reviews.list.loadError': '리뷰를 불러올 수 없습니다: {message}',
+  'reviews.empty.none': '지금 리뷰가 필요한 PR이 없습니다.',
+  'reviews.row.linkedFocused': '이 PR이 포커스된 채팅입니다',
+  'reviews.row.linkedOpen': '클릭하여 이 PR의 기존 채팅으로 포커스',
+  'reviews.row.linkedClosed': '클릭하여 이 PR의 닫힌 채팅을 다시 열기',
+  'reviews.row.linkedDefault': '#{number} · {title}',
+  'reviews.row.reReviewLinkedTitle':
+    '클릭하여 재리뷰 시작 — 채팅을 열고 재리뷰 프롬프트를 보냅니다',
+  'reviews.row.reReviewNewTitle': '클릭하여 리뷰 채팅 만들기',
+  'reviews.row.reReviewChip': '재리뷰',
+  'reviews.row.newChip': '신규',
+  'reviews.row.requestedReviewerTitle': '리뷰어로 요청되었습니다',
+  'reviews.row.requestedReviewerLabel': '나',
+  'reviews.row.noReviewsTitle': '아직 리뷰 없음',
+  'reviews.row.noReviewsLabel': '리뷰 없음',
+  'reviews.row.draft': '초안',
+  'reviews.row.chatPill': '채팅',
+  'reviews.row.closedPill': '닫힘',
+
+  'priority.urgent': '긴급',
+  'priority.high': '높음',
+  'priority.med': '보통',
+  'priority.low': '낮음',
+  'priority.none': '우선순위 없음',
+
+  'linear.error.notConfigured': 'Linear API 키가 구성되지 않았습니다.',
+  'linear.error.authFailed': 'Linear 인증에 실패했습니다.',
+  'linear.status.changeTitle': '상태: {state} — 클릭하여 변경',
+  'linear.status.changeAriaLabel': '상태 변경 (현재 {state})',
+  'linear.status.noStates': '정의된 상태가 없습니다.',
+  'linear.tooltip.status': '상태',
+  'linear.tooltip.priority': '우선순위',
+  'linear.tooltip.project': '프로젝트',
+  'linear.tooltip.updated': '업데이트됨',
+  'linear.row.linkedFocused': '{id} · 이 티켓이 포커스된 채팅입니다',
+  'linear.row.linkedOpen': '{id} · 클릭하여 기존 채팅으로 포커스',
+  'linear.row.linkedClosed': '{id} · 클릭하여 닫힌 채팅을 다시 열기',
+  'linear.row.linkedDefault': '{id} · {title}',
+  'linear.list.loading': '티켓 불러오는 중…',
+  'linear.empty.notConfigured': '연결된 티켓 소스가 없습니다.',
+  'linear.empty.connectButton': '이슈 트래커에 연결',
+  'linear.empty.authFailed': 'Linear API 키가 거부되었습니다.',
+  'linear.error.loadFailed': '티켓을 불러올 수 없습니다.',
+  'linear.search.placeholder': '티켓 검색…',
+  'linear.empty.noMatches': '일치하는 항목이 없습니다.',
+  'linear.empty.noTickets': '나에게 할당된 활성 티켓이 없습니다.',
+
+  // ---------------------------------------------------------------------------
+  // Panel B — chat list (PanelB.tsx).
+  // ---------------------------------------------------------------------------
+  'panelB.kind.prTooltip': '코드 리뷰 · PR #{pr}',
+  'panelB.kind.pr': 'PR #{pr}',
+  'panelB.kind.ticketTooltip': '티켓 · {ticket}',
+  'panelB.kind.ticket': '티켓',
+  'panelB.kind.clientTestTooltip': '클라이언트 테스트',
+  'panelB.kind.clientTest': '클라이언트',
+  'panelB.kind.serverTestTooltip': '서버 테스트',
+  'panelB.kind.serverTest': '서버',
+  'panelB.kind.plainTooltip': '일반 채팅',
+  'panelB.kind.plain': '채팅',
+  'panelB.slotTooltip': '작업 공간 슬롯 {slotId}',
+  'panelB.deleteChatTooltip': '채팅 삭제',
+  'panelB.delete.title': '이 채팅을 삭제할까요?',
+  'panelB.delete.sub':
+    '목록에서 숨겨집니다. 대화 기록은 보존되며 복원할 수 있습니다.',
+  'panelB.delete.body': '삭제하려는 항목:',
+  'panelB.delete.confirm': '채팅 삭제',
+  'panelB.searchPlaceholder': '채팅 검색…',
+  'panelB.clearSearchTooltip': '검색 지우기',
+  'panelB.results': '결과',
+  'panelB.noMatches': '일치하는 항목이 없습니다.',
+  'panelB.active': '활성',
+  'panelB.noActiveChats': '활성 채팅이 없습니다.',
+  'panelB.newChat': '+ 새 채팅',
+  'panelB.inactive': '비활성',
+  'panelB.showMore': '{count}개 더 보기',
+
+  // ---------------------------------------------------------------------------
+  // Panel D — terminal (PanelD.tsx).
+  // ---------------------------------------------------------------------------
+  'panelD.terminalTab': '터미널',
+  'panelD.slotSuffix': ' · 슬롯 {slotId}',
+  'panelD.focusedLabel': '포커스됨: {name}',
+  'panelD.newTerminal': '새 터미널',
+  'panelD.noWorktree': '이 채팅에는 아직 슬롯 워크트리가 없습니다.',
+  'panelD.focusToOpen': '터미널을 열려면 채팅에 포커스하세요.',
+
+  // ---------------------------------------------------------------------------
+  // Work-item search (WorkItemSearch.tsx).
+  // ---------------------------------------------------------------------------
+  'work.title': '티켓 / PR / 채팅 찾기 또는 추가',
+  'work.error.notFound': '찾을 수 없습니다 — id를 확인하세요.',
+  'work.error.notConfigured': 'Linear가 구성되지 않았습니다 (환경설정 → 통합).',
+  'work.error.authFailed': 'Linear 인증에 실패했습니다.',
+  'work.error.ghNotFound': '`gh` CLI가 설치되지 않았습니다.',
+  'work.error.ghNotAuthed': '`gh`에 로그인되어 있지 않습니다.',
+  'work.error.noRepo': '구성된 저장소가 없습니다.',
+  'work.error.duplicate': '이미 목록에 있습니다.',
+  'work.error.generic': '고정할 수 없습니다.',
+  'work.searchPlaceholder': '티켓, PR, 채팅 검색 — 또는 ENG-12345 / PR #1234 붙여넣기',
+  'work.addNew': '새로 추가',
+  'work.prNumber': 'PR #{number}',
+  'work.lookingUp': '조회 중…',
+  'work.pinKind': '{kind} 고정',
+  'work.tickets': '티켓',
+  'work.prs': 'PR',
+  'work.chats': '채팅',
+  'work.emptyHint':
+    '일치하는 항목이 없습니다. {id} 같은 Linear id나 {pr} 같은 PR 번호로 새로 고정해 보세요.',
+
+  // ---------------------------------------------------------------------------
+  // Monitor card (MonitorCard.tsx).
+  // ---------------------------------------------------------------------------
+  'monitor.permissionRequested': '권한 요청됨',
+  'monitor.wantsTool': '{tool} 사용 요청',
+  'monitor.idle': '(유휴)',
+  'monitor.foregroundTag': 'FG',
+  'monitor.attn.plan': '계획',
+  'monitor.attn.permission': '권한',
+  'monitor.attn.question': '질문',
+  'monitor.attn.wait': '대기',
+  'monitor.tokensTitle': '{used} / {budget} 토큰',
+  'monitor.youTag': '나',
+  'monitor.fg.foregrounded': '전면 표시됨 · 클릭하여 배경으로 전환',
+  'monitor.fg.bring': 'Unity 및 서버를 전면으로 가져오기',
+  'monitor.fg.fgShort': 'FG',
+  'monitor.fg.bringShort': '가져오기',
+
+  // ---------------------------------------------------------------------------
+  // Slot configuration / status (ConfigureSlotsPanel.tsx, SlotStatusStrip.tsx).
+  // ---------------------------------------------------------------------------
+  'slots.alreadyReady': '이미 준비됨',
+  'slots.running.deleting': '슬롯 {slotId} 삭제 중 ({total}개 중 {step}번째)…',
+  'slots.running.initializing': '슬롯 {slotId} 초기화 중 ({total}개 중 {step}번째)…',
+  'slots.done': '완료.',
+  'slots.stopped': '중지됨 — 아래를 참조하세요.',
+  'slots.detail.noChange': '슬롯 변경 사항 없음 — 개수만 업데이트하면 됩니다.',
+  'slots.detail.willCreate': '새 슬롯 {count}개를 생성합니다.',
+  'slots.detail.willCreatePlural': '새 슬롯 {count}개를 생성합니다.',
+  'slots.detail.willDelete': '슬롯 {count}개를 삭제합니다.',
+  'slots.detail.willDeletePlural': '슬롯 {count}개를 삭제합니다.',
+  'slots.checkingOccupancy': '슬롯 사용 현황 확인 중…',
+  'slots.blocked.wrongMode':
+    '이 저장소는 임시 모드입니다 — 구성할 슬롯이 없습니다.',
+  'slots.blocked.inUseTitle': '슬롯이 사용 중입니다.',
+  'slots.blocked.inUseBody': '풀 크기를 조정하기 전에 이 채팅들을 닫으세요:',
+  'slots.occupant': '슬롯 {slotId} · {chatName}',
+  'slots.ready.nothing': '할 작업이 없습니다 — 적용을 클릭하여 개수를 업데이트하세요.',
+  'slots.ready.init': '초기화를 클릭하여 새 슬롯 워크트리를 생성하세요.',
+  'slots.ready.delete':
+    '삭제를 클릭하여 추가 슬롯 워크트리와 해당 주차 브랜치를 제거하세요.',
+  'slots.log.init': '초기화',
+  'slots.log.delete': '삭제',
+  'slots.log.slot': '슬롯 {slotId}',
+  'slots.btn.apply': '적용',
+  'slots.btn.initialize': '초기화',
+  'slots.btn.delete': '삭제',
+  'slots.strip.free': '사용 가능',
+  'slots.strip.occupiedAria': '{repo} 슬롯 {slotId} · {chatName}',
+  'slots.strip.freeAria': '{repo} 슬롯 {slotId} · 사용 가능',
+  'slots.strip.setupBtn': '워크트리 슬롯 설정',
+
+  // ---------------------------------------------------------------------------
+  // Titlebar (Titlebar.tsx).
+  // ---------------------------------------------------------------------------
+  'titlebar.win.minimize': '최소화',
+  'titlebar.win.restore': '복원',
+  'titlebar.win.maximize': '최대화',
+  'titlebar.win.close': '닫기',
+  'titlebar.driftTitle': '드리프트 감지됨',
+  'titlebar.capacityTitle': '용량 필요',
+  'titlebar.hideGitPanel': 'git 패널 숨기기',
+  'titlebar.showGitPanel': 'git 패널 표시',
+  'titlebar.preferencesTitle': '환경설정 {shortcut}',
+
+  // ---------------------------------------------------------------------------
+  // Close-chat prompt (CloseChatPrompt.tsx).
+  // ---------------------------------------------------------------------------
+  'close.title': '브랜치 {branch}을(를) 닫는 중입니다.',
+  'close.parkSub': '슬롯 {slotId}이(가) popbot/slot-{slotId}(으)로 주차됩니다.',
+  'close.checking': '워크트리 확인 중…',
+  'close.noWorktree': '이 채팅에는 정리할 워크트리가 없습니다.',
+  'close.clean': '워크트리가 깨끗합니다 — 스태시할 항목이 없습니다.',
+  'close.stashPrompt':
+    '커밋되지 않은 모든 변경 사항을 스태시하시겠습니까? 이 채팅을 다시 열면 변경 사항이 언스태시됩니다.',
+  'close.discardClose': '버리고 닫기',
+  'close.stashClose': '스태시하고 닫기',
+  'close.closeChat': '채팅 닫기',
+
+  // ---------------------------------------------------------------------------
+  // Chat column (ChatColumn.tsx).
+  // ---------------------------------------------------------------------------
+  'chat.ticket.chipTitle': '{identifier} · {state} — Linear에서 열기',
+  'chat.pr.stateDraft': '초안',
+  'chat.pr.stateMerged': '병합됨',
+  'chat.pr.stateClosed': '닫힘',
+  'chat.pr.stateOpen': '열림',
+  'chat.pr.chipTitle': 'PR #{number} · {label} — GitHub에서 열기',
+  'chat.pr.chipLabel': 'PR #{number} · {label}',
+  'chat.reasoning.none': '없음',
+  'chat.reasoning.low': '낮음',
+  'chat.reasoning.medium': '보통',
+  'chat.reasoning.high': '높음',
+  'chat.reasoning.xhigh': 'XHigh',
+  'chat.reasoning.max': '최대',
+  'chat.repo.none': '저장소 없음',
+  'chat.repo.withName': '저장소 · {repoId}',
+  'chat.col.closeTitle': '채팅 닫기',
+  'chat.col.statusTitle': '상태: {status}',
+  'chat.status.running': '실행 중',
+  'chat.status.done': '완료',
+  'chat.status.needsYou': '확인 필요',
+  'chat.status.error': '오류',
+  'chat.status.idle': '유휴',
+  'chat.col.settingsTitle': '채팅별 설정',
+  'chat.slot.workspaceTitle': '작업 공간 슬롯 {slotId} · {repoId}',
+  'chat.slot.fallback': '슬롯 {slotId}',
+  'chat.slot.worktreeTitle': '워크트리 · {worktreePath}',
+  'chat.branch.title': '브랜치 · {branch}',
+  'chat.type.lite': 'Lite',
+  'chat.type.clientTest': '클라이언트 테스트',
+  'chat.input.resizeTitle': '드래그하여 입력창 크기 조절',
+  'chat.attachment.removeTitle': '첨부 파일 제거',
+  'chat.input.placeholderRunning':
+    '에이전트 실행 중… 입력하여 메시지 대기열에 추가  ·  Shift+Enter로 줄바꿈',
+  'chat.input.placeholderIdle': '메시지 보내기…  ·  Shift+Enter로 줄바꿈',
+  'chat.input.placeholderInactive': '클릭하여 이 채팅을 활성 채팅으로 만들기',
+  'chat.input.attachImage': '이미지 첨부',
+  'chat.input.attachFile': '파일 첨부',
+  'chat.input.model': '모델',
+  'chat.input.effort': '노력',
+  'chat.input.stopTitle': '에이전트 중지',
+  'chat.input.stop': '중지',
+  'chat.agentSwitch.title': '다른 에이전트로 재개할까요?',
+  'chat.agentSwitch.message':
+    '현재 에이전트 세션 id는 유지되므로 나중에 다시 전환할 수 있습니다. 새 에이전트는 자체 세션을 사용하며 이 채팅 대화 기록을 컨텍스트로 하여 다시 시작됩니다. 일부 비공개 에이전트 상태는 손실될 수 있습니다.',
+  'chat.agentSwitch.confirm': '다시 시작',
+  'chat.app.terminal': '터미널',
+  'chat.app.editor': '편집기',
+  'chat.app.unity': 'Unity',
+  'chat.app.launchFailed': '{kind}을(를) 실행할 수 없습니다:\n\n{error}',
+  'chat.app.runningTitle': '{label} — 이 슬롯에서 실행 중 (클릭하여 포커스)',
+  'chat.app.noSlotTitle': '{label} (슬롯 없음)',
+  'chat.install.claudeTitle': 'Claude 에이전트 활성화',
+  'chat.install.claudeIntro':
+    'PopBot은 Anthropic의 공식 Claude Code CLI를 실행합니다 — 번들로 제공하거나 대신 설치해 주지 않습니다. CLI가 설치되고 로그인되면 PopBot이 자동으로 감지하여 Claude 에이전트를 켭니다.',
+  'chat.install.claudeSignin': 'claude를 한 번 실행하고 Anthropic 계정으로 로그인하세요.',
+  'chat.install.codexTitle': 'Codex 에이전트 활성화',
+  'chat.install.codexIntro':
+    'Codex는 선택 사항입니다 — PopBot이 구동할 수 있는 대체 에이전트입니다. PopBot은 OpenAI의 공식 Codex CLI를 실행하며 대신 설치해 주지 않습니다. 설치되고 로그인되면 PopBot이 자동으로 감지합니다.',
+  'chat.install.codexSignin': 'codex를 한 번 실행하고 OpenAI 계정으로 로그인하세요.',
+  'chat.install.stepInstall': '{cli} 설치',
+  'chat.install.stepInstallDesc': '운영 체제에 맞는 {vendor}의 공식 설치 가이드를 따르세요.',
+  'chat.install.openGuide': '{vendor}의 설치 가이드 열기',
+  'chat.install.stepSignin': '로그인',
+  'chat.install.stepRestart': 'PopBot 다시 시작',
+  'chat.install.stepRestartDesc':
+    'PopBot이 시작 시 다시 확인하고 에이전트를 자동으로 활성화합니다.',
+  'chat.ready.checking': '설정 확인 중…',
+  'chat.ready.ready': '준비 완료',
+  'chat.ready.finish': '설정 완료',
+  'chat.ready.recheckTitle': '다시 확인 (CLI 설치 또는 저장소 추가 후)',
+  'chat.ready.claudeLabel': 'Claude',
+  'chat.ready.online': '온라인',
+  'chat.ready.notFound': '찾을 수 없음',
+  'chat.ready.howToInstall': '설치 방법',
+  'chat.ready.codexLabel': 'Codex',
+  'chat.ready.optional': '선택 사항',
+  'chat.ready.repoLabel': '저장소',
+  'chat.ready.repoCount': '저장소 {count}개',
+  'chat.ready.ok': '준비됨',
+  'chat.ready.addRepo': '저장소 추가',
+  'chat.gate.missingBoth': 'AI 공급자와 하나 이상의 git 저장소',
+  'chat.gate.missingAgent': 'AI 공급자 (Claude 또는 Codex)',
+  'chat.gate.missingRepo': '하나 이상의 git 저장소',
+  'chat.gate.title': '먼저 설정을 완료하세요',
+  'chat.gate.body':
+    'PopBot이 채팅을 시작하려면 {missing}이(가) 필요합니다. 화면 중앙에 표시된 설정 단계를 완료한 후 다시 시도하세요.',
+  'chat.empty.gateNoAgent': '채팅을 시작하려면 에이전트 CLI (Claude 또는 Codex)를 설치하세요.',
+  'chat.empty.gateNoRepo': '채팅을 시작하기 전에 저장소를 추가하세요.',
+  'chat.empty.closeTitle': '닫기',
+  'chat.empty.newChat': '새 채팅',
+  'chat.empty.heading': '새 채팅 시작',
+  'chat.empty.subtext':
+    '왼쪽에서 티켓이나 PR을 클릭하여 채팅을 시작하거나, 아래에서 새로 시작하세요.',
+  'chat.empty.newChatBtn': '+ 새 채팅',
+  'chat.empty.hintNewChat': '새 채팅',
+  'chat.empty.hintFromClipboard': '클립보드 URL에서',
+  'chat.empty.hintPalette': '팔레트',
+  'chat.empty.useButtons': '{gateReason} 위의 버튼을 사용하여 설정을 완료하세요.',
+
+  // ---------------------------------------------------------------------------
+  // Live chat body (LiveChatBody.tsx).
+  // ---------------------------------------------------------------------------
+  'chat.editor.openInEditor': '{href}을(를) 편집기에서 열기',
+  'chat.transcript.loading': '대화 기록 불러오는 중…',
+  'chat.transcript.empty': '새 채팅입니다. 아래에 메시지를 입력하여 시작하세요.',
+  'chat.window.olderHidden': '이전 메시지 {count}개 — 위로 스크롤하여 불러오기',
+  'chat.window.olderHiddenPlural': '이전 메시지 {count}개 — 위로 스크롤하여 불러오기',
+  'chat.window.newerHidden': '새 메시지 {count}개 — 아래로 스크롤하여 불러오기',
+  'chat.window.newerHiddenPlural': '새 메시지 {count}개 — 아래로 스크롤하여 불러오기',
+  'chat.jump.title': '최신으로 이동',
+  'chat.jump.label': '최신',
+  'chat.error.expandTitle': '클릭하여 원본 오류 펼치기',
+  'chat.error.collapseTitle': '이 오류 접기',
+  'chat.error.collapseAria': '오류 접기',
+  'chat.error.retryTitle': '이 채팅의 Claude 세션을 강제로 재연결하고 마지막 메시지를 다시 보냅니다',
+  'chat.error.retry': '다시 시도',
+  'chat.error.restartTitle': '이 채팅의 대화 기록으로 준비된 새 에이전트 세션 생성',
+  'chat.error.restart': '컨텍스트와 함께 다시 시작',
+  'chat.output.linesTruncated': '… {count}줄 잘림 …',
+  'chat.output.linesTruncatedPlural': '… {count}줄 잘림 …',
+  'chat.output.charsTruncated': '… {count}자 잘림 …',
+  'chat.output.charsTruncatedPlural': '… {count}자 잘림 …',
+  'chat.tool.bash': 'Bash',
+  'chat.tool.edit': '편집',
+  'chat.tool.write': '쓰기',
+  'chat.tool.read': '읽기',
+  'chat.tool.glob': 'Glob',
+  'chat.tool.grep': 'Grep',
+  'chat.tool.fetch': '가져오기',
+  'chat.tool.search': '검색',
+  'chat.tool.subagent': '하위 에이전트',
+  'chat.tool.todos': '할 일',
+  'chat.tool.notebook': '노트북',
+  'chat.tool.generic': '도구',
+  'chat.diff.popoutTitle': '전체 diff를 패널에서 열기',
+  'chat.diff.collapseTitle': '접기',
+  'chat.diff.showAllLines': '전체 {count}줄 보기',
+  'chat.diff.collapse': '접기',
+  'chat.diff.modalAriaFor': '{title}의 diff',
+  'chat.diff.modalAria': 'Diff',
+  'chat.diff.modalTitleFallback': 'Diff',
+  'chat.diff.modalCloseTitle': '닫기 (Esc)',
+  'chat.output.viewFullTitle': '클릭하여 전체 출력 보기',
+  'chat.output.viewFull': '전체 출력 보기',
+  'chat.output.overflowLines': ' (+{count}줄)',
+  'chat.output.overflowChars': ' (+{count}자)',
+  'chat.permission.wantsToUse': '에이전트가 사용하려는 도구',
+  'chat.permission.allowOnce': '한 번 허용',
+  'chat.permission.allowChat': '이 채팅에서 허용',
+  'chat.permission.allowEverywhere': '모든 곳에서 허용',
+  'chat.permission.deny': '거부',
+  'chat.permission.denyEverywhere': '모든 곳에서 거부',
+  'chat.qa.questionPrefix': 'Q:',
+  'chat.qa.answerPrefix': 'A:',
+  'chat.question.heading': '질문',
+  'chat.question.yes': '예',
+  'chat.question.no': '아니요',
+  'chat.question.typeLonger': '…또는 아래에 더 긴 답변을 입력하세요.',
+  'chat.question.replyBelow': '아래에 답변하여 계속하세요.',
+  'chat.plan.asked': '질문: {question}',
+  'chat.plan.pickOne': '하나 선택',
+  'chat.plan.otherOption': '기타 — 직접 답변 입력',
+  'chat.plan.otherPlaceholder': '답변을 입력하고 Enter를 누르세요…',
+  'chat.plan.skip': '건너뛰기',
+  'chat.plan.clickToSubmit': '옵션을 클릭하여 제출',
+  'chat.plan.skipped': '✗ 건너뜀',
+  'chat.plan.submitted': '✓ 제출됨',
+
+  // ---------------------------------------------------------------------------
+  // Chat settings sheet (ChatSettingsSheet.tsx).
+  // ---------------------------------------------------------------------------
+  'chatSettings.bytesB': '{n} B',
+  'chatSettings.bytesKB': '{n} KB',
+  'chatSettings.bytesMB': '{n} MB',
+  'chatSettings.noWorktreeError':
+    '이 채팅에 구성된 작업 디렉터리가 없습니다 — 세션을 검색하려면 Linear/git 설정에 저장소 경로가 필요합니다.',
+  'chatSettings.loadSessionsError': '세션을 불러올 수 없습니다: {error}',
+  'chatSettings.reconnectFailed': '재연결 실패:\n\n{message}',
+  'chatSettings.restartConfirm':
+    '새 Claude 세션을 생성하고 이 채팅의 이전 대화 기록을 제공하여 에이전트가 중단된 곳에서 이어가도록 할까요?\n\n이 작업은 토큰을 사용합니다 (대화 기록이 에이전트의 첫 메시지가 됩니다). 프롬프트 크기를 적절하게 유지하기 위해 오래된 중간 대화는 생략될 수 있습니다.',
+  'chatSettings.restartFailed': '다시 시작 실패:\n\n{message}',
+  'chatSettings.noBranch': '(브랜치 없음)',
+  'chatSettings.identity': '식별 정보',
+  'chatSettings.linked': '연결됨',
+  'chatSettings.slot': '슬롯',
+  'chatSettings.slotNone': '(없음)',
+  'chatSettings.slotN': '슬롯 {slotId}',
+  'chatSettings.worktree': '워크트리',
+  'chatSettings.worktreeNone': '(없음)',
+  'chatSettings.agent': '에이전트',
+  'chatSettings.codexThread': 'Codex 스레드',
+  'chatSettings.pinnedSession': '고정된 세션',
+  'chatSettings.sessionNone': '(없음 — 다음 전송 시 새로 시작)',
+  'chatSettings.recoverContext': '컨텍스트 복구',
+  'chatSettings.recoverDesc':
+    '에이전트가 이 채팅에 대한 기억을 잃었을 때 사용하세요 (예: 위 대화 기록에는 실제 작업이 있지만 에이전트는 새 세션이라고 생각하는 경우). 새 에이전트 세션을 생성하고 이 채팅의 텍스트 기록으로 준비하여 중단된 곳에서 이어갈 수 있도록 합니다 — 처음 3개 대화와 가장 최근 대화는 유지되며, 아주 오래된 중간 대화는 생략될 수 있습니다.',
+  'chatSettings.restartTooltip': '이 채팅의 대화 기록으로 준비된 새 에이전트 세션 생성',
+  'chatSettings.restarting': '다시 시작 중…',
+  'chatSettings.restartWithContext': '컨텍스트와 함께 다시 시작',
+  'chatSettings.tryReconnect': '재연결 시도',
+  'chatSettings.reconnectDesc':
+    '이 채팅의 워크트리에 대해 저장된 Claude 세션을 선택하세요. 자동 재연결이 잘못된 세션을 선택했고 특정 대화 기록을 강제하려는 경우 유용합니다. 선택한 세션이 고정되고 에이전트가 해당 세션으로 다시 생성됩니다.',
+  'chatSettings.loadingSessions': '세션 불러오는 중…',
+  'chatSettings.noSessionsOnDisk': '이 워크트리에 디스크에 저장된 세션이 없습니다.',
+  'chatSettings.searchSessions': '세션 {count}개 검색…',
+  'chatSettings.searchSessionsPlural': '세션 {count}개 검색…',
+  'chatSettings.noSessionsMatch': '일치하는 세션이 없습니다.',
+  'chatSettings.gitBranchTooltip': 'git 브랜치',
+  'chatSettings.noFirstPrompt': '(첫 프롬프트 없음)',
+  'chatSettings.alreadyPinned': '이미 고정됨',
+  'chatSettings.reconnectRowTooltip': '선택한 세션을 고정하고 에이전트를 해당 세션으로 다시 생성',
+  'chatSettings.connecting': '연결 중…',
+  'chatSettings.connected': '연결됨',
+  'chatSettings.connect': '연결',
+
+  // ---------------------------------------------------------------------------
+  // Agent create controls (AgentCreateControls.tsx).
+  // ---------------------------------------------------------------------------
+  'agent.effort.none': '없음',
+  'agent.effort.low': '낮음',
+  'agent.effort.medium': '보통',
+  'agent.effort.high': '높음',
+  'agent.effort.xhigh': 'XHigh',
+  'agent.effort.max': '최대',
+  'agent.label': '에이전트',
+  'agent.model': '모델',
+  'agent.effort': '노력',
+
+  // ---------------------------------------------------------------------------
+  // Git panel (GitPanel.tsx).
+  // ---------------------------------------------------------------------------
+  'git.status.modified': '수정됨',
+  'git.status.added': '추가됨',
+  'git.status.deleted': '삭제됨',
+  'git.status.renamed': '이름 변경됨',
+  'git.status.untracked': '추적 안 됨',
+  'git.status.conflict': '충돌',
+  'git.mode.commit.label': 'COMMIT',
+  'git.mode.commit.short': 'COMMIT',
+  'git.mode.commitAi.label': 'COMMIT (AI)',
+  'git.mode.commitAi.short': 'COMMIT (AI)',
+  'git.mode.pushPr.label': 'PUSH PR (AI)',
+  'git.mode.pushPr.short': 'PUSH PR (AI)',
+  'git.mode.pushDraftPr.label': 'PUSH DRAFT PR (AI)',
+  'git.mode.pushDraftPr.short': 'DRAFT (AI)',
+  'git.mode.makePrReady.label': 'MARK PR READY (AI)',
+  'git.mode.makePrReady.short': 'READY (AI)',
+  'git.mode.addressCr.label': 'ADDRESS CR (AI)',
+  'git.mode.addressCr.short': 'CR (AI)',
+  'git.revert.failed': '되돌리기 실패:\n\n{error}',
+  'git.commit.failed': '커밋 실패:\n\n{error}',
+  'git.prompt.sendFailed': '프롬프트를 보낼 수 없습니다:\n\n{message}',
+  'git.prompt.rebaseSendFailed': '리베이스 프롬프트를 보낼 수 없습니다:\n\n{message}',
+  'git.branch.none': '포커스된 채팅 없음',
+  'git.ahead.title': '앞섬',
+  'git.behind.title': '뒤처짐',
+  'git.closePanel.title': '패널 닫기',
+  'git.empty.focusChat': 'git 상태를 보려면 채팅에 포커스하세요.',
+  'git.empty.noWorktree': '이 채팅에는 아직 슬롯 워크트리가 없습니다.',
+  'git.empty.notRepo': 'git 저장소가 아닙니다: {error}',
+  'git.commits.uncommitted': '커밋되지 않은 변경 사항',
+  'git.commits.fileCount': '파일 {count}개',
+  'git.commits.fileCountPlural': '파일 {count}개',
+  'git.commits.none': '이 브랜치에 아직 커밋이 없습니다.',
+  'git.files.uncheckAll': '모두 선택 해제',
+  'git.files.checkAll': '모두 선택',
+  'git.files.selectedForCommit': '커밋 대상 {total}개 중 {checked}개',
+  'git.files.revertSelected': '선택한 파일 되돌리기',
+  'git.files.revertCount': '{count}개 되돌리기',
+  'git.files.readonlyCount': '읽기 전용 · 파일 {count}개',
+  'git.files.readonlyCountPlural': '읽기 전용 · 파일 {count}개',
+  'git.files.noUncommitted': '커밋되지 않은 변경 사항이 없습니다.',
+  'git.files.noFilesInCommit': '이 커밋에 파일이 없습니다.',
+  'git.file.rowTitleRenamed': '{label} (이전: {oldPath})',
+  'git.base.targetTitle': 'PR 대상 / 분기점 브랜치',
+  'git.base.nameTitle': '기준 브랜치 (PR 대상)',
+  'git.base.changeTitle': '기준 브랜치를 변경하고 AI에게 리베이스 / 체리픽 요청',
+  'git.base.change': '변경',
+  'git.commit.msgPlaceholder': '커밋 메시지…',
+  'git.commit.checkFilesPlaceholder': '커밋할 파일을 선택하세요',
+  'git.commit.promptPreviewPlaceholder': '프롬프트 미리보기',
+  'git.action.btnTitle': '{label} ({hotkey})',
+  'git.base.dialogSubtitle': '기준 브랜치 변경 — AI가 이 브랜치 위로 리베이스 / 체리픽합니다.',
+  'git.menu.viewDiff': 'diff 보기',
+  'git.menu.revertCount': '파일 {count}개 되돌리기…',
+  'git.menu.revertCountPlural': '파일 {count}개 되돌리기…',
+  'git.revert.dialogTitle': '파일 되돌리기',
+  'git.revert.confirmOne': '"{path}"의 로컬 변경 사항을 버릴까요? 이 작업은 취소할 수 없습니다.',
+  'git.revert.confirmMany': '파일 {count}개의 로컬 변경 사항을 버릴까요? 이 작업은 취소할 수 없습니다.',
+  'git.revert.confirmLabel': '되돌리기',
+
+  // ---------------------------------------------------------------------------
+  // Base-branch / new-chat dialog (BaseBranchDialog.tsx).
+  // ---------------------------------------------------------------------------
+  'branch.picker.freeChat': '자유 채팅 (슬롯 없음)',
+  'branch.picker.selectBase': '기준 브랜치 선택',
+  'branch.picker.searchPlaceholder': '브랜치 검색…',
+  'branch.picker.noBranches': '브랜치를 찾을 수 없습니다.',
+  'branch.picker.tagRecent': '최근',
+  'branch.picker.tagDefault': '기본값',
+  'branch.picker.tagRepoRoot': '저장소 루트',
+  'branch.dialog.disabled.pickRepo': '저장소를 선택하세요.',
+  'branch.dialog.disabled.loadingBranches': '브랜치 불러오는 중…',
+  'branch.dialog.disabled.noBranches':
+    '이 저장소에는 기준으로 삼을 브랜치가 없습니다 — 먼저 하나를 푸시하세요.',
+  'branch.dialog.disabled.pickBranch': '기준 브랜치를 선택하세요.',
+  'branch.dialog.ariaLabel': '저장소 및 기준 브랜치 선택',
+  'branch.dialog.title': '새 채팅',
+  'branch.dialog.subjectLabel': '제목',
+  'branch.dialog.subjectOptional': '(선택 사항)',
+  'branch.dialog.branchPrefix': '브랜치:',
+  'branch.dialog.loadingRepos': '저장소 불러오는 중…',
+  'branch.dialog.noReposConfigured':
+    '구성된 저장소가 없습니다. 환경설정 → 저장소에서 추가하세요.',
+  'branch.dialog.repoLabel': '저장소',
+  'branch.dialog.noRepoOption': '저장소 없음',
+  'branch.dialog.tagRawChat': '원시 채팅',
+  'branch.dialog.tagEphemeral': '임시',
+  'branch.dialog.tagSlots': '슬롯 × {count}',
+  'branch.dialog.rawChatDesc':
+    '워크트리, 슬롯, 브랜치, 기준 브랜치 없이 원시 채팅을 생성합니다.',
+  'branch.dialog.baseBranchLabel': '기준 브랜치',
+  'branch.dialog.loadBranchesError': '브랜치를 불러올 수 없습니다: {error}',
+  'branch.dialog.freeChatDesc':
+    '{repo}의 저장소 루트에서 실행됩니다 — 슬롯, 워크트리, 브랜치 없음.',
+  'branch.dialog.createChat': '채팅 만들기',
+
+  // ---------------------------------------------------------------------------
+  // PR review action dialog (PrReviewActionDialog.tsx).
+  // ---------------------------------------------------------------------------
+  'review.dialog.ariaLabel': 'PR #{number}',
+  'review.dialog.heading': 'PR #{number}',
+  'review.dialog.prompt': '이 PR로 무엇을 하시겠습니까?',
+  'review.dialog.ignoreTitle': '리뷰 목록에서 이 PR 숨기기',
+  'review.dialog.ignore': '무시',
+  'review.dialog.createChat': '채팅 만들기',
+
+  // ---------------------------------------------------------------------------
+  // Diff overlay (DiffOverlay.tsx).
+  // ---------------------------------------------------------------------------
+  'diff.overlay.ariaLabel': '{path}의 diff',
+  'diff.overlay.scopeUncommitted': '커밋되지 않음',
+  'diff.overlay.closeTitle': '닫기 (Esc)',
+  'diff.overlay.loading': 'diff 불러오는 중…',
+  'diff.overlay.error': '오류: {error}',
+  'diff.overlay.binary': '바이너리 파일 — diff가 표시되지 않습니다.',
+
+  // ---------------------------------------------------------------------------
+  // Preferences sheet (PreferencesSheet.tsx) — chrome + nav.
+  // ---------------------------------------------------------------------------
   'prefs.title': '환경설정',
   'prefs.search': '환경설정 검색…',
   'prefs.section.integ': '통합',
@@ -53,7 +728,273 @@ export const ko = {
   'prefs.section.notify': '알림',
   'prefs.section.permissions': '권한',
   'prefs.section.language': '언어',
+  'prefs.footMeta': 'PopBot · 프리알파',
 
+  // Preferences — Agents pane.
+  'prefs.agents.title': '에이전트',
+  'prefs.agents.desc':
+    '새로 생성되는 채팅의 기본 노력 수준입니다. 기존 채팅은 채팅 작성기에서 변경할 때까지 저장된 자체 노력 수준을 유지합니다.',
+  'prefs.agents.newChats.title': '새 채팅',
+  'prefs.agents.newChats.desc':
+    '에이전트 선택기가 열릴 때 일반 채팅과 티켓 채팅에서 사용됩니다.',
+  'prefs.agents.codeReviews.title': '코드 리뷰',
+  'prefs.agents.codeReviews.desc':
+    'PR 리뷰 채팅, 재리뷰 대체 채팅, 리뷰 알림에서 사용됩니다.',
+
+  // Preferences — Runtime / attachment retention pane.
+  'prefs.runtime.title': '첨부 파일 보존',
+  'prefs.runtime.desc':
+    '채팅에 첨부하는 파일과 이미지는 PopBot 자체 저장소에 복사되어 원본이 이동된 후에도 채팅 기록에서 계속 열 수 있습니다. 시작 시 정리 작업이 이 기간보다 오래된 복사본을 삭제하여 폴더가 무한정 커지지 않도록 합니다.',
+  'prefs.runtime.keepFor.title': '첨부 파일 보존 기간',
+  'prefs.runtime.keepFor.desc':
+    '기본 {default}일 (범위 {min}–{max}). 디스크를 더 빨리 확보하려면 낮추고, 기록을 더 오래 유지하려면 높이세요.',
+
+  // Preferences — Integrations: ticket source / game engine.
+  'prefs.integ.ticketSource.title': '티켓 소스',
+  'prefs.integ.ticketSource.desc':
+    '패널 A의 티켓 대기열에 항목을 공급하는 이슈 트래커로, 트래커에서 바로 에이전트를 생성할 수 있습니다.',
+  'prefs.integ.gameEngine.title': '게임 엔진',
+  'prefs.integ.gameEngine.desc':
+    'PopBot이 채팅의 워크트리에서 실행하는 엔진입니다 (각 채팅 열의 엔진 아이콘).',
+
+  // Preferences — Source control pane.
+  'prefs.git.title': '버전 관리',
+  'prefs.git.desc':
+    '전역 git 신원 정보입니다. 저장소별 설정 — 경로, 기준 브랜치, 슬롯, 색상 — 은 {reposLink}에 있습니다.',
+  'prefs.git.reposLabel': '저장소',
+  'prefs.git.branchUsername.title': '브랜치 사용자 이름',
+  'prefs.git.branchUsername.desc': '새 브랜치는 {pattern} 형식으로 이름이 지정됩니다.',
+  'prefs.git.usernamePlaceholder': 'ben',
+  'prefs.git.actionTemplates.title': '동작 템플릿',
+  'prefs.git.actionTemplates.intro':
+    '큰 동작 버튼을 클릭하거나 기준 브랜치를 변경할 때 git 패널이 채팅 에이전트에 보내는 프롬프트입니다. {macro} 매크로를 사용하여 컨텍스트를 삽입하세요.',
+
+  // Preferences — External apps pane.
+  'prefs.apps.title': '외부 앱',
+  'prefs.apps.desc':
+    '각 채팅 열의 아이콘 행은 슬롯의 워크트리를 가리키는 이 앱들을 실행합니다. 클릭하여 기존 창을 전면으로 가져오거나 새로 실행하세요.',
+  'prefs.apps.terminal.title': '터미널',
+  'prefs.apps.terminal.desc': '터미널 아이콘 실행기에 사용됩니다.',
+  'prefs.apps.windowsShell.title': '터미널 셸 (Windows)',
+  'prefs.apps.windowsShell.desc':
+    '앱 내 터미널 패널에서 사용하는 셸입니다. 변경 후 열리는 터미널에 적용됩니다.',
+  'prefs.apps.editor.title': '코드 편집기',
+  'prefs.apps.editor.desc': '편집 도구 행 내부의 클릭 가능한 파일 링크에도 사용됩니다.',
+  'prefs.apps.gitClient.title': 'Git 클라이언트',
+  'prefs.apps.gitClient.desc':
+    '현재는 GitHub Desktop으로 고정되어 있습니다 — 팀원이 다른 것을 사용하면 선택기가 추가됩니다.',
+  'prefs.apps.chromeProfile.title': 'URL용 Chrome 프로필',
+  'prefs.apps.chromeProfile.desc':
+    'URL 열기를 특정 Chrome 프로필에 고정하여 항상 개인 계정이 아닌 업무 계정으로 열리도록 합니다. Chrome 프로필 디렉터리 이름을 사용하세요 — chrome://version의 "Profile Path" 줄에서 찾을 수 있습니다 (마지막 경로 구성 요소, 예: Profile 1, Default, Person 2). 비워 두면 OS 기본 브라우저를 사용합니다.',
+  'prefs.apps.chromeProfile.placeholder': '(OS 기본 브라우저 사용)',
+  'prefs.apps.unity.desc':
+    'Unity 슬롯 아이콘을 클릭할 때 popbot이 실행하는 설치된 Unity Editor 버전을 선택하세요. 버전은 {path}에서 스캔됩니다.',
+  'prefs.apps.unity.editorVersion.title': 'Editor 버전',
+  'prefs.apps.unity.scanning': '스캔 중…',
+  'prefs.apps.unity.installedCount': '{count}개 설치됨',
+  'prefs.apps.unity.rescan': '다시 스캔',
+  'prefs.apps.unity.selectVersion': '— Unity 버전 선택 —',
+  'prefs.apps.unity.noneFound':
+    '{path}에서 Unity 버전을 찾을 수 없습니다. Unity Hub를 통해 설치하고 다시 스캔을 클릭하세요.',
+  'prefs.apps.unity.customBinary.title': '사용자 지정 바이너리 경로',
+  'prefs.apps.unity.customBinary.desc': 'Unity가 특이한 위치에 있을 때 드롭다운을 재정의합니다.',
+  'prefs.apps.unity.subpath.title': '프로젝트 하위 경로',
+  'prefs.apps.unity.subpath.desc':
+    '워크트리 루트를 기준으로 한 Unity 프로젝트 경로입니다. 워크트리 루트 자체가 Unity 프로젝트인 경우 비워 두세요.',
+  'prefs.apps.unity.subpath.placeholder': '예: unity-project (비워 두면 워크트리 루트)',
+
+  // Preferences — Prompt templates pane.
+  'prefs.templates.chat.startTicket.label': '티켓 시작 (Linear에서 채팅 생성 시 전송)',
+  'prefs.templates.chat.startCodeReview.label': '코드 리뷰 시작 (PR에서 채팅 생성 시 전송)',
+  'prefs.templates.chat.reReview.label':
+    '재리뷰 (수신 패널에서 재리뷰 칩을 클릭할 때 전송)',
+  'prefs.templates.git.commitAi.label': 'COMMIT (AI)',
+  'prefs.templates.git.pushPr.label': 'PUSH PR (AI)',
+  'prefs.templates.git.pushDraftPr.label': 'PUSH DRAFT PR (AI)',
+  'prefs.templates.git.makePrReady.label': 'MARK PR READY (AI)',
+  'prefs.templates.git.addressCr.label': 'ADDRESS CR (AI)',
+  'prefs.templates.git.rebaseBase.label': 'CHANGE BASE BRANCH (AI)',
+  'prefs.templates.resetDefaults': '기본값으로 재설정',
+  'prefs.templates.title': '프롬프트 템플릿',
+  'prefs.templates.intro':
+    '이 템플릿은 Linear 티켓이나 PR에서 채팅을 생성할 때 채팅의 첫 사용자 메시지로 실행됩니다. {macro} 매크로를 사용하여 컨텍스트를 삽입하세요. Git 패널 동작 템플릿은 {link}에 있습니다.',
+  'prefs.templates.gitPanelLink': '버전 관리 → 동작 템플릿',
+
+  // Preferences — Code reviews pane.
+  'prefs.reviews.title': '코드 리뷰',
+  'prefs.reviews.desc':
+    '리뷰 탭은 사용자를 리뷰어로 요청하거나 아직 리뷰가 없는 (그리고 명시적으로 지정되지 않은 한 제목에 {tag} 태그가 있는) 열린 PR을 가져옵니다. 이미 리뷰한 PR은 자동으로 제외됩니다. 아래 목록을 사용하여 추가 노이즈를 음소거하세요.',
+  'prefs.reviews.searchWindow.title': '검색 캐시 기간',
+  'prefs.reviews.searchWindow.desc':
+    '수신 패널의 + 추가 선택기는 지난 N일 동안 업데이트된 Linear 이슈 + GitHub PR에 대해 퍼지 매칭을 수행합니다. 기간이 길수록 검색 범위가 넓어지지만 새로고침이 약간 느려지고 API 예산이 더 많이 소모됩니다. 나에게 할당된 티켓은 이 기준과 관계없이 항상 포함됩니다.',
+  'prefs.reviews.ignoreTitle.title': '제목으로 무시 (한 줄에 하나의 부분 문자열, 대소문자 구분 안 함)',
+  'prefs.reviews.ignoreTitle.placeholder': 'DO NOT SUBMIT\nCrowdin',
+  'prefs.reviews.ignoreAuthor.title': 'GitHub 작성자로 무시 (한 줄에 하나의 로그인)',
+  'prefs.reviews.ignoreAuthor.placeholder': 'crowdin-bot\nrenovate[bot]',
+
+  // Preferences — Integrations: Linear.
+  'prefs.integ.linear.apiKey.title': '개인 API 키',
+  'prefs.integ.linear.apiKey.desc': '이 앱의 데이터베이스에 로컬로 저장됩니다.',
+  'prefs.integ.linear.getKey': '키 받기 →',
+  'prefs.integ.linear.teamKey.title': '팀 키',
+  'prefs.integ.linear.teamKey.desc': '예: {example}. 이슈 + 프로젝트를 한 팀으로 필터링합니다.',
+  'prefs.integ.linear.project.title': '프로젝트',
+  'prefs.integ.linear.project.desc': '선택 사항 — 티켓 목록을 단일 프로젝트로 좁힙니다.',
+  'prefs.integ.linear.allProjects': '모든 프로젝트',
+  'prefs.integ.linear.connectedAs': '{email}(으)로 연결됨',
+  'prefs.integ.linear.connected': '연결됨',
+  'prefs.integ.linear.notConnected': '연결되지 않음',
+  'prefs.integ.linear.error.auth': 'Linear가 이 API 키를 거부했습니다.',
+  'prefs.integ.linear.error.generic': 'Linear 오류: {error}',
+  'prefs.integ.linear.verifying': '확인 중…',
+
+  // Preferences — Integrations: shared status labels.
+  'prefs.integ.enabled': '활성화됨',
+  'prefs.integ.pollingOn': '폴링 켜짐',
+  'prefs.integ.off': '꺼짐',
+  'prefs.integ.pollInterval': '폴링 간격',
+  'prefs.integ.notVerified': '확인되지 않음',
+  'prefs.integ.testing': '테스트 중…',
+  'prefs.integ.testConnection': '연결 테스트',
+
+  // Preferences — Integrations: Sentry.
+  'prefs.integ.sentry.title': 'Sentry',
+  'prefs.integ.sentry.desc':
+    '새로운 미해결 Sentry 이슈를 PopBot 알림으로 표시합니다. 토큰 + 조직만 필요합니다 — 메시지와 스택 추적은 절대 기기를 벗어나지 않으며, PopBot은 Sentry REST API를 통해 이슈 요약을 읽습니다. {link}에서 {scopes} 범위로 토큰을 생성하세요.',
+  'prefs.integ.sentry.authTokensLink': 'sentry.io → Auth Tokens',
+  'prefs.integ.sentry.authToken': '인증 토큰',
+  'prefs.integ.sentry.orgSlug': '조직 슬러그',
+  'prefs.integ.sentry.projectSlug': '프로젝트 슬러그',
+  'prefs.integ.sentry.projectSlug.placeholder': '(선택 사항 — 모든 프로젝트는 비워 두세요)',
+  'prefs.integ.sentry.verified': '확인됨 · {org}',
+
+  // Preferences — Integrations: Slack.
+  'prefs.integ.slack.title': 'Slack',
+  'prefs.integ.slack.desc':
+    '읽지 않은 DM과 채널 @-멘션을 PopBot 알림으로 표시합니다. 읽기 전용 — PopBot은 사용자를 대신해 게시하지 않습니다.',
+  'prefs.integ.slack.tokenHelp':
+    '토큰을 받으려면: {link}에서 Slack 앱을 만들고, 사용자 토큰 범위 {scopes}을(를) 추가한 다음, 워크스페이스에 설치하고, User OAuth Token({prefix}(으)로 시작)을 복사하세요.',
+  'prefs.integ.slack.appsLink': 'api.slack.com/apps',
+  'prefs.integ.slack.userToken': '사용자 토큰',
+  'prefs.integ.slack.connectedTo': '{team}에 {user}(으)로 연결됨',
+
+  // Preferences — Notifications pane.
+  'prefs.notify.title': '알림',
+  'prefs.notify.desc':
+    'VIP는 메시지 내용과 관계없이 Slack DM과 채널 멘션이 항상 긴급 우선순위로 상향되고 알림에 VIP 칩이 태그되는 사람들입니다. 이름은 Slack 표시 이름의 부분 문자열로 대소문자를 구분하지 않고 일치시킵니다 (따라서 "York"는 "York Johnson"과 "Yorktown Smith"에 일치합니다) — 오탐을 피하려면 이름을 구체적으로 유지하세요.',
+  'prefs.notify.vipNames': 'VIP 이름',
+  'prefs.notify.vipPlaceholder': '한 줄에 하나의 이름, 예:\nYork\nAmitt\nMatt Van',
+  'prefs.notify.toastPlacement': '토스트 위치',
+  'prefs.notify.centerFly.label': '상단 중앙, 닫을 때 벨로 이동',
+  'prefs.notify.centerFly.desc':
+    '기본적으로 켜져 있습니다 — 토스트가 상단 중앙에 나타나고, 닫을 때 벨 아이콘 쪽으로 애니메이션되며, 알림이 어디로 갔는지 볼 수 있도록 벨이 잠시 깜박입니다. 기존의 우측 상단 토스트를 원하면 끄세요. 즉시 적용됩니다 — 저장이 필요 없습니다.',
+  'prefs.notify.savedPill': '저장됨',
+  'prefs.notify.testFlow.title': '새 항목 흐름 테스트',
+  'prefs.notify.testFlow.desc':
+    '실제 대기열의 기존 항목 몇 개를 일시적으로 NEW로 표시하여 칩 + 탭 표시 동작을 확인할 수 있습니다. 서버 측에서 추가, 제거 또는 영구 저장되는 것은 없습니다.',
+  'prefs.notify.testFlow.flagTickets': '티켓 2개를 NEW로 표시',
+  'prefs.notify.testFlow.flagPrs': 'PR 2개를 NEW로 표시',
+
+  // Preferences — Permissions pane.
+  'prefs.permissions.tool.bash.desc': '기기에서 셸 명령을 실행합니다.',
+  'prefs.permissions.tool.read.desc': '파일의 내용을 읽습니다.',
+  'prefs.permissions.tool.write.desc': '파일을 생성하거나 덮어씁니다.',
+  'prefs.permissions.tool.edit.desc': '파일의 내용을 수정합니다.',
+  'prefs.permissions.tool.notebookEdit.desc': 'Jupyter 노트북의 셀을 수정합니다.',
+  'prefs.permissions.tool.grep.desc': '파일 내부에서 텍스트를 검색합니다.',
+  'prefs.permissions.tool.glob.desc': '이름 패턴과 일치하는 파일을 찾습니다.',
+  'prefs.permissions.tool.webFetch.desc': '원격 URL을 가져와 읽습니다.',
+  'prefs.permissions.tool.webSearch.desc': '컨텍스트를 위해 웹 검색을 실행합니다.',
+  'prefs.permissions.tool.todoWrite.desc': '에이전트의 내부 작업 목록을 업데이트합니다.',
+  'prefs.permissions.tool.task.desc': '작업을 위임할 하위 에이전트를 생성합니다.',
+  'prefs.permissions.tool.exitPlanMode.desc': '계획 모드를 종료하고 계획을 제시합니다.',
+  'prefs.permissions.title': '권한',
+  'prefs.permissions.desc':
+    '각 도구의 전역 기본값입니다. 질문은 매번 채팅에 묻습니다 (기본값). 허용은 묻지 않고 자동 승인합니다. 거부는 자동 거부합니다. 채팅별 규칙 — 권한 카드에서 "이 채팅에서 허용" / "이 채팅에서 거부"로 설정 — 은 이 전역값을 재정의하므로, 단일 채팅이 다른 모든 곳에서 허용한 도구를 차단할 수 있습니다.',
+  'prefs.permissions.toolDefaultAria': '{tool} 기본값',
+  'prefs.permissions.state.ask': '질문',
+  'prefs.permissions.state.allow': '허용',
+  'prefs.permissions.state.deny': '거부',
+
+  // Preferences — Repositories pane.
+  'prefs.repos.colorAria': '저장소 색상',
+  'prefs.repos.title': '저장소',
+  'prefs.repos.desc':
+    '각 채팅은 저장소에 존재합니다. 저장소의 모드 (슬롯 풀 대 임시 워크트리)는 생성 시 설정되며 이후 변경할 수 없습니다 — 모드를 전환하면 이미 진행 중인 채팅의 워크트리가 고아가 됩니다.',
+  'prefs.repos.mode.ephemeral': '임시',
+  'prefs.repos.mode.slots': '슬롯 × {count}',
+  'prefs.repos.delete': '삭제…',
+  'prefs.repos.card.path': '경로',
+  'prefs.repos.card.defaultBase': '기본 기준',
+  'prefs.repos.card.slotPrefix': '슬롯 접두사',
+  'prefs.repos.addRepository': '저장소 추가',
+  'prefs.repos.wizard.title': '새 저장소',
+  'prefs.repos.wizard.initializingSlots': '슬롯 초기화 중',
+  'prefs.repos.wizard.stepOf': '{total}단계 중 {step}단계',
+  'prefs.repos.wizard.modeIntro':
+    'PopBot이 이 저장소의 채팅에 대한 워크트리를 관리하는 방식을 선택하세요. 나중에 변경할 수 없습니다.',
+  'prefs.repos.wizard.mode.slots.title': '슬롯',
+  'prefs.repos.wizard.mode.slots.pill': '채팅 간 빌드 캐시를 따뜻하게 유지',
+  'prefs.repos.wizard.mode.slots.lead': '채팅이 재사용하는 영구 워크트리 슬롯입니다.',
+  'prefs.repos.wizard.mode.slots.desc':
+    '미리 할당된 N개의 워크트리로 구성된 고정 풀입니다. 채팅은 슬롯을 빌려 작업한 다음 닫을 때 다시 주차합니다. 각 슬롯은 자체 빌드 아티팩트를 유지합니다 — Unity의 Library/, node_modules/, gradle/maven 캐시 등. 즉, 브랜치를 전환할 때마다 몇 분씩 걸리는 재가져오기나 npm install이 없습니다. 브랜치별 설정 비용이 적지 않을 때 이것을 선택하세요.',
+  'prefs.repos.wizard.mode.ephemeral.title': '임시',
+  'prefs.repos.wizard.mode.ephemeral.pill': '순수 코드 저장소에 적합',
+  'prefs.repos.wizard.mode.ephemeral.lead': '채팅이 닫힐 때 제거되는 임시 워크트리입니다.',
+  'prefs.repos.wizard.mode.ephemeral.desc':
+    '각 채팅은 채팅이 열릴 때 생성되고 닫힐 때 제거되는 자체 워크트리를 갖습니다. 풀이나 주차 브랜치가 없습니다. 따뜻하게 유지할 비싼 브랜치별 캐시가 없을 때 가장 좋습니다 — 순수 코드 저장소, 스크립트, 설치가 저렴한 웹 앱.',
+  'prefs.repos.wizard.repoPath.title': '저장소 경로',
+  'prefs.repos.wizard.repoPath.desc':
+    '소스 클론의 절대 경로입니다. 폴더 이름에서 id와 슬롯 접두사를 자동으로 채웁니다 (재정의 가능).',
+  'prefs.repos.wizard.browseTitle': '폴더 찾아보기',
+  'prefs.repos.wizard.pickDirTitle': '소스 저장소 선택',
+  'prefs.repos.wizard.browse': '찾아보기…',
+  'prefs.repos.wizard.shortId.title': '짧은 id',
+  'prefs.repos.wizard.shortId.desc':
+    '소문자, 공백 없음. 폴더 경로와 브랜치 접두사에 사용됩니다. 영구적입니다.',
+  'prefs.repos.wizard.shortId.placeholder': 'app',
+  'prefs.repos.wizard.defaultBase.title': '기본 기준 브랜치',
+  'prefs.repos.wizard.defaultBase.desc': '새 채팅 브랜치가 여기서 분기됩니다.',
+  'prefs.repos.wizard.color.title': '색상',
+  'prefs.repos.wizard.color.desc': '이 저장소의 슬롯 칩 + 채팅 강조 색상을 지정합니다.',
+  'prefs.repos.wizard.created':
+    '{id}이(가) 생성되었습니다. 이제 {count}개의 슬롯 워크트리{plural}을(를) 초기화합니다 — 각각은 자체 주차 브랜치에 있는 장기 git 워크트리로, 채팅을 호스팅할 준비가 되어 있습니다.',
+  'prefs.repos.wizard.slotPrefix.title': '슬롯 접두사',
+  'prefs.repos.wizard.slotPrefix.desc':
+    '폴더 + 주차 브랜치 접두사입니다. 워크트리는 {prefix}-N이 됩니다. 짧을수록 좋습니다 — 이 접두사는 워크트리 경로, 주차 브랜치, 채팅 헤더의 슬롯 칩에 표시되므로 긴 접두사는 모든 곳에서 화면 공간을 낭비합니다.',
+  'prefs.repos.wizard.slotCount.title': '슬롯 개수',
+  'prefs.repos.wizard.slotCount.desc': '이 저장소가 지원하는 동시 채팅 수입니다. 1–64.',
+  'prefs.repos.wizard.adding': '추가 중…',
+  'prefs.repos.error.duplicateId': 'id "{id}"을(를) 가진 저장소가 이미 존재합니다.',
+  'prefs.repos.error.generic': '저장소를 생성할 수 없습니다.',
+  'prefs.repos.error.notFound': '저장소를 찾을 수 없습니다 — 삭제되었나요?',
+  'prefs.repos.edit.title': '{id} 편집',
+  'prefs.repos.edit.mode.title': '모드',
+  'prefs.repos.edit.mode.desc': '영구적. 모드를 전환하려면 저장소를 삭제 + 재생성하세요.',
+  'prefs.repos.edit.slotPrefix.desc': '영구적 — 폴더 경로와 주차 브랜치에 포함됩니다.',
+  'prefs.repos.edit.repoPath.desc': '영구적. 다른 클론을 가리키려면 삭제 + 재생성하세요.',
+  'prefs.repos.edit.slotCount.desc':
+    '풀 크기입니다. 크기 조정은 워크트리를 한 번에 하나씩 생성하거나 제거합니다 — 슬롯이 열린 채팅에 의해 사용 중이면 거부합니다.',
+  'prefs.repos.edit.resizeSlots': '슬롯 크기 조정…',
+  'prefs.repos.resize.title': '슬롯 크기 조정',
+  'prefs.repos.resize.newCount.title': '새 슬롯 개수',
+  'prefs.repos.resize.newCount.desc':
+    '현재: {count}. 늘리면 더 많은 워크트리를 생성하고, 줄이면 가장 높은 번호의 워크트리 (및 해당 주차 브랜치)를 제거합니다.',
+  'prefs.repos.delete.title': '저장소 삭제',
+  'prefs.repos.delete.about': '{id}을(를) 삭제하려고 합니다.',
+  'prefs.repos.delete.attachedWarning':
+    '채팅 {count}개{plural}이(가) 이 저장소에 연결되어 있습니다. 대화 기록은 데이터베이스에 보존되지만, 같은 id의 저장소가 다시 추가될 때까지 분리됩니다.',
+  'prefs.repos.delete.reversible': '되돌릴 수 있음:',
+  'prefs.repos.delete.reversibleBody':
+    '나중에 id {id}을(를) 가진 새 저장소를 만들면 분리된 모든 채팅이 자동으로 다시 연결됩니다.',
+  'prefs.repos.delete.noTouch':
+    '{path}의 소스 클론이나 그 안의 채팅 브랜치는 건드리지 않습니다. 디스크의 슬롯 워크트리도 그대로 둡니다 — 깨끗한 상태를 원하면 직접 정리할 수 있습니다.',
+  'prefs.repos.delete.typeToConfirm': '확인하려면 {id}을(를) 입력하세요:',
+  'prefs.repos.delete.deleting': '삭제 중…',
+
+  // ---------------------------------------------------------------------------
+  // Language preference pane.
+  // ---------------------------------------------------------------------------
   'language.title': '언어',
   'language.description':
     'PopBot 인터페이스에 사용할 언어를 선택하세요. 대부분의 텍스트와 메뉴는 즉시 업데이트되며, 일부 시스템 문자열은 다시 시작한 후 업데이트가 완료됩니다.',

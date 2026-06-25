@@ -3,6 +3,7 @@ import type { NotificationAction, NotificationRecord } from '@shared/notificatio
 import { NotificationsBell } from './NotificationsBell';
 import { MenuBar } from './MenuBar';
 import { hotkey } from '../lib/hotkeys';
+import { useTranslation } from '../lib/i18n';
 
 /**
  * Custom window controls (minimize / maximize-restore / close) drawn by
@@ -12,6 +13,7 @@ import { hotkey } from '../lib/hotkeys';
  * uses the OS overlay buttons; macOS uses traffic lights.
  */
 function WindowControls(): JSX.Element {
+  const { t } = useTranslation();
   const [maximized, setMaximized] = useState(false);
   useEffect(() => {
     void window.popbot.win.action('is-maximized').then((m) => setMaximized(!!m));
@@ -19,10 +21,10 @@ function WindowControls(): JSX.Element {
   }, []);
   return (
     <div className="win-controls">
-      <button type="button" className="win-ctl" title="Minimize" aria-label="Minimize" onClick={() => void window.popbot.win.action('minimize')}>
+      <button type="button" className="win-ctl" title={t('titlebar.win.minimize')} aria-label={t('titlebar.win.minimize')} onClick={() => void window.popbot.win.action('minimize')}>
         <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden><rect x="0" y="4.5" width="10" height="1" fill="currentColor" /></svg>
       </button>
-      <button type="button" className="win-ctl" title={maximized ? 'Restore' : 'Maximize'} aria-label={maximized ? 'Restore' : 'Maximize'} onClick={() => void window.popbot.win.action('maximize-toggle')}>
+      <button type="button" className="win-ctl" title={maximized ? t('titlebar.win.restore') : t('titlebar.win.maximize')} aria-label={maximized ? t('titlebar.win.restore') : t('titlebar.win.maximize')} onClick={() => void window.popbot.win.action('maximize-toggle')}>
         {maximized ? (
           <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden>
             <rect x="0.5" y="2.5" width="6" height="6" fill="none" stroke="currentColor" strokeWidth="1" />
@@ -32,7 +34,7 @@ function WindowControls(): JSX.Element {
           <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden><rect x="0.5" y="0.5" width="9" height="9" fill="none" stroke="currentColor" strokeWidth="1" /></svg>
         )}
       </button>
-      <button type="button" className="win-ctl win-ctl-close" title="Close" aria-label="Close" onClick={() => void window.popbot.win.action('close')}>
+      <button type="button" className="win-ctl win-ctl-close" title={t('titlebar.win.close')} aria-label={t('titlebar.win.close')} onClick={() => void window.popbot.win.action('close')}>
         <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden><path d="M0.5 0.5 L9.5 9.5 M9.5 0.5 L0.5 9.5" stroke="currentColor" strokeWidth="1.1" /></svg>
       </button>
     </div>
@@ -77,6 +79,7 @@ export function Titlebar({
   onNotificationAction,
   centerFly,
 }: TitlebarProps): JSX.Element {
+  const { t } = useTranslation();
   // Windows AND Linux draw our custom in-app menu bar (both run frameless
   // with the native menu hidden). macOS keeps its system menu bar +
   // traffic lights. Linux additionally needs app-drawn window controls
@@ -88,12 +91,12 @@ export function Titlebar({
   const rightButtons = (
     <div className="right">
       {driftActive && (
-        <button className="notify-err" title="Drift detected" onClick={() => onOpenModal('drift')}>
+        <button className="notify-err" title={t('titlebar.driftTitle')} onClick={() => onOpenModal('drift')}>
           <i className="fa-solid fa-triangle-exclamation" />
         </button>
       )}
       {dialupActive && (
-        <button className="notify-warn" title="Capacity needed" onClick={() => onOpenModal('dialup')}>
+        <button className="notify-warn" title={t('titlebar.capacityTitle')} onClick={() => onOpenModal('dialup')}>
           <i className="fa-solid fa-arrow-up-right-from-square" />
         </button>
       )}
@@ -103,14 +106,14 @@ export function Titlebar({
       />
       {onToggleGitPanel && (
         <button
-          title={gitPanelOpen ? 'Hide git panel' : 'Show git panel'}
+          title={gitPanelOpen ? t('titlebar.hideGitPanel') : t('titlebar.showGitPanel')}
           onClick={onToggleGitPanel}
           className={gitPanelOpen ? 'titlebar-btn-active' : ''}
         >
           <i className="fa-solid fa-code-branch" />
         </button>
       )}
-      <button title={`Preferences ${hotkey(',')}`} onClick={onOpenPrefs}>
+      <button title={t('titlebar.preferencesTitle', { shortcut: hotkey(',') })} onClick={onOpenPrefs}>
         <i className="fa-solid fa-gear" />
       </button>
     </div>

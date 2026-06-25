@@ -3,23 +3,25 @@ import { colAccentStyle } from '../lib/repoColor';
 import type { ChatRecord } from '@shared/persistence';
 import { tokenBarClass, tokenBarPct, type Chat } from '../fixtures/data';
 import { SlotStatusStrip } from './SlotStatusStrip';
+import { useTranslation } from '../lib/i18n';
 
 /** Tiny kind chip — at-a-glance "what kind of chat is this?" Goes
  *  before the branch in the row's meta-line. */
 function ChatKindChip({ chat }: { chat: Chat }): JSX.Element | null {
+  const { t } = useTranslation();
   if (chat.pr) {
-    return <span className="pill done" title={`Code review · PR #${chat.pr}`}>PR #{chat.pr}</span>;
+    return <span className="pill done" title={t('panelB.kind.prTooltip', { pr: chat.pr })}>{t('panelB.kind.pr', { pr: chat.pr })}</span>;
   }
   if (chat.ticket) {
-    return <span className="pill run" title={`Ticket · ${chat.ticket}`}>TICKET</span>;
+    return <span className="pill run" title={t('panelB.kind.ticketTooltip', { ticket: chat.ticket })}>{t('panelB.kind.ticket')}</span>;
   }
   if (chat.type === 'client_test') {
-    return <span className="pill wait" title="Client test">CLIENT</span>;
+    return <span className="pill wait" title={t('panelB.kind.clientTestTooltip')}>{t('panelB.kind.clientTest')}</span>;
   }
   if (chat.type === 'server_test') {
-    return <span className="pill wait" title="Server test">SERVER</span>;
+    return <span className="pill wait" title={t('panelB.kind.serverTestTooltip')}>{t('panelB.kind.serverTest')}</span>;
   }
-  return <span className="pill muted" title="Plain chat">CHAT</span>;
+  return <span className="pill muted" title={t('panelB.kind.plainTooltip')}>{t('panelB.kind.plain')}</span>;
 }
 
 interface ChatRowProps {
@@ -32,6 +34,7 @@ interface ChatRowProps {
 }
 
 function ChatRow({ chat, focused, inactive, removing, onClick, onDelete }: ChatRowProps): JSX.Element {
+  const { t } = useTranslation();
   const tokens = chat.tokens;
   const tokenPct = tokens ? tokenBarPct(tokens.used) : 0;
   const glyph =
@@ -59,7 +62,7 @@ function ChatRow({ chat, focused, inactive, removing, onClick, onDelete }: ChatR
         <div className="meta-line">
           <ChatKindChip chat={chat} />
           {chat.slotId != null && (
-            <span className="pill muted" title={`Workspace slot ${chat.slotId}`}>
+            <span className="pill muted" title={t('panelB.slotTooltip', { slotId: chat.slotId })}>
               S{chat.slotId}
             </span>
           )}
@@ -76,7 +79,7 @@ function ChatRow({ chat, focused, inactive, removing, onClick, onDelete }: ChatR
       {onDelete && (
         <button
           className="chat-row-delete"
-          title="Delete chat"
+          title={t('panelB.deleteChatTooltip')}
           onClick={(e) => {
             e.stopPropagation();
             onDelete();
@@ -96,16 +99,17 @@ interface DeleteConfirmProps {
 }
 
 function DeleteConfirm({ chat, onConfirm, onCancel }: DeleteConfirmProps): JSX.Element {
+  const { t } = useTranslation();
   return (
     <>
       <div className="scrim" onClick={onCancel} />
       <div className="modal" data-screen-label="Modal · delete-chat">
         <div className="modal-head">
-          <h2>Delete this chat?</h2>
-          <div className="sub">It will be hidden from your lists. The transcript is preserved and can be restored.</div>
+          <h2>{t('panelB.delete.title')}</h2>
+          <div className="sub">{t('panelB.delete.sub')}</div>
         </div>
         <div className="modal-body">
-          You're about to delete:
+          {t('panelB.delete.body')}
           <br /><br />
           <b>{chat.name}</b>
           {chat.branch && chat.branch !== '(no branch)' && (
@@ -116,8 +120,8 @@ function DeleteConfirm({ chat, onConfirm, onCancel }: DeleteConfirmProps): JSX.E
           )}
         </div>
         <div className="modal-foot">
-          <button className="btn ghost" onClick={onCancel}>Cancel</button>
-          <button className="btn danger" onClick={onConfirm}>Delete chat</button>
+          <button className="btn ghost" onClick={onCancel}>{t('common.cancel')}</button>
+          <button className="btn danger" onClick={onConfirm}>{t('panelB.delete.confirm')}</button>
         </div>
       </div>
     </>
@@ -155,6 +159,7 @@ export function PanelB({
   onSetupSlots,
   toFixture,
 }: PanelBProps): JSX.Element {
+  const { t } = useTranslation();
   const [openActive, setOpenActive] = useState(true);
   const [openInactive, setOpenInactive] = useState(true);
   const [inactiveLimit, setInactiveLimit] = useState(25);
@@ -220,7 +225,7 @@ export function PanelB({
         <i className="fa-solid fa-magnifying-glass" />
         <input
           type="text"
-          placeholder="Search chats…"
+          placeholder={t('panelB.searchPlaceholder')}
           value={query}
           onChange={(e) => setQuery(e.target.value)}
         />
@@ -228,7 +233,7 @@ export function PanelB({
           <button
             className="panel-b-search-clear"
             onClick={() => setQuery('')}
-            title="Clear search"
+            title={t('panelB.clearSearchTooltip')}
           >
             ×
           </button>
@@ -240,13 +245,13 @@ export function PanelB({
         <div className="list-section">
           <div className="list-section-head">
             <span className="caret">▼</span>
-            Results
+            {t('panelB.results')}
             <span className="count">{searchResults.length}</span>
           </div>
           <div className="list-section-body">
             {searchResults.length === 0 ? (
               <div className="empty">
-                <div>No matches.</div>
+                <div>{t('panelB.noMatches')}</div>
               </div>
             ) : (
               searchResults.map((c) => {
@@ -271,7 +276,7 @@ export function PanelB({
         <div className={`list-section ${openActive ? '' : 'collapsed'}`}>
           <div className="list-section-head" onClick={() => setOpenActive((v) => !v)}>
             <span className="caret">▼</span>
-            Active
+            {t('panelB.active')}
             <span className="count">{chats.length}</span>
           </div>
           <div className="list-section-body">
@@ -288,8 +293,8 @@ export function PanelB({
             {chats.length === 0 && (
               <div className="empty">
                 <div className="ico">○</div>
-                <div>No active chats.</div>
-                <button className="btn primary sm" onClick={onNewChat}>+ New chat</button>
+                <div>{t('panelB.noActiveChats')}</div>
+                <button className="btn primary sm" onClick={onNewChat}>{t('panelB.newChat')}</button>
               </div>
             )}
           </div>
@@ -299,7 +304,7 @@ export function PanelB({
         <div className={`list-section ${openInactive ? '' : 'collapsed'}`}>
           <div className="list-section-head" onClick={() => setOpenInactive((v) => !v)}>
             <span className="caret">▼</span>
-            Inactive
+            {t('panelB.inactive')}
             <span className="count">{inactive.length}</span>
           </div>
           <div className="list-section-body">
@@ -318,7 +323,7 @@ export function PanelB({
                 className="show-more"
                 onClick={() => setInactiveLimit((n) => n + 25)}
               >
-                Show {Math.min(25, inactive.length - inactiveLimit)} more
+                {t('panelB.showMore', { count: Math.min(25, inactive.length - inactiveLimit) })}
               </button>
             )}
           </div>
