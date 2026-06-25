@@ -848,6 +848,26 @@ export const ptBR = {
   'prefs.integ.linear.error.generic': 'Erro do Linear: {error}',
   'prefs.integ.linear.verifying': 'Verificando…',
 
+  // Preferences — Integrations: Jira.
+  'prefs.integ.jira.siteUrl.title': 'URL do site',
+  'prefs.integ.jira.siteUrl.desc': 'A URL base do seu Jira Cloud, ex.:',
+  'prefs.integ.jira.email.title': 'E-mail da conta',
+  'prefs.integ.jira.email.desc': 'A conta Atlassian à qual o token de API pertence.',
+  'prefs.integ.jira.apiToken.title': 'Token de API',
+  'prefs.integ.jira.apiToken.desc': 'Armazenado localmente no banco de dados deste aplicativo.',
+  'prefs.integ.jira.getToken': 'Obter um token →',
+  'prefs.integ.jira.project.title': 'Projeto',
+  'prefs.integ.jira.project.desc': 'Opcional — restringe a lista de tickets a um único projeto.',
+  'prefs.integ.jira.allProjects': 'Todos os projetos',
+  'prefs.integ.jira.jql.title': 'Filtro JQL',
+  'prefs.integ.jira.jql.desc': 'Opcional — JQL adicional combinado com AND nas consultas de tickets, ex.:',
+  'prefs.integ.jira.connectedAs': 'Conectado como {email}',
+  'prefs.integ.jira.connected': 'Conectado',
+  'prefs.integ.jira.notConnected': 'Não conectado',
+  'prefs.integ.jira.error.auth': 'O Jira rejeitou estas credenciais.',
+  'prefs.integ.jira.error.generic': 'Erro do Jira: {error}',
+  'prefs.integ.jira.verifying': 'Verificando…',
+
   // Preferences — Integrations: shared status labels.
   'prefs.integ.enabled': 'Ativado',
   'prefs.integ.pollingOn': 'Consulta ativada',

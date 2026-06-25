@@ -848,6 +848,26 @@ export const fr = {
   'prefs.integ.linear.error.generic': 'Erreur Linear : {error}',
   'prefs.integ.linear.verifying': 'Vérification…',
 
+  // Preferences — Integrations: Jira.
+  'prefs.integ.jira.siteUrl.title': 'URL du site',
+  'prefs.integ.jira.siteUrl.desc': 'L’URL de base de votre Jira Cloud, ex.',
+  'prefs.integ.jira.email.title': 'E-mail du compte',
+  'prefs.integ.jira.email.desc': 'Le compte Atlassian auquel appartient le jeton d’API.',
+  'prefs.integ.jira.apiToken.title': 'Jeton d’API',
+  'prefs.integ.jira.apiToken.desc': 'Stocké localement dans la base de données de cette application.',
+  'prefs.integ.jira.getToken': 'Obtenir un jeton →',
+  'prefs.integ.jira.project.title': 'Projet',
+  'prefs.integ.jira.project.desc': 'Facultatif — restreindre la liste des tickets à un seul projet.',
+  'prefs.integ.jira.allProjects': 'Tous les projets',
+  'prefs.integ.jira.jql.title': 'Filtre JQL',
+  'prefs.integ.jira.jql.desc': 'Facultatif — JQL supplémentaire combiné par AND aux requêtes de tickets, ex.',
+  'prefs.integ.jira.connectedAs': 'Connecté en tant que {email}',
+  'prefs.integ.jira.connected': 'Connecté',
+  'prefs.integ.jira.notConnected': 'Non connecté',
+  'prefs.integ.jira.error.auth': 'Jira a rejeté ces identifiants.',
+  'prefs.integ.jira.error.generic': 'Erreur Jira : {error}',
+  'prefs.integ.jira.verifying': 'Vérification…',
+
   // Preferences — Integrations: shared status labels.
   'prefs.integ.enabled': 'Activé',
   'prefs.integ.pollingOn': 'Interrogation activée',

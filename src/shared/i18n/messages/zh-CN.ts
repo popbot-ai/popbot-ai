@@ -848,6 +848,26 @@ export const zhCN = {
   'prefs.integ.linear.error.generic': 'Linear 错误：{error}',
   'prefs.integ.linear.verifying': '正在验证…',
 
+  // Preferences — Integrations: Jira.
+  'prefs.integ.jira.siteUrl.title': '站点 URL',
+  'prefs.integ.jira.siteUrl.desc': '你的 Jira Cloud 基础 URL，例如',
+  'prefs.integ.jira.email.title': '账户邮箱',
+  'prefs.integ.jira.email.desc': 'API 令牌所属的 Atlassian 账户。',
+  'prefs.integ.jira.apiToken.title': 'API 令牌',
+  'prefs.integ.jira.apiToken.desc': '本地存储在此应用的数据库中。',
+  'prefs.integ.jira.getToken': '获取令牌 →',
+  'prefs.integ.jira.project.title': '项目',
+  'prefs.integ.jira.project.desc': '可选 — 将工单列表缩小到单个项目。',
+  'prefs.integ.jira.allProjects': '所有项目',
+  'prefs.integ.jira.jql.title': 'JQL 筛选器',
+  'prefs.integ.jira.jql.desc': '可选 — 通过 AND 附加到工单查询的额外 JQL，例如',
+  'prefs.integ.jira.connectedAs': '已连接为 {email}',
+  'prefs.integ.jira.connected': '已连接',
+  'prefs.integ.jira.notConnected': '未连接',
+  'prefs.integ.jira.error.auth': 'Jira 拒绝了这些凭据。',
+  'prefs.integ.jira.error.generic': 'Jira 错误：{error}',
+  'prefs.integ.jira.verifying': '正在验证…',
+
   // Preferences — Integrations: shared status labels.
   'prefs.integ.enabled': '已启用',
   'prefs.integ.pollingOn': '轮询已开启',

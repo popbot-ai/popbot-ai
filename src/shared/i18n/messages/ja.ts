@@ -848,6 +848,26 @@ export const ja = {
   'prefs.integ.linear.error.generic': 'Linear エラー: {error}',
   'prefs.integ.linear.verifying': '検証中…',
 
+  // Preferences — Integrations: Jira.
+  'prefs.integ.jira.siteUrl.title': 'サイト URL',
+  'prefs.integ.jira.siteUrl.desc': 'Jira Cloud のベース URL。例:',
+  'prefs.integ.jira.email.title': 'アカウントのメールアドレス',
+  'prefs.integ.jira.email.desc': 'API トークンが属する Atlassian アカウント。',
+  'prefs.integ.jira.apiToken.title': 'API トークン',
+  'prefs.integ.jira.apiToken.desc': 'このアプリのデータベースにローカルで保存されます。',
+  'prefs.integ.jira.getToken': 'トークンを取得 →',
+  'prefs.integ.jira.project.title': 'プロジェクト',
+  'prefs.integ.jira.project.desc': 'オプション — チケットリストを1つのプロジェクトに絞り込みます。',
+  'prefs.integ.jira.allProjects': 'すべてのプロジェクト',
+  'prefs.integ.jira.jql.title': 'JQL フィルター',
+  'prefs.integ.jira.jql.desc': 'オプション — チケットクエリに AND で追加される JQL。例:',
+  'prefs.integ.jira.connectedAs': '{email} として接続済み',
+  'prefs.integ.jira.connected': '接続済み',
+  'prefs.integ.jira.notConnected': '未接続',
+  'prefs.integ.jira.error.auth': 'Jira がこの認証情報を拒否しました。',
+  'prefs.integ.jira.error.generic': 'Jira エラー: {error}',
+  'prefs.integ.jira.verifying': '検証中…',
+
   // Preferences — Integrations: shared status labels.
   'prefs.integ.enabled': '有効',
   'prefs.integ.pollingOn': 'ポーリング中',

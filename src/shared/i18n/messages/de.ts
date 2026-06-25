@@ -848,6 +848,26 @@ export const de = {
   'prefs.integ.linear.error.generic': 'Linear-Fehler: {error}',
   'prefs.integ.linear.verifying': 'Wird überprüft…',
 
+  // Preferences — Integrations: Jira.
+  'prefs.integ.jira.siteUrl.title': 'Site-URL',
+  'prefs.integ.jira.siteUrl.desc': 'Die Basis-URL deiner Jira Cloud, z. B.',
+  'prefs.integ.jira.email.title': 'Konto-E-Mail',
+  'prefs.integ.jira.email.desc': 'Das Atlassian-Konto, zu dem das API-Token gehört.',
+  'prefs.integ.jira.apiToken.title': 'API-Token',
+  'prefs.integ.jira.apiToken.desc': 'Lokal in der Datenbank dieser App gespeichert.',
+  'prefs.integ.jira.getToken': 'Token holen →',
+  'prefs.integ.jira.project.title': 'Projekt',
+  'prefs.integ.jira.project.desc': 'Optional — die Ticketliste auf ein einzelnes Projekt eingrenzen.',
+  'prefs.integ.jira.allProjects': 'Alle Projekte',
+  'prefs.integ.jira.jql.title': 'JQL-Filter',
+  'prefs.integ.jira.jql.desc': 'Optional — zusätzliches JQL, das per AND mit den Ticket-Abfragen verknüpft wird, z. B.',
+  'prefs.integ.jira.connectedAs': 'Verbunden als {email}',
+  'prefs.integ.jira.connected': 'Verbunden',
+  'prefs.integ.jira.notConnected': 'Nicht verbunden',
+  'prefs.integ.jira.error.auth': 'Jira hat diese Anmeldedaten abgelehnt.',
+  'prefs.integ.jira.error.generic': 'Jira-Fehler: {error}',
+  'prefs.integ.jira.verifying': 'Wird überprüft…',
+
   // Preferences — Integrations: shared status labels.
   'prefs.integ.enabled': 'Aktiviert',
   'prefs.integ.pollingOn': 'Abruf an',

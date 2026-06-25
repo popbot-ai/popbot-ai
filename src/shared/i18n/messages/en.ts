@@ -860,6 +860,26 @@ export const en = {
   'prefs.integ.linear.error.generic': 'Linear error: {error}',
   'prefs.integ.linear.verifying': 'Verifying…',
 
+  // Preferences — Integrations: Jira.
+  'prefs.integ.jira.siteUrl.title': 'Site URL',
+  'prefs.integ.jira.siteUrl.desc': 'Your Jira Cloud base URL, e.g.',
+  'prefs.integ.jira.email.title': 'Account email',
+  'prefs.integ.jira.email.desc': 'The Atlassian account the API token belongs to.',
+  'prefs.integ.jira.apiToken.title': 'API token',
+  'prefs.integ.jira.apiToken.desc': 'Stored locally in this app’s database.',
+  'prefs.integ.jira.getToken': 'Get a token →',
+  'prefs.integ.jira.project.title': 'Project',
+  'prefs.integ.jira.project.desc': 'Optional — narrow the ticket list to a single project.',
+  'prefs.integ.jira.allProjects': 'All projects',
+  'prefs.integ.jira.jql.title': 'JQL filter',
+  'prefs.integ.jira.jql.desc': 'Optional — extra JQL ANDed into the ticket queries, e.g.',
+  'prefs.integ.jira.connectedAs': 'Connected as {email}',
+  'prefs.integ.jira.connected': 'Connected',
+  'prefs.integ.jira.notConnected': 'Not connected',
+  'prefs.integ.jira.error.auth': 'Jira rejected these credentials.',
+  'prefs.integ.jira.error.generic': 'Jira error: {error}',
+  'prefs.integ.jira.verifying': 'Verifying…',
+
   // Preferences — Integrations: shared status labels.
   'prefs.integ.enabled': 'Enabled',
   'prefs.integ.pollingOn': 'Polling on',

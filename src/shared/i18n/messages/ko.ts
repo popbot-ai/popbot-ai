@@ -848,6 +848,26 @@ export const ko = {
   'prefs.integ.linear.error.generic': 'Linear 오류: {error}',
   'prefs.integ.linear.verifying': '확인 중…',
 
+  // Preferences — Integrations: Jira.
+  'prefs.integ.jira.siteUrl.title': '사이트 URL',
+  'prefs.integ.jira.siteUrl.desc': 'Jira Cloud 기본 URL입니다. 예:',
+  'prefs.integ.jira.email.title': '계정 이메일',
+  'prefs.integ.jira.email.desc': 'API 토큰이 속한 Atlassian 계정입니다.',
+  'prefs.integ.jira.apiToken.title': 'API 토큰',
+  'prefs.integ.jira.apiToken.desc': '이 앱의 데이터베이스에 로컬로 저장됩니다.',
+  'prefs.integ.jira.getToken': '토큰 받기 →',
+  'prefs.integ.jira.project.title': '프로젝트',
+  'prefs.integ.jira.project.desc': '선택 사항 — 티켓 목록을 단일 프로젝트로 좁힙니다.',
+  'prefs.integ.jira.allProjects': '모든 프로젝트',
+  'prefs.integ.jira.jql.title': 'JQL 필터',
+  'prefs.integ.jira.jql.desc': '선택 사항 — 티켓 쿼리에 AND로 추가되는 JQL입니다. 예:',
+  'prefs.integ.jira.connectedAs': '{email}(으)로 연결됨',
+  'prefs.integ.jira.connected': '연결됨',
+  'prefs.integ.jira.notConnected': '연결되지 않음',
+  'prefs.integ.jira.error.auth': 'Jira가 이 자격 증명을 거부했습니다.',
+  'prefs.integ.jira.error.generic': 'Jira 오류: {error}',
+  'prefs.integ.jira.verifying': '확인 중…',
+
   // Preferences — Integrations: shared status labels.
   'prefs.integ.enabled': '활성화됨',
   'prefs.integ.pollingOn': '폴링 켜짐',

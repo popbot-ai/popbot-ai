@@ -1556,6 +1556,7 @@ function JiraForm({
   onSave: (next: JiraSettings) => Promise<void>;
   onDisconnect: () => Promise<void>;
 }): JSX.Element {
+  const { t } = useTranslation();
   const [baseUrl, setBaseUrl] = useState(initial.baseUrl ?? '');
   const [email, setEmail] = useState(initial.email ?? '');
   const [apiToken, setApiToken] = useState(initial.apiToken ?? '');
@@ -1618,15 +1619,19 @@ function JiraForm({
       if (!result.ok) {
         setError(
           result.error === 'auth'
-            ? 'Jira rejected these credentials.'
-            : `Jira error: ${result.error}`,
+            ? t('prefs.integ.jira.error.auth')
+            : t('prefs.integ.jira.error.generic', { error: result.error }),
         );
         return;
       }
       await onSave(draft());
       setSavedAs({ email: result.email, name: result.name });
     } catch (err) {
-      setError(`Jira error: ${err instanceof Error ? err.message : String(err)}`);
+      setError(
+        t('prefs.integ.jira.error.generic', {
+          error: err instanceof Error ? err.message : String(err),
+        }),
+      );
     } finally {
       setSaving(false);
     }
@@ -1638,9 +1643,10 @@ function JiraForm({
     <div className="pref-rows">
       <div className="pref-row">
         <div className="pref-label">
-          <div className="pref-label-title">Site URL</div>
+          <div className="pref-label-title">{t('prefs.integ.jira.siteUrl.title')}</div>
           <div className="pref-label-desc">
-            Your Jira Cloud base URL, e.g. <span className="mono">https://your-domain.atlassian.net</span>.
+            {t('prefs.integ.jira.siteUrl.desc')}{' '}
+            <span className="mono">https://your-domain.atlassian.net</span>.
           </div>
         </div>
         <div className="pref-control" style={{ flex: 1, minWidth: 280 }}>
@@ -1655,8 +1661,8 @@ function JiraForm({
       </div>
       <div className="pref-row">
         <div className="pref-label">
-          <div className="pref-label-title">Account email</div>
-          <div className="pref-label-desc">The Atlassian account the API token belongs to.</div>
+          <div className="pref-label-title">{t('prefs.integ.jira.email.title')}</div>
+          <div className="pref-label-desc">{t('prefs.integ.jira.email.desc')}</div>
         </div>
         <div className="pref-control" style={{ flex: 1, minWidth: 280 }}>
           <input
@@ -1670,9 +1676,9 @@ function JiraForm({
       </div>
       <div className="pref-row">
         <div className="pref-label">
-          <div className="pref-label-title">API token</div>
+          <div className="pref-label-title">{t('prefs.integ.jira.apiToken.title')}</div>
           <div className="pref-label-desc">
-            Stored locally in this app's database.{' '}
+            {t('prefs.integ.jira.apiToken.desc')}{' '}
             <a
               href="https://id.atlassian.com/manage-profile/security/api-tokens"
               onClick={(e) => {
@@ -1681,7 +1687,7 @@ function JiraForm({
               }}
               style={{ color: 'var(--acc)', cursor: 'pointer' }}
             >
-              Get a token →
+              {t('prefs.integ.jira.getToken')}
             </a>
           </div>
         </div>
@@ -1698,10 +1704,10 @@ function JiraForm({
       </div>
       <div className="pref-row">
         <div className="pref-label">
-          <div className="pref-label-title">Project</div>
+          <div className="pref-label-title">{t('prefs.integ.jira.project.title')}</div>
           <div className="pref-label-desc">
-            Optional — narrow the ticket list to a single project.
-            {projectsLoading && <span style={{ marginLeft: 6, color: 'var(--fg-3)' }}>Loading…</span>}
+            {t('prefs.integ.jira.project.desc')}
+            {projectsLoading && <span style={{ marginLeft: 6, color: 'var(--fg-3)' }}>{t('common.loading')}</span>}
           </div>
         </div>
         <div className="pref-control" style={{ flex: 1, minWidth: 240 }}>
@@ -1712,7 +1718,7 @@ function JiraForm({
             disabled={!ready || projectsLoading}
             style={{ width: '100%' }}
           >
-            <option value="">All projects</option>
+            <option value="">{t('prefs.integ.jira.allProjects')}</option>
             {projects.map((p) => (
               <option key={p.id} value={p.id}>
                 {p.name} ({p.id})
@@ -1723,9 +1729,9 @@ function JiraForm({
       </div>
       <div className="pref-row">
         <div className="pref-label">
-          <div className="pref-label-title">JQL filter</div>
+          <div className="pref-label-title">{t('prefs.integ.jira.jql.title')}</div>
           <div className="pref-label-desc">
-            Optional — extra JQL ANDed into the ticket queries, e.g.{' '}
+            {t('prefs.integ.jira.jql.desc')}{' '}
             <span className="mono">labels = backend</span>.
           </div>
         </div>
@@ -1741,25 +1747,25 @@ function JiraForm({
       </div>
       <div className="pref-row">
         <div className="pref-label">
-          <div className="pref-label-title">Status</div>
+          <div className="pref-label-title">{t('common.status')}</div>
           <div className="pref-label-desc">
             {error ? (
               <span className="pill err"><i className="fa-solid fa-circle-xmark" /> {error}</span>
             ) : savedAs ? (
               <span className="pill done">
-                <i className="fa-solid fa-circle-check" /> Connected as {savedAs.email}
+                <i className="fa-solid fa-circle-check" /> {t('prefs.integ.jira.connectedAs', { email: savedAs.email })}
               </span>
             ) : wasConnected ? (
-              <span className="pill done"><i className="fa-solid fa-circle-check" /> Connected</span>
+              <span className="pill done"><i className="fa-solid fa-circle-check" /> {t('prefs.integ.jira.connected')}</span>
             ) : (
-              <span className="pill muted"><i className="fa-regular fa-circle" /> Not connected</span>
+              <span className="pill muted"><i className="fa-regular fa-circle" /> {t('prefs.integ.jira.notConnected')}</span>
             )}
           </div>
         </div>
         <div className="pref-control" style={{ display: 'flex', gap: 8 }}>
           {wasConnected && (
             <button className="btn ghost sm" disabled={saving} onClick={() => void onDisconnect()}>
-              Disconnect
+              {t('common.disconnect')}
             </button>
           )}
           <button
@@ -1767,7 +1773,7 @@ function JiraForm({
             disabled={!ready || saving}
             onClick={() => void save()}
           >
-            {saving ? 'Verifying…' : 'Save'}
+            {saving ? t('prefs.integ.jira.verifying') : t('common.save')}
           </button>
         </div>
       </div>
