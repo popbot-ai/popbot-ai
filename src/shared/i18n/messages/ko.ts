@@ -56,7 +56,7 @@ export const ko = {
 
   'language.title': '언어',
   'language.description':
-    'PopBot 인터페이스에 사용할 언어를 선택하세요. 일부 텍스트는 즉시 업데이트되며, 메뉴와 일부 시스템 문자열은 다시 시작한 후 업데이트가 완료됩니다.',
+    'PopBot 인터페이스에 사용할 언어를 선택하세요. 대부분의 텍스트와 메뉴는 즉시 업데이트되며, 일부 시스템 문자열은 다시 시작한 후 업데이트가 완료됩니다.',
   'language.label': '표시 언어',
   'language.systemNote': '새 창과 앱 메뉴에도 이 언어가 적용됩니다.',
 } satisfies PartialMessages;

@@ -56,7 +56,7 @@ export const ja = {
 
   'language.title': '言語',
   'language.description':
-    'PopBot のインターフェイスで使用する言語を選択します。一部のテキストはすぐに更新されますが、メニューや一部のシステム文字列は再起動後に更新が完了します。',
+    'PopBot のインターフェイスで使用する言語を選択します。ほとんどのテキストとメニューはすぐに更新されますが、一部のシステム文字列は再起動後に更新が完了します。',
   'language.label': '表示言語',
   'language.systemNote': '新しいウィンドウとアプリメニューもこの言語を使用します。',
 } satisfies PartialMessages;

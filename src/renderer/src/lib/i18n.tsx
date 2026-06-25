@@ -4,6 +4,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from 'react';
@@ -42,11 +43,16 @@ export function I18nProvider({ children }: { children: ReactNode }): JSX.Element
     resolveLocale(typeof navigator !== 'undefined' ? navigator.language : DEFAULT_LOCALE),
   );
 
+  // Tracks whether the locale has been set by the user (via setLocale).
+  // Once that's happened, the async mount hydration must not clobber it
+  // even if the persisted-value read resolves later with the old value.
+  const userSetRef = useRef(false);
+
   // Hydrate from the persisted setting once on mount.
   useEffect(() => {
     let cancelled = false;
     void window.popbot.settings.get<string>(LOCALE_SETTING_KEY).then((saved) => {
-      if (cancelled || saved == null) return;
+      if (cancelled || userSetRef.current || saved == null) return;
       setLocaleState(resolveLocale(saved));
     });
     return () => {
@@ -61,6 +67,7 @@ export function I18nProvider({ children }: { children: ReactNode }): JSX.Element
 
   const setLocale = useCallback((next: Locale) => {
     const resolved = resolveLocale(next);
+    userSetRef.current = true;
     setLocaleState(resolved);
     void window.popbot.settings.set(LOCALE_SETTING_KEY, resolved);
     // Rebuild the native app menu (macOS app menu / non-mac File menu)

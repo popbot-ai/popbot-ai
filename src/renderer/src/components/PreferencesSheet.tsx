@@ -100,6 +100,7 @@ function PrefsLanguage(): JSX.Element {
           <div className="pref-control">
             <select
               className="pref-input"
+              aria-label={t('language.label')}
               value={locale}
               onChange={(e) => setLocale(e.target.value as Locale)}
               style={{ width: 220 }}

@@ -56,7 +56,7 @@ export const es = {
 
   'language.title': 'Idioma',
   'language.description':
-    'Elige el idioma que PopBot usa para su interfaz. Algunos textos se actualizan al instante; los menús y algunas cadenas del sistema terminan de actualizarse tras reiniciar.',
+    'Elige el idioma que PopBot usa para su interfaz. La mayoría de los textos y los menús se actualizan al instante; algunas cadenas del sistema terminan de actualizarse tras reiniciar.',
   'language.label': 'Idioma de la interfaz',
   'language.systemNote': 'Las ventanas nuevas y el menú de la aplicación también usan este idioma.',
 } satisfies PartialMessages;

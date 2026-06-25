@@ -56,7 +56,7 @@ export const ptBR = {
 
   'language.title': 'Idioma',
   'language.description':
-    'Escolha o idioma que o PopBot usa na interface. Alguns textos são atualizados imediatamente; menus e algumas mensagens do sistema terminam de atualizar após reiniciar.',
+    'Escolha o idioma que o PopBot usa na interface. A maioria dos textos e os menus são atualizados imediatamente; algumas mensagens do sistema terminam de atualizar após reiniciar.',
   'language.label': 'Idioma de exibição',
   'language.systemNote': 'Novas janelas e o menu do aplicativo também usam este idioma.',
 } satisfies PartialMessages;

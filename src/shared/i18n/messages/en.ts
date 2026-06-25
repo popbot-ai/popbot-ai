@@ -73,7 +73,7 @@ export const en = {
   // Language preference pane.
   'language.title': 'Language',
   'language.description':
-    'Choose the language PopBot uses for its interface. Some text updates immediately; menus and a few system strings finish updating after a restart.',
+    'Choose the language PopBot uses for its interface. Most text and the menus update right away; a few system strings finish updating after a restart.',
   'language.label': 'Display language',
   'language.systemNote': 'New windows and the app menu use this language too.',
 } as const;

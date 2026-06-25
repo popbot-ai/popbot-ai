@@ -56,7 +56,7 @@ export const zhCN = {
 
   'language.title': '语言',
   'language.description':
-    '选择 PopBot 界面使用的语言。部分文本会立即更新；菜单和少量系统文本将在重启后完成更新。',
+    '选择 PopBot 界面使用的语言。大多数文本和菜单会立即更新；少量系统文本将在重启后完成更新。',
   'language.label': '显示语言',
   'language.systemNote': '新窗口和应用菜单也会使用此语言。',
 } satisfies PartialMessages;
