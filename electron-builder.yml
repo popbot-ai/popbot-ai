@@ -72,6 +72,11 @@ linux:
   # electron-builder derives the Linux icon set from build/icon.png
   # (1024x1024) automatically — no platform-specific icon needed.
 deb:
+  # Force chrome-sandbox setuid-root (like Chrome's .deb). Replaces
+  # electron-builder's default postinst, which mis-detects the sandbox
+  # mode on Ubuntu 24.04+ and leaves the app aborting on launch with
+  # "SUID sandbox helper … not configured correctly". See the script.
+  afterInstall: build/deb-after-install.sh
   # Modern Ubuntu (24.04/26) runtime deps. The t64 names are the 64-bit
   # time_t packages; the "| old-name" alternatives keep it installable on
   # 22.04. electron-builder's default depends list references packages
