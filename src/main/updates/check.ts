@@ -16,10 +16,10 @@ import type { UpdateCheckResult } from '@shared/updates';
 
 /** Stable-channel version pointer, e.g. {"version":"0.0.19"}. */
 const STABLE_VERSION_URL = 'https://download.popbot.app/stable/version.json';
-/** Where to send users for a manual download. Points at the R2 download
- *  host directly for now; switch to the website's download page once it's
- *  repointed at R2. */
-const DOWNLOAD_PAGE = 'https://download.popbot.app/stable/';
+/** Where to send users for a manual download — the website's download
+ *  page, which auto-detects the visitor's OS and serves the right
+ *  installer (.dmg / .exe / .deb). */
+const DOWNLOAD_PAGE = 'https://popbot.app/';
 
 function parseSemver(s: string): [number, number, number] | null {
   const m = /^(\d+)\.(\d+)\.(\d+)/.exec(s);
