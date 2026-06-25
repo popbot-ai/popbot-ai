@@ -1,0 +1,12 @@
+{
+  // Serves the popbot.app marketing site as a Cloudflare static-assets
+  // Worker. This config lives inside site/ (not the repo root) so the
+  // Worker's build runs here and never touches the Electron app's
+  // package.json — set the Worker's Build → Root directory to "site".
+  // `name` must match the Worker in the dashboard.
+  "name": "popbot-site",
+  "compatibility_date": "2026-06-22",
+  "assets": {
+    "directory": "./"
+  }
+}
