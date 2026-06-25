@@ -54,9 +54,11 @@
         <span class="hero-pill"><i class="fa-solid fa-fire"></i> Warm worktree slots</span>
       </div>
       <div class="hero-actions">
-        <a id="dl-main" class="btn btn-primary btn-lg" style="min-width:300px;justify-content:center" href="https://download.popbot.app/stable/" rel="noopener"><i class="fa-solid fa-download"></i> Download for your platform</a>
+        <a id="dl-main" class="btn btn-primary btn-lg" style="min-width:260px;justify-content:center" href="https://download.popbot.app/stable/" rel="noopener"><i class="fa-solid fa-download"></i> Download for your platform</a>
+        <a id="dl-alt1" class="btn btn-ghost btn-lg" href="https://download.popbot.app/stable/" rel="noopener"><i class="fa-brands fa-windows"></i> Windows</a>
+        <a id="dl-alt2" class="btn btn-ghost btn-lg" href="https://download.popbot.app/stable/" rel="noopener"><i class="fa-brands fa-linux"></i> Linux</a>
       </div>
-      <div style="opacity:.72;font-size:13.5px;margin-top:13px">Also for <a id="dl-alt1" href="https://download.popbot.app/stable/" style="color:inherit;text-decoration:underline">Windows</a> &amp; <a id="dl-alt2" href="https://download.popbot.app/stable/" style="color:inherit;text-decoration:underline">Linux</a> · signed &amp; notarized · <a href="#features" style="color:inherit;text-decoration:underline">see how it works</a>.</div>
+      <div style="opacity:.72;font-size:13.5px;margin-top:13px">Latest <strong data-version>…</strong> · signed &amp; notarized · <a href="#features" style="color:inherit;text-decoration:underline">see how it works</a>.</div>
     </div>
 
     <!-- floating UI slice -->
@@ -459,9 +461,9 @@
    point the primary button at their installer (others become small links). */
 (function(){
   var P={
-    mac:  {name:'macOS',   file:function(v){return 'PopBot-'+v+'-mac-arm64.dmg';}},
-    win:  {name:'Windows', file:function(v){return 'PopBot-'+v+'-win-x64.exe';}},
-    linux:{name:'Linux',   file:function(v){return 'PopBot-'+v+'-linux-x86_64.AppImage';}}
+    mac:  {name:'macOS',   icon:'fa-brands fa-apple',   file:function(v){return 'PopBot-'+v+'-mac-arm64.dmg';}},
+    win:  {name:'Windows', icon:'fa-brands fa-windows', file:function(v){return 'PopBot-'+v+'-win-x64.exe';}},
+    linux:{name:'Linux',   icon:'fa-brands fa-linux',   file:function(v){return 'PopBot-'+v+'-linux-x86_64.AppImage';}}
   };
   function detect(){
     var s=((navigator.userAgentData&&navigator.userAgentData.platform)||navigator.platform||navigator.userAgent||'').toLowerCase();
@@ -483,9 +485,9 @@
       }
       var alts=['mac','win','linux'].filter(function(k){return k!==cur;});
       [['dl-alt1',alts[0]],['dl-alt2',alts[1]]].forEach(function(pair){
-        var a=document.getElementById(pair[0]); if(!a) return;
-        a.href=base+P[pair[1]].file(v);
-        a.textContent=P[pair[1]].name;
+        var a=document.getElementById(pair[0]), k=pair[1]; if(!a) return;
+        a.href=base+P[k].file(v);
+        a.innerHTML='<i class="'+P[k].icon+'"></i> '+P[k].name;
       });
     })
     .catch(function(){});
