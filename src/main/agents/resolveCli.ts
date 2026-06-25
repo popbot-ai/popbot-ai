@@ -29,7 +29,10 @@ const execFileP = promisify(execFile);
  *  Exported for unit tests — it's the guard that stops the agent probe
  *  false-positiving on an SDK-bundled CLI shim. */
 export function isNodeModulesBin(p: string): boolean {
-  return /node_modules[\\/]\.bin/i.test(p);
+  // Anchored to path-segment boundaries so a directory merely *named*
+  // like it (e.g. `/work/mynode_modules/.bin`) isn't caught — only a real
+  // `…/node_modules/.bin[/…]` segment matches.
+  return /(?:^|[\\/])node_modules[\\/]\.bin(?:[\\/]|$)/i.test(p);
 }
 
 /** process.env.PATH with the project's node_modules/.bin entries removed. */

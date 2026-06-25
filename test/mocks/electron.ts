@@ -28,4 +28,19 @@ export const ipcMain = {
 
 export const shell = { openExternal: () => Promise.resolve() };
 
-export default { app, BrowserWindow, ipcMain, shell };
+export const Menu = {
+  setApplicationMenu: () => undefined,
+  buildFromTemplate: () => ({}),
+};
+
+const FAKE_DISPLAY = {
+  bounds: { x: 0, y: 0, width: 1920, height: 1080 },
+  workArea: { x: 0, y: 0, width: 1920, height: 1080 },
+};
+export const screen = {
+  getAllDisplays: () => [FAKE_DISPLAY],
+  getPrimaryDisplay: () => FAKE_DISPLAY,
+  getCursorScreenPoint: () => ({ x: 0, y: 0 }),
+};
+
+export default { app, BrowserWindow, ipcMain, shell, Menu, screen };

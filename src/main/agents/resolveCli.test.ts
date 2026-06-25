@@ -16,7 +16,9 @@ describe('isNodeModulesBin', () => {
     expect(isNodeModulesBin('/usr/local/bin/claude')).toBe(false);
     expect(isNodeModulesBin('/home/u/.local/bin/codex')).toBe(false);
     expect(isNodeModulesBin('C:\\Users\\u\\.local\\bin\\claude.exe')).toBe(false);
-    // a directory merely named like it, not an actual node_modules/.bin
+    // directories merely named like it (suffix/prefix), not an actual
+    // node_modules/.bin segment
     expect(isNodeModulesBin('/home/u/node_modules_backup/.bin')).toBe(false);
+    expect(isNodeModulesBin('/work/mynode_modules/.bin')).toBe(false);
   });
 });
