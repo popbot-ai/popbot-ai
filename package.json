@@ -20,6 +20,8 @@
     "package:linux": "electron-vite build && electron-builder --linux --config electron-builder.yml",
     "release": "scripts/release.sh",
     "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "clean": "rimraf out dist release node_modules/.vite",
     "postinstall": "node scripts/install-app-deps.mjs"
   },
@@ -54,6 +56,7 @@
     "rimraf": "^6.1.3",
     "tailwindcss": "^3.4.17",
     "typescript": "^5.6.3",
-    "vite": "^5.4.11"
+    "vite": "^5.4.11",
+    "vitest": "^4.1.9"
   }
 }
