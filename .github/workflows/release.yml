@@ -216,8 +216,15 @@ jobs:
           tmp="$(mktemp -d)"
           aws s3 cp "s3://$R2_BUCKET/$DIR/$VERSION/" "$tmp/" --recursive \
             --endpoint-url "$R2_ENDPOINT"
+          # Installers/blockmaps first — everything EXCEPT the manifests…
           aws s3 cp "$tmp/" "s3://$R2_BUCKET/$DIR/" --recursive \
-            --endpoint-url "$R2_ENDPOINT" --checksum-algorithm CRC32
+            --endpoint-url "$R2_ENDPOINT" --checksum-algorithm CRC32 \
+            --exclude "latest*.yml"
+          # …then the latest*.yml manifests last, so a client never sees a
+          # manifest pointing at an object that isn't fully uploaded yet.
+          aws s3 cp "$tmp/" "s3://$R2_BUCKET/$DIR/" --recursive \
+            --endpoint-url "$R2_ENDPOINT" --checksum-algorithm CRC32 \
+            --exclude "*" --include "latest*.yml"
       # Stable only: publish the version pointer the in-app notifier reads.
       - name: Update stable version pointer
         if: ${{ inputs.channel == 'release' }}
