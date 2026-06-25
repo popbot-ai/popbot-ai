@@ -1558,21 +1558,31 @@ function JiraForm({
   useEffect(() => {
     if (!baseUrl.trim() || !email.trim() || !apiToken.trim()) {
       setProjects([]);
+      setProjectsLoading(false);
       return;
     }
     let cancelled = false;
-    setProjectsLoading(true);
-    void window.popbot.jira
-      .listProjects({ baseUrl: baseUrl.trim(), email: email.trim(), apiToken: apiToken.trim() })
-      .then((res) => {
-        if (cancelled) return;
-        setProjects(res.projects ?? []);
-      })
-      .finally(() => {
-        if (!cancelled) setProjectsLoading(false);
-      });
+    // Debounce so we don't fire a lookup on every credential keystroke.
+    const timer = window.setTimeout(() => {
+      setProjectsLoading(true);
+      void window.popbot.jira
+        .listProjects({ baseUrl: baseUrl.trim(), email: email.trim(), apiToken: apiToken.trim() })
+        .then((res) => {
+          if (cancelled) return;
+          setProjects(res.projects ?? []);
+        })
+        .catch(() => {
+          // Swallow IPC rejections (e.g. transient failure while typing);
+          // the Save flow surfaces a real error.
+          if (!cancelled) setProjects([]);
+        })
+        .finally(() => {
+          if (!cancelled) setProjectsLoading(false);
+        });
+    }, 400);
     return () => {
       cancelled = true;
+      window.clearTimeout(timer);
     };
   }, [baseUrl, email, apiToken]);
 
@@ -1592,6 +1602,8 @@ function JiraForm({
       }
       await onSave(draft());
       setSavedAs({ email: result.email, name: result.name });
+    } catch (err) {
+      setError(`Jira error: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
       setSaving(false);
     }

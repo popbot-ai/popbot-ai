@@ -41,6 +41,25 @@ export class JiraAuthError extends Error {
   }
 }
 
+/** Thrown only for genuine 404s so callers can distinguish "issue not
+ *  found" from rate limits, 5xxs, and network failures. */
+export class JiraNotFoundError extends Error {
+  constructor(message = 'Jira issue was not found') {
+    super(message);
+    this.name = 'JiraNotFoundError';
+  }
+}
+
+/** This client targets Jira Cloud only. Validating the host before we
+ *  attach Basic credentials keeps the main-process IPC surface from being
+ *  turned into an arbitrary request proxy (a non-HTTPS or non-Atlassian
+ *  base URL from persisted settings / draft payloads is rejected). */
+const JIRA_CLOUD_HOST_RE = /^[a-z0-9][a-z0-9-]*\.atlassian\.net$/i;
+
+/** Per-request deadline so a stalled Jira/network call can't leave an IPC
+ *  caller pending forever. */
+const JIRA_REQUEST_TIMEOUT_MS = 15_000;
+
 /** Connection config resolved to required fields. Callers pass raw
  *  `JiraSettings`; `requireConn` validates + trims before any request. */
 interface JiraConn {
@@ -52,11 +71,25 @@ interface JiraConn {
 /** Returns a usable connection or null when credentials are incomplete.
  *  The IPC layer turns null into `{ notConfigured: true }`. */
 export function resolveConn(s: JiraSettings | undefined): JiraConn | null {
-  const baseUrl = (s?.baseUrl ?? '').trim().replace(/\/+$/, '');
+  const rawBaseUrl = (s?.baseUrl ?? '').trim();
   const email = (s?.email ?? '').trim();
   const apiToken = (s?.apiToken ?? '').trim();
-  if (!baseUrl || !email || !apiToken) return null;
-  return { baseUrl, email, apiToken };
+  if (!rawBaseUrl || !email || !apiToken) return null;
+
+  // Parse + constrain the base URL: HTTPS only, an Atlassian Cloud host,
+  // and no embedded credentials. Normalize to the origin so a stray path
+  // can't redirect requests. Anything else is treated as not-configured.
+  let url: URL;
+  try {
+    url = new URL(rawBaseUrl);
+  } catch {
+    return null;
+  }
+  if (url.protocol !== 'https:') return null;
+  if (url.username || url.password) return null;
+  if (!JIRA_CLOUD_HOST_RE.test(url.hostname)) return null;
+
+  return { baseUrl: url.origin, email, apiToken };
 }
 
 function authHeader(conn: JiraConn): string {
@@ -68,17 +101,33 @@ async function jiraFetch<T>(
   path: string,
   init?: { method?: string; body?: unknown },
 ): Promise<T> {
-  const res = await fetch(`${conn.baseUrl}${path}`, {
-    method: init?.method ?? 'GET',
-    headers: {
-      Authorization: authHeader(conn),
-      Accept: 'application/json',
-      ...(init?.body !== undefined ? { 'Content-Type': 'application/json' } : {}),
-    },
-    body: init?.body !== undefined ? JSON.stringify(init.body) : undefined,
-  });
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), JIRA_REQUEST_TIMEOUT_MS);
+  let res: Response;
+  try {
+    res = await fetch(`${conn.baseUrl}${path}`, {
+      method: init?.method ?? 'GET',
+      headers: {
+        Authorization: authHeader(conn),
+        Accept: 'application/json',
+        ...(init?.body !== undefined ? { 'Content-Type': 'application/json' } : {}),
+      },
+      body: init?.body !== undefined ? JSON.stringify(init.body) : undefined,
+      signal: controller.signal,
+    });
+  } catch (err) {
+    if ((err as { name?: string }).name === 'AbortError') {
+      throw new Error('Jira API request timed out');
+    }
+    throw err;
+  } finally {
+    clearTimeout(timeout);
+  }
   if (res.status === 401 || res.status === 403) {
     throw new JiraAuthError();
+  }
+  if (res.status === 404) {
+    throw new JiraNotFoundError();
   }
   if (res.status === 204) {
     // No content (e.g. successful transition POST).
@@ -356,9 +405,10 @@ export async function fetchIssueByKey(s: JiraSettings, key: string): Promise<Lin
     );
     return mapIssue(conn, raw);
   } catch (err) {
-    if (err instanceof JiraAuthError) throw err;
-    // 404 etc. → treat as not-found.
-    return null;
+    if (err instanceof JiraNotFoundError) return null;
+    // Auth, rate limits, 5xxs, and network failures propagate so the UI
+    // doesn't hide a real outage as a missing issue.
+    throw err;
   }
 }
 
@@ -422,15 +472,32 @@ export async function transitionIssue(
  *  picker. Uses the paginated project search and maps to the DTO. */
 export async function fetchProjects(s: JiraSettings): Promise<LinearProjectDto[]> {
   const conn = requireConn(s);
-  const data = await jiraFetch<{
-    values?: Array<{ id: string; key: string; name: string }>;
-  }>(conn, '/rest/api/3/project/search?maxResults=100&orderBy=lastIssueUpdatedTime');
-  return (data.values ?? []).map((p) => ({
-    id: p.key,
-    name: p.name,
-    state: 'started',
-    teamKeys: [p.key],
-  }));
+  const pageSize = 100;
+  // Hard cap on pages so a misbehaving/huge instance can't loop forever.
+  const maxPages = 50;
+  const out: LinearProjectDto[] = [];
+  let startAt = 0;
+  for (let page = 0; page < maxPages; page++) {
+    const data = await jiraFetch<{
+      values?: Array<{ id: string; key: string; name: string }>;
+      isLast?: boolean;
+      total?: number;
+    }>(
+      conn,
+      `/rest/api/3/project/search?maxResults=${pageSize}&startAt=${startAt}&orderBy=lastIssueUpdatedTime`,
+    );
+    const values = data.values ?? [];
+    for (const p of values) {
+      out.push({ id: p.key, name: p.name, state: 'started', teamKeys: [p.key] });
+    }
+    startAt += values.length;
+    const exhausted =
+      data.isLast === true ||
+      values.length === 0 ||
+      (typeof data.total === 'number' && startAt >= data.total);
+    if (exhausted) break;
+  }
+  return out;
 }
 
 /** Idempotently move an issue to "In Progress" on chat spawn. Mirrors the
@@ -452,8 +519,8 @@ export async function promoteIssue(
       `/rest/api/3/issue/${encodeURIComponent(k)}?fields=status`,
     );
   } catch (err) {
-    if (err instanceof JiraAuthError) throw err;
-    return { promoted: false, reason: 'not-found' };
+    if (err instanceof JiraNotFoundError) return { promoted: false, reason: 'not-found' };
+    throw err;
   }
   const catKey = raw.fields?.status?.statusCategory?.key;
   if (catKey !== 'new') {

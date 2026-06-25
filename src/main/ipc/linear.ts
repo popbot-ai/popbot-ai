@@ -376,7 +376,19 @@ export function registerLinearHandlers(): void {
   /** Verify draft Jira credentials by hitting `myself`. Same result shape
    *  as LinearTest so the Preferences forms share status rendering. */
   ipcMain.handle(IpcChannel.JiraTest, async (_e, settings: JiraSettings): Promise<LinearTestResult> => {
-    if (!resolveJiraConn(settings)) return { ok: false, error: 'Missing base URL, email, or API token' };
+    if (!resolveJiraConn(settings)) {
+      // Distinguish "incomplete" from "present but rejected by the URL
+      // constraints" (non-HTTPS or non-*.atlassian.net), since resolveConn
+      // returns null for both.
+      const hasAllFields =
+        !!settings.baseUrl?.trim() && !!settings.email?.trim() && !!settings.apiToken?.trim();
+      return {
+        ok: false,
+        error: hasAllFields
+          ? 'Site URL must be an https://<your-site>.atlassian.net address'
+          : 'Missing base URL, email, or API token',
+      };
+    }
     try {
       const viewer = await jiraFetchViewer(settings);
       return { ok: true, email: viewer.email, name: viewer.name };
