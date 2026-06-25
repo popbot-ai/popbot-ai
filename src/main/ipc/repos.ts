@@ -116,8 +116,11 @@ export function registerReposHandlers(): void {
       if (existsSync(path)) {
         return { ok: true, slotId, alreadyReady: true };
       }
-      const scm = getSourceControlProvider(repo);
       try {
+        // Inside the try: getSourceControlProvider throws for unimplemented
+        // SCM ids, and this handler must return a RepoSlotStepResult rather
+        // than reject the IPC call.
+        const scm = getSourceControlProvider(repo);
         await scm.ensureSlotWorktree({
           repoPath: repo.repoPath,
           worktreePath: path,
@@ -145,8 +148,11 @@ export function registerReposHandlers(): void {
       const here = occupants.get(slotId);
       if (here) return { ok: false, reason: 'slot-in-use', chatName: here.chatName };
       const path = slotWorktreePathForRepo(repo, slotId);
-      const scm = getSourceControlProvider(repo);
       try {
+        // Inside the try: getSourceControlProvider throws for unimplemented
+        // SCM ids, and this handler must return a RepoSlotStepResult rather
+        // than reject the IPC call.
+        const scm = getSourceControlProvider(repo);
         await scm.removeWorktree({ repoPath: repo.repoPath, worktreePath: path });
         await scm.deleteBranch(repo.repoPath, scm.parkingBranch(repo.id, slotId));
         return { ok: true, slotId };

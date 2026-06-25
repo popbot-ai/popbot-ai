@@ -45,31 +45,43 @@ function resolveWorktree(chatId: string): string | { error: 'no-worktree' | 'not
 
 interface GitSettingsLite { repoPath?: string }
 
+type RepoRow = ReturnType<typeof getRepo>;
+
 /**
  * For repo-scoped queries (e.g. "what base branches exist?") that
  * happen *before* a chat exists. Resolution order:
  *   1. `chatId` → the chat's worktree (in-chat git panel queries)
  *   2. `repoId` → the repo row's `repoPath` (new-chat dialog, multi-repo)
  *   3. legacy `settings.git.repoPath` fallback (single-repo install)
+ *
+ * Returns the resolved `cwd` together with the repo row that owns it (or
+ * null for the legacy fallback) so callers can pick the matching source-
+ * control provider. Resolving cwd and provider separately risks driving
+ * repo B's provider against repo A's path when both ids are supplied.
  */
-function resolveRepoCwd(opts: { chatId?: string | null; repoId?: string | null }): string | { error: 'no-worktree' | 'not-a-git-repo' } {
+function resolveRepoCwd(opts: { chatId?: string | null; repoId?: string | null }):
+  | { cwd: string; repo: RepoRow }
+  | { error: 'no-worktree' | 'not-a-git-repo' } {
   if (opts.chatId) {
     const wt = resolveWorktree(opts.chatId);
-    if (typeof wt === 'string') return wt;
+    if (typeof wt === 'string') {
+      const repoId = getChat(opts.chatId)?.repoId;
+      return { cwd: wt, repo: repoId ? getRepo(repoId) : null };
+    }
   }
   if (opts.repoId) {
     const repo = getRepo(opts.repoId);
-    if (repo?.repoPath && existsSync(repo.repoPath)) return repo.repoPath;
+    if (repo?.repoPath && existsSync(repo.repoPath)) return { cwd: repo.repoPath, repo };
   }
   // Prefer the multi-repo store (the "Add Repository" flow writes there),
   // then fall back to the legacy single-repo `git` setting. Without the
   // store fallback, a repo added via the new flow left the legacy setting
   // empty and git operations reported 'no-worktree'.
   for (const r of listRepos()) {
-    if (r.repoPath && existsSync(r.repoPath)) return r.repoPath;
+    if (r.repoPath && existsSync(r.repoPath)) return { cwd: r.repoPath, repo: r };
   }
   const s = getSetting<GitSettingsLite>('git');
-  if (s?.repoPath && existsSync(s.repoPath)) return s.repoPath;
+  if (s?.repoPath && existsSync(s.repoPath)) return { cwd: s.repoPath, repo: null };
   return { error: 'no-worktree' };
 }
 
@@ -142,15 +154,12 @@ export function registerGitHandlers(): void {
       const opts = typeof input === 'object' && input !== null
         ? input
         : { chatId: input };
-      const cwd = resolveRepoCwd(opts);
-      if (typeof cwd !== 'string') return { ok: false, reason: cwd.error };
-      // Provider selection follows the repo: explicit repoId, else the
-      // chat's repo, else the git default.
-      const repo = opts.repoId
-        ? getRepo(opts.repoId)
-        : opts.chatId
-          ? getRepo(getChat(opts.chatId)?.repoId ?? '')
-          : null;
+      const resolved = resolveRepoCwd(opts);
+      if ('error' in resolved) return { ok: false, reason: resolved.error };
+      // Provider selection follows the SAME repo that owns `cwd`, so we
+      // never list branches with one repo's provider against another
+      // repo's path.
+      const { cwd, repo } = resolved;
       try {
         const branches = await getSourceControlProvider(repo).listBaseBranches(cwd);
         return { ok: true, branches };

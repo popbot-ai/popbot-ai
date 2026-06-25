@@ -417,8 +417,13 @@ export function registerChatHandlers(): void {
       return { ok: true, removed: 0 };
     }
     const scm = getSourceControlProvider();
+    // Match the configured slot prefix, not a hardcoded `slot-`; otherwise a
+    // custom prefix leaves worktrees + parking branches behind while we
+    // report success.
+    const escapedPrefix = gitCfg.slotPrefix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const slotDirPattern = new RegExp(`^${escapedPrefix}-(\\d+)$`);
     for (const name of entries) {
-      const m = /^slot-(\d+)$/.exec(name);
+      const m = slotDirPattern.exec(name);
       if (!m) continue;
       const slotId = Number(m[1]);
       const path = join(gitCfg.worktreesDir, name);
