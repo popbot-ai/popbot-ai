@@ -154,6 +154,14 @@ input, textarea { font: inherit; color: inherit; background: none; border: 0; ou
 .about-update i { margin-right: 6px; }
 .about-links { display: flex; align-items: center; gap: 8px; font-size: 13px; }
 .about-links .dot { color: var(--fg-2); }
+/* Links default to the browser's dark blue, invisible on the dark modal —
+ * give them the accent link color. Also style the standalone .muted used by
+ * the update status line. */
+.about-update .muted { color: var(--fg-2); }
+.about-update a,
+.about-links a { color: var(--acc-hi, #8aa0ff); text-decoration: none; }
+.about-update a:hover,
+.about-links a:hover { text-decoration: underline; }
 
 /* Menu bar — theme-matched replacement for the native Windows menu bar. */
 .menubar { display: flex; align-items: stretch; height: 100%; -webkit-app-region: no-drag; }
