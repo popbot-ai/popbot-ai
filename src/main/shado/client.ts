@@ -12,7 +12,7 @@
 
 import { execFile } from 'node:child_process'
 import { existsSync } from 'node:fs'
-import { join } from 'node:path'
+import { join, parse } from 'node:path'
 import { app } from 'electron'
 
 export interface ShadoShadow {
@@ -66,13 +66,30 @@ export function shadoAvailable(): boolean {
   return shadoExePath() !== exeName || existsSync(exeName)
 }
 
-/** Run shado with the given args. Never throws; returns a structured result. */
-export function runShado(args: string[]): Promise<ShadoResult> {
+/**
+ * SHADO_HOME for a repo's slots. The frozen base VHDX and every per-slot
+ * differencing child MUST live on the same drive as the source repo —
+ * a hard requirement of the VHDX differencing model (children reference
+ * the parent by path) and the user's workflow. Derive a stable home on
+ * the repo's own drive so base creation and slot cloning always agree.
+ */
+export function shadoHomeForRepo(repoPath: string): string {
+  const root = parse(repoPath).root || process.cwd()
+  return join(root, 'popbot-shado')
+}
+
+/** Run shado with the given args. Never throws; returns a structured
+ *  result. `opts.env` is merged over the process env (e.g. SHADO_HOME). */
+export function runShado(args: string[], opts: { env?: NodeJS.ProcessEnv } = {}): Promise<ShadoResult> {
   return new Promise((resolvePromise) => {
     execFile(
       shadoExePath(),
       args,
-      { windowsHide: true, maxBuffer: 32 * 1024 * 1024 },
+      {
+        windowsHide: true,
+        maxBuffer: 32 * 1024 * 1024,
+        env: opts.env ? { ...process.env, ...opts.env } : process.env,
+      },
       (err, stdout, stderr) => {
         const code =
           err && typeof (err as NodeJS.ErrnoException & { code?: number }).code === 'number'

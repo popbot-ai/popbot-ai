@@ -8,7 +8,40 @@
  * the client is established with `flush` (0-byte have-list update) to the
  * base changelist, never a transfer — see the shado+P4 design.
  */
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { p4exec, parseZtag, type P4Context } from './exec';
+
+/**
+ * Per-slot metadata the provider needs when it only has the slot path
+ * (checkout/park/refresh). Stored as a sidecar at the slot mount root
+ * alongside the `.p4config` so a worktree path is self-describing.
+ */
+export interface SlotMeta {
+  depotPath: string;
+  baseChangelist: number;
+}
+
+const SLOT_META_FILE = '.popbot-p4.json';
+
+export function writeSlotMeta(wt: string, meta: SlotMeta): void {
+  try {
+    writeFileSync(join(wt, SLOT_META_FILE), JSON.stringify(meta));
+  } catch {
+    /* best-effort — the provider falls back to a repo lookup if absent */
+  }
+}
+
+export function readSlotMeta(wt: string): SlotMeta | null {
+  const file = join(wt, SLOT_META_FILE);
+  if (!existsSync(file)) return null;
+  try {
+    const j = JSON.parse(readFileSync(file, 'utf8')) as SlotMeta;
+    return j.depotPath ? j : null;
+  } catch {
+    return null;
+  }
+}
 
 /** Trim a trailing slash and any `/...` from a depot path → `//depot/X`. */
 function normDepot(depotPath: string): string {

@@ -17,6 +17,7 @@ import {
 } from '@shared/sourceControl';
 import type { SourceControlProvider } from './provider';
 import { GitProvider } from './gitProvider';
+import { PerforceProvider } from './perforceProvider';
 
 export class SourceControlNotImplementedError extends Error {
   constructor(public providerId: SourceControlProviderId) {
@@ -34,6 +35,7 @@ function instantiate(id: SourceControlProviderId): SourceControlProvider {
     case 'git':
       return new GitProvider();
     case 'perforce':
+      return new PerforceProvider();
     case 'lore':
       // Roughed-in only. Once a concrete class exists, construct it here.
       throw new SourceControlNotImplementedError(id);

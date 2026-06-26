@@ -114,7 +114,7 @@ export const SOURCE_CONTROL_PROVIDERS: Record<SourceControlProviderId, SourceCon
       // throwaway-per-chat ephemeral mode.
       supportsEphemeralRepos: false,
     },
-    implemented: false,
+    implemented: true,
   },
   lore: {
     id: 'lore',
