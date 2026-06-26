@@ -647,16 +647,69 @@ export function ChatColumn({
 // Git client deliberately omitted for now: GitHub Desktop doesn't
 // support worktrees, so launching it would point at the parent repo
 // instead of the slot. Re-add once we have a worktree-friendly client.
-const APP_BUTTONS: Array<{
-  kind: 'terminal' | 'editor' | 'unity';
+// A "verb" a platform (or the slot itself) offers: an icon, a name (tooltip), and
+// the action it runs. A verb with no `action` is modeled but not wired yet (shown
+// disabled / "coming soon"). Platforms proffer their OWN verbs — Open Editor / Run
+// / Build / Debug are just common conventions, NOT a fixed set; a platform can
+// offer any verbs it wishes.
+type SlotVerbAction = 'terminal' | 'editor' | 'unity';
+interface Verb {
+  id: string;
   icon: string;
-  label: string;
+  name: string;
   color: string;
-}> = [
-  { kind: 'terminal', icon: 'fa-solid fa-terminal',         label: 'Terminal',  color: '#7fb676' },
-  { kind: 'editor',   icon: 'fa-solid fa-code',             label: 'Editor',    color: '#4f8bff' },
-  { kind: 'unity',    icon: 'fa-solid fa-cube',             label: 'Unity',     color: '#d6a13b' },
+  action?: SlotVerbAction;
+}
+
+// Slot-level dev tools, available on any chat with a worktree regardless of platform.
+const DEV_VERBS: Verb[] = [
+  { id: 'terminal', icon: 'fa-solid fa-terminal', name: 'Terminal', color: '#7fb676', action: 'terminal' },
+  { id: 'editor',   icon: 'fa-solid fa-code',     name: 'Editor',   color: '#4f8bff', action: 'editor' },
 ];
+
+// Stock Font Awesome icons + names for well-known verbs. A platform names one of
+// these by id and skips the icon/name; custom verbs supply their own.
+const WELL_KNOWN_VERBS: Record<string, { icon: string; name: string; color: string }> = {
+  'open-editor': { icon: 'fa-solid fa-pen-ruler', name: 'Open Editor', color: '#d6a13b' },
+  run:     { icon: 'fa-solid fa-play',       name: 'Run',     color: '#5fb35f' },
+  dev:     { icon: 'fa-solid fa-bolt',       name: 'Dev',     color: '#5fb39f' },
+  debug:   { icon: 'fa-solid fa-bug',        name: 'Debug',   color: '#c95f5f' },
+  build:   { icon: 'fa-solid fa-hammer',     name: 'Build',   color: '#c98a3a' },
+  test:    { icon: 'fa-solid fa-vial',       name: 'Test',    color: '#7fb6c0' },
+  migrate: { icon: 'fa-solid fa-database',   name: 'Migrate', color: '#8a9ad0' },
+  shell:   { icon: 'fa-solid fa-terminal',   name: 'Shell',   color: '#9fb37f' },
+  package: { icon: 'fa-solid fa-box-open',   name: 'Package', color: '#c0a060' },
+  profile: { icon: 'fa-solid fa-gauge-high', name: 'Profile', color: '#b08ad0' },
+  stop:    { icon: 'fa-solid fa-stop',       name: 'Stop',    color: '#c95f5f' },
+};
+
+// A platform proffers verbs as either a well-known id (icon/name from stock) or a
+// custom partial that overrides/extends. `action` wires it to a launcher; absent
+// = modeled but not wired yet. Platforms span game engines (unity, unreal, godot)
+// AND app frameworks (node, flask, django, …), each with its own verbs.
+type PlatformVerb = string | (Partial<Verb> & { id: string });
+
+const PLATFORM_VERBS: Record<string, PlatformVerb[]> = {
+  unity: [{ id: 'open-editor', action: 'unity' }, 'run', 'build', 'debug'],
+  // unreal / godot / node / flask / django … declare their verbs here as
+  // each platform's launcher backend lands. e.g.:
+  //   django: ['run', 'migrate', 'shell', 'test'],
+  //   node:   ['dev', 'test', 'build'],
+};
+
+// Resolve a platform verb to a concrete Verb, filling icon/name/color from the
+// well-known stock when the platform didn't provide them.
+function resolveVerb(v: PlatformVerb): Verb {
+  const ref = typeof v === 'string' ? { id: v } : v;
+  const stock = WELL_KNOWN_VERBS[ref.id];
+  return {
+    id: ref.id,
+    icon: ref.icon ?? stock?.icon ?? 'fa-solid fa-bolt',
+    name: ref.name ?? stock?.name ?? ref.id,
+    color: ref.color ?? stock?.color ?? '#9aa0a6',
+    action: ref.action,
+  };
+}
 
 function SlotAppButtons({
   worktreePath,
@@ -671,6 +724,10 @@ function SlotAppButtons({
   // we don't have to worry about per-app path conventions in the
   // renderer (Unity's project-subpath setting, etc.).
   const slotName = worktreePath ? worktreePath.split(/[/\\]/).pop() ?? '' : '';
+  // TODO: resolve the chat's platform from its repo (per-repo platform selection
+  // is a follow-up). Defaulting to 'unity' for now so engine verbs show.
+  const platform = 'unity';
+  const verbs: Verb[] = [...DEV_VERBS, ...(PLATFORM_VERBS[platform] ?? []).map(resolveVerb)];
   const open = async (kind: 'terminal' | 'editor' | 'git' | 'unity') => {
     if (!worktreePath) return;
     const res = await window.popbot.apps.open(kind, worktreePath);
@@ -694,7 +751,9 @@ function SlotAppButtons({
   };
   const openAll = () => {
     if (!worktreePath) return;
-    APP_BUTTONS.forEach((b) => void open(b.kind));
+    verbs.forEach((b) => {
+      if (b.action) void open(b.action);
+    });
   };
   return (
     <div
@@ -706,22 +765,26 @@ function SlotAppButtons({
         openAll();
       }}
     >
-      {APP_BUTTONS.map((b) => {
-        const isRunning = !!slotName && running[b.kind].has(slotName);
+      {verbs.map((b) => {
+        const wired = !!b.action;
+        const isRunning = !!b.action && !!slotName && (running[b.action]?.has(slotName) ?? false);
+        const usable = enabled && wired;
         return (
           <button
-            key={b.kind}
+            key={b.id}
             className={`slot-app-btn ${isRunning ? 'running' : ''}`}
-            disabled={!enabled}
-            onClick={() => open(b.kind)}
+            disabled={!usable}
+            onClick={() => b.action && open(b.action)}
             title={
-              isRunning
-                ? `${b.label} — running for this slot (click to focus)`
-                : enabled
-                  ? `${b.label} — ${worktreePath}`
-                  : `${b.label} (no slot)`
+              !wired
+                ? `${b.name} — coming soon`
+                : isRunning
+                  ? `${b.name} — running for this slot (click to focus)`
+                  : enabled
+                    ? `${b.name} — ${worktreePath}`
+                    : `${b.name} (no slot)`
             }
-            style={enabled ? { color: b.color } : undefined}
+            style={usable ? { color: b.color } : undefined}
           >
             <i className={b.icon} />
           </button>
