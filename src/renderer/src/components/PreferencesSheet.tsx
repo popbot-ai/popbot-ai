@@ -27,6 +27,7 @@ import {
 } from '@shared/persistence';
 import { useSettings } from '../lib/useSettings';
 import { ConfigureSlotsPanel } from './ConfigureSlotsPanel';
+import { P4Glyph } from './P4Glyph';
 import {
   AGENT_EFFORT_DEFAULTS_SETTING,
   normalizeAgentEffortDefaults,
@@ -2672,6 +2673,13 @@ function PrefsRepos({ onReposChanged }: { onReposChanged?: () => void }): JSX.El
           <div key={r.id} className="repo-card" style={{ borderLeft: `4px solid ${r.color}` }}>
             <div className="repo-card-head">
               <span className="repo-card-id mono">{r.id}</span>
+              <span className={`repo-card-scm scm-${r.scm ?? 'git'}`}>
+                {(r.scm ?? 'git') === 'perforce' ? (
+                  <><P4Glyph style={{ color: '#4c00ff' }} /> {t('prefs.repos.scm.perforce')}</>
+                ) : (
+                  <><i className="fa-solid fa-code-branch" /> {t('prefs.repos.scm.git')}</>
+                )}
+              </span>
               <span className={`repo-card-mode mode-${r.mode}`}>
                 {r.mode === 'ephemeral'
                   ? t('prefs.repos.mode.ephemeral')
@@ -2686,10 +2694,19 @@ function PrefsRepos({ onReposChanged }: { onReposChanged?: () => void }): JSX.El
                 <span className="repo-card-label">{t('prefs.repos.card.path')}</span>
                 <span className="mono">{r.repoPath}</span>
               </div>
-              <div className="repo-card-row">
-                <span className="repo-card-label">{t('prefs.repos.card.defaultBase')}</span>
-                <span className="mono">{r.defaultBase}</span>
-              </div>
+              {(r.scm ?? 'git') === 'perforce' ? (
+                // Perforce has no default branch — keep the row's height so
+                // the card doesn't resize.
+                <div className="repo-card-row" aria-hidden>
+                  <span className="repo-card-label">&nbsp;</span>
+                  <span className="mono">&nbsp;</span>
+                </div>
+              ) : (
+                <div className="repo-card-row">
+                  <span className="repo-card-label">{t('prefs.repos.card.defaultBase')}</span>
+                  <span className="mono">{r.defaultBase}</span>
+                </div>
+              )}
               {r.mode === 'slots' && (
                 <div className="repo-card-row">
                   <span className="repo-card-label">{t('prefs.repos.card.slotPrefix')}</span>

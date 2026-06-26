@@ -5244,3 +5244,12 @@ input.input.mono, select.input.mono { font-family: var(--font-mono); font-size: 
   border: 1px solid var(--line-2); border-radius: 4px; padding: 5px 7px; font-size: var(--fs-sm);
 }
 .p4-foot { padding: 4px 10px; color: var(--fg-2); font-size: var(--fs-xs); border-top: 1px solid var(--line-2); }
+
+/* Repo-card scm chip (git / perforce). Neutral chip; the Perforce glyph
+   carries the brand color (#4c00ff) via its inline style. */
+.repo-card-scm {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 1px 8px; border-radius: 999px; font-size: var(--fs-xs);
+  border: 1px solid var(--line-2); color: var(--fg-2); background: var(--bg-3);
+}
+.repo-card-scm svg, .repo-card-scm i { font-size: 0.95em; line-height: 1; }

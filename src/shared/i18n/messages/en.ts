@@ -975,6 +975,8 @@ export const en = {
   'prefs.repos.card.path': 'Path',
   'prefs.repos.card.defaultBase': 'Default base',
   'prefs.repos.card.slotPrefix': 'Slot prefix',
+  'prefs.repos.scm.git': 'Git',
+  'prefs.repos.scm.perforce': 'Perforce',
   'prefs.repos.addRepository': 'Add Repository',
   'prefs.repos.wizard.title': 'New repository',
   'prefs.repos.wizard.initializingSlots': 'initializing slots',
