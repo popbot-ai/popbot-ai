@@ -80,7 +80,15 @@ export function startSlotWatch(worktreePath: string): void {
     record(state, worktreePath, rel);
   });
   w.on('error', () => {
-    /* watch can drop on volume unmount; provider falls back to p4 opened */
+    // The handle died (e.g. the VHDX volume unmounted). Drop the entry so a
+    // later startSlotWatch() re-establishes it instead of silently no-op'ing
+    // because the map still holds a dead watcher.
+    try {
+      w.close();
+    } catch {
+      /* already closed */
+    }
+    if (slots.get(worktreePath)?.watcher === w) slots.delete(worktreePath);
   });
   state.watcher = w;
   slots.set(worktreePath, state);

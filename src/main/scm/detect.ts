@@ -14,7 +14,6 @@ import { execFile } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { promisify } from 'node:util';
-import type { SourceControlProviderId } from '@shared/sourceControl';
 
 const execFileP = promisify(execFile);
 
@@ -33,9 +32,14 @@ function hasP4Config(folder: string): boolean {
   }
 }
 
-/** Ask p4 whether the folder maps into a depot, using whatever connection
- *  the ambient `.p4config`/env provides. Fail-soft → false. */
-async function isP4Workspace(folder: string): Promise<boolean> {
+/**
+ * Ask p4 whether the folder maps into a depot, using whatever connection the
+ * ambient `.p4config`/env provides.
+ *   - 'yes'     → a depot file resolves under the folder;
+ *   - 'no'      → p4 ran and it does NOT map into a depot;
+ *   - 'unknown' → the p4 binary isn't available, so we can't tell.
+ */
+async function p4MapsDepot(folder: string): Promise<'yes' | 'no' | 'unknown'> {
   try {
     const { stdout } = await execFileP('p4', ['-ztag', 'fstat', '-m', '1', './...'], {
       cwd: folder,
@@ -44,17 +48,23 @@ async function isP4Workspace(folder: string): Promise<boolean> {
       timeout: 6000,
       maxBuffer: 1024 * 1024,
     });
-    return /(^|\n)\.\.\.\sdepotFile\s/.test(stdout);
-  } catch {
-    return false; // p4 missing / not authed / not a workspace
+    return /(^|\n)\.\.\.\sdepotFile\s/.test(stdout) ? 'yes' : 'no';
+  } catch (err) {
+    // ENOENT = no p4 binary → can't determine. A non-zero exit ("file(s) not
+    // under client root", unauthed, …) is a genuine negative.
+    return (err as NodeJS.ErrnoException)?.code === 'ENOENT' ? 'unknown' : 'no';
   }
 }
 
 /** Best-effort SCM detection for a picked folder. */
-export async function detectScm(folder: string): Promise<SourceControlProviderId | null> {
+export async function detectScm(folder: string): Promise<'git' | 'perforce' | null> {
   if (!folder || !existsSync(folder)) return null;
   if (hasGit(folder)) return 'git';
-  if (hasP4Config(folder)) return 'perforce';
-  if (await isP4Workspace(folder)) return 'perforce';
+  // `.p4config` only supplies connection info — it does NOT prove the folder
+  // maps into a depot. Confirm with p4; only fall back to the config's mere
+  // presence when p4 itself is unavailable to ask.
+  const p4 = await p4MapsDepot(folder);
+  if (p4 === 'yes') return 'perforce';
+  if (p4 === 'unknown' && hasP4Config(folder)) return 'perforce';
   return null;
 }

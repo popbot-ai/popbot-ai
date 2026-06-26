@@ -21,7 +21,6 @@ import type {
   GitStatusResultOrErr,
   GitBaseBranchesResult,
 } from './git';
-import type { SourceControlProviderId } from './sourceControl';
 import type {
   LinearIssueDto,
   LinearProjectDto,
@@ -623,7 +622,7 @@ export interface PopBotApi {
     /** Detect the SCM of a picked folder for the Add Repository flow.
      *  'git' | 'perforce', or null when it's neither — the UI then shows an
      *  "invalid repo path" error and blocks continuing. */
-    detectScm(folder: string): Promise<SourceControlProviderId | null>;
+    detectScm(folder: string): Promise<'git' | 'perforce' | null>;
     /** Configure Slots flow building blocks. The renderer drives the
      *  loop one slot at a time so the user sees real progress. */
     listSlotOccupants(id: string): Promise<Array<{ slotId: number; chatName: string }>>;

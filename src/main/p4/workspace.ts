@@ -202,7 +202,12 @@ export async function openChanges(
 /** Restore a shelved change into the slot, then drop the shelf + its
  *  (now redundant) changelist. */
 export async function unshelvePop(ctx: P4Context, wt: string, change: string): Promise<void> {
-  await p4exec(ctx, ['unshelve', '-s', change], { cwd: wt, tolerant: true });
+  const un = await p4exec(ctx, ['unshelve', '-s', change], { cwd: wt, tolerant: true });
+  // Only drop the shelf once the work is safely restored — otherwise an
+  // unshelve failure (conflict, locked file) would destroy the only copy.
+  if (un.code !== 0) {
+    throw new Error(`p4 unshelve -s ${change} failed: ${un.stderr.trim() || un.stdout.trim()}`);
+  }
   await p4exec(ctx, ['shelve', '-d', '-c', change], { cwd: wt, tolerant: true });
   await p4exec(ctx, ['change', '-d', change], { cwd: wt, tolerant: true });
 }

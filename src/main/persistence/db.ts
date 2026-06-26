@@ -342,8 +342,18 @@ export function initDb(): Database.Database {
 
   const currentVersion = (db.pragma('user_version', { simple: true }) as number) ?? 0;
   for (let v = currentVersion; v < SCHEMA.length; v++) {
-    db.exec(SCHEMA[v]);
-    db.pragma(`user_version = ${v + 1}`);
+    // Each migration is atomic: if a statement fails partway, roll the whole
+    // step back so user_version never advances over a half-applied schema
+    // (which would wedge the next startup with "duplicate column" etc.).
+    db.exec('BEGIN');
+    try {
+      db.exec(SCHEMA[v]);
+      db.pragma(`user_version = ${v + 1}`);
+      db.exec('COMMIT');
+    } catch (err) {
+      db.exec('ROLLBACK');
+      throw err;
+    }
   }
 
   _db = db;

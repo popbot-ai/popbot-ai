@@ -30,7 +30,7 @@ import { backfillChatFields } from '../persistence/chatBackfill';
 import { getRepo, listRepos } from '../persistence/repos';
 import { getSetting } from '../persistence/settings';
 import { worktreePathForChat } from '../git/chatPaths';
-import { getSourceControlProvider } from '../scm';
+import { getSourceControlProvider, sourceControlIdFor } from '../scm';
 
 /** The source-control provider backing a chat's repo (git today). */
 function providerForChat(chatId: string) {
@@ -43,7 +43,11 @@ function resolveWorktree(chatId: string): string | { error: 'no-worktree' | 'not
   const wt = worktreePathForChat(chat);
   if (!wt) return { error: 'no-worktree' };
   if (!existsSync(wt)) return { error: 'no-worktree' };
-  if (!existsSync(join(wt, '.git'))) return { error: 'not-a-git-repo' };
+  // The `.git` sentinel only makes sense for git; a Perforce slot is a
+  // shado clone with no `.git`. Gate the check on the repo's provider so
+  // this handler is genuinely provider-agnostic.
+  const scm = sourceControlIdFor(chat?.repoId ? getRepo(chat.repoId) : null);
+  if (scm === 'git' && !existsSync(join(wt, '.git'))) return { error: 'not-a-git-repo' };
   return wt;
 }
 

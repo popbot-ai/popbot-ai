@@ -70,15 +70,18 @@ export async function ensureSlot(ref: ShadoSlotRef): Promise<void> {
 /** Reset a slot to a clean base — destroy + recreate its differencing
  *  child (instant clean slate). */
 export async function resetSlot(ref: ShadoSlotRef): Promise<void> {
-  await runShado(['clone', 'reset', '--name', ref.baseName, '--slot', shadoSlotName(ref.worktreePath)], {
+  const slot = shadoSlotName(ref.worktreePath);
+  const r = await runShado(['clone', 'reset', '--name', ref.baseName, '--slot', slot], {
     env: shadoEnv(ref.repoPath),
   });
+  if (!r.ok) throw new Error(`shado clone reset failed for slot ${slot}: ${r.stderr || r.stdout}`);
 }
 
 /** Destroy a slot's COW clone (teardown). Leaves the frozen base intact. */
 export async function removeSlot(ref: ShadoSlotRef): Promise<void> {
-  await runShado(
-    ['clone', 'rm', '--name', ref.baseName, '--slot', shadoSlotName(ref.worktreePath), '--force'],
-    { env: shadoEnv(ref.repoPath) },
-  );
+  const slot = shadoSlotName(ref.worktreePath);
+  const r = await runShado(['clone', 'rm', '--name', ref.baseName, '--slot', slot, '--force'], {
+    env: shadoEnv(ref.repoPath),
+  });
+  if (!r.ok) throw new Error(`shado clone rm failed for slot ${slot}: ${r.stderr || r.stdout}`);
 }

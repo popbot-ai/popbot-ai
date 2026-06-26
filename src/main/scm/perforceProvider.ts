@@ -88,6 +88,22 @@ export class PerforceProvider extends SourceControlProvider {
     return c;
   }
 
+  /**
+   * Open whatever the slot watcher saw change (targeted edit/add/delete,
+   * never reconcile) so `p4 opened` reflects the working tree. The SINGLE
+   * reconciliation point shared by status / commit / worktreeStatus — so a
+   * close-confirm or submit can't miss files the agent edited without an
+   * explicit `p4 edit`.
+   */
+  private async syncWatched(ctx: P4Context, wt: string): Promise<void> {
+    startSlotWatch(wt); // idempotent
+    const changes = getSlotChanges(wt);
+    if (changes.length) {
+      await openChanges(ctx, wt, changes);
+      clearSlotChanges(wt);
+    }
+  }
+
   /** The Perforce repo (+ its config) owning `repoPath`. */
   private repoFor(repoPath: string): { repo: RepoRecord; p4: PerforceRepoConfig } {
     const repo = listRepos().find((r) => r.repoPath === repoPath && r.scm === 'perforce');
@@ -100,15 +116,7 @@ export class PerforceProvider extends SourceControlProvider {
   async listStatus(wt: string): Promise<ScmStatus> {
     try {
       const ctx = this.ctx(wt);
-      // Make p4 track the agent's free edits like git: open whatever the
-      // slot watcher saw change (targeted edit/add/delete, never reconcile),
-      // then report p4 opened as the working-tree change list.
-      startSlotWatch(wt); // idempotent
-      const changes = getSlotChanges(wt);
-      if (changes.length) {
-        await openChanges(ctx, wt, changes);
-        clearSlotChanges(wt);
-      }
+      await this.syncWatched(ctx, wt);
       const status = await p4ListStatus(ctx, wt);
       const shelves = await listShelves(ctx).catch(() => []);
       return { ...status, shelves };
@@ -119,8 +127,10 @@ export class PerforceProvider extends SourceControlProvider {
   fileDiff(wt: string, scope: GitScope, path: string): Promise<ScmFileDiff> {
     return p4FileDiff(this.ctx(wt), wt, scope, path);
   }
-  commitFiles(wt: string, message: string, paths: string[]): Promise<{ sha: string }> {
-    return p4SubmitFiles(this.ctx(wt), wt, message, paths);
+  async commitFiles(wt: string, message: string, paths: string[]): Promise<{ sha: string }> {
+    const ctx = this.ctx(wt);
+    await this.syncWatched(ctx, wt);
+    return p4SubmitFiles(ctx, wt, message, paths);
   }
   revertFiles(wt: string, paths: string[]): Promise<void> {
     return p4RevertFiles(this.ctx(wt), wt, paths);
@@ -189,7 +199,9 @@ export class PerforceProvider extends SourceControlProvider {
 
   async worktreeStatus(worktreePath: string): Promise<WorktreeStatus> {
     try {
-      const { files } = await p4ListStatus(this.ctx(worktreePath), worktreePath);
+      const ctx = this.ctx(worktreePath);
+      await this.syncWatched(ctx, worktreePath);
+      const { files } = await p4ListStatus(ctx, worktreePath);
       return {
         dirty: files.length > 0,
         files: files.slice(0, STATUS_LINES).map((f) => `${f.status}\t${f.path}`),
