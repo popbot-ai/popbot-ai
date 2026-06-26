@@ -119,6 +119,7 @@ import { isYesNoQuestion, looksLikeQuestion } from '@shared/questionDetect';
 import { useMessages } from '../lib/useMessages';
 import { getExternalEditor } from '../lib/editor';
 import { useTranslation } from '../lib/i18n';
+import { toolLabel } from '../lib/toolLabel';
 import type { Translator } from '@shared/i18n';
 
 /** Total messages mounted at any time. The window slides as the user
@@ -903,40 +904,43 @@ function presentTool(name: string, args: Record<string, unknown>, t: Translator)
 } {
   const a = args as Record<string, unknown>;
   const str = (k: string): string => (typeof a[k] === 'string' ? (a[k] as string) : '');
+  // Single source of truth for the translated tool name — shared with the
+  // monitor card via `toolLabel`. Only icon/hint differ per tool here.
+  const label = toolLabel(name, t);
   switch (name) {
     case 'Bash':
-      return { icon: 'fa-terminal', label: t('chat.tool.bash'), hint: str('description') || str('command') };
+      return { icon: 'fa-terminal', label, hint: str('description') || str('command') };
     case 'Edit':
     case 'MultiEdit': {
       const p = str('file_path');
-      return { icon: 'fa-pen-to-square', label: t('chat.tool.edit'), hint: p, filePath: p };
+      return { icon: 'fa-pen-to-square', label, hint: p, filePath: p };
     }
     case 'Write': {
       const p = str('file_path');
-      return { icon: 'fa-file-pen', label: t('chat.tool.write'), hint: p, filePath: p };
+      return { icon: 'fa-file-pen', label, hint: p, filePath: p };
     }
     case 'Read': {
       const p = str('file_path');
-      return { icon: 'fa-file-lines', label: t('chat.tool.read'), hint: p, filePath: p };
+      return { icon: 'fa-file-lines', label, hint: p, filePath: p };
     }
     case 'Glob':
-      return { icon: 'fa-magnifying-glass', label: t('chat.tool.glob'), hint: str('pattern') };
+      return { icon: 'fa-magnifying-glass', label, hint: str('pattern') };
     case 'Grep':
-      return { icon: 'fa-magnifying-glass', label: t('chat.tool.grep'), hint: str('pattern') };
+      return { icon: 'fa-magnifying-glass', label, hint: str('pattern') };
     case 'WebFetch':
-      return { icon: 'fa-globe', label: t('chat.tool.fetch'), hint: str('url') };
+      return { icon: 'fa-globe', label, hint: str('url') };
     case 'WebSearch':
-      return { icon: 'fa-globe', label: t('chat.tool.search'), hint: str('query') };
+      return { icon: 'fa-globe', label, hint: str('query') };
     case 'Task':
-      return { icon: 'fa-robot', label: t('chat.tool.subagent'), hint: str('description') || str('subagent_type') };
+      return { icon: 'fa-robot', label, hint: str('description') || str('subagent_type') };
     case 'TodoWrite':
-      return { icon: 'fa-list-check', label: t('chat.tool.todos'), hint: '' };
+      return { icon: 'fa-list-check', label, hint: '' };
     case 'NotebookEdit': {
       const p = str('notebook_path');
-      return { icon: 'fa-book', label: t('chat.tool.notebook'), hint: p, filePath: p };
+      return { icon: 'fa-book', label, hint: p, filePath: p };
     }
     default:
-      return { icon: 'fa-wrench', label: name || t('chat.tool.generic'), hint: '' };
+      return { icon: 'fa-wrench', label, hint: '' };
   }
 }
 
@@ -1447,7 +1451,7 @@ function PermissionBlock({
     <div className="banner wait">
       <div className="banner-head">
         <span className="glyph">?</span>
-        {t('chat.permission.wantsToUse')} <code>{body.tool}</code>
+        {t('chat.permission.wantsToUse')} <code>{toolLabel(body.tool, t)}</code>
       </div>
       {body.reason && <div className="banner-body">{body.reason}</div>}
       <div className="banner-body">

@@ -111,7 +111,7 @@ export const ko = {
   'app.noSlots.subtitle': '모든 슬롯이 열린 채팅에 의해 사용 중입니다.',
   'app.noSlots.body':
     '활성 채팅 중 하나를 닫아 슬롯을 비우거나, {prefsLink}에서 슬롯 한도를 늘리세요.',
-  'app.noSlots.prefsPath': '환경설정 → 런타임 및 슬롯',
+  'app.noSlots.prefsPath': '환경설정 → 저장소',
   'app.noSlots.openPreferences': '환경설정 열기',
 
   // ---------------------------------------------------------------------------
@@ -788,7 +788,7 @@ export const ko = {
     'URL 열기를 특정 Chrome 프로필에 고정하여 항상 개인 계정이 아닌 업무 계정으로 열리도록 합니다. Chrome 프로필 디렉터리 이름을 사용하세요 — chrome://version의 "Profile Path" 줄에서 찾을 수 있습니다 (마지막 경로 구성 요소, 예: Profile 1, Default, Person 2). 비워 두면 OS 기본 브라우저를 사용합니다.',
   'prefs.apps.chromeProfile.placeholder': '(OS 기본 브라우저 사용)',
   'prefs.apps.unity.desc':
-    'Unity 슬롯 아이콘을 클릭할 때 popbot이 실행하는 설치된 Unity Editor 버전을 선택하세요. 버전은 {path}에서 스캔됩니다.',
+    'Unity 슬롯 아이콘을 클릭할 때 PopBot이 실행하는 설치된 Unity Editor 버전을 선택하세요. 버전은 {path}에서 스캔됩니다.',
   'prefs.apps.unity.editorVersion.title': 'Editor 버전',
   'prefs.apps.unity.scanning': '스캔 중…',
   'prefs.apps.unity.installedCount': '{count}개 설치됨',
@@ -978,7 +978,9 @@ export const ko = {
   'prefs.repos.wizard.color.title': '색상',
   'prefs.repos.wizard.color.desc': '이 저장소의 슬롯 칩 + 채팅 강조 색상을 지정합니다.',
   'prefs.repos.wizard.created':
-    '{id}이(가) 생성되었습니다. 이제 {count}개의 슬롯 워크트리{plural}을(를) 초기화합니다 — 각각은 자체 주차 브랜치에 있는 장기 git 워크트리로, 채팅을 호스팅할 준비가 되어 있습니다.',
+    '{id}이(가) 생성되었습니다. 이제 {count}개의 슬롯 워크트리를 초기화합니다 — 각각은 자체 주차 브랜치에 있는 장기 git 워크트리로, 채팅을 호스팅할 준비가 되어 있습니다.',
+  'prefs.repos.wizard.createdOne':
+    '{id}이(가) 생성되었습니다. 이제 {count}개의 슬롯 워크트리를 초기화합니다 — 자체 주차 브랜치에 있는 장기 git 워크트리로, 채팅을 호스팅할 준비가 되어 있습니다.',
   'prefs.repos.wizard.slotPrefix.title': '슬롯 접두사',
   'prefs.repos.wizard.slotPrefix.desc':
     '폴더 + 주차 브랜치 접두사입니다. 워크트리는 {prefix}-N이 됩니다. 짧을수록 좋습니다 — 이 접두사는 워크트리 경로, 주차 브랜치, 채팅 헤더의 슬롯 칩에 표시되므로 긴 접두사는 모든 곳에서 화면 공간을 낭비합니다.',
@@ -1003,7 +1005,9 @@ export const ko = {
   'prefs.repos.delete.title': '저장소 삭제',
   'prefs.repos.delete.about': '{id}을(를) 삭제하려고 합니다.',
   'prefs.repos.delete.attachedWarning':
-    '채팅 {count}개{plural}이(가) 이 저장소에 연결되어 있습니다. 대화 기록은 데이터베이스에 보존되지만, 같은 id의 저장소가 다시 추가될 때까지 분리됩니다.',
+    '채팅 {count}개가 이 저장소에 연결되어 있습니다. 대화 기록은 데이터베이스에 보존되지만, 같은 id의 저장소가 다시 추가될 때까지 분리됩니다.',
+  'prefs.repos.delete.attachedWarningOne':
+    '채팅 {count}개가 이 저장소에 연결되어 있습니다. 대화 기록은 데이터베이스에 보존되지만, 같은 id의 저장소가 다시 추가될 때까지 분리됩니다.',
   'prefs.repos.delete.reversible': '되돌릴 수 있음:',
   'prefs.repos.delete.reversibleBody':
     '나중에 id {id}을(를) 가진 새 저장소를 만들면 분리된 모든 채팅이 자동으로 다시 연결됩니다.',

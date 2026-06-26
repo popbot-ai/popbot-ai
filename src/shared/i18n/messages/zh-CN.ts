@@ -111,7 +111,7 @@ export const zhCN = {
   'app.noSlots.subtitle': '所有槽位都被已打开的聊天占用。',
   'app.noSlots.body':
     '关闭一个活动聊天以释放槽位，或在 {prefsLink} 中提高槽位上限。',
-  'app.noSlots.prefsPath': '偏好设置 → 运行时与槽位',
+  'app.noSlots.prefsPath': '偏好设置 → 仓库',
   'app.noSlots.openPreferences': '打开偏好设置',
 
   // ---------------------------------------------------------------------------
@@ -788,7 +788,7 @@ export const zhCN = {
     '将 URL 打开固定到特定的 Chrome 配置文件，使它们始终落在您的工作账户中，而非个人账户。使用 Chrome 配置文件目录名称 — 可在 chrome://version 的 "Profile Path" 一行找到（路径的最后一段，例如 Profile 1、Default、Person 2）。留空 = 操作系统默认浏览器。',
   'prefs.apps.chromeProfile.placeholder': '(使用操作系统默认浏览器)',
   'prefs.apps.unity.desc':
-    '选择当您点击 Unity 槽位图标时 popbot 启动的已安装 Unity Editor 版本。版本从 {path} 扫描。',
+    '选择当您点击 Unity 槽位图标时 PopBot 启动的已安装 Unity Editor 版本。版本从 {path} 扫描。',
   'prefs.apps.unity.editorVersion.title': '编辑器版本',
   'prefs.apps.unity.scanning': '正在扫描…',
   'prefs.apps.unity.installedCount': '{count} 个已安装',
@@ -979,6 +979,8 @@ export const zhCN = {
   'prefs.repos.wizard.color.desc': '为此仓库的槽位标签 + 聊天强调色着色。',
   'prefs.repos.wizard.created':
     '{id} 已创建。现在我们将初始化它的 {count} 个槽位工作树 — 每个都是位于自己停放分支上的长期 git 工作树，可承载聊天。',
+  'prefs.repos.wizard.createdOne':
+    '{id} 已创建。现在我们将初始化它的 {count} 个槽位工作树 — 它是位于自己停放分支上的长期 git 工作树，可承载聊天。',
   'prefs.repos.wizard.slotPrefix.title': '槽位前缀',
   'prefs.repos.wizard.slotPrefix.desc':
     '文件夹 + 停放分支前缀。工作树将变为 {prefix}-N。越短越好 — 此前缀会显示在工作树路径、停放分支和聊天头部的槽位标签中，因此过长的前缀会到处浪费屏幕空间。',
@@ -1004,6 +1006,8 @@ export const zhCN = {
   'prefs.repos.delete.about': '您即将删除 {id}。',
   'prefs.repos.delete.attachedWarning':
     '{count} 个聊天附加到此仓库。它们的对话历史保留在数据库中，但在重新添加具有相同 id 的仓库之前，它们将处于分离状态。',
+  'prefs.repos.delete.attachedWarningOne':
+    '{count} 个聊天附加到此仓库。它的对话历史保留在数据库中，但在重新添加具有相同 id 的仓库之前，它将处于分离状态。',
   'prefs.repos.delete.reversible': '可逆：',
   'prefs.repos.delete.reversibleBody':
     '如果您稍后创建一个 id 为 {id} 的新仓库，所有分离的聊天将自动重新附加。',

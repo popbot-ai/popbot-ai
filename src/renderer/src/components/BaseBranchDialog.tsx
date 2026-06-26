@@ -159,6 +159,10 @@ function BaseBranchPicker({
   const label = isFree ? t('branch.picker.freeChat') : (value || t('branch.picker.selectBase'));
   const q = query.trim().toLowerCase();
   const matchesQ = (b: string): boolean => !q || b.toLowerCase().includes(q);
+  // Free-chat row haystack: its localized label + tag, plus the English
+  // alias so the term works regardless of the active UI language.
+  const freeChatHaystack =
+    `${t('branch.picker.freeChat')} ${t('branch.picker.tagRepoRoot')} free chat repo root`.toLowerCase();
   const shownRecents = recents.filter((b) => branches.includes(b) && matchesQ(b)).slice(0, RECENTS_SHOWN);
   const recentSet = new Set(shownRecents);
   const others = branches.filter((b) => matchesQ(b) && !recentSet.has(b));
@@ -212,7 +216,7 @@ function BaseBranchPicker({
                 {b === defaultBase && <span className="base-branch-tag">{t('branch.picker.tagDefault')}</span>}
               </button>
             ))}
-            {allowRepoRoot && (!q || 'free chat repo root'.includes(q)) && (
+            {allowRepoRoot && (!q || freeChatHaystack.includes(q)) && (
               <button
                 type="button"
                 className={`base-branch-row ${isFree ? 'selected' : ''}`}

@@ -15,7 +15,7 @@ import {
   closestReasoningEffort,
   normalizeClaudeModel,
 } from '@shared/persistence';
-import type { MessageKey } from '@shared/i18n';
+import type { MessageKey, Translator } from '@shared/i18n';
 import { useTranslation } from '../lib/i18n';
 
 export interface AgentCreateConfig {
@@ -60,17 +60,8 @@ const MODEL_OPTIONS = [
   },
 ] as const;
 
-const REASONING_LABELS: Record<ClaudeReasoningEffort | CodexReasoningEffort, string> = {
-  none: 'None',
-  low: 'Low',
-  medium: 'Medium',
-  high: 'High',
-  xhigh: 'XHigh',
-  max: 'Max',
-};
-
-/** i18n keys for each reasoning-effort label — resolved inside the
- *  component via `t()` so the option labels follow the active locale. */
+/** i18n keys for each reasoning-effort label — resolved via `t()` so the
+ *  option labels follow the active locale. */
 const REASONING_LABEL_KEYS: Record<ClaudeReasoningEffort | CodexReasoningEffort, MessageKey> = {
   none: 'agent.effort.none',
   low: 'agent.effort.low',
@@ -80,8 +71,14 @@ const REASONING_LABEL_KEYS: Record<ClaudeReasoningEffort | CodexReasoningEffort,
   max: 'agent.effort.max',
 };
 
-export function reasoningEffortLabel(effort: ClaudeReasoningEffort | CodexReasoningEffort): string {
-  return REASONING_LABELS[effort];
+/** Localized label for a reasoning-effort value. Takes the caller's `t()`
+ *  so the text follows the active locale (used by both the create-controls
+ *  dropdown and the Preferences effort defaults). */
+export function reasoningEffortLabel(
+  effort: ClaudeReasoningEffort | CodexReasoningEffort,
+  t: Translator,
+): string {
+  return t(REASONING_LABEL_KEYS[effort]);
 }
 
 export const DEFAULT_AGENT_CREATE_CONFIG: AgentCreateConfig = {

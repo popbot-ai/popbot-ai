@@ -111,7 +111,7 @@ export const ptBR = {
   'app.noSlots.subtitle': 'Todos os slots estão ocupados por um chat aberto.',
   'app.noSlots.body':
     'Feche um dos seus chats ativos para liberar um slot, ou aumente o limite de slots em {prefsLink}.',
-  'app.noSlots.prefsPath': 'Preferências → Tempo de execução e slots',
+  'app.noSlots.prefsPath': 'Preferências → Repositórios',
   'app.noSlots.openPreferences': 'Abrir Preferências',
 
   // ---------------------------------------------------------------------------
@@ -788,7 +788,7 @@ export const ptBR = {
     'Fixe a abertura de URLs em um perfil específico do Chrome para que sempre caiam na sua conta de trabalho, nunca na pessoal. Use o nome do diretório do perfil do Chrome — encontre-o em chrome://version na linha "Profile Path" (o último componente do caminho, ex.: Profile 1, Default, Person 2). Em branco = navegador padrão do SO.',
   'prefs.apps.chromeProfile.placeholder': '(usar o navegador padrão do SO)',
   'prefs.apps.unity.desc':
-    'Escolha qual versão instalada do Unity Editor o popbot inicia quando você clica no ícone de slot do Unity. As versões são verificadas em {path}.',
+    'Escolha qual versão instalada do Unity Editor o PopBot inicia quando você clica no ícone de slot do Unity. As versões são verificadas em {path}.',
   'prefs.apps.unity.editorVersion.title': 'Versão do editor',
   'prefs.apps.unity.scanning': 'Verificando…',
   'prefs.apps.unity.installedCount': '{count} instaladas',
@@ -978,7 +978,9 @@ export const ptBR = {
   'prefs.repos.wizard.color.title': 'Cor',
   'prefs.repos.wizard.color.desc': 'Tinge os chips de slot + destaques de chat deste repositório.',
   'prefs.repos.wizard.created':
-    '{id} foi criado. Agora inicializaremos seus {count} worktree(s) de slot{plural} — cada um é um worktree git de longa duração na própria branch de estacionamento, pronto para hospedar um chat.',
+    '{id} foi criado. Agora inicializaremos seus {count} worktrees de slot — cada um é um worktree git de longa duração na própria branch de estacionamento, pronto para hospedar um chat.',
+  'prefs.repos.wizard.createdOne':
+    '{id} foi criado. Agora inicializaremos seu {count} worktree de slot — um worktree git de longa duração na própria branch de estacionamento, pronto para hospedar um chat.',
   'prefs.repos.wizard.slotPrefix.title': 'Prefixo do slot',
   'prefs.repos.wizard.slotPrefix.desc':
     'Prefixo de pasta + branch de estacionamento. Os worktrees se tornam {prefix}-N. Mais curto é melhor — esse prefixo aparece nos caminhos de worktree, nas branches de estacionamento e no chip de slot no cabeçalho do chat, então um prefixo longo desperdiça espaço de tela em todos os lugares.',
@@ -1003,7 +1005,9 @@ export const ptBR = {
   'prefs.repos.delete.title': 'Excluir repositório',
   'prefs.repos.delete.about': 'Você está prestes a excluir {id}.',
   'prefs.repos.delete.attachedWarning':
-    '{count} chat{plural} {isAre} vinculado(s) a este repositório. O histórico de conversas deles é preservado no banco de dados, mas ficarão desvinculados até que um repositório com o mesmo id seja adicionado de volta.',
+    '{count} chats estão vinculados a este repositório. O histórico de conversas deles é preservado no banco de dados, mas ficarão desvinculados até que um repositório com o mesmo id seja adicionado de volta.',
+  'prefs.repos.delete.attachedWarningOne':
+    '{count} chat está vinculado a este repositório. O histórico de conversas dele é preservado no banco de dados, mas ficará desvinculado até que um repositório com o mesmo id seja adicionado de volta.',
   'prefs.repos.delete.reversible': 'Reversível:',
   'prefs.repos.delete.reversibleBody':
     'se mais tarde você criar um novo repositório com o id {id}, todos os chats desvinculados serão revinculados automaticamente.',

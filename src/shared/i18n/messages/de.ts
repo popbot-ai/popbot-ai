@@ -111,7 +111,7 @@ export const de = {
   'app.noSlots.subtitle': 'Jeder Slot wird von einem offenen Chat belegt.',
   'app.noSlots.body':
     'Schließen Sie einen Ihrer aktiven Chats, um einen Slot freizugeben, oder erhöhen Sie das Slot-Limit in {prefsLink}.',
-  'app.noSlots.prefsPath': 'Einstellungen → Laufzeit & Slots',
+  'app.noSlots.prefsPath': 'Einstellungen → Repositorys',
   'app.noSlots.openPreferences': 'Einstellungen öffnen',
 
   // ---------------------------------------------------------------------------
@@ -788,7 +788,7 @@ export const de = {
     'Heften Sie das Öffnen von URLs an ein bestimmtes Chrome-Profil, damit sie immer in Ihrem Arbeitskonto landen, nie in Ihrem persönlichen. Verwenden Sie den Namen des Chrome-Profilverzeichnisses — Sie finden ihn unter chrome://version in der Zeile "Profile Path" (die letzte Pfadkomponente, z. B. Profile 1, Default, Person 2). Leer = OS-Standardbrowser.',
   'prefs.apps.chromeProfile.placeholder': '(OS-Standardbrowser verwenden)',
   'prefs.apps.unity.desc':
-    'Wählen Sie aus, welche installierte Unity-Editor-Version popbot startet, wenn Sie auf das Unity-Slot-Symbol klicken. Die Versionen werden aus {path} gescannt.',
+    'Wählen Sie aus, welche installierte Unity-Editor-Version PopBot startet, wenn Sie auf das Unity-Slot-Symbol klicken. Die Versionen werden aus {path} gescannt.',
   'prefs.apps.unity.editorVersion.title': 'Editor-Version',
   'prefs.apps.unity.scanning': 'Wird gescannt…',
   'prefs.apps.unity.installedCount': '{count} installiert',
@@ -978,7 +978,9 @@ export const de = {
   'prefs.repos.wizard.color.title': 'Farbe',
   'prefs.repos.wizard.color.desc': 'Färbt die Slot-Pills und Chat-Akzente dieses Repos.',
   'prefs.repos.wizard.created':
-    '{id} wurde erstellt. Jetzt initialisieren wir die {count} Slot-Worktree{plural} — jeder ist ein langlebiger Git-Worktree auf seinem eigenen Parking-Branch, bereit für einen Chat.',
+    '{id} wurde erstellt. Jetzt initialisieren wir die {count} Slot-Worktrees — jeder ist ein langlebiger Git-Worktree auf seinem eigenen Parking-Branch, bereit für einen Chat.',
+  'prefs.repos.wizard.createdOne':
+    '{id} wurde erstellt. Jetzt initialisieren wir den {count} Slot-Worktree — ein langlebiger Git-Worktree auf seinem eigenen Parking-Branch, bereit für einen Chat.',
   'prefs.repos.wizard.slotPrefix.title': 'Slot-Präfix',
   'prefs.repos.wizard.slotPrefix.desc':
     'Ordner- + Parking-Branch-Präfix. Worktrees werden zu {prefix}-N. Kürzer ist besser — dieses Präfix erscheint in Worktree-Pfaden, Parking-Branches und der Slot-Pill im Chat-Header, sodass ein langes Präfix überall Bildschirmplatz verschwendet.',
@@ -1003,7 +1005,9 @@ export const de = {
   'prefs.repos.delete.title': 'Repository löschen',
   'prefs.repos.delete.about': 'Sie sind dabei, {id} zu löschen.',
   'prefs.repos.delete.attachedWarning':
-    '{count} Chat{plural} {isAre} mit diesem Repo verbunden. Ihr Gesprächsverlauf bleibt in der Datenbank erhalten, aber sie werden getrennt, bis ein Repo mit derselben ID wieder hinzugefügt wird.',
+    '{count} Chats sind mit diesem Repo verbunden. Ihr Gesprächsverlauf bleibt in der Datenbank erhalten, aber sie werden getrennt, bis ein Repo mit derselben ID wieder hinzugefügt wird.',
+  'prefs.repos.delete.attachedWarningOne':
+    '{count} Chat ist mit diesem Repo verbunden. Sein Gesprächsverlauf bleibt in der Datenbank erhalten, aber er wird getrennt, bis ein Repo mit derselben ID wieder hinzugefügt wird.',
   'prefs.repos.delete.reversible': 'Umkehrbar:',
   'prefs.repos.delete.reversibleBody':
     'wenn Sie später ein neues Repo mit der ID {id} erstellen, werden alle getrennten Chats automatisch wieder verbunden.',

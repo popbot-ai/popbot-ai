@@ -296,6 +296,7 @@ function AgentEffortField<T extends ClaudeReasoningEffort | CodexReasoningEffort
   options: readonly T[];
   onChange: (value: T) => void;
 }): JSX.Element {
+  const { t } = useTranslation();
   return (
     <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
       <span className="mono" style={{ color: 'var(--fg-2)', fontSize: 11 }}>{label}</span>
@@ -306,7 +307,7 @@ function AgentEffortField<T extends ClaudeReasoningEffort | CodexReasoningEffort
         style={{ width: 112 }}
       >
         {options.map((item) => (
-          <option key={item} value={item}>{reasoningEffortLabel(item)}</option>
+          <option key={item} value={item}>{reasoningEffortLabel(item, t)}</option>
         ))}
       </select>
     </label>
@@ -2813,11 +2814,12 @@ function NewRepoWizard({
         {step === 4 && createdRepo && (
           <div className="modal-body">
             <p className="pref-section-desc" style={{ marginTop: 0 }}>
-              {t('prefs.repos.wizard.created', {
-                id: createdRepo.id,
-                count: createdRepo.slotCount,
-                plural: createdRepo.slotCount === 1 ? '' : 's',
-              })}
+              {t(
+                createdRepo.slotCount === 1
+                  ? 'prefs.repos.wizard.createdOne'
+                  : 'prefs.repos.wizard.created',
+                { id: createdRepo.id, count: createdRepo.slotCount },
+              )}
             </p>
             <ConfigureSlotsPanel
               repo={createdRepo}
@@ -3163,11 +3165,12 @@ function DeleteRepoModal({
           </p>
           {chatCount !== null && chatCount > 0 && (
             <div className="pref-warn" style={{ marginBottom: 12 }}>
-              {t('prefs.repos.delete.attachedWarning', {
-                count: chatCount,
-                plural: chatCount === 1 ? '' : 's',
-                isAre: chatCount === 1 ? 'is' : 'are',
-              })}
+              {t(
+                chatCount === 1
+                  ? 'prefs.repos.delete.attachedWarningOne'
+                  : 'prefs.repos.delete.attachedWarning',
+                { count: chatCount },
+              )}
             </div>
           )}
           <p style={{ fontSize: 13, color: 'var(--fg-2)' }}>

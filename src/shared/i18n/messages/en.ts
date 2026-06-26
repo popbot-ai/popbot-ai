@@ -123,7 +123,7 @@ export const en = {
   'app.noSlots.subtitle': 'Every slot is held by an open chat.',
   'app.noSlots.body':
     'Close one of your active chats to free a slot, or raise the slot limit in {prefsLink}.',
-  'app.noSlots.prefsPath': 'Preferences → Runtime & Slots',
+  'app.noSlots.prefsPath': 'Preferences → Repositories',
   'app.noSlots.openPreferences': 'Open Preferences',
 
   // ---------------------------------------------------------------------------
@@ -800,7 +800,7 @@ export const en = {
     'Pin URL opens to a specific Chrome profile so they always land in your work account, never your personal one. Use the Chrome profile directory name — find it at chrome://version on the "Profile Path" line (the last path component, e.g. Profile 1, Default, Person 2). Blank = OS default browser.',
   'prefs.apps.chromeProfile.placeholder': '(use OS default browser)',
   'prefs.apps.unity.desc':
-    'Pick which installed Unity Editor version popbot launches when you click the Unity slot icon. Versions are scanned from {path}.',
+    'Pick which installed Unity Editor version PopBot launches when you click the Unity slot icon. Versions are scanned from {path}.',
   'prefs.apps.unity.editorVersion.title': 'Editor version',
   'prefs.apps.unity.scanning': 'Scanning…',
   'prefs.apps.unity.installedCount': '{count} installed',
@@ -990,7 +990,9 @@ export const en = {
   'prefs.repos.wizard.color.title': 'Color',
   'prefs.repos.wizard.color.desc': 'Tints this repo’s slot pills + chat accents.',
   'prefs.repos.wizard.created':
-    '{id} is created. Now we’ll initialize its {count} slot worktree{plural} — each is a long-lived git worktree on its own parking branch, ready to host a chat.',
+    '{id} is created. Now we’ll initialize its {count} slot worktrees — each is a long-lived git worktree on its own parking branch, ready to host a chat.',
+  'prefs.repos.wizard.createdOne':
+    '{id} is created. Now we’ll initialize its {count} slot worktree — a long-lived git worktree on its own parking branch, ready to host a chat.',
   'prefs.repos.wizard.slotPrefix.title': 'Slot prefix',
   'prefs.repos.wizard.slotPrefix.desc':
     'Folder + parking-branch prefix. Worktrees become {prefix}-N. Shorter is better — this prefix shows up in worktree paths, parking branches, and the slot pill in the chat header, so a long prefix wastes screen space everywhere.',
@@ -1015,7 +1017,9 @@ export const en = {
   'prefs.repos.delete.title': 'Delete repository',
   'prefs.repos.delete.about': 'You’re about to delete {id}.',
   'prefs.repos.delete.attachedWarning':
-    '{count} chat{plural} {isAre} attached to this repo. Their conversation history is preserved in the database, but they’ll be detached until a repo with the same id is added back.',
+    '{count} chats are attached to this repo. Their conversation history is preserved in the database, but they’ll be detached until a repo with the same id is added back.',
+  'prefs.repos.delete.attachedWarningOne':
+    '{count} chat is attached to this repo. Its conversation history is preserved in the database, but it’ll be detached until a repo with the same id is added back.',
   'prefs.repos.delete.reversible': 'Reversible:',
   'prefs.repos.delete.reversibleBody':
     'if you later create a new repo with the id {id}, all detached chats will reattach automatically.',

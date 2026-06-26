@@ -10,6 +10,7 @@ import { looksLikeQuestion } from '@shared/questionDetect';
 import { fmtTokens, tokenBarClass, tokenBarPct, type Chat, type ActivityItem } from '../fixtures/data';
 import { useMessages } from '../lib/useMessages';
 import { useTranslation } from '../lib/i18n';
+import { toolLabel } from '../lib/toolLabel';
 import type { MessageKey, Translator } from '@shared/i18n';
 
 /**
@@ -45,7 +46,7 @@ function messageToActivity(m: MessageRecord, t: Translator): ActivityItem | null
     let label = t('monitor.permissionRequested');
     try {
       const body = JSON.parse(m.body) as MessageBodyPermission;
-      label = t('monitor.wantsTool', { tool: body.tool });
+      label = t('monitor.wantsTool', { tool: toolLabel(body.tool, t) });
     } catch {
       // ignore
     }

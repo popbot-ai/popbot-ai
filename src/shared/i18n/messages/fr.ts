@@ -111,7 +111,7 @@ export const fr = {
   'app.noSlots.subtitle': 'Chaque emplacement est occupé par un chat ouvert.',
   'app.noSlots.body':
     'Fermez l’un de vos chats actifs pour libérer un emplacement, ou augmentez la limite d’emplacements dans {prefsLink}.',
-  'app.noSlots.prefsPath': 'Préférences → Exécution et emplacements',
+  'app.noSlots.prefsPath': 'Préférences → Dépôts',
   'app.noSlots.openPreferences': 'Ouvrir les préférences',
 
   // ---------------------------------------------------------------------------
@@ -788,7 +788,7 @@ export const fr = {
     'Épinglez l’ouverture des URL à un profil Chrome spécifique pour qu’elles arrivent toujours dans votre compte professionnel, jamais le personnel. Utilisez le nom du répertoire du profil Chrome — trouvez-le sur chrome://version à la ligne « Profile Path » (le dernier composant du chemin, ex. Profile 1, Default, Person 2). Vide = navigateur par défaut du système.',
   'prefs.apps.chromeProfile.placeholder': '(utiliser le navigateur par défaut du système)',
   'prefs.apps.unity.desc':
-    'Choisissez quelle version installée de l’éditeur Unity popbot lance lorsque vous cliquez sur l’icône d’emplacement Unity. Les versions sont analysées depuis {path}.',
+    'Choisissez quelle version installée de l’éditeur Unity PopBot lance lorsque vous cliquez sur l’icône d’emplacement Unity. Les versions sont analysées depuis {path}.',
   'prefs.apps.unity.editorVersion.title': 'Version de l’éditeur',
   'prefs.apps.unity.scanning': 'Analyse…',
   'prefs.apps.unity.installedCount': '{count} installées',
@@ -978,7 +978,9 @@ export const fr = {
   'prefs.repos.wizard.color.title': 'Couleur',
   'prefs.repos.wizard.color.desc': 'Teinte les puces d’emplacement + les accents de chat de ce dépôt.',
   'prefs.repos.wizard.created':
-    '{id} est créé. Nous allons maintenant initialiser ses {count} worktree{plural} d’emplacement — chacun est un worktree git de longue durée sur sa propre branche de parking, prêt à héberger un chat.',
+    '{id} est créé. Nous allons maintenant initialiser ses {count} worktrees d’emplacement — chacun est un worktree git de longue durée sur sa propre branche de parking, prêt à héberger un chat.',
+  'prefs.repos.wizard.createdOne':
+    '{id} est créé. Nous allons maintenant initialiser son {count} worktree d’emplacement — un worktree git de longue durée sur sa propre branche de parking, prêt à héberger un chat.',
   'prefs.repos.wizard.slotPrefix.title': 'Préfixe d’emplacement',
   'prefs.repos.wizard.slotPrefix.desc':
     'Préfixe de dossier + branche de parking. Les worktrees deviennent {prefix}-N. Plus court est préférable — ce préfixe apparaît dans les chemins de worktree, les branches de parking et la puce d’emplacement dans l’en-tête du chat, donc un long préfixe gaspille de l’espace écran partout.',
@@ -1003,7 +1005,9 @@ export const fr = {
   'prefs.repos.delete.title': 'Supprimer le dépôt',
   'prefs.repos.delete.about': 'Vous êtes sur le point de supprimer {id}.',
   'prefs.repos.delete.attachedWarning':
-    '{count} chat{plural} {isAre} rattaché(s) à ce dépôt. Leur historique de conversation est conservé dans la base de données, mais ils seront détachés jusqu’à ce qu’un dépôt avec le même id soit rajouté.',
+    '{count} chats sont rattachés à ce dépôt. Leur historique de conversation est conservé dans la base de données, mais ils seront détachés jusqu’à ce qu’un dépôt avec le même id soit rajouté.',
+  'prefs.repos.delete.attachedWarningOne':
+    '{count} chat est rattaché à ce dépôt. Son historique de conversation est conservé dans la base de données, mais il sera détaché jusqu’à ce qu’un dépôt avec le même id soit rajouté.',
   'prefs.repos.delete.reversible': 'Réversible :',
   'prefs.repos.delete.reversibleBody':
     'si vous créez plus tard un nouveau dépôt avec l’id {id}, tous les chats détachés se rattacheront automatiquement.',

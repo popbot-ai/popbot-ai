@@ -111,7 +111,7 @@ export const ja = {
   'app.noSlots.subtitle': 'すべてのスロットが開いているチャットで使用中です。',
   'app.noSlots.body':
     'アクティブなチャットを1つ閉じてスロットを空けるか、{prefsLink} でスロット上限を引き上げてください。',
-  'app.noSlots.prefsPath': '環境設定 → ランタイムとスロット',
+  'app.noSlots.prefsPath': '環境設定 → リポジトリ',
   'app.noSlots.openPreferences': '環境設定を開く',
 
   // ---------------------------------------------------------------------------
@@ -788,7 +788,7 @@ export const ja = {
     'URL を特定の Chrome プロファイルで開くように固定し、常に個人用ではなく仕事用アカウントで開くようにします。Chrome プロファイルのディレクトリ名を使用してください — chrome://version の "Profile Path" 行で確認できます (パスの最後の構成要素。例: Profile 1、Default、Person 2)。空欄 = OS のデフォルトブラウザ。',
   'prefs.apps.chromeProfile.placeholder': '(OS のデフォルトブラウザを使用)',
   'prefs.apps.unity.desc':
-    'Unity スロットアイコンをクリックしたときに popbot が起動する、インストール済みの Unity Editor バージョンを選択します。バージョンは {path} からスキャンされます。',
+    'Unity スロットアイコンをクリックしたときに PopBot が起動する、インストール済みの Unity Editor バージョンを選択します。バージョンは {path} からスキャンされます。',
   'prefs.apps.unity.editorVersion.title': 'エディターのバージョン',
   'prefs.apps.unity.scanning': 'スキャン中…',
   'prefs.apps.unity.installedCount': '{count} 個インストール済み',
@@ -978,7 +978,9 @@ export const ja = {
   'prefs.repos.wizard.color.title': '色',
   'prefs.repos.wizard.color.desc': 'このリポジトリのスロットピル + チャットアクセントに色を付けます。',
   'prefs.repos.wizard.created':
-    '{id} を作成しました。次に {count} 個のスロット worktree{plural} を初期化します — それぞれが独自の parking ブランチ上にある長寿命の git worktree で、チャットをホストする準備が整っています。',
+    '{id} を作成しました。次に {count} 個のスロット worktree を初期化します — それぞれが独自の parking ブランチ上にある長寿命の git worktree で、チャットをホストする準備が整っています。',
+  'prefs.repos.wizard.createdOne':
+    '{id} を作成しました。次に {count} 個のスロット worktree を初期化します — 独自の parking ブランチ上にある長寿命の git worktree で、チャットをホストする準備が整っています。',
   'prefs.repos.wizard.slotPrefix.title': 'スロットプレフィックス',
   'prefs.repos.wizard.slotPrefix.desc':
     'フォルダ + parking ブランチのプレフィックス。worktree は {prefix}-N になります。短いほど良いです — このプレフィックスは worktree パス、parking ブランチ、チャットヘッダーのスロットピルに表示されるため、長いプレフィックスはあらゆる場所で画面スペースを無駄にします。',
@@ -1003,7 +1005,9 @@ export const ja = {
   'prefs.repos.delete.title': 'リポジトリを削除',
   'prefs.repos.delete.about': '{id} を削除しようとしています。',
   'prefs.repos.delete.attachedWarning':
-    '{count} 件のチャット{plural} {isAre}このリポジトリに関連付けられています。会話履歴はデータベースに保持されますが、同じ ID のリポジトリが再追加されるまで切り離されます。',
+    '{count} 件のチャットがこのリポジトリに関連付けられています。会話履歴はデータベースに保持されますが、同じ ID のリポジトリが再追加されるまで切り離されます。',
+  'prefs.repos.delete.attachedWarningOne':
+    '{count} 件のチャットがこのリポジトリに関連付けられています。会話履歴はデータベースに保持されますが、同じ ID のリポジトリが再追加されるまで切り離されます。',
   'prefs.repos.delete.reversible': '元に戻せます:',
   'prefs.repos.delete.reversibleBody':
     '後で ID {id} の新しいリポジトリを作成すると、切り離されたすべてのチャットが自動的に再関連付けされます。',
