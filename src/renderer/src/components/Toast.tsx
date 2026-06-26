@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { useTranslation } from '../lib/i18n';
 
 interface ToastProps {
   message: string;
@@ -15,6 +16,7 @@ interface ToastProps {
  * keep the API tiny so we can re-use it for other notifications later.
  */
 export function Toast({ message, detail, onClick, onDismiss, ttlMs = 6000 }: ToastProps): JSX.Element {
+  const { t } = useTranslation();
   useEffect(() => {
     const t = setTimeout(onDismiss, ttlMs);
     return () => clearTimeout(t);
@@ -32,7 +34,7 @@ export function Toast({ message, detail, onClick, onDismiss, ttlMs = 6000 }: Toa
       <button
         className="legacy-toast-close"
         onClick={(e) => { e.stopPropagation(); onDismiss(); }}
-        title="Dismiss"
+        title={t('common.dismiss')}
       >
         <i className="fa-solid fa-xmark" />
       </button>

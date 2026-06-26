@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { GitBaseBranches } from '@shared/git';
 import type { RepoRecord } from '@shared/persistence';
+import { useTranslation } from '../lib/i18n';
 import {
   AGENT_EFFORT_DEFAULTS_SETTING,
   AgentCreateControls,
@@ -129,6 +130,7 @@ function BaseBranchPicker({
   allowRepoRoot?: boolean;
   freeChatValue: string;
 }): JSX.Element {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const ref = useRef<HTMLDivElement | null>(null);
@@ -154,9 +156,13 @@ function BaseBranchPicker({
   }, [open]);
 
   const isFree = value === freeChatValue;
-  const label = isFree ? 'Free Chat (no slot)' : (value || 'Select base branch');
+  const label = isFree ? t('branch.picker.freeChat') : (value || t('branch.picker.selectBase'));
   const q = query.trim().toLowerCase();
   const matchesQ = (b: string): boolean => !q || b.toLowerCase().includes(q);
+  // Free-chat row haystack: its localized label + tag, plus the English
+  // alias so the term works regardless of the active UI language.
+  const freeChatHaystack =
+    `${t('branch.picker.freeChat')} ${t('branch.picker.tagRepoRoot')} free chat repo root`.toLowerCase();
   const shownRecents = recents.filter((b) => branches.includes(b) && matchesQ(b)).slice(0, RECENTS_SHOWN);
   const recentSet = new Set(shownRecents);
   const others = branches.filter((b) => matchesQ(b) && !recentSet.has(b));
@@ -179,13 +185,13 @@ function BaseBranchPicker({
           <input
             ref={inputRef}
             className="pref-input bb-picker-search"
-            placeholder="Search branches…"
+            placeholder={t('branch.picker.searchPlaceholder')}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
           />
           <div className="base-branch-list bb-picker-list">
             {branches.length === 0 && !allowRepoRoot && (
-              <div style={{ padding: 8, color: 'var(--fg-3)', fontSize: 12 }}>No branches found.</div>
+              <div style={{ padding: 8, color: 'var(--fg-3)', fontSize: 12 }}>{t('branch.picker.noBranches')}</div>
             )}
             {shownRecents.map((b) => (
               <button
@@ -195,7 +201,7 @@ function BaseBranchPicker({
                 onClick={() => pick(b)}
               >
                 <span className="base-branch-name">{b}</span>
-                <span className="base-branch-tag">recent</span>
+                <span className="base-branch-tag">{t('branch.picker.tagRecent')}</span>
               </button>
             ))}
             {shownRecents.length > 0 && others.length > 0 && <div className="base-branch-divider" />}
@@ -207,17 +213,17 @@ function BaseBranchPicker({
                 onClick={() => pick(b)}
               >
                 <span className="base-branch-name">{b}</span>
-                {b === defaultBase && <span className="base-branch-tag">default</span>}
+                {b === defaultBase && <span className="base-branch-tag">{t('branch.picker.tagDefault')}</span>}
               </button>
             ))}
-            {allowRepoRoot && (!q || 'free chat repo root'.includes(q)) && (
+            {allowRepoRoot && (!q || freeChatHaystack.includes(q)) && (
               <button
                 type="button"
                 className={`base-branch-row ${isFree ? 'selected' : ''}`}
                 onClick={() => pick(freeChatValue)}
               >
-                <span className="base-branch-name">Free Chat (no slot)</span>
-                <span className="base-branch-tag">repo root</span>
+                <span className="base-branch-name">{t('branch.picker.freeChat')}</span>
+                <span className="base-branch-tag">{t('branch.picker.tagRepoRoot')}</span>
               </button>
             )}
           </div>
@@ -238,6 +244,7 @@ export function BaseBranchDialog({
   onCancel,
   onConfirm,
 }: BaseBranchDialogProps): JSX.Element {
+  const { t } = useTranslation();
   const [repos, setRepos] = useState<RepoRecord[] | null>(null);
   const [pickedRepoId, setPickedRepoId] = useState<string | null>(null);
   const [branches, setBranches] = useState<GitBaseBranches | null>(null);
@@ -397,10 +404,10 @@ export function BaseBranchDialog({
   const branchesLoading = !isRawChat && !isFreeChat && branches == null && !error;
   const confirmDisabled = noRepo || noBranches || noBranchPicked || branchesLoading;
   // Plain-language reason shown beside a disabled Create button.
-  const disabledReason = noRepo ? 'Pick a repository.'
-    : branchesLoading ? 'Loading branches…'
-      : noBranches ? 'This repo has no branches to base off — push one first.'
-        : noBranchPicked ? 'Pick a base branch.'
+  const disabledReason = noRepo ? t('branch.dialog.disabled.pickRepo')
+    : branchesLoading ? t('branch.dialog.disabled.loadingBranches')
+      : noBranches ? t('branch.dialog.disabled.noBranches')
+        : noBranchPicked ? t('branch.dialog.disabled.pickBranch')
           : '';
 
   return createPortal(
@@ -408,10 +415,10 @@ export function BaseBranchDialog({
       <div
         className="confirm-dialog base-branch-dialog"
         role="dialog"
-        aria-label="Pick repo and base branch"
+        aria-label={t('branch.dialog.ariaLabel')}
         onMouseDown={(e) => e.stopPropagation()}
       >
-        <div className="confirm-head">New chat</div>
+        <div className="confirm-head">{t('branch.dialog.title')}</div>
         {subtitle && !askSubject && <div className="base-branch-subtitle">{subtitle}</div>}
         <div className="confirm-body">
           {showAgentPicker && (
@@ -422,7 +429,7 @@ export function BaseBranchDialog({
           )}
           {askSubject && (
             <div style={{ marginBottom: 12 }}>
-              <div style={{ fontSize: 11, color: 'var(--fg-3)', marginBottom: 4 }}>Subject <span style={{ opacity: 0.7 }}>(optional)</span></div>
+              <div style={{ fontSize: 11, color: 'var(--fg-3)', marginBottom: 4 }}>{t('branch.dialog.subjectLabel')} <span style={{ opacity: 0.7 }}>{t('branch.dialog.subjectOptional')}</span></div>
               <input
                 className="pref-input mono narrow"
                 placeholder={defaultSubject}
@@ -433,22 +440,22 @@ export function BaseBranchDialog({
               />
               {derivedBranch && !isFreeChat && (
                 <div style={{ fontSize: 11, color: 'var(--fg-3)', marginTop: 4 }}>
-                  Branch: <span className="mono">{derivedBranch}</span>
+                  {t('branch.dialog.branchPrefix')} <span className="mono">{derivedBranch}</span>
                 </div>
               )}
             </div>
           )}
-          {!repos && <div>Loading repos…</div>}
+          {!repos && <div>{t('branch.dialog.loadingRepos')}</div>}
           {repos && repos.length === 0 && !allowNoRepo && (
             <div className="diff-overlay-status error">
-              No repos configured. Add one in Preferences → Repositories.
+              {t('branch.dialog.noReposConfigured')}
             </div>
           )}
           {repos && (repos.length > 0 || allowNoRepo) && (
             <>
               {!lockedRepoId && (repos.length > 1 || allowNoRepo) && (
                 <div style={{ marginBottom: 12 }}>
-                  <div style={{ fontSize: 11, color: 'var(--fg-3)', marginBottom: 4 }}>Repo</div>
+                  <div style={{ fontSize: 11, color: 'var(--fg-3)', marginBottom: 4 }}>{t('branch.dialog.repoLabel')}</div>
                   <div className="base-branch-list">
                     {allowNoRepo && (
                       <label className={`base-branch-row ${isRawChat ? 'selected' : ''}`}>
@@ -459,8 +466,8 @@ export function BaseBranchDialog({
                           checked={isRawChat}
                           onChange={() => setPickedRepoId(null)}
                         />
-                        <span className="base-branch-name mono">No repo</span>
-                        <span className="base-branch-tag">raw chat</span>
+                        <span className="base-branch-name mono">{t('branch.dialog.noRepoOption')}</span>
+                        <span className="base-branch-tag">{t('branch.dialog.tagRawChat')}</span>
                       </label>
                     )}
                     {repos.map((r) => (
@@ -479,7 +486,9 @@ export function BaseBranchDialog({
                           {r.id}
                         </span>
                         <span className="base-branch-tag">
-                          {r.mode === 'ephemeral' ? 'ephemeral' : `slots × ${r.slotCount}`}
+                          {r.mode === 'ephemeral'
+                            ? t('branch.dialog.tagEphemeral')
+                            : t('branch.dialog.tagSlots', { count: r.slotCount })}
                         </span>
                       </label>
                     ))}
@@ -488,13 +497,13 @@ export function BaseBranchDialog({
               )}
               {isRawChat ? (
                 <div style={{ color: 'var(--fg-2)', fontSize: 12 }}>
-                  Creates a raw chat with no worktree, slot, branch, or base branch.
+                  {t('branch.dialog.rawChatDesc')}
                 </div>
               ) : (
                 <>
-                  <div style={{ fontSize: 11, color: 'var(--fg-3)', marginBottom: 4 }}>Base branch</div>
-                  {!branches && !error && <div>Loading branches…</div>}
-                  {error && <div className="diff-overlay-status error">Couldn't load branches: {error}</div>}
+                  <div style={{ fontSize: 11, color: 'var(--fg-3)', marginBottom: 4 }}>{t('branch.dialog.baseBranchLabel')}</div>
+                  {!branches && !error && <div>{t('branch.dialog.disabled.loadingBranches')}</div>}
+                  {error && <div className="diff-overlay-status error">{t('branch.dialog.loadBranchesError', { error })}</div>}
                   {branches && (
                     <BaseBranchPicker
                       branches={allBranches}
@@ -508,8 +517,7 @@ export function BaseBranchDialog({
                   )}
                   {isFreeChat && (
                     <div style={{ color: 'var(--fg-2)', fontSize: 12, marginTop: 8 }}>
-                      Runs in <span className="mono">{pickedRepoId}</span> from the repo root —
-                      no slot, worktree, or branch.
+                      {t('branch.dialog.freeChatDesc', { repo: pickedRepoId })}
                     </div>
                   )}
                 </>
@@ -521,7 +529,7 @@ export function BaseBranchDialog({
           {confirmDisabled && disabledReason && (
             <span style={{ fontSize: 11.5, color: 'var(--fg-3)', marginRight: 'auto' }}>{disabledReason}</span>
           )}
-          <button className="btn ghost" onClick={onCancel}>Cancel</button>
+          <button className="btn ghost" onClick={onCancel}>{t('common.cancel')}</button>
           <button
             className="btn primary"
             onClick={submit}
@@ -529,7 +537,7 @@ export function BaseBranchDialog({
             title={confirmDisabled ? disabledReason : undefined}
             autoFocus={!askSubject}
           >
-            Create chat
+            {t('branch.dialog.createChat')}
           </button>
         </div>
       </div>

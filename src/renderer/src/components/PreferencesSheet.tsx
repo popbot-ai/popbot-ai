@@ -172,9 +172,9 @@ export function PreferencesSheet({
           </div>
         </div>
         <div className="prefs-foot">
-          <span className="prefs-foot-meta">PopBot · pre-alpha</span>
+          <span className="prefs-foot-meta">{t('prefs.footMeta')}</span>
           <span style={{ flex: 1 }} />
-          <button className="btn primary" onClick={onClose}>Done</button>
+          <button className="btn primary" onClick={onClose}>{t('common.done')}</button>
         </div>
       </div>
     </>
@@ -188,6 +188,7 @@ interface LinearSettings {
 }
 
 function PrefsAgents(): JSX.Element {
+  const { t } = useTranslation();
   const { get, set, loading } = useSettings();
   const saved = normalizeAgentEffortDefaults(
     get<AgentEffortDefaultsSettings>(AGENT_EFFORT_DEFAULTS_SETTING),
@@ -204,7 +205,7 @@ function PrefsAgents(): JSX.Element {
     saved.codeReviewCodexReasoningEffort,
   ]);
 
-  if (loading) return <div className="pref-section"><h3>Agents</h3></div>;
+  if (loading) return <div className="pref-section"><h3>{t('prefs.agents.title')}</h3></div>;
 
   const dirty =
     values.claudeReasoningEffort !== saved.claudeReasoningEffort
@@ -219,17 +220,16 @@ function PrefsAgents(): JSX.Element {
 
   return (
     <div className="pref-section">
-      <h3>Agents</h3>
+      <h3>{t('prefs.agents.title')}</h3>
       <p className="pref-section-desc">
-        Default effort levels for newly-created chats. Existing chats keep their
-        own saved effort until you change them in the chat composer.
+        {t('prefs.agents.desc')}
       </p>
       <div className="pref-rows">
         <div className="pref-row">
           <div className="pref-label">
-            <div className="pref-label-title">New chats</div>
+            <div className="pref-label-title">{t('prefs.agents.newChats.title')}</div>
             <div className="pref-label-desc">
-              Used by generic chats and ticket chats when the agent picker opens.
+              {t('prefs.agents.newChats.desc')}
             </div>
           </div>
           <div className="pref-control" style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
@@ -250,9 +250,9 @@ function PrefsAgents(): JSX.Element {
 
         <div className="pref-row">
           <div className="pref-label">
-            <div className="pref-label-title">Code reviews</div>
+            <div className="pref-label-title">{t('prefs.agents.codeReviews.title')}</div>
             <div className="pref-label-desc">
-              Used by PR review chats, re-review fallback chats, and review notifications.
+              {t('prefs.agents.codeReviews.desc')}
             </div>
           </div>
           <div className="pref-control" style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
@@ -274,10 +274,10 @@ function PrefsAgents(): JSX.Element {
         <div className="pref-row wide">
           <div className="pref-control" style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, width: '100%' }}>
             {savedAt && !dirty && (
-              <span style={{ color: 'var(--fg-3)', fontSize: 11, alignSelf: 'center' }}>Saved.</span>
+              <span style={{ color: 'var(--fg-3)', fontSize: 11, alignSelf: 'center' }}>{t('common.saved')}</span>
             )}
             <button className="btn primary sm" disabled={!dirty} onClick={() => void save()}>
-              Save
+              {t('common.save')}
             </button>
           </div>
         </div>
@@ -297,6 +297,7 @@ function AgentEffortField<T extends ClaudeReasoningEffort | CodexReasoningEffort
   options: readonly T[];
   onChange: (value: T) => void;
 }): JSX.Element {
+  const { t } = useTranslation();
   return (
     <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
       <span className="mono" style={{ color: 'var(--fg-2)', fontSize: 11 }}>{label}</span>
@@ -307,7 +308,7 @@ function AgentEffortField<T extends ClaudeReasoningEffort | CodexReasoningEffort
         style={{ width: 112 }}
       >
         {options.map((item) => (
-          <option key={item} value={item}>{reasoningEffortLabel(item)}</option>
+          <option key={item} value={item}>{reasoningEffortLabel(item, t)}</option>
         ))}
       </select>
     </label>
@@ -315,6 +316,7 @@ function AgentEffortField<T extends ClaudeReasoningEffort | CodexReasoningEffort
 }
 
 function PrefsAttachments(): JSX.Element {
+  const { t } = useTranslation();
   const { get, set, loading } = useSettings();
   const initial = get<AttachmentsSettings>('attachments', {}) ?? {};
   const savedDays = clampAttachmentTtlDays(initial.ttlDays ?? ATTACHMENT_TTL_DAYS_DEFAULT);
@@ -325,26 +327,26 @@ function PrefsAttachments(): JSX.Element {
   // the first render captures the default before the saved value lands.
   useEffect(() => { setDays(savedDays); }, [savedDays]);
 
-  if (loading) return <div className="pref-section"><h3>Attachment retention</h3></div>;
+  if (loading) return <div className="pref-section"><h3>{t('prefs.runtime.title')}</h3></div>;
 
   const dirty = days !== savedDays;
 
   return (
     <div className="pref-section">
-      <h3>Attachment retention</h3>
+      <h3>{t('prefs.runtime.title')}</h3>
       <p className="pref-section-desc">
-        Files and images you attach to a chat are copied into PopBot's own
-        storage so they keep opening from chat history even after the
-        original moves. A startup sweep deletes copies older than this
-        window to keep the folder from growing without bound.
+        {t('prefs.runtime.desc')}
       </p>
       <div className="pref-rows">
         <div className="pref-row">
           <div className="pref-label">
-            <div className="pref-label-title">Keep attachments for</div>
+            <div className="pref-label-title">{t('prefs.runtime.keepFor.title')}</div>
             <div className="pref-label-desc">
-              Default {ATTACHMENT_TTL_DAYS_DEFAULT} days (range {ATTACHMENT_TTL_DAYS_MIN}–{ATTACHMENT_TTL_DAYS_MAX}).
-              Lower it to reclaim disk sooner; raise it to keep history longer.
+              {t('prefs.runtime.keepFor.desc', {
+                default: ATTACHMENT_TTL_DAYS_DEFAULT,
+                min: ATTACHMENT_TTL_DAYS_MIN,
+                max: ATTACHMENT_TTL_DAYS_MAX,
+              })}
             </div>
           </div>
           <div className="pref-control" style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
@@ -360,7 +362,7 @@ function PrefsAttachments(): JSX.Element {
               }}
               style={{ width: 90 }}
             />
-            <span style={{ color: 'var(--fg-3)', fontSize: 12 }}>days</span>
+            <span style={{ color: 'var(--fg-3)', fontSize: 12 }}>{t('common.days')}</span>
           </div>
         </div>
         <div className="pref-row">
@@ -376,10 +378,10 @@ function PrefsAttachments(): JSX.Element {
                 setSavedAt(Date.now());
               }}
             >
-              Save
+              {t('common.save')}
             </button>
             {savedAt && !dirty && (
-              <span style={{ color: 'var(--fg-3)', fontSize: 11 }}>Saved.</span>
+              <span style={{ color: 'var(--fg-3)', fontSize: 11 }}>{t('common.saved')}</span>
             )}
           </div>
         </div>
@@ -514,6 +516,7 @@ function IconSelect({ value, onChange, options }: { value: string; onChange: (v:
 }
 
 function PrefsIntegrations({ onLinearChanged }: { onLinearChanged?: () => void }): JSX.Element {
+  const { t } = useTranslation();
   const { get, set, remove, loading } = useSettings();
   const linear = get<LinearSettings>('linear', {}) ?? {};
   const jira = get<JiraSettings>('jira', {}) ?? {};
@@ -544,7 +547,7 @@ function PrefsIntegrations({ onLinearChanged }: { onLinearChanged?: () => void }
     if (!loading && rawEngine !== engine) void set('gameEngine', engine);
   }, [loading, rawEngine, engine]);
 
-  if (loading) return <div className="pref-section"><h3>Ticket source</h3></div>;
+  if (loading) return <div className="pref-section"><h3>{t('prefs.integ.ticketSource.title')}</h3></div>;
 
   return (
     <>
@@ -553,7 +556,7 @@ function PrefsIntegrations({ onLinearChanged }: { onLinearChanged?: () => void }
             shown — picking a tracker is the model even with a single
             option (no "(None)"); more slot in as <option>s here. */}
         <div className="tracker-select-row">
-          <h3 style={{ margin: 0 }}>Ticket source</h3>
+          <h3 style={{ margin: 0 }}>{t('prefs.integ.ticketSource.title')}</h3>
           <IconSelect
             value={tracker}
             onChange={(v) => {
@@ -566,8 +569,7 @@ function PrefsIntegrations({ onLinearChanged }: { onLinearChanged?: () => void }
           />
         </div>
         <p className="pref-section-desc">
-          The issue tracker that feeds the Tickets queue in Panel A, so you can
-          spawn agents straight from your tracker.
+          {t('prefs.integ.ticketSource.desc')}
         </p>
         {/* The selected tracker's config, grouped in its own box. Only the
             active tracker's form is shown; switching the selector swaps it. */}
@@ -611,12 +613,11 @@ function PrefsIntegrations({ onLinearChanged }: { onLinearChanged?: () => void }
       {/* Game engine — same selector model as the ticket source. */}
       <div className="pref-section">
         <div className="tracker-select-row">
-          <h3 style={{ margin: 0 }}>Game engine</h3>
+          <h3 style={{ margin: 0 }}>{t('prefs.integ.gameEngine.title')}</h3>
           <IconSelect value={engine} onChange={(v) => void set('gameEngine', v)} options={ENGINES} />
         </div>
         <p className="pref-section-desc">
-          The engine PopBot launches from a chat's worktree (the engine icon
-          on each chat column).
+          {t('prefs.integ.gameEngine.desc')}
         </p>
         <div className="tracker-config">
           <div className="tracker-config-head">
@@ -670,6 +671,7 @@ interface GitSettings {
 }
 
 function PrefsGit(): JSX.Element {
+  const { t } = useTranslation();
   const { get, set, loading } = useSettings();
   const initial = get<GitSettings>('git', {}) ?? {};
   const [username, setUsername] = useState(initial.username ?? '');
@@ -680,27 +682,26 @@ function PrefsGit(): JSX.Element {
   // a subsequent Save overwrites real persisted values with defaults.
   useEffect(() => { setUsername(initial.username ?? ''); }, [initial.username]);
 
-  if (loading) return <div className="pref-section"><h3>Source control</h3></div>;
+  if (loading) return <div className="pref-section"><h3>{t('prefs.git.title')}</h3></div>;
 
   return (
     <div className="pref-section">
-      <h3>Source control</h3>
+      <h3>{t('prefs.git.title')}</h3>
       <p className="pref-section-desc">
-        Global git identity. Per-repository settings — path, base branch,
-        slots, and color — live under <b>Repositories</b>.
+        {t('prefs.git.desc', { reposLink: t('prefs.git.reposLabel') })}
       </p>
       <div className="pref-rows">
         <div className="pref-row">
           <div className="pref-label">
-            <div className="pref-label-title">Branch username</div>
+            <div className="pref-label-title">{t('prefs.git.branchUsername.title')}</div>
             <div className="pref-label-desc">
-              New branches are named <span className="mono">&lt;username&gt;/&lt;ticket&gt;-&lt;slug&gt;</span>.
+              {t('prefs.git.branchUsername.desc', { pattern: '<username>/<ticket>-<slug>' })}
             </div>
           </div>
           <div className="pref-control">
             <input
               className="pref-input mono"
-              placeholder="ben"
+              placeholder={t('prefs.git.usernamePlaceholder')}
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               style={{ width: 160 }}
@@ -719,21 +720,19 @@ function PrefsGit(): JSX.Element {
                 setSavedAt(Date.now());
               }}
             >
-              Save
+              {t('common.save')}
             </button>
-            {savedAt && <span style={{ color: 'var(--fg-3)', fontSize: 11 }}>Saved.</span>}
+            {savedAt && <span style={{ color: 'var(--fg-3)', fontSize: 11 }}>{t('common.saved')}</span>}
           </div>
         </div>
       </div>
 
-      <h3 style={{ marginTop: 28 }}>Action templates</h3>
+      <h3 style={{ marginTop: 28 }}>{t('prefs.git.actionTemplates.title')}</h3>
       <TemplatesGroup
         fields={GIT_ACTION_TEMPLATE_FIELDS}
         intro={
           <p className="pref-section-desc">
-            Prompts the git panel sends to the chat agent when you click the
-            big action button (or change base branch). Use{' '}
-            <span className="mono">{'${name}'}</span> macros to inject context.
+            {t('prefs.git.actionTemplates.intro', { macro: '${name}' })}
           </p>
         }
       />
@@ -785,6 +784,7 @@ const WINDOWS_SHELL_OPTIONS = [
 const IS_WINDOWS = window.popbot.platform === 'win32';
 
 function PrefsApps(): JSX.Element {
+  const { t } = useTranslation();
   const { get, set, loading } = useSettings();
   const initial = get<AppsSettings>('apps', {}) ?? {};
   const [terminalApp, setTerminalApp] = useState(initial.terminalApp || 'iTerm');
@@ -805,7 +805,7 @@ function PrefsApps(): JSX.Element {
   useEffect(() => { setEditorApp(initial.editorApp || 'vscode'); }, [initial.editorApp]);
   useEffect(() => { setBrowserChromeProfile(initial.browserChromeProfile || ''); }, [initial.browserChromeProfile]);
 
-  if (loading) return <div className="pref-section"><h3>External apps</h3></div>;
+  if (loading) return <div className="pref-section"><h3>{t('prefs.apps.title')}</h3></div>;
 
   const dirty =
     terminalApp !== (initial.terminalApp || 'iTerm') ||
@@ -815,17 +815,15 @@ function PrefsApps(): JSX.Element {
 
   return (
     <div className="pref-section">
-      <h3>External apps</h3>
+      <h3>{t('prefs.apps.title')}</h3>
       <p className="pref-section-desc">
-        The icon row on each chat column launches these apps pointed at the
-        slot's worktree. Click to bring an existing window forward, or
-        launch a fresh one.
+        {t('prefs.apps.desc')}
       </p>
       <div className="pref-rows">
         <div className="pref-row">
           <div className="pref-label">
-            <div className="pref-label-title">Terminal</div>
-            <div className="pref-label-desc">Used for the terminal-icon launcher.</div>
+            <div className="pref-label-title">{t('prefs.apps.terminal.title')}</div>
+            <div className="pref-label-desc">{t('prefs.apps.terminal.desc')}</div>
           </div>
           <div className="pref-control">
             <select
@@ -843,10 +841,9 @@ function PrefsApps(): JSX.Element {
         {IS_WINDOWS && (
           <div className="pref-row">
             <div className="pref-label">
-              <div className="pref-label-title">Terminal shell (Windows)</div>
+              <div className="pref-label-title">{t('prefs.apps.windowsShell.title')}</div>
               <div className="pref-label-desc">
-                Shell used by the in-app terminal panel. Applies to terminals
-                opened after the change.
+                {t('prefs.apps.windowsShell.desc')}
               </div>
             </div>
             <div className="pref-control">
@@ -865,9 +862,9 @@ function PrefsApps(): JSX.Element {
         )}
         <div className="pref-row">
           <div className="pref-label">
-            <div className="pref-label-title">Code editor</div>
+            <div className="pref-label-title">{t('prefs.apps.editor.title')}</div>
             <div className="pref-label-desc">
-              Also used for clickable file links inside Edit tool rows.
+              {t('prefs.apps.editor.desc')}
             </div>
           </div>
           <div className="pref-control">
@@ -885,31 +882,24 @@ function PrefsApps(): JSX.Element {
         </div>
         <div className="pref-row">
           <div className="pref-label">
-            <div className="pref-label-title">Git client</div>
+            <div className="pref-label-title">{t('prefs.apps.gitClient.title')}</div>
             <div className="pref-label-desc">
-              Hardcoded to GitHub Desktop for now — picker lands when a
-              teammate uses something else.
+              {t('prefs.apps.gitClient.desc')}
             </div>
           </div>
           <div className="pref-control" style={{ color: 'var(--fg-3)' }}>GitHub Desktop</div>
         </div>
         <div className="pref-row">
           <div className="pref-label">
-            <div className="pref-label-title">Chrome profile for URLs</div>
+            <div className="pref-label-title">{t('prefs.apps.chromeProfile.title')}</div>
             <div className="pref-label-desc">
-              Pin URL opens to a specific Chrome profile so they always land
-              in your work account, never your personal one. Use the Chrome
-              profile <em>directory</em> name — find it at
-              <span className="mono"> chrome://version</span> on the "Profile
-              Path" line (the last path component, e.g. <span className="mono">Profile 1</span>,
-              <span className="mono"> Default</span>, <span className="mono">Person 2</span>).
-              Blank = OS default browser.
+              {t('prefs.apps.chromeProfile.desc')}
             </div>
           </div>
           <div className="pref-control" style={{ flex: 1, minWidth: 240 }}>
             <input
               className="pref-input mono"
-              placeholder="(use OS default browser)"
+              placeholder={t('prefs.apps.chromeProfile.placeholder')}
               value={browserChromeProfile}
               onChange={(e) => setBrowserChromeProfile(e.target.value)}
               style={{ width: '100%' }}
@@ -933,10 +923,10 @@ function PrefsApps(): JSX.Element {
                 setSavedAt(Date.now());
               }}
             >
-              Save
+              {t('common.save')}
             </button>
             {savedAt && !dirty && (
-              <span style={{ color: 'var(--fg-3)', fontSize: 11 }}>Saved.</span>
+              <span style={{ color: 'var(--fg-3)', fontSize: 11 }}>{t('common.saved')}</span>
             )}
           </div>
         </div>
@@ -946,6 +936,7 @@ function PrefsApps(): JSX.Element {
 }
 
 function UnityConfig(): JSX.Element {
+  const { t } = useTranslation();
   const { get, set, loading } = useSettings();
   const initial = get<AppsSettings>('apps', {}) ?? {};
   const [versions, setVersions] = useState<Array<{ version: string; binary: string }>>([]);
@@ -970,7 +961,7 @@ function UnityConfig(): JSX.Element {
   useEffect(() => { setPicked(initial.unityBinary ?? ''); }, [initial.unityBinary]);
   useEffect(() => { setSubpath(initial.unityProjectSubpath ?? ''); }, [initial.unityProjectSubpath]);
 
-  if (loading) return <p className="pref-section-desc">Loading…</p>;
+  if (loading) return <p className="pref-section-desc">{t('common.loading')}</p>;
 
   const dirty =
     picked !== (initial.unityBinary ?? '') ||
@@ -979,25 +970,23 @@ function UnityConfig(): JSX.Element {
   return (
     <>
       <p className="pref-section-desc">
-        Pick which installed Unity Editor version popbot launches when you
-        click the Unity slot icon. Versions are scanned from{' '}
-        <span className="mono">/Applications/Unity/Hub/Editor</span>.
+        {t('prefs.apps.unity.desc', { path: '/Applications/Unity/Hub/Editor' })}
       </p>
       <div className="pref-rows">
         <div className="pref-row">
           <div className="pref-label">
-            <div className="pref-label-title">Editor version</div>
+            <div className="pref-label-title">{t('prefs.apps.unity.editorVersion.title')}</div>
             <div className="pref-label-desc">
               {scanning
-                ? 'Scanning…'
-                : `${versions.length} installed`}{' '}
+                ? t('prefs.apps.unity.scanning')
+                : t('prefs.apps.unity.installedCount', { count: versions.length })}{' '}
               ·{' '}
               <button
                 className="btn-link"
                 onClick={() => void refresh()}
                 style={{ background: 'none', border: 0, color: 'var(--acc-hi)', cursor: 'pointer', padding: 0 }}
               >
-                rescan
+                {t('prefs.apps.unity.rescan')}
               </button>
             </div>
           </div>
@@ -1009,7 +998,7 @@ function UnityConfig(): JSX.Element {
               style={{ width: '100%' }}
               disabled={versions.length === 0}
             >
-              <option value="">— Select a Unity version —</option>
+              <option value="">{t('prefs.apps.unity.selectVersion')}</option>
               {versions.map((v) => (
                 <option key={v.binary} value={v.binary}>{v.version}</option>
               ))}
@@ -1021,16 +1010,15 @@ function UnityConfig(): JSX.Element {
             <div className="pref-error">
               <i className="fa-solid fa-circle-exclamation" />
               <div>
-                No Unity versions found under <span className="mono">/Applications/Unity/Hub/Editor</span>.
-                Install via Unity Hub and click <b>rescan</b>.
+                {t('prefs.apps.unity.noneFound', { path: '/Applications/Unity/Hub/Editor' })}
               </div>
             </div>
           </div>
         )}
         <div className="pref-row">
           <div className="pref-label">
-            <div className="pref-label-title">Custom binary path</div>
-            <div className="pref-label-desc">Override the dropdown when Unity lives somewhere unusual.</div>
+            <div className="pref-label-title">{t('prefs.apps.unity.customBinary.title')}</div>
+            <div className="pref-label-desc">{t('prefs.apps.unity.customBinary.desc')}</div>
           </div>
           <div className="pref-control" style={{ flex: 1, minWidth: 280 }}>
             <input
@@ -1044,17 +1032,15 @@ function UnityConfig(): JSX.Element {
         </div>
         <div className="pref-row">
           <div className="pref-label">
-            <div className="pref-label-title">Project subpath</div>
+            <div className="pref-label-title">{t('prefs.apps.unity.subpath.title')}</div>
             <div className="pref-label-desc">
-              Path to the Unity project relative to the worktree root.
-              Leave blank if the worktree root is itself the Unity
-              project.
+              {t('prefs.apps.unity.subpath.desc')}
             </div>
           </div>
           <div className="pref-control" style={{ minWidth: 240 }}>
             <input
               className="pref-input mono"
-              placeholder="e.g. unity-project (blank = worktree root)"
+              placeholder={t('prefs.apps.unity.subpath.placeholder')}
               value={subpath}
               onChange={(e) => setSubpath(e.target.value)}
               style={{ width: 240 }}
@@ -1078,10 +1064,10 @@ function UnityConfig(): JSX.Element {
                 setSavedAt(Date.now());
               }}
             >
-              Save
+              {t('common.save')}
             </button>
             {savedAt && !dirty && (
-              <span style={{ color: 'var(--fg-3)', fontSize: 11 }}>Saved.</span>
+              <span style={{ color: 'var(--fg-3)', fontSize: 11 }}>{t('common.saved')}</span>
             )}
           </div>
         </div>
@@ -1104,7 +1090,7 @@ interface TemplatesSettings {
 
 interface TemplateField {
   key: keyof TemplatesSettings;
-  label: string;
+  labelKey: MessageKey;
   fallback: string;
   vars: ReadonlyArray<{ name: string; desc: string }>;
   rows: number;
@@ -1114,21 +1100,21 @@ interface TemplateField {
 const CHAT_TEMPLATE_FIELDS: TemplateField[] = [
   {
     key: 'startTicket',
-    label: 'Start ticket (sent on chat creation from Linear)',
+    labelKey: 'prefs.templates.chat.startTicket.label',
     fallback: DEFAULT_START_TICKET_TEMPLATE,
     vars: TICKET_TEMPLATE_VARS,
     rows: 12,
   },
   {
     key: 'startCodeReview',
-    label: 'Start code review (sent on chat creation from PR)',
+    labelKey: 'prefs.templates.chat.startCodeReview.label',
     fallback: DEFAULT_START_CODE_REVIEW_TEMPLATE,
     vars: CODE_REVIEW_TEMPLATE_VARS,
     rows: 8,
   },
   {
     key: 'reReview',
-    label: 'Re-review (sent when you click a RE-REVIEW chip on the incoming panel)',
+    labelKey: 'prefs.templates.chat.reReview.label',
     fallback: DEFAULT_RE_REVIEW_TEMPLATE,
     vars: CODE_REVIEW_TEMPLATE_VARS,
     rows: 10,
@@ -1139,42 +1125,42 @@ const CHAT_TEMPLATE_FIELDS: TemplateField[] = [
 const GIT_ACTION_TEMPLATE_FIELDS: TemplateField[] = [
   {
     key: 'commitAi',
-    label: 'COMMIT (AI)',
+    labelKey: 'prefs.templates.git.commitAi.label',
     fallback: DEFAULT_COMMIT_AI_TEMPLATE,
     vars: GIT_ACTION_TEMPLATE_VARS,
     rows: 8,
   },
   {
     key: 'pushPr',
-    label: 'PUSH PR (AI)',
+    labelKey: 'prefs.templates.git.pushPr.label',
     fallback: DEFAULT_PUSH_PR_TEMPLATE,
     vars: GIT_ACTION_TEMPLATE_VARS,
     rows: 10,
   },
   {
     key: 'pushDraftPr',
-    label: 'PUSH DRAFT PR (AI)',
+    labelKey: 'prefs.templates.git.pushDraftPr.label',
     fallback: DEFAULT_PUSH_DRAFT_PR_TEMPLATE,
     vars: GIT_ACTION_TEMPLATE_VARS,
     rows: 10,
   },
   {
     key: 'makePrReady',
-    label: 'MARK PR READY (AI)',
+    labelKey: 'prefs.templates.git.makePrReady.label',
     fallback: DEFAULT_MAKE_PR_READY_TEMPLATE,
     vars: GIT_ACTION_TEMPLATE_VARS,
     rows: 6,
   },
   {
     key: 'addressCr',
-    label: 'ADDRESS CR (AI)',
+    labelKey: 'prefs.templates.git.addressCr.label',
     fallback: DEFAULT_ADDRESS_CR_TEMPLATE,
     vars: GIT_ACTION_TEMPLATE_VARS,
     rows: 10,
   },
   {
     key: 'rebaseBase',
-    label: 'CHANGE BASE BRANCH (AI)',
+    labelKey: 'prefs.templates.git.rebaseBase.label',
     fallback: DEFAULT_REBASE_BASE_TEMPLATE,
     vars: GIT_REBASE_TEMPLATE_VARS,
     rows: 10,
@@ -1193,6 +1179,7 @@ function TemplatesGroup({
   fields: TemplateField[];
   intro?: React.ReactNode;
 }): JSX.Element {
+  const { t } = useTranslation();
   const { get, set, loading } = useSettings();
   const initial = get<TemplatesSettings>('templates', {}) ?? {};
   const [values, setValues] = useState<Record<string, string>>(() => {
@@ -1224,7 +1211,7 @@ function TemplatesGroup({
       {intro}
       {fields.map((f) => (
         <div key={f.key} className="pref-template-block">
-          <h4 className="pref-subhead">{f.label}</h4>
+          <h4 className="pref-subhead">{t(f.labelKey)}</h4>
           <div className="pref-macro-row">
             {f.vars.map((v) => (
               <span key={v.name} className="pref-macro" title={v.desc}>
@@ -1242,17 +1229,17 @@ function TemplatesGroup({
         </div>
       ))}
       <div className="pref-template-actions">
-        <button className="btn ghost sm" onClick={resetAll}>Reset to defaults</button>
+        <button className="btn ghost sm" onClick={resetAll}>{t('prefs.templates.resetDefaults')}</button>
         <span style={{ flex: 1 }} />
         <button
           className="btn primary sm"
           disabled={!dirty}
           onClick={() => void save()}
         >
-          Save
+          {t('common.save')}
         </button>
         {savedAt && !dirty && (
-          <span style={{ color: 'var(--fg-3)', fontSize: 11 }}>Saved.</span>
+          <span style={{ color: 'var(--fg-3)', fontSize: 11 }}>{t('common.saved')}</span>
         )}
       </div>
     </>
@@ -1260,18 +1247,18 @@ function TemplatesGroup({
 }
 
 function PrefsTemplates(): JSX.Element {
+  const { t } = useTranslation();
   return (
     <div className="pref-section">
-      <h3>Prompt templates</h3>
+      <h3>{t('prefs.templates.title')}</h3>
       <TemplatesGroup
         fields={CHAT_TEMPLATE_FIELDS}
         intro={
           <p className="pref-section-desc">
-            These templates fire as the chat's first user message when you
-            spawn a chat from a Linear ticket or a PR. Use{' '}
-            <span className="mono">{'${name}'}</span> macros to inject context.
-            Git-panel action templates live under{' '}
-            <b>Source control → Action templates</b>.
+            {t('prefs.templates.intro', {
+              macro: '${name}',
+              link: t('prefs.templates.gitPanelLink'),
+            })}
           </p>
         }
       />
@@ -1305,6 +1292,7 @@ const MIN_SEARCH_DAYS = 1;
 const MAX_SEARCH_DAYS = 365;
 
 function PrefsReviews(): JSX.Element {
+  const { t } = useTranslation();
   const { get, set, loading } = useSettings();
   const initial = get<ReviewsSettings>('reviews', {}) ?? {};
   const initialSearch = get<PanelASearchSettings>('panela.search', {}) ?? {};
@@ -1320,7 +1308,7 @@ function PrefsReviews(): JSX.Element {
   // and a Save would clobber the user's saved preference.
   useEffect(() => { setSearchDays(initialSearch.recentDays ?? DEFAULT_SEARCH_DAYS); }, [initialSearch.recentDays]);
 
-  if (loading) return <div className="pref-section"><h3>Code reviews</h3></div>;
+  if (loading) return <div className="pref-section"><h3>{t('prefs.reviews.title')}</h3></div>;
 
   const dirty =
     listToLines(initial.ignoreTitlePatterns ?? DEFAULT_REVIEW_TITLE_PATTERNS) !== titles ||
@@ -1347,21 +1335,14 @@ function PrefsReviews(): JSX.Element {
 
   return (
     <div className="pref-section">
-      <h3>Code reviews</h3>
+      <h3>{t('prefs.reviews.title')}</h3>
       <p className="pref-section-desc">
-        The Reviews tab pulls open PRs that either request you as a reviewer
-        or have no reviews yet (and have an <span className="mono">ENG-####</span> tag in the title,
-        unless you're explicitly named). PRs you've already reviewed are
-        dropped automatically. Use the lists below to mute additional noise.
+        {t('prefs.reviews.desc', { tag: 'ENG-####' })}
       </p>
 
-      <h4 className="pref-subhead" style={{ marginTop: 18 }}>Search cache window</h4>
+      <h4 className="pref-subhead" style={{ marginTop: 18 }}>{t('prefs.reviews.searchWindow.title')}</h4>
       <p className="pref-section-desc" style={{ marginBottom: 8 }}>
-        The <strong>+ Add</strong> picker on the incoming panel fuzzy-matches against
-        Linear issues + GitHub PRs updated in the last
-        {' '}<strong>N days</strong>. Bigger window = more searchable, slightly
-        slower refresh + more API budget. Tickets assigned to you are
-        always included regardless of this cutoff.
+        {t('prefs.reviews.searchWindow.desc')}
       </p>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 18 }}>
         <input
@@ -1375,35 +1356,35 @@ function PrefsReviews(): JSX.Element {
           )}
           style={{ width: 80 }}
         />
-        <span style={{ color: 'var(--fg-3)', fontSize: 12 }}>days</span>
+        <span style={{ color: 'var(--fg-3)', fontSize: 12 }}>{t('common.days')}</span>
       </div>
 
-      <h4 className="pref-subhead">Ignore by title (one substring per line, case-insensitive)</h4>
+      <h4 className="pref-subhead">{t('prefs.reviews.ignoreTitle.title')}</h4>
       <textarea
         className="pref-template mono"
         value={titles}
         onChange={(e) => setTitles(e.target.value)}
         spellCheck={false}
         rows={6}
-        placeholder={'DO NOT SUBMIT\nCrowdin'}
+        placeholder={t('prefs.reviews.ignoreTitle.placeholder')}
       />
 
-      <h4 className="pref-subhead" style={{ marginTop: 18 }}>Ignore by GitHub author (one login per line)</h4>
+      <h4 className="pref-subhead" style={{ marginTop: 18 }}>{t('prefs.reviews.ignoreAuthor.title')}</h4>
       <textarea
         className="pref-template mono"
         value={authors}
         onChange={(e) => setAuthors(e.target.value)}
         spellCheck={false}
         rows={6}
-        placeholder={'crowdin-bot\nrenovate[bot]'}
+        placeholder={t('prefs.reviews.ignoreAuthor.placeholder')}
       />
 
       <div className="pref-template-actions">
-        <button className="btn ghost sm" onClick={reset}>Reset to defaults</button>
+        <button className="btn ghost sm" onClick={reset}>{t('prefs.templates.resetDefaults')}</button>
         <span style={{ flex: 1 }} />
-        <button className="btn primary sm" disabled={!dirty} onClick={() => void save()}>Save</button>
+        <button className="btn primary sm" disabled={!dirty} onClick={() => void save()}>{t('common.save')}</button>
         {savedAt && !dirty && (
-          <span style={{ color: 'var(--fg-3)', fontSize: 11 }}>Saved.</span>
+          <span style={{ color: 'var(--fg-3)', fontSize: 11 }}>{t('common.saved')}</span>
         )}
       </div>
     </div>
@@ -1419,6 +1400,7 @@ function LinearForm({
   onSave: (next: LinearSettings) => Promise<void>;
   onDisconnect: () => Promise<void>;
 }): JSX.Element {
+  const { t } = useTranslation();
   const [apiKey, setApiKey] = useState(initial.apiKey ?? '');
   const [teamKey, setTeamKey] = useState(initial.teamKey ?? '');
   const [projectId, setProjectId] = useState(initial.projectId ?? '');
@@ -1461,7 +1443,9 @@ function LinearForm({
     try {
       const result = await window.popbot.linear.test(apiKey.trim());
       if (!result.ok) {
-        setError(result.error === 'auth' ? 'Linear rejected this API key.' : `Linear error: ${result.error}`);
+        setError(result.error === 'auth'
+          ? t('prefs.integ.linear.error.auth')
+          : t('prefs.integ.linear.error.generic', { error: result.error }));
         return;
       }
       await onSave({
@@ -1479,15 +1463,15 @@ function LinearForm({
     <div className="pref-rows">
       <div className="pref-row">
         <div className="pref-label">
-          <div className="pref-label-title">Personal API key</div>
+          <div className="pref-label-title">{t('prefs.integ.linear.apiKey.title')}</div>
           <div className="pref-label-desc">
-            Stored locally in this app's database.{' '}
+            {t('prefs.integ.linear.apiKey.desc')}{' '}
             <a
               href="https://linear.app/settings/api"
               onClick={(e) => { e.preventDefault(); window.open('https://linear.app/settings/api', '_blank'); }}
               style={{ color: 'var(--acc)', cursor: 'pointer' }}
             >
-              Get a key →
+              {t('prefs.integ.linear.getKey')}
             </a>
           </div>
         </div>
@@ -1504,8 +1488,8 @@ function LinearForm({
       </div>
       <div className="pref-row">
         <div className="pref-label">
-          <div className="pref-label-title">Team key</div>
-          <div className="pref-label-desc">e.g. <span className="mono">ENG</span>. Filters issues + projects to one team.</div>
+          <div className="pref-label-title">{t('prefs.integ.linear.teamKey.title')}</div>
+          <div className="pref-label-desc">{t('prefs.integ.linear.teamKey.desc', { example: 'ENG' })}</div>
         </div>
         <div className="pref-control">
           <input
@@ -1519,10 +1503,10 @@ function LinearForm({
       </div>
       <div className="pref-row">
         <div className="pref-label">
-          <div className="pref-label-title">Project</div>
+          <div className="pref-label-title">{t('prefs.integ.linear.project.title')}</div>
           <div className="pref-label-desc">
-            Optional — narrow the ticket list to a single project.
-            {projectsLoading && <span style={{ marginLeft: 6, color: 'var(--fg-3)' }}>Loading…</span>}
+            {t('prefs.integ.linear.project.desc')}
+            {projectsLoading && <span style={{ marginLeft: 6, color: 'var(--fg-3)' }}>{t('common.loading')}</span>}
           </div>
         </div>
         <div className="pref-control" style={{ flex: 1, minWidth: 240 }}>
@@ -1533,7 +1517,7 @@ function LinearForm({
             disabled={!apiKey.trim() || projectsLoading}
             style={{ width: '100%' }}
           >
-            <option value="">All projects</option>
+            <option value="">{t('prefs.integ.linear.allProjects')}</option>
             {projects.map((p) => (
               <option key={p.id} value={p.id}>
                 {p.name}
@@ -1544,25 +1528,25 @@ function LinearForm({
       </div>
       <div className="pref-row">
         <div className="pref-label">
-          <div className="pref-label-title">Status</div>
+          <div className="pref-label-title">{t('common.status')}</div>
           <div className="pref-label-desc">
             {error ? (
               <span className="pill err"><i className="fa-solid fa-circle-xmark" /> {error}</span>
             ) : savedAs ? (
               <span className="pill done">
-                <i className="fa-solid fa-circle-check" /> Connected as {savedAs.email}
+                <i className="fa-solid fa-circle-check" /> {t('prefs.integ.linear.connectedAs', { email: savedAs.email })}
               </span>
             ) : wasConnected ? (
-              <span className="pill done"><i className="fa-solid fa-circle-check" /> Connected</span>
+              <span className="pill done"><i className="fa-solid fa-circle-check" /> {t('prefs.integ.linear.connected')}</span>
             ) : (
-              <span className="pill muted"><i className="fa-regular fa-circle" /> Not connected</span>
+              <span className="pill muted"><i className="fa-regular fa-circle" /> {t('prefs.integ.linear.notConnected')}</span>
             )}
           </div>
         </div>
         <div className="pref-control" style={{ display: 'flex', gap: 8 }}>
           {wasConnected && (
             <button className="btn ghost sm" disabled={saving} onClick={() => void onDisconnect()}>
-              Disconnect
+              {t('common.disconnect')}
             </button>
           )}
           <button
@@ -1570,7 +1554,7 @@ function LinearForm({
             disabled={!apiKey.trim() || saving}
             onClick={() => void save()}
           >
-            {saving ? 'Verifying…' : 'Save'}
+            {saving ? t('prefs.integ.linear.verifying') : t('common.save')}
           </button>
         </div>
       </div>
@@ -1587,6 +1571,7 @@ function JiraForm({
   onSave: (next: JiraSettings) => Promise<void>;
   onDisconnect: () => Promise<void>;
 }): JSX.Element {
+  const { t } = useTranslation();
   const [baseUrl, setBaseUrl] = useState(initial.baseUrl ?? '');
   const [email, setEmail] = useState(initial.email ?? '');
   const [apiToken, setApiToken] = useState(initial.apiToken ?? '');
@@ -1649,15 +1634,19 @@ function JiraForm({
       if (!result.ok) {
         setError(
           result.error === 'auth'
-            ? 'Jira rejected these credentials.'
-            : `Jira error: ${result.error}`,
+            ? t('prefs.integ.jira.error.auth')
+            : t('prefs.integ.jira.error.generic', { error: result.error }),
         );
         return;
       }
       await onSave(draft());
       setSavedAs({ email: result.email, name: result.name });
     } catch (err) {
-      setError(`Jira error: ${err instanceof Error ? err.message : String(err)}`);
+      setError(
+        t('prefs.integ.jira.error.generic', {
+          error: err instanceof Error ? err.message : String(err),
+        }),
+      );
     } finally {
       setSaving(false);
     }
@@ -1669,9 +1658,10 @@ function JiraForm({
     <div className="pref-rows">
       <div className="pref-row">
         <div className="pref-label">
-          <div className="pref-label-title">Site URL</div>
+          <div className="pref-label-title">{t('prefs.integ.jira.siteUrl.title')}</div>
           <div className="pref-label-desc">
-            Your Jira Cloud base URL, e.g. <span className="mono">https://your-domain.atlassian.net</span>.
+            {t('prefs.integ.jira.siteUrl.desc')}{' '}
+            <span className="mono">https://your-domain.atlassian.net</span>.
           </div>
         </div>
         <div className="pref-control" style={{ flex: 1, minWidth: 280 }}>
@@ -1686,8 +1676,8 @@ function JiraForm({
       </div>
       <div className="pref-row">
         <div className="pref-label">
-          <div className="pref-label-title">Account email</div>
-          <div className="pref-label-desc">The Atlassian account the API token belongs to.</div>
+          <div className="pref-label-title">{t('prefs.integ.jira.email.title')}</div>
+          <div className="pref-label-desc">{t('prefs.integ.jira.email.desc')}</div>
         </div>
         <div className="pref-control" style={{ flex: 1, minWidth: 280 }}>
           <input
@@ -1701,9 +1691,9 @@ function JiraForm({
       </div>
       <div className="pref-row">
         <div className="pref-label">
-          <div className="pref-label-title">API token</div>
+          <div className="pref-label-title">{t('prefs.integ.jira.apiToken.title')}</div>
           <div className="pref-label-desc">
-            Stored locally in this app's database.{' '}
+            {t('prefs.integ.jira.apiToken.desc')}{' '}
             <a
               href="https://id.atlassian.com/manage-profile/security/api-tokens"
               onClick={(e) => {
@@ -1712,7 +1702,7 @@ function JiraForm({
               }}
               style={{ color: 'var(--acc)', cursor: 'pointer' }}
             >
-              Get a token →
+              {t('prefs.integ.jira.getToken')}
             </a>
           </div>
         </div>
@@ -1729,10 +1719,10 @@ function JiraForm({
       </div>
       <div className="pref-row">
         <div className="pref-label">
-          <div className="pref-label-title">Project</div>
+          <div className="pref-label-title">{t('prefs.integ.jira.project.title')}</div>
           <div className="pref-label-desc">
-            Optional — narrow the ticket list to a single project.
-            {projectsLoading && <span style={{ marginLeft: 6, color: 'var(--fg-3)' }}>Loading…</span>}
+            {t('prefs.integ.jira.project.desc')}
+            {projectsLoading && <span style={{ marginLeft: 6, color: 'var(--fg-3)' }}>{t('common.loading')}</span>}
           </div>
         </div>
         <div className="pref-control" style={{ flex: 1, minWidth: 240 }}>
@@ -1743,7 +1733,7 @@ function JiraForm({
             disabled={!ready || projectsLoading}
             style={{ width: '100%' }}
           >
-            <option value="">All projects</option>
+            <option value="">{t('prefs.integ.jira.allProjects')}</option>
             {projects.map((p) => (
               <option key={p.id} value={p.id}>
                 {p.name} ({p.id})
@@ -1754,9 +1744,9 @@ function JiraForm({
       </div>
       <div className="pref-row">
         <div className="pref-label">
-          <div className="pref-label-title">JQL filter</div>
+          <div className="pref-label-title">{t('prefs.integ.jira.jql.title')}</div>
           <div className="pref-label-desc">
-            Optional — extra JQL ANDed into the ticket queries, e.g.{' '}
+            {t('prefs.integ.jira.jql.desc')}{' '}
             <span className="mono">labels = backend</span>.
           </div>
         </div>
@@ -1772,25 +1762,25 @@ function JiraForm({
       </div>
       <div className="pref-row">
         <div className="pref-label">
-          <div className="pref-label-title">Status</div>
+          <div className="pref-label-title">{t('common.status')}</div>
           <div className="pref-label-desc">
             {error ? (
               <span className="pill err"><i className="fa-solid fa-circle-xmark" /> {error}</span>
             ) : savedAs ? (
               <span className="pill done">
-                <i className="fa-solid fa-circle-check" /> Connected as {savedAs.email}
+                <i className="fa-solid fa-circle-check" /> {t('prefs.integ.jira.connectedAs', { email: savedAs.email })}
               </span>
             ) : wasConnected ? (
-              <span className="pill done"><i className="fa-solid fa-circle-check" /> Connected</span>
+              <span className="pill done"><i className="fa-solid fa-circle-check" /> {t('prefs.integ.jira.connected')}</span>
             ) : (
-              <span className="pill muted"><i className="fa-regular fa-circle" /> Not connected</span>
+              <span className="pill muted"><i className="fa-regular fa-circle" /> {t('prefs.integ.jira.notConnected')}</span>
             )}
           </div>
         </div>
         <div className="pref-control" style={{ display: 'flex', gap: 8 }}>
           {wasConnected && (
             <button className="btn ghost sm" disabled={saving} onClick={() => void onDisconnect()}>
-              Disconnect
+              {t('common.disconnect')}
             </button>
           )}
           <button
@@ -1798,7 +1788,7 @@ function JiraForm({
             disabled={!ready || saving}
             onClick={() => void save()}
           >
-            {saving ? 'Verifying…' : 'Save'}
+            {saving ? t('prefs.integ.jira.verifying') : t('common.save')}
           </button>
         </div>
       </div>
@@ -1899,6 +1889,7 @@ interface SentryUiSettings {
 }
 
 function PrefsSentry(): JSX.Element {
+  const { t } = useTranslation();
   const [enabled, setEnabled] = useState(false);
   const [authToken, setAuthToken] = useState('');
   const [orgSlug, setOrgSlug] = useState('');
@@ -1956,23 +1947,25 @@ function PrefsSentry(): JSX.Element {
     }
   };
 
-  if (!loaded) return <div style={{ padding: 24, color: 'var(--fg-3)' }}>Loading…</div>;
+  if (!loaded) return <div style={{ padding: 24, color: 'var(--fg-3)' }}>{t('common.loading')}</div>;
 
   return (
     <div className="pref-section">
-      <h3>Sentry</h3>
+      <h3>{t('prefs.integ.sentry.title')}</h3>
       <p className="pref-section-desc">
-        Surfaces new unresolved Sentry issues as PopBot notifications. Token + org
-        only — your messages and stack traces never leave your machine; PopBot reads
-        the issue summaries via the Sentry REST API. Generate a token at{' '}
+        {t('prefs.integ.sentry.desc', {
+          link: t('prefs.integ.sentry.authTokensLink'),
+          scopes: 'event:read, project:read, org:read',
+        })}
+        {' ('}
         <a href="https://sentry.io/settings/account/api/auth-tokens/" target="_blank" rel="noreferrer noopener">
-          sentry.io → Auth Tokens
-        </a>{' '}
-        with scopes <code>event:read</code>, <code>project:read</code>, <code>org:read</code>.
+          {t('prefs.integ.sentry.authTokensLink')}
+        </a>
+        {')'}
       </p>
 
       <div className="pref-row">
-        <div className="pref-label">Enabled</div>
+        <div className="pref-label">{t('prefs.integ.enabled')}</div>
         <div className="pref-control" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <button
             type="button"
@@ -1983,13 +1976,13 @@ function PrefsSentry(): JSX.Element {
             <span className="pref-toggle-thumb" />
           </button>
           <span style={{ color: 'var(--fg-2)', fontSize: 12 }}>
-            {enabled ? 'Polling on' : 'Off'}
+            {enabled ? t('prefs.integ.pollingOn') : t('prefs.integ.off')}
           </span>
         </div>
       </div>
 
       <div className="pref-row">
-        <div className="pref-label">Auth token</div>
+        <div className="pref-label">{t('prefs.integ.sentry.authToken')}</div>
         <div className="pref-control">
           <input
             className="input"
@@ -2003,7 +1996,7 @@ function PrefsSentry(): JSX.Element {
       </div>
 
       <div className="pref-row">
-        <div className="pref-label">Org slug</div>
+        <div className="pref-label">{t('prefs.integ.sentry.orgSlug')}</div>
         <div className="pref-control">
           <input
             className="input"
@@ -2016,11 +2009,11 @@ function PrefsSentry(): JSX.Element {
       </div>
 
       <div className="pref-row">
-        <div className="pref-label">Project slug</div>
+        <div className="pref-label">{t('prefs.integ.sentry.projectSlug')}</div>
         <div className="pref-control">
           <input
             className="input"
-            placeholder="(optional — leave blank for all projects)"
+            placeholder={t('prefs.integ.sentry.projectSlug.placeholder')}
             value={projectSlug}
             onChange={(e) => setProjectSlug(e.target.value)}
             autoComplete="off"
@@ -2029,7 +2022,7 @@ function PrefsSentry(): JSX.Element {
       </div>
 
       <div className="pref-row">
-        <div className="pref-label">Poll interval</div>
+        <div className="pref-label">{t('prefs.integ.pollInterval')}</div>
         <div className="pref-control" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <input
             className="input"
@@ -2040,16 +2033,16 @@ function PrefsSentry(): JSX.Element {
             onChange={(e) => setPollMins(Number(e.target.value) || 5)}
             style={{ width: 80 }}
           />
-          <span style={{ color: 'var(--fg-3)' }}>minutes</span>
+          <span style={{ color: 'var(--fg-3)' }}>{t('common.minutes')}</span>
         </div>
       </div>
 
       <div className="pref-row">
-        <div className="pref-label">Status</div>
+        <div className="pref-label">{t('common.status')}</div>
         <div className="pref-control">
           {testResult?.ok && (
             <span className="pill done">
-              <i className="fa-solid fa-circle-check" /> Verified · {testResult.org}
+              <i className="fa-solid fa-circle-check" /> {t('prefs.integ.sentry.verified', { org: testResult.org })}
             </span>
           )}
           {testResult?.ok === false && (
@@ -2059,7 +2052,7 @@ function PrefsSentry(): JSX.Element {
           )}
           {!testResult && (
             <span className="pill muted">
-              <i className="fa-regular fa-circle" /> Not verified
+              <i className="fa-regular fa-circle" /> {t('prefs.integ.notVerified')}
             </span>
           )}
         </div>
@@ -2069,10 +2062,10 @@ function PrefsSentry(): JSX.Element {
             disabled={!authToken.trim() || !orgSlug.trim() || busy}
             onClick={() => void onTest()}
           >
-            {busy ? 'Testing…' : 'Test connection'}
+            {busy ? t('prefs.integ.testing') : t('prefs.integ.testConnection')}
           </button>
           <button className="btn primary sm" disabled={busy} onClick={() => void onSave()}>
-            {busy ? 'Saving…' : 'Save'}
+            {busy ? t('common.saving') : t('common.save')}
           </button>
         </div>
       </div>
@@ -2089,6 +2082,7 @@ interface SlackUiSettings {
 }
 
 function PrefsSlack(): JSX.Element {
+  const { t } = useTranslation();
   const [enabled, setEnabled] = useState(false);
   const [token, setToken] = useState('');
   const [pollMins, setPollMins] = useState<number>(1);
@@ -2137,26 +2131,27 @@ function PrefsSlack(): JSX.Element {
     }
   };
 
-  if (!loaded) return <div style={{ padding: 24, color: 'var(--fg-3)' }}>Loading…</div>;
+  if (!loaded) return <div style={{ padding: 24, color: 'var(--fg-3)' }}>{t('common.loading')}</div>;
 
   return (
     <div className="pref-section">
-      <h3>Slack</h3>
+      <h3>{t('prefs.integ.slack.title')}</h3>
       <p className="pref-section-desc">
-        Surfaces unread DMs and channel @-mentions as PopBot notifications.
-        Read-only — PopBot never posts on your behalf.
+        {t('prefs.integ.slack.desc')}
       </p>
       <p className="pref-section-desc" style={{ marginTop: -6, fontSize: 11 }}>
-        To get a token: create a Slack app at{' '}
-        <a href="https://api.slack.com/apps" target="_blank" rel="noreferrer noopener">api.slack.com/apps</a>,
-        add user-token scopes <code>channels:history</code>, <code>groups:history</code>,{' '}
-        <code>im:history</code>, <code>mpim:history</code>, <code>users:read</code>,{' '}
-        <code>search:read</code>, install to your workspace, then copy the User OAuth Token
-        (starts with <code>xoxp-</code>).
+        {t('prefs.integ.slack.tokenHelp', {
+          link: t('prefs.integ.slack.appsLink'),
+          scopes: 'channels:history, groups:history, im:history, mpim:history, users:read, search:read',
+          prefix: 'xoxp-',
+        })}
+        {' ('}
+        <a href="https://api.slack.com/apps" target="_blank" rel="noreferrer noopener">{t('prefs.integ.slack.appsLink')}</a>
+        {')'}
       </p>
 
       <div className="pref-row">
-        <div className="pref-label">Enabled</div>
+        <div className="pref-label">{t('prefs.integ.enabled')}</div>
         <div className="pref-control" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <button
             type="button"
@@ -2167,13 +2162,13 @@ function PrefsSlack(): JSX.Element {
             <span className="pref-toggle-thumb" />
           </button>
           <span style={{ color: 'var(--fg-2)', fontSize: 12 }}>
-            {enabled ? 'Polling on' : 'Off'}
+            {enabled ? t('prefs.integ.pollingOn') : t('prefs.integ.off')}
           </span>
         </div>
       </div>
 
       <div className="pref-row">
-        <div className="pref-label">User token</div>
+        <div className="pref-label">{t('prefs.integ.slack.userToken')}</div>
         <div className="pref-control">
           <input
             className="input"
@@ -2187,7 +2182,7 @@ function PrefsSlack(): JSX.Element {
       </div>
 
       <div className="pref-row">
-        <div className="pref-label">Poll interval</div>
+        <div className="pref-label">{t('prefs.integ.pollInterval')}</div>
         <div className="pref-control" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <input
             className="input"
@@ -2198,16 +2193,16 @@ function PrefsSlack(): JSX.Element {
             onChange={(e) => setPollMins(Number(e.target.value) || 1)}
             style={{ width: 80 }}
           />
-          <span style={{ color: 'var(--fg-3)' }}>minutes</span>
+          <span style={{ color: 'var(--fg-3)' }}>{t('common.minutes')}</span>
         </div>
       </div>
 
       <div className="pref-row">
-        <div className="pref-label">Status</div>
+        <div className="pref-label">{t('common.status')}</div>
         <div className="pref-control">
           {testResult?.ok && (
             <span className="pill done">
-              <i className="fa-solid fa-circle-check" /> Connected to {testResult.team} as {testResult.user}
+              <i className="fa-solid fa-circle-check" /> {t('prefs.integ.slack.connectedTo', { team: testResult.team, user: testResult.user })}
             </span>
           )}
           {testResult?.ok === false && (
@@ -2217,7 +2212,7 @@ function PrefsSlack(): JSX.Element {
           )}
           {!testResult && (
             <span className="pill muted">
-              <i className="fa-regular fa-circle" /> Not verified
+              <i className="fa-regular fa-circle" /> {t('prefs.integ.notVerified')}
             </span>
           )}
         </div>
@@ -2227,10 +2222,10 @@ function PrefsSlack(): JSX.Element {
             disabled={!token.trim() || busy}
             onClick={() => void onTest()}
           >
-            {busy ? 'Testing…' : 'Test connection'}
+            {busy ? t('prefs.integ.testing') : t('prefs.integ.testConnection')}
           </button>
           <button className="btn primary sm" disabled={busy} onClick={() => void onSave()}>
-            {busy ? 'Saving…' : 'Save'}
+            {busy ? t('common.saving') : t('common.save')}
           </button>
         </div>
       </div>
@@ -2249,6 +2244,7 @@ interface NotificationsUiSettings {
 }
 
 function PrefsNotifications(): JSX.Element {
+  const { t } = useTranslation();
   const [vipsText, setVipsText] = useState('');
   // Default ON; an explicit `false` in saved settings turns it off.
   // Mirrors the App-level default so the checkbox shows the right
@@ -2284,24 +2280,20 @@ function PrefsNotifications(): JSX.Element {
     }
   };
 
-  if (!loaded) return <div style={{ padding: 24, color: 'var(--fg-3)' }}>Loading…</div>;
+  if (!loaded) return <div style={{ padding: 24, color: 'var(--fg-3)' }}>{t('common.loading')}</div>;
 
   return (
     <div className="pref-section">
-      <h3>Notifications</h3>
+      <h3>{t('prefs.notify.title')}</h3>
       <p className="pref-section-desc">
-        VIPs are people whose Slack DMs and channel mentions always get bumped
-        to urgent priority + tagged with a VIP chip on the notification,
-        regardless of message content. Names are matched case-insensitively as
-        substrings of the Slack display name (so "York" matches "York Johnson"
-        and "Yorktown Smith") — keep names specific to avoid false positives.
+        {t('prefs.notify.desc')}
       </p>
       <div className="pref-row">
-        <div className="pref-label">VIP names</div>
+        <div className="pref-label">{t('prefs.notify.vipNames')}</div>
         <div className="pref-control" style={{ flexDirection: 'column', alignItems: 'stretch' }}>
           <textarea
             className="input"
-            placeholder={'One name per line, e.g.\nYork\nAmitt\nMatt Van'}
+            placeholder={t('prefs.notify.vipPlaceholder')}
             value={vipsText}
             onChange={(e) => setVipsText(e.target.value)}
             rows={6}
@@ -2311,7 +2303,7 @@ function PrefsNotifications(): JSX.Element {
         </div>
       </div>
       <div className="pref-row">
-        <div className="pref-label">Toast placement</div>
+        <div className="pref-label">{t('prefs.notify.toastPlacement')}</div>
         <div className="pref-control" style={{ flexDirection: 'column', alignItems: 'flex-start', gap: 4 }}>
           <label style={{ display: 'flex', gap: 8, alignItems: 'center', cursor: 'pointer' }}>
             <input
@@ -2332,14 +2324,10 @@ function PrefsNotifications(): JSX.Element {
                 globalThis.dispatchEvent(new CustomEvent('popbot:notifications-prefs-changed'));
               }}
             />
-            <span>Top-center, fly to bell on dismiss</span>
+            <span>{t('prefs.notify.centerFly.label')}</span>
           </label>
           <p style={{ margin: 0, fontSize: 12, color: 'var(--fg-3)', maxWidth: 480 }}>
-            On by default — toasts arrive at top-center, animate toward the bell
-            icon when dismissed, and pulse the bell briefly so you can see
-            where the notification went. Turn off if you'd rather have the
-            classic top-right corner toasts. Takes effect immediately — no
-            Save needed.
+            {t('prefs.notify.centerFly.desc')}
           </p>
         </div>
       </div>
@@ -2349,11 +2337,11 @@ function PrefsNotifications(): JSX.Element {
         <div className="pref-control" style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
           {savedAt && (
             <span className="pill done">
-              <i className="fa-solid fa-circle-check" /> Saved
+              <i className="fa-solid fa-circle-check" /> {t('prefs.notify.savedPill')}
             </span>
           )}
           <button className="btn primary sm" disabled={busy} onClick={() => void onSave()}>
-            {busy ? 'Saving…' : 'Save'}
+            {busy ? t('common.saving') : t('common.save')}
           </button>
         </div>
       </div>
@@ -2364,25 +2352,23 @@ function PrefsNotifications(): JSX.Element {
           injected. Remove this whole block once the flow has been
           validated end-to-end. */}
       <div className="pref-row" style={{ marginTop: 16, paddingTop: 16, borderTop: '1px dashed var(--line-1)' }}>
-        <div className="pref-label">Test new-item flow</div>
+        <div className="pref-label">{t('prefs.notify.testFlow.title')}</div>
         <div className="pref-control" style={{ display: 'flex', gap: 8, flexDirection: 'column', alignItems: 'flex-start' }}>
           <p style={{ margin: 0, fontSize: 12, color: 'var(--fg-3)', maxWidth: 480 }}>
-            Temporarily flags a few existing items in your real queue as NEW so
-            you can verify the chip + tab pip behavior. Nothing is added,
-            removed, or persisted server-side.
+            {t('prefs.notify.testFlow.desc')}
           </p>
           <div style={{ display: 'flex', gap: 8 }}>
             <button
               className="btn ghost sm"
               onClick={() => globalThis.dispatchEvent(new CustomEvent('popbot:test-mark-unseen', { detail: { kind: 'tickets', count: 2 } }))}
             >
-              <i className="fa-solid fa-flask" /> Flag 2 tickets as NEW
+              <i className="fa-solid fa-flask" /> {t('prefs.notify.testFlow.flagTickets')}
             </button>
             <button
               className="btn ghost sm"
               onClick={() => globalThis.dispatchEvent(new CustomEvent('popbot:test-mark-unseen', { detail: { kind: 'reviews', count: 2 } }))}
             >
-              <i className="fa-solid fa-flask" /> Flag 2 PRs as NEW
+              <i className="fa-solid fa-flask" /> {t('prefs.notify.testFlow.flagPrs')}
             </button>
           </div>
         </div>
@@ -2406,24 +2392,25 @@ interface GlobalPermissionRule {
 // Descriptions are intentionally similar in length so each card
 // renders the same height — keeps the list scannable and the toggle
 // columns aligned. Roughly 5-8 words, single short sentence each.
-const CORE_TOOLS: Array<{ name: string; description: string }> = [
-  { name: 'Bash',         description: 'Run shell commands on your machine.' },
-  { name: 'Read',         description: 'Read the contents of a file.' },
-  { name: 'Write',        description: 'Create or overwrite a file.' },
-  { name: 'Edit',         description: 'Modify the contents of a file.' },
-  { name: 'NotebookEdit', description: 'Modify cells in a Jupyter notebook.' },
-  { name: 'Grep',         description: 'Search inside files for text.' },
-  { name: 'Glob',         description: 'Find files matching a name pattern.' },
-  { name: 'WebFetch',     description: 'Fetch and read a remote URL.' },
-  { name: 'WebSearch',    description: 'Run a web search for context.' },
-  { name: 'TodoWrite',    description: "Update the agent's internal task list." },
-  { name: 'Task',         description: 'Spawn a sub-agent to delegate work.' },
-  { name: 'ExitPlanMode', description: 'Leave plan mode and present the plan.' },
+const CORE_TOOLS: Array<{ name: string; descKey: MessageKey }> = [
+  { name: 'Bash',         descKey: 'prefs.permissions.tool.bash.desc' },
+  { name: 'Read',         descKey: 'prefs.permissions.tool.read.desc' },
+  { name: 'Write',        descKey: 'prefs.permissions.tool.write.desc' },
+  { name: 'Edit',         descKey: 'prefs.permissions.tool.edit.desc' },
+  { name: 'NotebookEdit', descKey: 'prefs.permissions.tool.notebookEdit.desc' },
+  { name: 'Grep',         descKey: 'prefs.permissions.tool.grep.desc' },
+  { name: 'Glob',         descKey: 'prefs.permissions.tool.glob.desc' },
+  { name: 'WebFetch',     descKey: 'prefs.permissions.tool.webFetch.desc' },
+  { name: 'WebSearch',    descKey: 'prefs.permissions.tool.webSearch.desc' },
+  { name: 'TodoWrite',    descKey: 'prefs.permissions.tool.todoWrite.desc' },
+  { name: 'Task',         descKey: 'prefs.permissions.tool.task.desc' },
+  { name: 'ExitPlanMode', descKey: 'prefs.permissions.tool.exitPlanMode.desc' },
 ];
 
 type ToolState = 'ask' | 'allow' | 'deny';
 
 function PrefsPermissions(): JSX.Element {
+  const { t } = useTranslation();
   const [rules, setRules] = useState<GlobalPermissionRule[]>([]);
   const [loaded, setLoaded] = useState(false);
 
@@ -2444,14 +2431,20 @@ function PrefsPermissions(): JSX.Element {
 
   // Merge core tools with user-added (non-core) rules so MCP / custom
   // tools the user has opinions on don't disappear from the list.
-  const coreNames = new Set(CORE_TOOLS.map((t) => t.name));
+  const coreNames = new Set(CORE_TOOLS.map((tool) => tool.name));
   const customToolNames = rules.map((r) => r.tool).filter((name) => !coreNames.has(name));
   const renderRows: Array<{ name: string; description: string | null }> = [
-    ...CORE_TOOLS.map((t) => ({ name: t.name, description: t.description })),
+    ...CORE_TOOLS.map((tool) => ({ name: tool.name, description: t(tool.descKey) })),
     ...customToolNames.map((name) => ({ name, description: null })),
   ];
 
-  if (!loaded) return <div style={{ padding: 24, color: 'var(--fg-3)' }}>Loading…</div>;
+  const stateLabel: Record<ToolState, string> = {
+    ask: t('prefs.permissions.state.ask'),
+    allow: t('prefs.permissions.state.allow'),
+    deny: t('prefs.permissions.state.deny'),
+  };
+
+  if (!loaded) return <div style={{ padding: 24, color: 'var(--fg-3)' }}>{t('common.loading')}</div>;
 
   const stateOf = (tool: string): ToolState => {
     const rule = rules.find((r) => r.tool === tool);
@@ -2461,14 +2454,9 @@ function PrefsPermissions(): JSX.Element {
 
   return (
     <div className="pref-section">
-      <h3>Permissions</h3>
+      <h3>{t('prefs.permissions.title')}</h3>
       <p className="pref-section-desc">
-        Global default for each tool. <b>Ask</b> prompts the chat each time
-        (the default). <b>Allow</b> auto-approves without prompting.
-        <b> Deny</b> auto-rejects. Per-chat rules — set from the permission
-        card via "Allow this chat" / "Deny this chat" — override these
-        globals, so a single chat can lock down a tool you've otherwise
-        allowed everywhere.
+        {t('prefs.permissions.desc')}
       </p>
       <div className="pref-row wide" style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
         {renderRows.map((row) => {
@@ -2511,7 +2499,7 @@ function PrefsPermissions(): JSX.Element {
               <div
                 style={{ display: 'flex', gap: 2, flex: '0 0 auto' }}
                 role="radiogroup"
-                aria-label={`${row.name} default`}
+                aria-label={t('prefs.permissions.toolDefaultAria', { tool: row.name })}
               >
                 {(['ask', 'allow', 'deny'] as const).map((s) => (
                   <button
@@ -2527,7 +2515,7 @@ function PrefsPermissions(): JSX.Element {
                       textTransform: 'capitalize',
                     }}
                   >
-                    {s}
+                    {stateLabel[s]}
                   </button>
                 ))}
               </div>
@@ -2575,8 +2563,9 @@ function RepoColorSwatches({
   value: string;
   onChange: (next: string) => void;
 }): JSX.Element {
+  const { t } = useTranslation();
   return (
-    <div className="repo-swatches" role="radiogroup" aria-label="Repo color">
+    <div className="repo-swatches" role="radiogroup" aria-label={t('prefs.repos.colorAria')}>
       {POPBOT_PALETTE.map((c) => {
         const selected = value.toLowerCase() === c.value.toLowerCase();
         return (
@@ -2598,6 +2587,7 @@ function RepoColorSwatches({
 }
 
 function PrefsRepos({ onReposChanged }: { onReposChanged?: () => void }): JSX.Element {
+  const { t } = useTranslation();
   const [repos, setRepos] = useState<RepoRecord[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [newRepo, setNewRepo] = useState<NewRepoDraft | null>(null);
@@ -2621,16 +2611,13 @@ function PrefsRepos({ onReposChanged }: { onReposChanged?: () => void }): JSX.El
     onReposChanged?.();
   };
 
-  if (repos === null) return <div className="pref-section"><h3>Repositories</h3></div>;
+  if (repos === null) return <div className="pref-section"><h3>{t('prefs.repos.title')}</h3></div>;
 
   return (
     <div className="pref-section">
-      <h3>Repositories</h3>
+      <h3>{t('prefs.repos.title')}</h3>
       <p className="pref-section-desc">
-        Each chat lives in a repository. A repo's mode (slot pool vs.
-        ephemeral worktrees) is set when it's created and can't be
-        changed afterward — switching modes would orphan the worktrees
-        of any chats already in flight.
+        {t('prefs.repos.desc')}
       </p>
       {error && <div className="pref-error">{error}</div>}
       <div className="repo-list">
@@ -2639,24 +2626,26 @@ function PrefsRepos({ onReposChanged }: { onReposChanged?: () => void }): JSX.El
             <div className="repo-card-head">
               <span className="repo-card-id mono">{r.id}</span>
               <span className={`repo-card-mode mode-${r.mode}`}>
-                {r.mode === 'ephemeral' ? 'ephemeral' : `slots × ${r.slotCount}`}
+                {r.mode === 'ephemeral'
+                  ? t('prefs.repos.mode.ephemeral')
+                  : t('prefs.repos.mode.slots', { count: r.slotCount })}
               </span>
               <span style={{ flex: 1 }} />
-              <button className="btn sm" onClick={() => setEditing(r)}>Edit</button>
-              <button className="btn sm danger" onClick={() => setDeleting(r)}>Delete…</button>
+              <button className="btn sm" onClick={() => setEditing(r)}>{t('common.edit')}</button>
+              <button className="btn sm danger" onClick={() => setDeleting(r)}>{t('prefs.repos.delete')}</button>
             </div>
             <div className="repo-card-body">
               <div className="repo-card-row">
-                <span className="repo-card-label">Path</span>
+                <span className="repo-card-label">{t('prefs.repos.card.path')}</span>
                 <span className="mono">{r.repoPath}</span>
               </div>
               <div className="repo-card-row">
-                <span className="repo-card-label">Default base</span>
+                <span className="repo-card-label">{t('prefs.repos.card.defaultBase')}</span>
                 <span className="mono">{r.defaultBase}</span>
               </div>
               {r.mode === 'slots' && (
                 <div className="repo-card-row">
-                  <span className="repo-card-label">Slot prefix</span>
+                  <span className="repo-card-label">{t('prefs.repos.card.slotPrefix')}</span>
                   <span className="mono">{r.slotPrefix}-N</span>
                 </div>
               )}
@@ -2666,7 +2655,7 @@ function PrefsRepos({ onReposChanged }: { onReposChanged?: () => void }): JSX.El
       </div>
       <div style={{ marginTop: 16 }}>
         <button className="btn primary" onClick={() => setNewRepo(emptyDraft())}>
-          <i className="fa-solid fa-plus" />&nbsp;Add Repository
+          <i className="fa-solid fa-plus" />&nbsp;{t('prefs.repos.addRepository')}
         </button>
       </div>
 
@@ -2734,6 +2723,7 @@ function NewRepoWizard({
   onCancel: () => void;
   onCreated: () => void;
 }): JSX.Element {
+  const { t } = useTranslation();
   // Steps: 1 mode → 2 identity → 3 slot config → 4 initialize slots.
   // Step 3 + step 4 are skipped for ephemeral repos (no slots).
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
@@ -2787,8 +2777,8 @@ function NewRepoWizard({
       });
       if (!res.ok) {
         setError(res.reason === 'duplicate-id'
-          ? `A repo with id "${draft.id.trim()}" already exists.`
-          : res.reason === 'invalid' ? res.message : 'Could not create repo.');
+          ? t('prefs.repos.error.duplicateId', { id: draft.id.trim() })
+          : res.reason === 'invalid' ? res.message : t('prefs.repos.error.generic'));
         return;
       }
       // Slot repo → advance to step 4 to run the slot init flow.
@@ -2811,12 +2801,14 @@ function NewRepoWizard({
       <div className="modal" onClick={(e) => e.stopPropagation()} style={{ width: 540, maxWidth: "92vw" }}>
         <div className="modal-head">
           <h3>
-            New repository
+            {t('prefs.repos.wizard.title')}
             <span className="modal-step">
-              {step === 4 ? 'initializing slots' : `step ${step} of ${lastStep}`}
+              {step === 4
+                ? t('prefs.repos.wizard.initializingSlots')
+                : t('prefs.repos.wizard.stepOf', { step, total: lastStep })}
             </span>
           </h3>
-          <button className="iconbtn" onClick={onCancel} title="Cancel">
+          <button className="iconbtn" onClick={onCancel} title={t('common.cancel')}>
             <i className="fa-solid fa-xmark" />
           </button>
         </div>
@@ -2824,40 +2816,30 @@ function NewRepoWizard({
         {step === 1 && (
           <div className="modal-body">
             <p className="pref-section-desc">
-              Choose how PopBot manages worktrees for chats in this repo.
-              You can't change this later.
+              {t('prefs.repos.wizard.modeIntro')}
             </p>
             <label className={`mode-card ${draft.mode === 'slots' ? 'selected' : ''}`}
                    onClick={() => onChange({ ...draft, mode: 'slots' })}>
               <div className="mode-card-head">
                 <i className="fa-solid fa-layer-group mode-card-icon slots" />
-                <strong>Slots</strong>
-                <span className="mode-card-pill">keeps build caches warm across chats</span>
+                <strong>{t('prefs.repos.wizard.mode.slots.title')}</strong>
+                <span className="mode-card-pill">{t('prefs.repos.wizard.mode.slots.pill')}</span>
               </div>
-              <p className="mode-card-lead">Permanent worktree slots reused by chats.</p>
+              <p className="mode-card-lead">{t('prefs.repos.wizard.mode.slots.lead')}</p>
               <p className="mode-card-desc">
-                A fixed pool of N pre-allocated worktrees. Chats borrow a
-                slot, work in it, then park back when closed. Each slot
-                keeps its own build artifacts — Unity's <span className="mono">Library/</span>,
-                <span className="mono"> node_modules/</span>, gradle/maven caches, etc.
-                That means no multi-minute reimport or <span className="mono">npm install</span> every
-                time you switch branches. Pick this whenever the per-branch
-                setup cost is non-trivial.
+                {t('prefs.repos.wizard.mode.slots.desc')}
               </p>
             </label>
             <label className={`mode-card ${draft.mode === 'ephemeral' ? 'selected' : ''}`}
                    onClick={() => onChange({ ...draft, mode: 'ephemeral' })}>
               <div className="mode-card-head">
                 <i className="fa-solid fa-wind mode-card-icon ephemeral" />
-                <strong>Ephemeral</strong>
-                <span className="mode-card-pill">good for pure-code repos</span>
+                <strong>{t('prefs.repos.wizard.mode.ephemeral.title')}</strong>
+                <span className="mode-card-pill">{t('prefs.repos.wizard.mode.ephemeral.pill')}</span>
               </div>
-              <p className="mode-card-lead">Temporary worktrees removed when a chat is closed.</p>
+              <p className="mode-card-lead">{t('prefs.repos.wizard.mode.ephemeral.lead')}</p>
               <p className="mode-card-desc">
-                Each chat gets its own worktree, created when the chat opens
-                and removed when it closes. No pool, no parking branches.
-                Best when there's no expensive per-branch cache to keep
-                warm — pure-code repos, scripts, web apps with cheap installs.
+                {t('prefs.repos.wizard.mode.ephemeral.desc')}
               </p>
             </label>
           </div>
@@ -2867,8 +2849,8 @@ function NewRepoWizard({
           <div className="modal-body">
             <div className="pref-row">
               <div className="pref-label">
-                <div className="pref-label-title">Repo path</div>
-                <div className="pref-label-desc">Absolute path to the source clone. We'll auto-fill the id and slot prefix from the folder name (you can override).</div>
+                <div className="pref-label-title">{t('prefs.repos.wizard.repoPath.title')}</div>
+                <div className="pref-label-desc">{t('prefs.repos.wizard.repoPath.desc')}</div>
               </div>
               <div className="pref-control" style={{ display: 'flex', gap: 6, alignItems: 'center', minWidth: 0 }}>
                 <input className="pref-input mono narrow" placeholder="/Users/you/code/myrepo" value={draft.repoPath}
@@ -2876,34 +2858,34 @@ function NewRepoWizard({
                 <button
                   type="button"
                   className="btn sm"
-                  title="Browse for a folder"
+                  title={t('prefs.repos.wizard.browseTitle')}
                   onClick={async () => {
                     const picked = await window.popbot.files.pickDirectory({
-                      title: 'Choose the source repository',
+                      title: t('prefs.repos.wizard.pickDirTitle'),
                       defaultPath: draft.repoPath || undefined,
                     });
                     if (picked) onPathChange(picked);
                   }}
                 >
-                  <i className="fa-solid fa-folder-open" />&nbsp;Browse…
+                  <i className="fa-solid fa-folder-open" />&nbsp;{t('prefs.repos.wizard.browse')}
                 </button>
               </div>
             </div>
             <div className="pref-row">
               <div className="pref-label">
-                <div className="pref-label-title">Short id</div>
-                <div className="pref-label-desc">Lowercase, no spaces. Used in folder paths and branch prefixes. Permanent.</div>
+                <div className="pref-label-title">{t('prefs.repos.wizard.shortId.title')}</div>
+                <div className="pref-label-desc">{t('prefs.repos.wizard.shortId.desc')}</div>
               </div>
               <div className="pref-control">
-                <input className="pref-input mono narrow" placeholder="app" value={draft.id}
+                <input className="pref-input mono narrow" placeholder={t('prefs.repos.wizard.shortId.placeholder')} value={draft.id}
                        onChange={(e) => { setIdTouched(true); onChange({ ...draft, id: e.target.value }); }}
                        style={{ width: 200 }} />
               </div>
             </div>
             <div className="pref-row">
               <div className="pref-label">
-                <div className="pref-label-title">Default base branch</div>
-                <div className="pref-label-desc">New chat branches fork from here.</div>
+                <div className="pref-label-title">{t('prefs.repos.wizard.defaultBase.title')}</div>
+                <div className="pref-label-desc">{t('prefs.repos.wizard.defaultBase.desc')}</div>
               </div>
               <div className="pref-control">
                 <input className="pref-input mono narrow" value={draft.defaultBase}
@@ -2912,8 +2894,8 @@ function NewRepoWizard({
             </div>
             <div className="pref-row">
               <div className="pref-label">
-                <div className="pref-label-title">Color</div>
-                <div className="pref-label-desc">Tints this repo's slot pills + chat accents.</div>
+                <div className="pref-label-title">{t('prefs.repos.wizard.color.title')}</div>
+                <div className="pref-label-desc">{t('prefs.repos.wizard.color.desc')}</div>
               </div>
               <div className="pref-control">
                 <RepoColorSwatches
@@ -2928,10 +2910,12 @@ function NewRepoWizard({
         {step === 4 && createdRepo && (
           <div className="modal-body">
             <p className="pref-section-desc" style={{ marginTop: 0 }}>
-              <span className="mono">{createdRepo.id}</span> is created. Now we'll
-              initialize its <strong>{createdRepo.slotCount}</strong> slot worktree{createdRepo.slotCount === 1 ? '' : 's'}
-              {' '}— each is a long-lived <span className="mono">git worktree</span> on its own
-              parking branch, ready to host a chat.
+              {t(
+                createdRepo.slotCount === 1
+                  ? 'prefs.repos.wizard.createdOne'
+                  : 'prefs.repos.wizard.created',
+                { id: createdRepo.id, count: createdRepo.slotCount },
+              )}
             </p>
             <ConfigureSlotsPanel
               repo={createdRepo}
@@ -2946,12 +2930,9 @@ function NewRepoWizard({
           <div className="modal-body">
             <div className="pref-row">
               <div className="pref-label">
-                <div className="pref-label-title">Slot prefix</div>
+                <div className="pref-label-title">{t('prefs.repos.wizard.slotPrefix.title')}</div>
                 <div className="pref-label-desc">
-                  Folder + parking-branch prefix. Worktrees become <span className="mono">{draft.slotPrefix}-N</span>.
-                  Shorter is better — this prefix shows up in worktree paths,
-                  parking branches, and the slot pill in the chat header, so a
-                  long prefix wastes screen space everywhere.
+                  {t('prefs.repos.wizard.slotPrefix.desc', { prefix: `${draft.slotPrefix}-N` })}
                 </div>
               </div>
               <div className="pref-control">
@@ -2962,8 +2943,8 @@ function NewRepoWizard({
             </div>
             <div className="pref-row">
               <div className="pref-label">
-                <div className="pref-label-title">Slot count</div>
-                <div className="pref-label-desc">How many concurrent chats this repo supports. 1–64.</div>
+                <div className="pref-label-title">{t('prefs.repos.wizard.slotCount.title')}</div>
+                <div className="pref-label-desc">{t('prefs.repos.wizard.slotCount.desc')}</div>
               </div>
               <div className="pref-control">
                 <input className="pref-input mono narrow" type="number" min={1} max={64}
@@ -2992,15 +2973,15 @@ function NewRepoWizard({
           const submitting = busy;
           return (
             <div className="modal-foot">
-              <button className="btn" onClick={onCancel} disabled={submitting}>Cancel</button>
+              <button className="btn" onClick={onCancel} disabled={submitting}>{t('common.cancel')}</button>
               <span style={{ flex: 1 }} />
               {step > 1 && (
-                <button className="btn" onClick={onBack} disabled={submitting}>Back</button>
+                <button className="btn" onClick={onBack} disabled={submitting}>{t('common.back')}</button>
               )}
               <button className="btn primary" disabled={!canAdvance || submitting} onClick={onNext}>
                 {step === lastInteractive
-                  ? (submitting ? 'Adding…' : 'Add Repository')
-                  : 'Next'}
+                  ? (submitting ? t('prefs.repos.wizard.adding') : t('prefs.repos.addRepository'))
+                  : t('common.next')}
               </button>
             </div>
           );
@@ -3024,6 +3005,7 @@ function EditRepoModal({
   onCancel: () => void;
   onSaved: () => void;
 }): JSX.Element {
+  const { t } = useTranslation();
   const [draft, setDraft] = useState({
     color: repo.color,
     defaultBase: repo.defaultBase,
@@ -3048,7 +3030,7 @@ function EditRepoModal({
         slotCount: repo.slotCount,
       });
       if (!res.ok) {
-        setError('Repo not found — was it deleted?');
+        setError(t('prefs.repos.error.notFound'));
         return;
       }
       onSaved();
@@ -3063,28 +3045,30 @@ function EditRepoModal({
     <div className="modal-scrim" onClick={onCancel}>
       <div className="modal" onClick={(e) => e.stopPropagation()} style={{ width: 540, maxWidth: "92vw" }}>
         <div className="modal-head">
-          <h3>Edit <span className="mono">{repo.id}</span></h3>
-          <button className="iconbtn" onClick={onCancel} title="Cancel">
+          <h3>{t('prefs.repos.edit.title', { id: repo.id })}</h3>
+          <button className="iconbtn" onClick={onCancel} title={t('common.cancel')}>
             <i className="fa-solid fa-xmark" />
           </button>
         </div>
         <div className="modal-body">
           <div className="pref-row">
             <div className="pref-label">
-              <div className="pref-label-title">Mode</div>
-              <div className="pref-label-desc">Permanent. Delete + recreate the repo to switch modes.</div>
+              <div className="pref-label-title">{t('prefs.repos.edit.mode.title')}</div>
+              <div className="pref-label-desc">{t('prefs.repos.edit.mode.desc')}</div>
             </div>
             <div className="pref-control">
               <span className={`repo-card-mode mode-${repo.mode}`}>
-                {repo.mode === 'ephemeral' ? 'ephemeral' : `slots × ${repo.slotCount}`}
+                {repo.mode === 'ephemeral'
+                  ? t('prefs.repos.mode.ephemeral')
+                  : t('prefs.repos.mode.slots', { count: repo.slotCount })}
               </span>
             </div>
           </div>
           {repo.mode === 'slots' && (
             <div className="pref-row">
               <div className="pref-label">
-                <div className="pref-label-title">Slot prefix</div>
-                <div className="pref-label-desc">Permanent — baked into folder paths and parking branches.</div>
+                <div className="pref-label-title">{t('prefs.repos.card.slotPrefix')}</div>
+                <div className="pref-label-desc">{t('prefs.repos.edit.slotPrefix.desc')}</div>
               </div>
               <div className="pref-control">
                 <span className="mono" style={{ color: 'var(--fg-2)' }}>{repo.slotPrefix}-N</span>
@@ -3093,22 +3077,22 @@ function EditRepoModal({
           )}
           <div className="pref-row">
             <div className="pref-label">
-              <div className="pref-label-title">Repo path</div>
-              <div className="pref-label-desc">Permanent. Delete + recreate to point at a different clone.</div>
+              <div className="pref-label-title">{t('prefs.repos.wizard.repoPath.title')}</div>
+              <div className="pref-label-desc">{t('prefs.repos.edit.repoPath.desc')}</div>
             </div>
             <div className="pref-control" style={{ flex: 1 }}>
               <span className="mono" style={{ color: 'var(--fg-2)' }}>{repo.repoPath}</span>
             </div>
           </div>
           <div className="pref-row">
-            <div className="pref-label"><div className="pref-label-title">Default base</div></div>
+            <div className="pref-label"><div className="pref-label-title">{t('prefs.repos.card.defaultBase')}</div></div>
             <div className="pref-control">
               <input className="pref-input mono narrow" value={draft.defaultBase}
                      onChange={(e) => setDraft({ ...draft, defaultBase: e.target.value })} style={{ width: 200 }} />
             </div>
           </div>
           <div className="pref-row">
-            <div className="pref-label"><div className="pref-label-title">Color</div></div>
+            <div className="pref-label"><div className="pref-label-title">{t('prefs.repos.wizard.color.title')}</div></div>
             <div className="pref-control">
               <RepoColorSwatches
                 value={draft.color}
@@ -3119,25 +3103,24 @@ function EditRepoModal({
           {repo.mode === 'slots' && (
             <div className="pref-row">
               <div className="pref-label">
-                <div className="pref-label-title">Slot count</div>
+                <div className="pref-label-title">{t('prefs.repos.wizard.slotCount.title')}</div>
                 <div className="pref-label-desc">
-                  Pool size. Resizing creates or tears down worktrees one
-                  at a time — refuses if any slot is held by an open chat.
+                  {t('prefs.repos.edit.slotCount.desc')}
                 </div>
               </div>
               <div className="pref-control" style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                 <span className="mono" style={{ color: 'var(--fg-2)' }}>{repo.slotCount}</span>
-                <button className="btn sm" onClick={() => setResizeOpen(true)}>Resize slots…</button>
+                <button className="btn sm" onClick={() => setResizeOpen(true)}>{t('prefs.repos.edit.resizeSlots')}</button>
               </div>
             </div>
           )}
         </div>
         {error && <div className="pref-error" style={{ margin: '0 16px' }}>{error}</div>}
         <div className="modal-foot">
-          <button className="btn" onClick={onCancel} disabled={busy}>Cancel</button>
+          <button className="btn" onClick={onCancel} disabled={busy}>{t('common.cancel')}</button>
           <span style={{ flex: 1 }} />
           <button className="btn primary" onClick={() => void submit()} disabled={busy}>
-            {busy ? 'Saving…' : 'Save'}
+            {busy ? t('common.saving') : t('common.save')}
           </button>
         </div>
       </div>
@@ -3168,6 +3151,7 @@ function ResizeSlotsModal({
   repo: RepoRecord;
   onClose: () => void;
 }): JSX.Element {
+  const { t } = useTranslation();
   const [target, setTarget] = useState(repo.slotCount);
   const [confirmed, setConfirmed] = useState(false);
 
@@ -3175,8 +3159,8 @@ function ResizeSlotsModal({
     <div className="modal-scrim" onClick={onClose}>
       <div className="modal" onClick={(e) => e.stopPropagation()} style={{ width: 540, maxWidth: "92vw" }}>
         <div className="modal-head">
-          <h3>Resize slots <span className="modal-step mono">{repo.id}</span></h3>
-          <button className="iconbtn" onClick={onClose} title="Cancel">
+          <h3>{t('prefs.repos.resize.title')} <span className="modal-step mono">{repo.id}</span></h3>
+          <button className="iconbtn" onClick={onClose} title={t('common.cancel')}>
             <i className="fa-solid fa-xmark" />
           </button>
         </div>
@@ -3185,11 +3169,9 @@ function ResizeSlotsModal({
             <>
               <div className="pref-row">
                 <div className="pref-label">
-                  <div className="pref-label-title">New slot count</div>
+                  <div className="pref-label-title">{t('prefs.repos.resize.newCount.title')}</div>
                   <div className="pref-label-desc">
-                    Current: {repo.slotCount}. Increasing creates more
-                    worktrees; decreasing tears down the highest-numbered
-                    ones (and their parking branches).
+                    {t('prefs.repos.resize.newCount.desc', { count: repo.slotCount })}
                   </div>
                 </div>
                 <div className="pref-control">
@@ -3211,10 +3193,10 @@ function ResizeSlotsModal({
         </div>
         {!confirmed && (
           <div className="modal-foot">
-            <button className="btn" onClick={onClose}>Cancel</button>
+            <button className="btn" onClick={onClose}>{t('common.cancel')}</button>
             <span style={{ flex: 1 }} />
             <button className="btn primary" disabled={target < 1} onClick={() => setConfirmed(true)}>
-              Continue
+              {t('common.continue')}
             </button>
           </div>
         )}
@@ -3234,6 +3216,7 @@ function DeleteRepoModal({
   onCancel: () => void;
   onDeleted: () => void;
 }): JSX.Element {
+  const { t } = useTranslation();
   const [chatCount, setChatCount] = useState<number | null>(null);
   const [typed, setTyped] = useState('');
   const [busy, setBusy] = useState(false);
@@ -3266,37 +3249,37 @@ function DeleteRepoModal({
       <div className="modal" onClick={(e) => e.stopPropagation()} style={{ width: 520, maxWidth: "92vw" }}>
         <div className="modal-head">
           <h3 style={{ color: 'var(--danger, #d33)' }}>
-            <i className="fa-solid fa-triangle-exclamation" />&nbsp;Delete repository
+            <i className="fa-solid fa-triangle-exclamation" />&nbsp;{t('prefs.repos.delete.title')}
           </h3>
-          <button className="iconbtn" onClick={onCancel} title="Cancel">
+          <button className="iconbtn" onClick={onCancel} title={t('common.cancel')}>
             <i className="fa-solid fa-xmark" />
           </button>
         </div>
         <div className="modal-body">
           <p>
-            You're about to delete <strong className="mono">{repo.id}</strong>.
+            {t('prefs.repos.delete.about', { id: repo.id })}
           </p>
           {chatCount !== null && chatCount > 0 && (
             <div className="pref-warn" style={{ marginBottom: 12 }}>
-              <strong>{chatCount}</strong> chat{chatCount === 1 ? '' : 's'} {chatCount === 1 ? 'is' : 'are'} attached to this repo.
-              Their conversation history is preserved in the database, but
-              they'll be detached until a repo with the same id is added back.
+              {t(
+                chatCount === 1
+                  ? 'prefs.repos.delete.attachedWarningOne'
+                  : 'prefs.repos.delete.attachedWarning',
+                { count: chatCount },
+              )}
             </div>
           )}
           <p style={{ fontSize: 13, color: 'var(--fg-2)' }}>
             <i className="fa-solid fa-info-circle" />&nbsp;
-            <strong>Reversible:</strong> if you later create a new repo with the
-            id <span className="mono">{repo.id}</span>, all detached chats will reattach
-            automatically.
+            <strong>{t('prefs.repos.delete.reversible')}</strong>{' '}
+            {t('prefs.repos.delete.reversibleBody', { id: repo.id })}
           </p>
           <p style={{ fontSize: 13, color: 'var(--fg-3)' }}>
-            This won't touch the source clone at <span className="mono">{repo.repoPath}</span> or
-            any chat branches in it. Slot worktrees on disk are left alone too —
-            you can prune them by hand if you want a clean slate.
+            {t('prefs.repos.delete.noTouch', { path: repo.repoPath })}
           </p>
           <div style={{ marginTop: 16 }}>
             <label style={{ display: 'block', fontSize: 12, color: 'var(--fg-2)', marginBottom: 4 }}>
-              Type <span className="mono">{repo.id}</span> to confirm:
+              {t('prefs.repos.delete.typeToConfirm', { id: repo.id })}
             </label>
             <input
               className="pref-input mono"
@@ -3310,10 +3293,10 @@ function DeleteRepoModal({
         </div>
         {error && <div className="pref-error" style={{ margin: '0 16px' }}>{error}</div>}
         <div className="modal-foot">
-          <button className="btn" onClick={onCancel} disabled={busy}>Cancel</button>
+          <button className="btn" onClick={onCancel} disabled={busy}>{t('common.cancel')}</button>
           <span style={{ flex: 1 }} />
           <button className="btn danger" disabled={!matches || busy} onClick={() => void submit()}>
-            {busy ? 'Deleting…' : 'Delete repository'}
+            {busy ? t('prefs.repos.delete.deleting') : t('prefs.repos.delete.title')}
           </button>
         </div>
       </div>

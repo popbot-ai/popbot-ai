@@ -1478,6 +1478,12 @@ input, textarea { font: inherit; color: inherit; background: none; border: 0; ou
   padding-left: 0;
 }
 
+/* Hand-off shown under an oversized diff that was head-truncated inline
+   for performance — clicking opens the full diff in the pop-out panel. */
+.diff-truncated-foot {
+  margin-top: 4px;
+}
+
 /* Full-output popup — wide enough to read most bash output without
    horizontal scrolling, with both scrollbars visible when needed. */
 .output-modal {
