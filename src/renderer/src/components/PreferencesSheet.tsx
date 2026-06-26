@@ -353,9 +353,13 @@ const TRACKERS: SelectChoice[] = [
   { id: 'linear', label: 'Linear', icon: <img src={linearIcon} alt="" className="tracker-dd-ico" /> },
 ];
 
-/** Game engines selectable as the launch target. Only Unity ships today. */
+/** Game engines selectable as the launch target. Only Unity has launch/config
+ *  support today; Unreal Engine and Godot are listed so they can be selected,
+ *  with config support to follow. */
 const ENGINES: SelectChoice[] = [
   { id: 'unity', label: 'Unity', icon: <i className="fa-solid fa-cube tracker-dd-ico-fa" /> },
+  { id: 'unreal', label: 'Unreal Engine', icon: <i className="fa-solid fa-cubes tracker-dd-ico-fa" /> },
+  { id: 'godot', label: 'Godot', icon: <i className="fa-solid fa-circle-nodes tracker-dd-ico-fa" /> },
 ];
 
 /** Custom (non-native) dropdown — square panels + an icon per option,
@@ -476,16 +480,16 @@ function PrefsIntegrations({ onLinearChanged }: { onLinearChanged?: () => void }
   // shared/ticketProvider.ts and slots in as another <option> when its
   // client + queue wiring land — no structural change here.
   const rawTracker = get<string>('ticketSource', 'linear') ?? 'linear';
-  // Game engine launched for a chat's worktree. Same always-shown,
-  // default-to-the-only-option model as the ticket source.
-  const rawEngine = get<string>('gameEngine', 'unity') ?? 'unity';
+  // Platforms (game engines today; more types later) are multi-enable, like
+  // source-control providers — a studio may run several across projects. Unity
+  // defaults on; the rest off.
+  const platformsEnabled = get<Record<string, boolean>>('platformsEnabled', {}) ?? {};
 
   // Validate the persisted value against the options that actually ship.
   // A stale/unsupported id (e.g. ticketSource:'jira' from an older build)
   // would otherwise render the fallback button with nothing selected while
   // the invalid value lingers in storage.
   const tracker = TRACKERS.some((t) => t.id === rawTracker) ? rawTracker : TRACKERS[0].id;
-  const engine = ENGINES.some((e) => e.id === rawEngine) ? rawEngine : ENGINES[0].id;
 
   // Heal a stale value in place so it stops being dead/invalid state. Only
   // writes when the stored value differs from the normalized one, so this
@@ -493,9 +497,6 @@ function PrefsIntegrations({ onLinearChanged }: { onLinearChanged?: () => void }
   useEffect(() => {
     if (!loading && rawTracker !== tracker) void set('ticketSource', tracker);
   }, [loading, rawTracker, tracker]);
-  useEffect(() => {
-    if (!loading && rawEngine !== engine) void set('gameEngine', engine);
-  }, [loading, rawEngine, engine]);
 
   if (loading) return <div className="pref-section"><h3>Ticket source</h3></div>;
 
@@ -535,25 +536,47 @@ function PrefsIntegrations({ onLinearChanged }: { onLinearChanged?: () => void }
         </div>
       </div>
 
-      {/* Game engine — same selector model as the ticket source. */}
+      {/* Platforms — nested multi-enable. "Game Engines" is a top-level
+          category checkbox; the individual engines sit indented inside it.
+          More platform categories will appear here over time. */}
       <div className="pref-section">
-        <div className="tracker-select-row">
-          <h3 style={{ margin: 0 }}>Game engine</h3>
-          <IconSelect value={engine} onChange={(v) => void set('gameEngine', v)} options={ENGINES} />
-        </div>
+        <h3>Platforms</h3>
         <p className="pref-section-desc">
-          The engine PopBot launches from a chat's worktree (the engine icon
-          on each chat column).
+          What PopBot can launch from a chat's worktree. Categories and the items
+          inside them are independently enabled — a chat uses the one for its repo.
         </p>
-        <div className="tracker-config">
-          <div className="tracker-config-head">
-            <i className="fa-solid fa-cube tracker-dd-ico-fa" />
-            <span>Unity</span>
+        <ProviderBlock
+          title="Game Engines"
+          icon={<i className="fa-solid fa-gamepad tracker-dd-ico-fa" />}
+          enabled={platformsEnabled.gameEngines !== false}
+          onToggle={(v) => void set('platformsEnabled', { ...platformsEnabled, gameEngines: v })}
+        >
+          <div
+            style={{
+              marginLeft: 18,
+              paddingLeft: 14,
+              borderLeft: '2px solid var(--border, rgba(255,255,255,0.08))',
+            }}
+          >
+            {ENGINES.map((e) => (
+              <ProviderBlock
+                key={e.id}
+                title={e.label}
+                icon={e.icon}
+                enabled={e.id === 'unity' ? platformsEnabled.unity !== false : !!platformsEnabled[e.id]}
+                onToggle={(v) => void set('platformsEnabled', { ...platformsEnabled, [e.id]: v })}
+              >
+                {e.id === 'unity' ? (
+                  <UnityConfig />
+                ) : (
+                  <p className="pref-section-desc" style={{ margin: 0 }}>
+                    No configuration for {e.label} yet — launch/config support is coming.
+                  </p>
+                )}
+              </ProviderBlock>
+            ))}
           </div>
-          <div className="tracker-config-body">
-            <UnityConfig />
-          </div>
-        </div>
+        </ProviderBlock>
       </div>
 
       {/* Slack (chat / notifications source) is parked — it was never
@@ -609,27 +632,33 @@ interface PerforceSettings {
   p4user?: string;
 }
 
-// One source-control provider: an enable toggle plus a config body shown only
-// when enabled. Modeled on the Integrations panel — providers are NOT mutually
-// exclusive, so Git and Perforce can both be on at once.
+// A toggleable item: an enable checkbox/toggle plus a config body shown only
+// when enabled. Used wherever options are NOT mutually exclusive (source-control
+// providers, platforms). When disabled, the name/desc fade and the config body
+// is hidden; the toggle stays fully interactive.
 function ProviderBlock({
   title,
   desc,
+  icon,
   enabled,
   onToggle,
   children,
 }: {
   title: string;
   desc?: ReactNode;
+  icon?: ReactNode;
   enabled: boolean;
   onToggle: (v: boolean) => void;
   children: ReactNode;
 }): JSX.Element {
   return (
-    <div className="pref-section" style={{ marginTop: 18, opacity: enabled ? 1 : 0.7 }}>
+    <div className="pref-section" style={{ marginTop: 18 }}>
       <div className="pref-row">
-        <div className="pref-label">
-          <div className="pref-label-title">{title}</div>
+        <div className="pref-label" style={{ opacity: enabled ? 1 : 0.45 }}>
+          <div className="pref-label-title" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            {icon}
+            <span>{title}</span>
+          </div>
           {desc && <div className="pref-label-desc">{desc}</div>}
         </div>
         <div className="pref-control" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
