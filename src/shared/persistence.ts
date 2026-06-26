@@ -98,6 +98,10 @@ export interface ChatRecord {
    *  the chat's slot pip renders filled (slots) or outlined (ephemeral
    *  worktree). */
   repoMode: RepoWorktreeMode | null;
+  /** Denormalized from `repos.scm` at query time so the renderer can route
+   *  the source-control panel to the right provider (git → GitPanel,
+   *  perforce → P4Panel) without a separate repos lookup. */
+  repoScm: SourceControlProviderId | null;
   /** Denormalized from `repos.slot_prefix` at query time. Lets the
    *  chat-header slot pill render `${prefix}-${slotId}` (e.g. `ops-4`)
    *  directly from the repo's configured prefix, without relying on

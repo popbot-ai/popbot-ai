@@ -14,7 +14,7 @@
  * plain records.
  */
 import { execFile } from 'node:child_process';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { PerforceSettings } from '@shared/persistence';
 import { getSetting } from '../persistence/settings';
@@ -139,6 +139,18 @@ export function readP4Config(wt: string): P4Context | null {
     user: vals.P4USER,
     client: vals.P4CLIENT || undefined,
   };
+}
+
+/**
+ * Write the slot's `.p4config` at the mount root so {@link readP4Config} (and
+ * any p4 invoked with P4CONFIG) resolves the SAME connection + client this
+ * provider created — closing the client-name coupling. Never writes
+ * P4PASSWD (auth is ticket-based).
+ */
+export function writeP4Config(wt: string, ctx: P4Context): void {
+  const lines = [`P4PORT=${ctx.port}`, `P4USER=${ctx.user}`];
+  if (ctx.client) lines.push(`P4CLIENT=${ctx.client}`);
+  writeFileSync(join(wt, '.p4config'), lines.join('\n') + '\n');
 }
 
 /**

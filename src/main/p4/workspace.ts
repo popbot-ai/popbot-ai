@@ -13,7 +13,7 @@ import { join } from 'node:path';
 import type { PerforceSettings } from '@shared/persistence';
 import type { P4Shelf } from '@shared/perforce';
 import { getSetting } from '../persistence/settings';
-import { p4exec, parseZtag, type P4Context, type P4ExecResult } from './exec';
+import { p4exec, parseZtag, writeP4Config, type P4Context, type P4ExecResult } from './exec';
 
 /**
  * Per-slot metadata the provider needs when it only has the slot path
@@ -98,6 +98,9 @@ export async function ensureClient(opts: EnsureClientOpts): Promise<void> {
       `p4 flush of ${dp}/...@${baseChangelist} failed: ${flush.stderr.trim() || flush.stdout.trim()}`,
     );
   }
+  // Persist the connection + THIS client name so readP4Config (and the
+  // review ops it feeds) resolve the very client we just created.
+  writeP4Config(root, ctx);
 }
 
 /** Flush the slot client's have-list to a changelist (0-byte transfer).

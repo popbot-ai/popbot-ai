@@ -1254,10 +1254,11 @@ export default function App(): JSX.Element {
               title={t('common.dragToResize')}
             />
             <div className="right">
-              {/* Dispatcher: renders the git sidebar today; routes to a
-                  provider-specific panel (e.g. P4Panel) once the focused
-                  repo's SCM is threaded through as `providerId`. */}
+              {/* Dispatcher: routes to the provider panel for the focused
+                  repo's SCM — git → GitPanel, perforce → P4Panel — via the
+                  denormalized `repoScm` threaded through as `providerId`. */}
               <SourceControlPanel
+                providerId={focusedRecord?.repoScm ?? null}
                 chatId={focusedRecord?.id ?? null}
                 chatName={focusedRecord?.name}
                 chatTicket={focusedRecord?.ticket ?? null}

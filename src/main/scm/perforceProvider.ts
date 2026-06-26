@@ -114,15 +114,21 @@ export class PerforceProvider extends SourceControlProvider {
   /* ---------- review / working-tree ---------- */
 
   async listStatus(wt: string): Promise<ScmStatus> {
+    let ctx: P4Context;
     try {
-      const ctx = this.ctx(wt);
-      await this.syncWatched(ctx, wt);
-      const status = await p4ListStatus(ctx, wt);
-      const shelves = await listShelves(ctx).catch(() => []);
-      return { ...status, shelves };
+      ctx = this.ctx(wt);
     } catch {
+      // No `.p4config` yet — the slot isn't initialized. An empty (clean)
+      // status is the right answer here, not an error.
       return { branch: null, ahead: 0, behind: 0, files: [], recentCommits: [] };
     }
+    // Real p4 failures (bad P4PORT, expired ticket, server down) propagate so
+    // the IPC layer returns { ok:false, error } and the panel shows them —
+    // a connection failure must NOT render as an empty, clean workspace.
+    await this.syncWatched(ctx, wt);
+    const status = await p4ListStatus(ctx, wt);
+    const shelves = await listShelves(ctx).catch(() => []);
+    return { ...status, shelves };
   }
   fileDiff(wt: string, scope: GitScope, path: string): Promise<ScmFileDiff> {
     return p4FileDiff(this.ctx(wt), wt, scope, path);

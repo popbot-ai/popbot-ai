@@ -15,7 +15,7 @@
  * shado's error (the standing elevated service, pbworkspaced, is future
  * work).
  */
-import { existsSync } from 'node:fs';
+import { existsSync, readdirSync } from 'node:fs';
 import { basename, parse } from 'node:path';
 import { runShado, shadoHomeForRepo } from './client';
 
@@ -62,8 +62,15 @@ export async function ensureSlot(ref: ShadoSlotRef): Promise<void> {
     ['clone', 'create', '--name', ref.baseName, '--slot', slot, '--mount', ref.worktreePath],
     { env: shadoEnv(ref.repoPath) },
   );
-  if (!r.ok && !existsSync(ref.worktreePath)) {
-    throw new Error(`shado clone create failed for slot ${slot}: ${r.stderr || r.stdout}`);
+  if (!r.ok) {
+    // Tolerate failure ONLY if the mount already holds a populated slot (an
+    // idempotent re-run) — never accept a leftover empty dir from a prior
+    // failed mount, which ensureClient would then flush against an empty tree.
+    const populated =
+      existsSync(ref.worktreePath) && readdirSync(ref.worktreePath).length > 0;
+    if (!populated) {
+      throw new Error(`shado clone create failed for slot ${slot}: ${r.stderr || r.stdout}`);
+    }
   }
 }
 

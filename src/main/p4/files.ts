@@ -148,9 +148,15 @@ export async function submitFiles(
   const args = ['submit', '-d', message];
   if (threads > 1) args.push(`--parallel=threads=${threads},batch=8,min=1`);
   args.push(...specs);
-  const { stdout } = await p4exec(ctx, args, { cwd: wt });
+  const res = await p4exec(ctx, args, { cwd: wt, tolerant: true });
+  // revertunchanged can leave nothing to submit (the watcher opened only
+  // byte-identical files) — a benign no-op, not a failure.
+  if (/No files to submit/i.test(res.stdout + res.stderr)) return { sha: '' };
+  if (res.code !== 0) {
+    throw new Error(`p4 submit failed: ${res.stderr.trim() || res.stdout.trim()}`);
+  }
   // p4 prints "Change N submitted." (possibly after renumber lines).
-  const m = /Change (\d+) submitted/.exec(stdout);
+  const m = /Change (\d+) submitted/.exec(res.stdout);
   return { sha: m?.[1] ?? '' };
 }
 

@@ -14,6 +14,7 @@ import { execFile } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { promisify } from 'node:util';
+import { p4bin } from '../p4/exec';
 
 const execFileP = promisify(execFile);
 
@@ -41,7 +42,7 @@ function hasP4Config(folder: string): boolean {
  */
 async function p4MapsDepot(folder: string): Promise<'yes' | 'no' | 'unknown'> {
   try {
-    const { stdout } = await execFileP('p4', ['-ztag', 'fstat', '-m', '1', './...'], {
+    const { stdout } = await execFileP(p4bin(), ['-ztag', 'fstat', '-m', '1', './...'], {
       cwd: folder,
       env: { ...process.env, P4CONFIG: process.env.P4CONFIG || '.p4config' },
       windowsHide: true,
