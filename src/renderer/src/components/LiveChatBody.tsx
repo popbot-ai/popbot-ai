@@ -1036,11 +1036,18 @@ function DiffView({ before, after, title }: { before: string; after: string; tit
     [compactAfter, oversized],
   );
   const hiddenLines = inlineBefore.hidden + inlineAfter.hidden;
-  // The CSS-clip "collapse" path is only for in-range diffs. An oversized
-  // diff is already physically truncated to its head, so there's nothing
-  // gained by also clipping it — and clipping would hide the head we DID
-  // choose to show.
-  const isTall = !oversized && lineCount > 16;
+  // Whether the inline view was ACTUALLY shortened. `oversized` (combined
+  // line count past the cap) is necessary but not sufficient: headLines
+  // only drops content when an INDIVIDUAL side exceeds the head cap, so a
+  // diff like 151-before + 151-after trips `oversized` yet hides nothing.
+  // Key the truncated-footer + collapse handoff off real truncation, not
+  // the combined-count proxy, or such a diff renders fully expanded inline
+  // with no expand control and no "open full diff" footer.
+  const truncatedInline = hiddenLines > 0;
+  // The CSS-clip "collapse" path is only for diffs we render in full. A
+  // head-truncated diff already shows just its head, so clipping it would
+  // hide the head we DID choose to show — and the footer handoff covers it.
+  const isTall = !truncatedInline && lineCount > 16;
   const collapsed = isTall && !expanded;
 
   return (
@@ -1082,7 +1089,7 @@ function DiffView({ before, after, title }: { before: string; after: string; tit
           </button>
         )}
       </div>
-      {oversized && hiddenLines > 0 && (
+      {truncatedInline && (
         <button
           className="btn ghost sm diff-truncated-foot"
           onClick={(e) => { e.stopPropagation(); setPopped(true); }}
