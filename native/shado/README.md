@@ -26,4 +26,4 @@ npm run build:shado        # needs Go + shado source at ../shado (or $SHADO_SRC)
 
 then commit the updated binary.
 
-Current `bin/win/shado.exe` built from **popbot-ai/shado @ d31f610**.
+Current `bin/win/shado.exe` built from **popbot-ai/shado @ cdddec8**.
