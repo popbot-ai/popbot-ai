@@ -42,6 +42,7 @@ import {
   ensureClient,
   findLatestShelf,
   flushTo,
+  listShelves,
   openChanges,
   readSlotMeta,
   revertAll,
@@ -108,7 +109,9 @@ export class PerforceProvider extends SourceControlProvider {
         await openChanges(ctx, wt, changes);
         clearSlotChanges(wt);
       }
-      return await p4ListStatus(ctx, wt);
+      const status = await p4ListStatus(ctx, wt);
+      const shelves = await listShelves(ctx).catch(() => []);
+      return { ...status, shelves };
     } catch {
       return { branch: null, ahead: 0, behind: 0, files: [], recentCommits: [] };
     }

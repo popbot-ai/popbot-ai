@@ -652,6 +652,18 @@ export const en = {
   'git.files.noFilesInCommit': 'No files in this commit.',
   'git.files.truncated': 'Showing {shown} of {total} changed files. Raise the limit in Preferences → Source Control.',
   'git.file.rowTitleRenamed': '{label} (was {oldPath})',
+
+  // Perforce panel (nativeClientUi for scm: 'perforce').
+  'p4.empty': 'No Perforce workspace focused.',
+  'p4.commits.title': 'Recent changes',
+  'p4.commits.empty': 'No submitted changes yet.',
+  'p4.changes.title': 'Current changes',
+  'p4.changes.empty': 'No open files.',
+  'p4.submit': 'Submit {count}',
+  'p4.submitPlaceholder': 'Changelist description…',
+  'p4.revert': 'Revert',
+  'p4.shelf.title': 'Shelf',
+  'p4.shelf.empty': 'No shelved changes.',
   'git.base.targetTitle': 'PR target / fork-point branch',
   'git.base.nameTitle': 'Base branch (PR target)',
   'git.base.changeTitle': 'Change base branch and ask the AI to rebase / cherry-pick',

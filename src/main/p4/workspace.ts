@@ -10,6 +10,7 @@
  */
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
+import type { P4Shelf } from '@shared/perforce';
 import { p4exec, parseZtag, type P4Context } from './exec';
 
 /**
@@ -126,6 +127,25 @@ export async function shelveWork(ctx: P4Context, wt: string, description: string
     return null;
   }
   return cl;
+}
+
+/** Shelved changelists owned by the user — the P4 panel's shelf section. */
+export async function listShelves(ctx: P4Context, max = 50): Promise<P4Shelf[]> {
+  const { stdout } = await p4exec(
+    ctx,
+    ['-ztag', 'changes', '-s', 'shelved', '-u', ctx.user, '-L', '-m', String(max)],
+    { tolerant: true },
+  );
+  const out: P4Shelf[] = [];
+  for (const rec of parseZtag(stdout)) {
+    if (!rec.change) continue;
+    out.push({
+      change: rec.change,
+      description: (rec.desc ?? '').trim().split('\n')[0] ?? '',
+      time: rec.time ? Number(rec.time) * 1000 : 0,
+    });
+  }
+  return out;
 }
 
 /** Most recent shelved changelist whose description starts with `prefix`,

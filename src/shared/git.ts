@@ -44,6 +44,9 @@ export interface GitStatusResult {
   truncatedFrom?: number;
   /** Most recent commits on the current branch (newest first, capped). */
   recentCommits: GitCommitSummary[];
+  /** Perforce only — shelved changelists for the slot (the P4 panel's
+   *  bottom section). Absent for git. */
+  shelves?: import('./perforce').P4Shelf[];
 }
 export type GitStatusResultOrErr =
   | GitStatusResult

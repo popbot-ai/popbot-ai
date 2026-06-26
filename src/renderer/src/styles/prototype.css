@@ -5213,3 +5213,34 @@ input.input.mono, select.input.mono { font-family: var(--font-mono); font-size: 
   padding: 10px 16px; border-top: 1px solid var(--line-1);
   display: flex; justify-content: flex-end; gap: 8px;
 }
+
+/* Perforce panel (P4Panel) — three stacked sections: commits / changes /
+   shelf. Reuses git-file-row + git-* styles for the rows. */
+.p4-panel { display: flex; flex-direction: column; height: 100%; overflow: hidden; font-size: var(--fs-sm); }
+.p4-empty { padding: 16px; color: var(--fg-2); }
+.p4-section { display: flex; flex-direction: column; min-height: 0; border-bottom: 1px solid var(--line-2); }
+.p4-commits { flex: 0 0 auto; max-height: 22%; }
+.p4-changes { flex: 1 1 auto; min-height: 0; }
+.p4-shelf { flex: 0 0 auto; max-height: 22%; border-bottom: none; }
+.p4-section-head {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  padding: 6px 10px; font-size: var(--fs-xs); text-transform: uppercase; letter-spacing: 0.04em;
+  color: var(--fg-2); background: var(--bg-2); flex: 0 0 auto;
+}
+.p4-section-body { overflow: auto; flex: 1 1 auto; min-height: 0; }
+.p4-commit-row, .p4-shelf-row {
+  display: flex; align-items: center; gap: 8px; padding: 3px 10px; white-space: nowrap; overflow: hidden; cursor: default;
+}
+.p4-commit-row:hover, .p4-shelf-row:hover { background: var(--bg-2); }
+.p4-change { font-family: var(--font-mono); color: var(--accent, #6b7cff); flex: 0 0 auto; }
+.p4-commit-subject { flex: 1 1 auto; overflow: hidden; text-overflow: ellipsis; }
+.p4-commit-author { color: var(--fg-2); flex: 0 0 auto; font-size: var(--fs-xs); }
+.p4-submit {
+  display: flex; flex-direction: column; gap: 6px; padding: 8px 10px;
+  border-top: 1px solid var(--line-2); flex: 0 0 auto;
+}
+.p4-submit-msg {
+  resize: vertical; width: 100%; background: var(--bg-3); color: var(--fg-0);
+  border: 1px solid var(--line-2); border-radius: 4px; padding: 5px 7px; font-size: var(--fs-sm);
+}
+.p4-foot { padding: 4px 10px; color: var(--fg-2); font-size: var(--fs-xs); border-top: 1px solid var(--line-2); }

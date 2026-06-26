@@ -26,6 +26,7 @@ import {
   type SourceControlProviderId,
 } from '@shared/sourceControl';
 import { GitPanel } from './GitPanel';
+import { P4Panel } from './P4Panel';
 
 /** Common props every provider panel accepts. New panels implement this
  *  shape so the dispatcher can swap them without per-call wiring. */
@@ -70,11 +71,10 @@ export function SourceControlPanel({
   // yet, so we fall through to the git sidebar; this is the single place
   // to add them.
   if (meta.capabilities.nativeClientUi) {
-    // switch (id) {
-    //   case 'perforce': return <P4Panel {...panelProps} />;
-    //   case 'lore':     return <LorePanel {...panelProps} />;
-    // }
-    // Until those land, show the git sidebar so the panel is never blank.
+    if (id === 'perforce') return <P4Panel {...panelProps} />;
+    // case 'lore': return <LorePanel {...panelProps} />;  // not implemented
+    // Lore not implemented yet — fall through to the git sidebar so the
+    // panel is never blank.
     return <GitPanel {...panelProps} />;
   }
 
