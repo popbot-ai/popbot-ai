@@ -36,10 +36,17 @@ export interface GitStatusResult {
   branch: string | null;
   ahead: number;
   behind: number;
-  /** Working-tree changes (staged + unstaged + untracked). */
+  /** Working-tree changes (staged + unstaged + untracked). Capped by the
+   *  `sourceControl.maxChangedFiles` preference in the SCM IPC layer. */
   files: GitFileChange[];
+  /** When `files` was capped, the true total before truncation (so the
+   *  panel can show "showing N of M"). Absent/undefined = not capped. */
+  truncatedFrom?: number;
   /** Most recent commits on the current branch (newest first, capped). */
   recentCommits: GitCommitSummary[];
+  /** Perforce only — shelved changelists for the slot (the P4 panel's
+   *  bottom section). Absent for git. */
+  shelves?: import('./perforce').P4Shelf[];
 }
 export type GitStatusResultOrErr =
   | GitStatusResult

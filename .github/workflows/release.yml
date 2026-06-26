@@ -97,6 +97,8 @@ jobs:
         run: npm version "${{ needs.version.outputs.version }}" --no-git-tag-version --allow-same-version
       - name: Type-check
         run: npm run typecheck
+      - name: Test
+        run: npm test
       - name: Build renderer + main
         run: npm run build
 

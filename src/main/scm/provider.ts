@@ -50,6 +50,8 @@ export interface ScmStatus {
   behind: number;
   files: GitFileChange[];
   recentCommits: GitCommitSummary[];
+  /** Perforce only — shelved changelists for the P4 panel's shelf section. */
+  shelves?: import('@shared/perforce').P4Shelf[];
 }
 
 /** A single file's before/after for the diff overlay. */

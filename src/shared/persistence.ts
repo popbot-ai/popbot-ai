@@ -98,6 +98,10 @@ export interface ChatRecord {
    *  the chat's slot pip renders filled (slots) or outlined (ephemeral
    *  worktree). */
   repoMode: RepoWorktreeMode | null;
+  /** Denormalized from `repos.scm` at query time so the renderer can route
+   *  the source-control panel to the right provider (git → GitPanel,
+   *  perforce → P4Panel) without a separate repos lookup. */
+  repoScm: SourceControlProviderId | null;
   /** Denormalized from `repos.slot_prefix` at query time. Lets the
    *  chat-header slot pill render `${prefix}-${slotId}` (e.g. `ops-4`)
    *  directly from the repo's configured prefix, without relying on
@@ -141,6 +145,25 @@ export interface PermissionRule {
 export type RepoWorktreeMode = 'slots' | 'ephemeral';
 
 /**
+ * Per-repo Perforce configuration — present only when `scm === 'perforce'`.
+ * Slots for a Perforce repo are shado differencing clones off a frozen
+ * VHDX base; each slot becomes its own P4 client flushed to
+ * `baseChangelist` (0-byte have-list update — see the shado+P4 design).
+ */
+export interface PerforceRepoConfig {
+  /** P4PORT, e.g. "ssl:host:1666". */
+  port: string;
+  /** P4USER. */
+  user: string;
+  /** Depot path this repo maps, e.g. "//depot/PopBotGame". */
+  depotPath: string;
+  /** shado base (project) name — the frozen VHDX base backing the slots. */
+  shadoBase: string;
+  /** Changelist the shado base was synced to; slots `p4 flush @baseChangelist`. */
+  baseChangelist: number;
+}
+
+/**
  * A source repository popbot can run chats against. Each repo picks one
  * worktree mode (`slots` or `ephemeral`) at creation. Mode determines
  * how `chats:create`, `chats:reopen`, and `chats:close` allocate and
@@ -170,6 +193,8 @@ export interface RepoRecord {
    *  back-compat — repos created before multi-SCM support are git.
    *  See {@link SourceControlProviderId}. */
   scm?: SourceControlProviderId;
+  /** Perforce configuration when `scm === 'perforce'`; absent for git. */
+  p4?: PerforceRepoConfig;
   createdAt: number;
   updatedAt: number;
 }
@@ -241,6 +266,56 @@ export interface AttachmentsSettings {
 export function clampAttachmentTtlDays(days: number | undefined | null): number {
   if (typeof days !== 'number' || !Number.isFinite(days)) return ATTACHMENT_TTL_DAYS_DEFAULT;
   return Math.min(ATTACHMENT_TTL_DAYS_MAX, Math.max(ATTACHMENT_TTL_DAYS_MIN, Math.round(days)));
+}
+
+/** Max changed files rendered in the source-control change view before the
+ *  list is capped (and a "showing N of M" row is shown). Guards the panel
+ *  against pathological changesets — a Perforce slot off a huge depot can
+ *  open tens of thousands of files. Configurable in Preferences → Source
+ *  Control. Applies to git and Perforce alike (capped in the SCM IPC layer). */
+export const MAX_CHANGED_FILES_DEFAULT = 500;
+export const MAX_CHANGED_FILES_MIN = 50;
+export const MAX_CHANGED_FILES_MAX = 10000;
+
+/** Settings stored under the `sourceControl` key. */
+export interface SourceControlSettings {
+  /** Max changed files shown in the change view. Clamped to [MIN, MAX];
+   *  undefined → DEFAULT. */
+  maxChangedFiles?: number;
+}
+
+/** Coerce a stored/typed cap into a safe file count. Non-finite or
+ *  out-of-range values fall back to the default / nearest bound. */
+export function clampMaxChangedFiles(n: number | undefined | null): number {
+  if (typeof n !== 'number' || !Number.isFinite(n)) return MAX_CHANGED_FILES_DEFAULT;
+  return Math.min(MAX_CHANGED_FILES_MAX, Math.max(MAX_CHANGED_FILES_MIN, Math.round(n)));
+}
+
+/** Parallel file-transfer threads for p4 submit/sync — the lever that
+ *  matters for large game assets over a high-latency link. */
+export const P4_PARALLEL_THREADS_DEFAULT = 4;
+export const P4_PARALLEL_THREADS_MIN = 1;
+export const P4_PARALLEL_THREADS_MAX = 16;
+
+export function clampP4ParallelThreads(n: number | undefined | null): number {
+  if (typeof n !== 'number' || !Number.isFinite(n)) return P4_PARALLEL_THREADS_DEFAULT;
+  return Math.min(P4_PARALLEL_THREADS_MAX, Math.max(P4_PARALLEL_THREADS_MIN, Math.round(n)));
+}
+
+/** App-global Perforce settings, stored under the `perforce` key. Per-repo
+ *  connection details live on RepoRecord.p4; these are defaults + behavior. */
+export interface PerforceSettings {
+  /** Path to the p4 executable. Blank → resolve `p4` on PATH. */
+  p4Path?: string;
+  /** Default P4PORT to pre-fill the Add Repository flow. */
+  defaultPort?: string;
+  /** Default P4USER to pre-fill the Add Repository flow. */
+  defaultUser?: string;
+  /** Parallel transfer threads for submit (1 = off). Clamped. */
+  parallelThreads?: number;
+  /** Revert files the agent opened but left byte-identical, before submit,
+   *  so the watcher's auto-edits don't create no-op revisions. Default on. */
+  revertUnchanged?: boolean;
 }
 
 export interface MessageBodyTool {

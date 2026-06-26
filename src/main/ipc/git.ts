@@ -21,12 +21,16 @@ import type {
   GitStatusResultOrErr,
   GitBaseBranchesResult,
 } from '@shared/git';
+import {
+  clampMaxChangedFiles,
+  type SourceControlSettings,
+} from '@shared/persistence';
 import { getChat } from '../persistence/chats';
 import { backfillChatFields } from '../persistence/chatBackfill';
 import { getRepo, listRepos } from '../persistence/repos';
 import { getSetting } from '../persistence/settings';
 import { worktreePathForChat } from '../git/chatPaths';
-import { getSourceControlProvider } from '../scm';
+import { getSourceControlProvider, sourceControlIdFor } from '../scm';
 
 /** The source-control provider backing a chat's repo (git today). */
 function providerForChat(chatId: string) {
@@ -39,7 +43,11 @@ function resolveWorktree(chatId: string): string | { error: 'no-worktree' | 'not
   const wt = worktreePathForChat(chat);
   if (!wt) return { error: 'no-worktree' };
   if (!existsSync(wt)) return { error: 'no-worktree' };
-  if (!existsSync(join(wt, '.git'))) return { error: 'not-a-git-repo' };
+  // The `.git` sentinel only makes sense for git; a Perforce slot is a
+  // shado clone with no `.git`. Gate the check on the repo's provider so
+  // this handler is genuinely provider-agnostic.
+  const scm = sourceControlIdFor(chat?.repoId ? getRepo(chat.repoId) : null);
+  if (scm === 'git' && !existsSync(join(wt, '.git'))) return { error: 'not-a-git-repo' };
   return wt;
 }
 
@@ -93,6 +101,16 @@ export function registerGitHandlers(): void {
       if (typeof wt !== 'string') return { ok: false, reason: wt.error };
       try {
         const r = await providerForChat(chatId).listStatus(wt);
+        // Cap the change list (provider-agnostic — git + Perforce). A slot
+        // off a huge depot can open tens of thousands of files; rendering
+        // them all would choke the panel. Surface the true total so the
+        // panel can show "showing N of M".
+        const cap = clampMaxChangedFiles(
+          getSetting<SourceControlSettings>('sourceControl')?.maxChangedFiles,
+        );
+        if (r.files.length > cap) {
+          return { ok: true, ...r, files: r.files.slice(0, cap), truncatedFrom: r.files.length };
+        }
         return { ok: true, ...r };
       } catch (err) {
         return { ok: false, reason: 'not-a-git-repo', error: (err as Error).message };

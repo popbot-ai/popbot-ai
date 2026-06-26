@@ -9,7 +9,8 @@
  * row is kept in sync with settings by `seedDefaultRepoFromSettings`
  * at boot.
  */
-import type { RepoRecord, RepoWorktreeMode } from '@shared/persistence';
+import type { PerforceRepoConfig, RepoRecord, RepoWorktreeMode } from '@shared/persistence';
+import type { SourceControlProviderId } from '@shared/sourceControl';
 import { db } from './db';
 
 interface RepoRow {
@@ -20,11 +21,21 @@ interface RepoRow {
   default_base: string;
   slot_count: number;
   mode: string;
+  scm: string | null;
+  p4_config: string | null;
   created_at: number;
   updated_at: number;
 }
 
 function rowToRecord(r: RepoRow): RepoRecord {
+  let p4: PerforceRepoConfig | undefined;
+  if (r.p4_config) {
+    try {
+      p4 = JSON.parse(r.p4_config) as PerforceRepoConfig;
+    } catch {
+      p4 = undefined;
+    }
+  }
   return {
     id: r.id,
     repoPath: r.repo_path,
@@ -33,6 +44,8 @@ function rowToRecord(r: RepoRow): RepoRecord {
     defaultBase: r.default_base,
     slotCount: r.slot_count,
     mode: (r.mode === 'ephemeral' ? 'ephemeral' : 'slots') as RepoWorktreeMode,
+    scm: (r.scm ?? 'git') as SourceControlProviderId,
+    ...(p4 ? { p4 } : {}),
     createdAt: r.created_at,
     updatedAt: r.updated_at,
   };
@@ -54,23 +67,31 @@ export function listRepos(): RepoRecord[] {
 
 /**
  * Upsert a repo. `id` is the primary key — passing the same id replaces
- * the row. NOTE: `mode` is INSERT-only by design — once a repo exists
- * we never rewrite its mode here, because switching mode after chats
- * have been created against it would orphan their worktrees. The UI
- * enforces this by only exposing mode at create time; this helper
- * mirrors that contract by leaving `mode` untouched on the UPDATE leg.
+ * the row. NOTE: `mode` and `scm` are INSERT-only by design — once a repo
+ * exists we never rewrite them here, because switching either after chats
+ * have been created against it would orphan their worktrees / change the
+ * provider out from under them. The UI enforces this by only exposing
+ * them at create time; this helper mirrors that contract by leaving them
+ * untouched on the UPDATE leg. `p4_config` IS updatable so a base recache
+ * can advance the stored base changelist.
  */
 export function upsertRepo(input: Omit<RepoRecord, 'createdAt' | 'updatedAt'>): RepoRecord {
+  // Enforce the Perforce invariant at the persistence boundary so an invalid
+  // state (scm='perforce' with no connection config) can never be written.
+  if (input.scm === 'perforce' && !input.p4) {
+    throw new Error(`Perforce repo "${input.id}" requires p4 config (port, user, depot, base changelist)`);
+  }
   const now = Date.now();
   db().prepare(
-    `INSERT INTO repos (id, repo_path, color, slot_prefix, default_base, slot_count, mode, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `INSERT INTO repos (id, repo_path, color, slot_prefix, default_base, slot_count, mode, scm, p4_config, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
      ON CONFLICT(id) DO UPDATE SET
        repo_path    = excluded.repo_path,
        color        = excluded.color,
        slot_prefix  = excluded.slot_prefix,
        default_base = excluded.default_base,
        slot_count   = excluded.slot_count,
+       p4_config    = excluded.p4_config,
        updated_at   = excluded.updated_at`,
   ).run(
     input.id,
@@ -80,6 +101,8 @@ export function upsertRepo(input: Omit<RepoRecord, 'createdAt' | 'updatedAt'>): 
     input.defaultBase,
     input.slotCount,
     input.mode,
+    input.scm ?? 'git',
+    input.p4 ? JSON.stringify(input.p4) : null,
     now,
     now,
   );

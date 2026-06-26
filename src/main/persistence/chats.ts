@@ -54,6 +54,7 @@ interface ChatRow {
   repo_id: string;
   repo_color: string | null;
   repo_mode: string | null;
+  repo_scm: string | null;
   repo_slot_prefix: string | null;
 }
 
@@ -67,7 +68,7 @@ const CHAT_COLUMNS = `
   c.session_id, c.codex_thread_id, c.claude_model, c.claude_reasoning_effort,
   c.codex_model, c.codex_reasoning_effort,
   c.permission_rules, c.created_at, c.last_active_at, c.closed_at,
-  c.repo_id, r.color AS repo_color, r.mode AS repo_mode, r.slot_prefix AS repo_slot_prefix
+  c.repo_id, r.color AS repo_color, r.mode AS repo_mode, r.scm AS repo_scm, r.slot_prefix AS repo_slot_prefix
 `;
 const CHAT_FROM = `FROM chats c LEFT JOIN repos r ON r.id = c.repo_id`;
 
@@ -116,6 +117,9 @@ function rowToRecord(r: ChatRow): ChatRecord {
     repoColor: r.repo_color,
     repoMode: (r.repo_mode === 'ephemeral' || r.repo_mode === 'slots')
       ? r.repo_mode
+      : null,
+    repoScm: (r.repo_scm === 'git' || r.repo_scm === 'perforce' || r.repo_scm === 'lore')
+      ? r.repo_scm
       : null,
     repoSlotPrefix: r.repo_slot_prefix,
   };

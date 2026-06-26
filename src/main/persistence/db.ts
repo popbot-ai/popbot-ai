@@ -315,6 +315,17 @@ const SCHEMA = [
   ALTER TABLE chats ADD COLUMN claude_model TEXT NOT NULL DEFAULT 'claude-opus-4-8';
   ALTER TABLE chats ADD COLUMN claude_reasoning_effort TEXT NOT NULL DEFAULT 'high';
   `,
+  // v18 — multi-SCM repos. `scm` records which source-control provider
+  //       backs a repo (git | perforce | lore); existing rows default to
+  //       'git'. `p4_config` is a nullable JSON blob holding the Perforce
+  //       provider's per-repo settings (P4PORT/P4USER/depot path/shado
+  //       base name/base changelist) — JSON rather than flat columns so
+  //       the provider-specific shape can evolve without a migration.
+  //       Only populated when scm = 'perforce'.
+  `
+  ALTER TABLE repos ADD COLUMN scm TEXT NOT NULL DEFAULT 'git';
+  ALTER TABLE repos ADD COLUMN p4_config TEXT;
+  `,
 ];
 
 export function initDb(): Database.Database {
@@ -331,8 +342,18 @@ export function initDb(): Database.Database {
 
   const currentVersion = (db.pragma('user_version', { simple: true }) as number) ?? 0;
   for (let v = currentVersion; v < SCHEMA.length; v++) {
-    db.exec(SCHEMA[v]);
-    db.pragma(`user_version = ${v + 1}`);
+    // Each migration is atomic: if a statement fails partway, roll the whole
+    // step back so user_version never advances over a half-applied schema
+    // (which would wedge the next startup with "duplicate column" etc.).
+    db.exec('BEGIN');
+    try {
+      db.exec(SCHEMA[v]);
+      db.pragma(`user_version = ${v + 1}`);
+      db.exec('COMMIT');
+    } catch (err) {
+      db.exec('ROLLBACK');
+      throw err;
+    }
   }
 
   _db = db;

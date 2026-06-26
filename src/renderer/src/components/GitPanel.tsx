@@ -215,6 +215,9 @@ export function GitPanel({
   }, [chatId, scope]);
 
   const wipFiles = useMemo(() => (data?.ok ? data.files : []), [data]);
+  // True total before the main-side cap (sourceControl.maxChangedFiles), if
+  // the change list was truncated. Drives the "showing N of M" footer.
+  const wipTruncatedFrom = data?.ok ? data.truncatedFrom : undefined;
   // Drop dangling paths after a successful commit so we don't keep
   // ghost selections / checks around.
   useEffect(() => {
@@ -604,6 +607,11 @@ export function GitPanel({
                   </div>
                 );
               })}
+              {isWip && wipTruncatedFrom != null && (
+                <div className="git-empty-line git-files-truncated">
+                  {t('git.files.truncated', { shown: files.length, total: wipTruncatedFrom })}
+                </div>
+              )}
               {files.length === 0 && !historyError && (
                 <div className="git-empty-line">
                   {isWip ? t('git.files.noUncommitted') : t('git.files.noFilesInCommit')}

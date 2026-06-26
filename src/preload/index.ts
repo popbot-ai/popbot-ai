@@ -96,6 +96,7 @@ const api: PopBotApi = {
     update: (input: UpdateRepoInput) => ipcRenderer.invoke(IpcChannel.ReposUpdate, input),
     delete: (id: string) => ipcRenderer.invoke(IpcChannel.ReposDelete, id),
     countChats: (id: string) => ipcRenderer.invoke(IpcChannel.ReposCountChats, id),
+    detectScm: (folder: string) => ipcRenderer.invoke(IpcChannel.ReposDetectScm, folder),
     listSlotOccupants: (id: string) => ipcRenderer.invoke(IpcChannel.ReposListSlotOccupants, id),
     initializeOneSlot: (repoId: string, slotId: number) =>
       ipcRenderer.invoke(IpcChannel.ReposInitializeOneSlot, repoId, slotId),
