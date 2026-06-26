@@ -141,6 +141,25 @@ export interface PermissionRule {
 export type RepoWorktreeMode = 'slots' | 'ephemeral';
 
 /**
+ * Per-repo Perforce configuration — present only when `scm === 'perforce'`.
+ * Slots for a Perforce repo are shado differencing clones off a frozen
+ * VHDX base; each slot becomes its own P4 client flushed to
+ * `baseChangelist` (0-byte have-list update — see the shado+P4 design).
+ */
+export interface PerforceRepoConfig {
+  /** P4PORT, e.g. "ssl:host:1666". */
+  port: string;
+  /** P4USER. */
+  user: string;
+  /** Depot path this repo maps, e.g. "//depot/PopBotGame". */
+  depotPath: string;
+  /** shado base (project) name — the frozen VHDX base backing the slots. */
+  shadoBase: string;
+  /** Changelist the shado base was synced to; slots `p4 flush @baseChangelist`. */
+  baseChangelist: number;
+}
+
+/**
  * A source repository popbot can run chats against. Each repo picks one
  * worktree mode (`slots` or `ephemeral`) at creation. Mode determines
  * how `chats:create`, `chats:reopen`, and `chats:close` allocate and
@@ -170,6 +189,8 @@ export interface RepoRecord {
    *  back-compat — repos created before multi-SCM support are git.
    *  See {@link SourceControlProviderId}. */
   scm?: SourceControlProviderId;
+  /** Perforce configuration when `scm === 'perforce'`; absent for git. */
+  p4?: PerforceRepoConfig;
   createdAt: number;
   updatedAt: number;
 }
