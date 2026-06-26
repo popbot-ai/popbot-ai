@@ -21,6 +21,7 @@ import type {
   GitStatusResultOrErr,
   GitBaseBranchesResult,
 } from './git';
+import type { SourceControlProviderId } from './sourceControl';
 import type {
   LinearIssueDto,
   LinearProjectDto,
@@ -261,6 +262,10 @@ export const IpcChannel = {
    *  reference this repo. Detached chats persist + reattach if a repo
    *  with the same id is later re-added. */
   ReposCountChats: 'pb:repos:count-chats',
+  /** Detect which SCM (git | perforce) backs a picked folder, so the Add
+   *  Repository flow can infer the provider instead of asking. Null when
+   *  undetected (UI falls back to a manual picker). */
+  ReposDetectScm: 'pb:repos:detect-scm',
   /** Configure Slots flow — used by both the New Repo wizard's final
    *  step and the Edit Repo "Resize slots" button. The flow is
    *  per-slot so the renderer can render real progress; this set of
@@ -615,6 +620,10 @@ export interface PopBotApi {
     /** Count of non-deleted chats referencing this repo. Powers the
      *  delete-confirm warning. */
     countChats(id: string): Promise<number>;
+    /** Detect the SCM of a picked folder for the Add Repository flow.
+     *  'git' | 'perforce', or null when it's neither — the UI then shows an
+     *  "invalid repo path" error and blocks continuing. */
+    detectScm(folder: string): Promise<SourceControlProviderId | null>;
     /** Configure Slots flow building blocks. The renderer drives the
      *  loop one slot at a time so the user sees real progress. */
     listSlotOccupants(id: string): Promise<Array<{ slotId: number; chatName: string }>>;

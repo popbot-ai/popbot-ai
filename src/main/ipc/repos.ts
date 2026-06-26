@@ -35,6 +35,7 @@ import {
 import { listSlotOccupantsForRepo } from '../persistence/chats';
 import { slotWorktreePathForRepo } from '../git/chatPaths';
 import { getSourceControlProvider } from '../scm';
+import { detectScm } from '../scm/detect';
 
 const ID_PATTERN = /^[a-z0-9][a-z0-9-]*$/;
 
@@ -92,6 +93,8 @@ export function registerReposHandlers(): void {
   });
 
   ipcMain.handle(IpcChannel.ReposCountChats, (_e, id: string): number => countChatsForRepo(id));
+
+  ipcMain.handle(IpcChannel.ReposDetectScm, (_e, folder: string) => detectScm(folder));
 
   /* ---------------- Configure Slots flow ---------------- */
 
