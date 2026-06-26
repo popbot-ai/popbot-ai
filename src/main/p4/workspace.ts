@@ -1,0 +1,122 @@
+/**
+ * Perforce per-slot client lifecycle for the shado-backed slot system:
+ * create/flush/delete the slot's client workspace, revert-all (park to a
+ * clean base), and shelve/unshelve — Perforce's analog of git stash for
+ * close→reopen continuity.
+ *
+ * The slot's files physically exist via the shado differencing clone, so
+ * the client is established with `flush` (0-byte have-list update) to the
+ * base changelist, never a transfer — see the shado+P4 design.
+ */
+import { p4exec, parseZtag, type P4Context } from './exec';
+
+/** Trim a trailing slash and any `/...` from a depot path → `//depot/X`. */
+function normDepot(depotPath: string): string {
+  return depotPath.replace(/\/?\.\.\.$/, '').replace(/\/+$/, '');
+}
+
+export interface EnsureClientOpts {
+  /** Connection (port/user) with `client` = the slot client name. */
+  ctx: P4Context;
+  /** Slot mount = the client Root. */
+  root: string;
+  /** Depot path mapped, e.g. `//depot/PopBotGame`. */
+  depotPath: string;
+  /** Changelist the shado base was synced to. */
+  baseChangelist: number;
+  /** Lock the client to this host so P4V lists it (and it can't be used
+   *  from another machine). */
+  host?: string;
+}
+
+/**
+ * Create/update the per-slot client mapping `depotPath` into the slot
+ * mount, then flush its have-list to the base changelist. Idempotent —
+ * re-running just rewrites the spec and re-flushes (0-byte). The view
+ * mirrors the depot under the client root (`//depot/X/... //c/depot/X/...`)
+ * to match the p4 path convention used by the review module.
+ */
+export async function ensureClient(opts: EnsureClientOpts): Promise<void> {
+  const { ctx, root, depotPath, baseChangelist, host } = opts;
+  if (!ctx.client) throw new Error('ensureClient: ctx.client required');
+  const dp = normDepot(depotPath);
+  const sub = dp.replace(/^\/+/, ''); // depot/PopBotGame
+  const spec =
+    `Client: ${ctx.client}\n` +
+    `Owner: ${ctx.user}\n` +
+    (host ? `Host: ${host}\n` : '') +
+    `Root: ${root}\n` +
+    `LineEnd: local\n` +
+    `View:\n\t${dp}/... //${ctx.client}/${sub}/...\n`;
+  await p4exec(ctx, ['client', '-i'], { input: spec });
+  await flushTo(ctx, dp, baseChangelist);
+}
+
+/** Flush the slot client's have-list to a changelist (0-byte transfer). */
+export async function flushTo(ctx: P4Context, depotPath: string, change: number): Promise<void> {
+  const dp = normDepot(depotPath);
+  await p4exec(ctx, ['flush', `${dp}/...@${change}`], { tolerant: true });
+}
+
+/** Revert every opened file in the slot — park to a clean base. */
+export async function revertAll(ctx: P4Context, wt: string): Promise<void> {
+  if (!ctx.client) return;
+  await p4exec(ctx, ['revert', `//${ctx.client}/...`], { cwd: wt, tolerant: true });
+}
+
+/** Delete the slot's client spec (teardown). Does not touch files on disk
+ *  (the shado clone owns those). */
+export async function deleteClient(ctx: P4Context): Promise<void> {
+  if (!ctx.client) return;
+  await p4exec(ctx, ['client', '-d', '-f', ctx.client], { tolerant: true });
+}
+
+/**
+ * Shelve the slot's currently-opened files under `description` (the stash
+ * analog). Moves them into a new numbered changelist and shelves it;
+ * leaves the files still opened (caller reverts to park clean). Returns
+ * the shelved changelist number, or null when nothing is opened.
+ */
+export async function shelveWork(ctx: P4Context, wt: string, description: string): Promise<string | null> {
+  const created = await p4exec(ctx, ['change', '-i'], {
+    cwd: wt,
+    tolerant: true,
+    input: `Change: new\nDescription:\n\t${description}\n`,
+  });
+  const cl = /Change (\d+) created/.exec(created.stdout)?.[1];
+  if (!cl) return null;
+  await p4exec(ctx, ['reopen', '-c', cl, `//${ctx.client}/...`], { cwd: wt, tolerant: true });
+  const shelved = await p4exec(ctx, ['shelve', '-c', cl], { cwd: wt, tolerant: true });
+  if (!/shelved/i.test(shelved.stdout + shelved.stderr)) {
+    // Nothing was opened → drop the empty change so we don't leak it.
+    await p4exec(ctx, ['change', '-d', cl], { cwd: wt, tolerant: true });
+    return null;
+  }
+  return cl;
+}
+
+/** Most recent shelved changelist whose description starts with `prefix`,
+ *  or null. The "ref" callers pass to {@link unshelvePop}. */
+export async function findLatestShelf(ctx: P4Context, prefix: string): Promise<string | null> {
+  const { stdout } = await p4exec(
+    ctx,
+    ['-ztag', 'changes', '-s', 'shelved', '-L', '-u', ctx.user, '-m', '50'],
+    { tolerant: true },
+  );
+  let best: number | null = null;
+  for (const rec of parseZtag(stdout)) {
+    const desc = (rec.desc ?? '').trim();
+    if (!rec.change || !desc.startsWith(prefix)) continue;
+    const n = Number(rec.change);
+    if (best == null || n > best) best = n;
+  }
+  return best == null ? null : String(best);
+}
+
+/** Restore a shelved change into the slot, then drop the shelf + its
+ *  (now redundant) changelist. */
+export async function unshelvePop(ctx: P4Context, wt: string, change: string): Promise<void> {
+  await p4exec(ctx, ['unshelve', '-s', change], { cwd: wt, tolerant: true });
+  await p4exec(ctx, ['shelve', '-d', '-c', change], { cwd: wt, tolerant: true });
+  await p4exec(ctx, ['change', '-d', change], { cwd: wt, tolerant: true });
+}
