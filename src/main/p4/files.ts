@@ -17,6 +17,8 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { GitCommitSummary, GitFileChange, GitFileStatus, GitScope } from '@shared/git';
+import { clampP4ParallelThreads, type PerforceSettings } from '@shared/persistence';
+import { getSetting } from '../persistence/settings';
 import { p4exec, p4execRaw, parseZtag, type P4Context } from './exec';
 
 /** depot path (`//depot/...`) → our key (`depot/...`). */
@@ -139,7 +141,14 @@ export async function submitFiles(
   if (paths.length === 0) throw new Error('Nothing to submit');
   if (!message.trim()) throw new Error('Submit description required');
   const specs = paths.map((p) => `//${p}`);
-  const { stdout } = await p4exec(ctx, ['submit', '-d', message, ...specs], { cwd: wt });
+  // Parallel transfer — the lever for large game assets (Preferences →
+  // Source control → Perforce). 1 = off. Unchanged opened files are dropped
+  // by the client's SubmitOptions=revertunchanged (set in ensureClient).
+  const threads = clampP4ParallelThreads(getSetting<PerforceSettings>('perforce')?.parallelThreads);
+  const args = ['submit', '-d', message];
+  if (threads > 1) args.push(`--parallel=threads=${threads},batch=8,min=1`);
+  args.push(...specs);
+  const { stdout } = await p4exec(ctx, args, { cwd: wt });
   // p4 prints "Change N submitted." (possibly after renumber lines).
   const m = /Change (\d+) submitted/.exec(stdout);
   return { sha: m?.[1] ?? '' };

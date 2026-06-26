@@ -16,6 +16,14 @@
 import { execFile } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import type { PerforceSettings } from '@shared/persistence';
+import { getSetting } from '../persistence/settings';
+
+/** The p4 executable — the configured path (Preferences → Source control →
+ *  Perforce) or `p4` resolved on PATH. */
+export function p4bin(): string {
+  return getSetting<PerforceSettings>('perforce')?.p4Path?.trim() || 'p4';
+}
 
 export interface P4Context {
   /** P4PORT, e.g. "ssl:host:1666". */
@@ -62,7 +70,7 @@ function envFor(ctx: P4Context): NodeJS.ProcessEnv {
 export function p4exec(ctx: P4Context, args: string[], opts: P4ExecOpts = {}): Promise<P4ExecResult> {
   return new Promise((resolve, reject) => {
     const child = execFile(
-      'p4',
+      p4bin(),
       args,
       {
         cwd: opts.cwd,
@@ -93,7 +101,7 @@ export function p4exec(ctx: P4Context, args: string[], opts: P4ExecOpts = {}): P
 export function p4execRaw(ctx: P4Context, args: string[], opts: P4ExecOpts = {}): Promise<Buffer | null> {
   return new Promise((resolve) => {
     execFile(
-      'p4',
+      p4bin(),
       args,
       {
         cwd: opts.cwd,

@@ -10,7 +10,9 @@
  */
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
+import type { PerforceSettings } from '@shared/persistence';
 import type { P4Shelf } from '@shared/perforce';
+import { getSetting } from '../persistence/settings';
 import { p4exec, parseZtag, type P4Context } from './exec';
 
 /**
@@ -75,12 +77,17 @@ export async function ensureClient(opts: EnsureClientOpts): Promise<void> {
   if (!ctx.client) throw new Error('ensureClient: ctx.client required');
   const dp = normDepot(depotPath);
   const sub = dp.replace(/^\/+/, ''); // depot/PopBotGame
+  // Drop files the watcher opened but that are byte-identical at submit, so
+  // auto-edits don't create no-op revisions (Preferences → Source control →
+  // Perforce; default on).
+  const revertUnchanged = getSetting<PerforceSettings>('perforce')?.revertUnchanged !== false;
   const spec =
     `Client: ${ctx.client}\n` +
     `Owner: ${ctx.user}\n` +
     (host ? `Host: ${host}\n` : '') +
     `Root: ${root}\n` +
     `LineEnd: local\n` +
+    (revertUnchanged ? 'SubmitOptions: revertunchanged\n' : '') +
     `View:\n\t${dp}/... //${ctx.client}/${sub}/...\n`;
   await p4exec(ctx, ['client', '-i'], { input: spec });
   await flushTo(ctx, dp, baseChangelist);

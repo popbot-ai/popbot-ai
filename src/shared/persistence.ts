@@ -287,6 +287,33 @@ export function clampMaxChangedFiles(n: number | undefined | null): number {
   return Math.min(MAX_CHANGED_FILES_MAX, Math.max(MAX_CHANGED_FILES_MIN, Math.round(n)));
 }
 
+/** Parallel file-transfer threads for p4 submit/sync — the lever that
+ *  matters for large game assets over a high-latency link. */
+export const P4_PARALLEL_THREADS_DEFAULT = 4;
+export const P4_PARALLEL_THREADS_MIN = 1;
+export const P4_PARALLEL_THREADS_MAX = 16;
+
+export function clampP4ParallelThreads(n: number | undefined | null): number {
+  if (typeof n !== 'number' || !Number.isFinite(n)) return P4_PARALLEL_THREADS_DEFAULT;
+  return Math.min(P4_PARALLEL_THREADS_MAX, Math.max(P4_PARALLEL_THREADS_MIN, Math.round(n)));
+}
+
+/** App-global Perforce settings, stored under the `perforce` key. Per-repo
+ *  connection details live on RepoRecord.p4; these are defaults + behavior. */
+export interface PerforceSettings {
+  /** Path to the p4 executable. Blank → resolve `p4` on PATH. */
+  p4Path?: string;
+  /** Default P4PORT to pre-fill the Add Repository flow. */
+  defaultPort?: string;
+  /** Default P4USER to pre-fill the Add Repository flow. */
+  defaultUser?: string;
+  /** Parallel transfer threads for submit (1 = off). Clamped. */
+  parallelThreads?: number;
+  /** Revert files the agent opened but left byte-identical, before submit,
+   *  so the watcher's auto-edits don't create no-op revisions. Default on. */
+  revertUnchanged?: boolean;
+}
+
 export interface MessageBodyTool {
   toolUseId: string;
   name: string;
