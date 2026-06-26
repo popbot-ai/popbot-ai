@@ -48,13 +48,14 @@ function openFileRef(chatId: string | null, ref: string, line?: number): void {
  *  navigation would reload the whole app). */
 const MarkdownAnchor: NonNullable<Components['a']> = ({ href, children, ...props }) => {
   const chatId = useContext(ChatIdContext);
+  const { t } = useTranslation();
   if (href && isFileHref(href)) {
     return (
       <a
         {...props}
         className={['file-link', props.className].filter(Boolean).join(' ')}
         href={href}
-        title={`Open ${href} in editor`}
+        title={t('chat.editor.openInEditor', { href })}
         onClick={(e) => { e.preventDefault(); openFileRef(chatId, href); }}
       >
         {children}
@@ -79,6 +80,7 @@ const MarkdownAnchor: NonNullable<Components['a']> = ({ href, children, ...props
  *  (carries a `language-*` class or spans multiple lines) is untouched. */
 const MarkdownCode: NonNullable<Components['code']> = ({ className, children, ...props }) => {
   const chatId = useContext(ChatIdContext);
+  const { t } = useTranslation();
   const raw = String(children ?? '');
   if (!className && !raw.includes('\n') && isFileToken(raw)) {
     return (
@@ -87,7 +89,7 @@ const MarkdownCode: NonNullable<Components['code']> = ({ className, children, ..
         className="file-link file-code-link"
         role="link"
         tabIndex={0}
-        title={`Open ${raw} in editor`}
+        title={t('chat.editor.openInEditor', { href: raw })}
         onClick={() => openFileRef(chatId, raw)}
         onKeyDown={(e) => { if (e.key === 'Enter') openFileRef(chatId, raw); }}
       >
@@ -116,6 +118,9 @@ import ReactDiffViewer, { DiffMethod } from 'react-diff-viewer-continued';
 import { isYesNoQuestion, looksLikeQuestion } from '@shared/questionDetect';
 import { useMessages } from '../lib/useMessages';
 import { getExternalEditor } from '../lib/editor';
+import { useTranslation } from '../lib/i18n';
+import { toolLabel } from '../lib/toolLabel';
+import type { Translator } from '@shared/i18n';
 
 /** Total messages mounted at any time. The window slides as the user
  *  scrolls; older / newer messages live in the DB until they're scrolled
@@ -127,17 +132,26 @@ import { getExternalEditor } from '../lib/editor';
 //     tool blocks). Anything older than this is dropped from the DOM
 //     while sticky-bottom is engaged.
 //
-//   BROWSE_WINDOW: the "I scrolled up to read history" mode. Sized
-//     intentionally large — any chat shorter than this stays fully
-//     mounted while you're browsing, so the bottom never gets pulled
-//     out from under you no matter how far you scroll up. Only the
-//     truly enormous outliers cross this and start trimming the
-//     bottom on slide-back.
+//   BROWSE_WINDOW: the "I scrolled up to read history" mode. Larger
+//     than the tail so casual scroll-ups don't constantly slide, but
+//     still BOUNDED — this is the cap that actually protects the main
+//     thread.
+//
+//     It used to be 1000, which on a long, heavy chat (e.g. a single
+//     turn that read/wrote whole files — hundreds of rows, several tens
+//     of KB each) meant a scroll-up mounted ~1000 MessageRows at once.
+//     The post-commit `useLayoutEffect` then reads `scrollHeight`,
+//     forcing ONE synchronous layout over that entire tree — seconds of
+//     a frozen, non-interactive main thread (input events queue while
+//     the compositor keeps painting already-composited layers, so the
+//     window looks "alive but stuck"). Capping the mounted set keeps
+//     that forced layout cheap; the slide-on-rest machinery still pages
+//     the full history in as you scroll, so nothing is lost.
 //
 // Re-engaging sticky (hitting bottom + the rest timer, or pressing
 // Latest) flips back to TAIL_WINDOW and the extras get unmounted.
 const TAIL_WINDOW = 30;
-const BROWSE_WINDOW = 1000;
+const BROWSE_WINDOW = 200;
 /** How many to slide the window per scroll-edge trigger. MUST stay
  *  strictly less than the smaller cap (TAIL_WINDOW) so the anchor message captured at the
  *  edge stays mounted across the slide — otherwise anchor restoration in
@@ -219,6 +233,7 @@ function LiveChatBodyImpl({
   onQuickReply,
   onDecidePermission,
 }: LiveChatBodyProps): JSX.Element {
+  const { t } = useTranslation();
   const { messages, loading } = useMessages(chatId);
   // Index of the first message currently mounted. The mounted slice is
   // `messages[windowStart .. windowStart + cap]` where `cap` is
@@ -535,7 +550,7 @@ function LiveChatBodyImpl({
     return (
       <div className="chat-scroll">
         <div className="msg agent">
-          <div className="body" style={{ color: 'var(--fg-3)' }}>Loading transcript…</div>
+          <div className="body" style={{ color: 'var(--fg-3)' }}>{t('chat.transcript.loading')}</div>
         </div>
       </div>
     );
@@ -546,7 +561,7 @@ function LiveChatBodyImpl({
       <div className="chat-scroll">
         <div className="msg agent">
           <div className="body" style={{ color: 'var(--fg-3)' }}>
-            New chat. Type a message below to start.
+            {t('chat.transcript.empty')}
           </div>
         </div>
       </div>
@@ -575,7 +590,9 @@ function LiveChatBodyImpl({
         <div className="chat-scroll" ref={scrollRef}>
         {olderHidden > 0 && (
           <div className="window-edge-marker">
-            {olderHidden} earlier {olderHidden === 1 ? 'message' : 'messages'} — scroll up to load
+            {olderHidden === 1
+              ? t('chat.window.olderHidden', { count: olderHidden })
+              : t('chat.window.olderHiddenPlural', { count: olderHidden })}
           </div>
         )}
         {visible
@@ -599,7 +616,9 @@ function LiveChatBodyImpl({
           ))}
         {newerHidden > 0 && (
           <div className="window-edge-marker">
-            {newerHidden} newer {newerHidden === 1 ? 'message' : 'messages'} — scroll down to load
+            {newerHidden === 1
+              ? t('chat.window.newerHidden', { count: newerHidden })
+              : t('chat.window.newerHiddenPlural', { count: newerHidden })}
           </div>
         )}
         {/* "AI is thinking" indicator — same blinking-cursor signal as
@@ -615,9 +634,9 @@ function LiveChatBodyImpl({
         <button
           className="chat-jump-to-bottom"
           onClick={jumpToBottom}
-          title="Jump to latest"
+          title={t('chat.jump.title')}
         >
-          <i className="fa-solid fa-arrow-down" /> Latest
+          <i className="fa-solid fa-arrow-down" /> {t('chat.jump.label')}
         </button>
       )}
       </div>
@@ -654,7 +673,7 @@ interface MessageRowProps {
   ) => void;
 }
 
-function MessageRow({ message, renderAsQuestion, isStale, consumed, qaAnswer, chatId, onQuickReply, onDecide }: MessageRowProps): JSX.Element | null {
+function MessageRowImpl({ message, renderAsQuestion, isStale, consumed, qaAnswer, chatId, onQuickReply, onDecide }: MessageRowProps): JSX.Element | null {
   if (consumed) return null;
   if (message.kind === 'text' || message.kind === 'system') {
     const body = parseBody<MessageBodyText>(message.body, { text: '' });
@@ -735,6 +754,20 @@ function MessageRow({ message, renderAsQuestion, isStale, consumed, qaAnswer, ch
   return null;
 }
 
+/** Memoized row. During streaming, `useMessages` patches messages with
+ *  `.map`, returning the SAME object reference for every untouched row —
+ *  only the row receiving a text-delta / tool-result gets a fresh
+ *  reference. With a plain function component, a single delta still
+ *  re-rendered every mounted row (re-parsing markdown, re-reconciling
+ *  the whole subtree, and churning DOM via add/removeChild), which the
+ *  post-commit `useLayoutEffect` then forced a full synchronous layout
+ *  over — the multi-hundred-ms "rendering pauses". Shallow prop equality
+ *  here lets unchanged rows bail out entirely. The handler props
+ *  (`onDecide`/`onQuickReply`) are stable `useCallback` refs from
+ *  ChatColumn, and the value props (`consumed`/`qaAnswer`/`isStale`/…)
+ *  compare equal by value for unchanged rows, so the bail-out holds. */
+const MessageRow = memo(MessageRowImpl);
+
 function AttachmentList({ attachments }: { attachments: ChatAttachment[] }): JSX.Element {
   return (
     <div className="msg-attachments">
@@ -784,6 +817,7 @@ function SystemErrorRow({ text, chatId, stale }: {
   chatId: string;
   stale: boolean;
 }): JSX.Element {
+  const { t } = useTranslation();
   const [expanded, setExpanded] = useState<boolean>(!stale);
   // First line of the body, with the leading `error:` stripped — what
   // gets shown in the collapsed pill.
@@ -796,7 +830,7 @@ function SystemErrorRow({ text, chatId, stale }: {
         tabIndex={0}
         onClick={() => setExpanded(true)}
         onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setExpanded(true); }}
-        title="Click to expand the original error"
+        title={t('chat.error.expandTitle')}
       >
         <div className="body system-error-collapsed">
           <i className="fa-solid fa-circle-exclamation msg-error-icon" aria-hidden />
@@ -812,8 +846,8 @@ function SystemErrorRow({ text, chatId, stale }: {
         <button
           className="system-error-close"
           onClick={() => setExpanded(false)}
-          title="Collapse this error"
-          aria-label="Collapse error"
+          title={t('chat.error.collapseTitle')}
+          aria-label={t('chat.error.collapseAria')}
         >
           <i className="fa-solid fa-xmark" aria-hidden />
         </button>
@@ -827,16 +861,16 @@ function SystemErrorRow({ text, chatId, stale }: {
           <button
             className="btn sm msg-error-retry"
             onClick={() => void window.popbot.agent.recover(chatId)}
-            title="Force-reconnect this chat's Claude session and replay the last message"
+            title={t('chat.error.retryTitle')}
           >
-            <i className="fa-solid fa-rotate-right" /> Retry
+            <i className="fa-solid fa-rotate-right" /> {t('chat.error.retry')}
           </button>
           <button
             className="btn sm msg-error-retry"
             onClick={() => void window.popbot.agent.restartWithContext(chatId)}
-            title="Spawn a fresh agent session primed with this chat's transcript"
+            title={t('chat.error.restartTitle')}
           >
-            <i className="fa-solid fa-arrows-spin" /> Restart with context
+            <i className="fa-solid fa-arrows-spin" /> {t('chat.error.restart')}
           </button>
         </div>
       </div>
@@ -847,7 +881,7 @@ function SystemErrorRow({ text, chatId, stale }: {
 const TRUNCATE_CHARS = 5000;
 const TRUNCATE_LINES = 100;
 
-function truncateOutput(text: string): { display: string; truncated: boolean; hiddenChars: number } {
+function truncateOutput(text: string, t: Translator): { display: string; truncated: boolean; hiddenChars: number } {
   if (text.length <= TRUNCATE_CHARS) {
     const lines = text.split('\n');
     if (lines.length <= TRUNCATE_LINES) {
@@ -856,8 +890,11 @@ function truncateOutput(text: string): { display: string; truncated: boolean; hi
     const head = lines.slice(0, TRUNCATE_LINES / 2).join('\n');
     const tail = lines.slice(-TRUNCATE_LINES / 2).join('\n');
     const hiddenLines = lines.length - TRUNCATE_LINES;
+    const marker = hiddenLines === 1
+      ? t('chat.output.linesTruncated', { count: hiddenLines })
+      : t('chat.output.linesTruncatedPlural', { count: hiddenLines });
     return {
-      display: `${head}\n\n  … ${hiddenLines} lines truncated …\n\n${tail}`,
+      display: `${head}\n\n  ${marker}\n\n${tail}`,
       truncated: true,
       hiddenChars: text.length - head.length - tail.length,
     };
@@ -865,10 +902,14 @@ function truncateOutput(text: string): { display: string; truncated: boolean; hi
   const halfChars = TRUNCATE_CHARS / 2;
   const head = text.slice(0, halfChars);
   const tail = text.slice(-halfChars);
+  const hiddenChars = text.length - TRUNCATE_CHARS;
+  const marker = hiddenChars === 1
+    ? t('chat.output.charsTruncated', { count: hiddenChars })
+    : t('chat.output.charsTruncatedPlural', { count: hiddenChars });
   return {
-    display: `${head}\n\n  … ${text.length - TRUNCATE_CHARS} chars truncated …\n\n${tail}`,
+    display: `${head}\n\n  ${marker}\n\n${tail}`,
     truncated: true,
-    hiddenChars: text.length - TRUNCATE_CHARS,
+    hiddenChars,
   };
 }
 
@@ -878,7 +919,7 @@ function truncateOutput(text: string): { display: string; truncated: boolean; hi
  *
  *  When the hint is a file path, `filePath` is set so the renderer can
  *  make it a clickable `vscode://file/<path>` link. */
-function presentTool(name: string, args: Record<string, unknown>): {
+function presentTool(name: string, args: Record<string, unknown>, t: Translator): {
   icon: string;
   label: string;
   hint: string;
@@ -886,46 +927,77 @@ function presentTool(name: string, args: Record<string, unknown>): {
 } {
   const a = args as Record<string, unknown>;
   const str = (k: string): string => (typeof a[k] === 'string' ? (a[k] as string) : '');
+  // Single source of truth for the translated tool name — shared with the
+  // monitor card via `toolLabel`. Only icon/hint differ per tool here.
+  const label = toolLabel(name, t);
   switch (name) {
     case 'Bash':
-      return { icon: 'fa-terminal', label: 'Bash', hint: str('description') || str('command') };
+      return { icon: 'fa-terminal', label, hint: str('description') || str('command') };
     case 'Edit':
     case 'MultiEdit': {
       const p = str('file_path');
-      return { icon: 'fa-pen-to-square', label: 'Edit', hint: p, filePath: p };
+      return { icon: 'fa-pen-to-square', label, hint: p, filePath: p };
     }
     case 'Write': {
       const p = str('file_path');
-      return { icon: 'fa-file-pen', label: 'Write', hint: p, filePath: p };
+      return { icon: 'fa-file-pen', label, hint: p, filePath: p };
     }
     case 'Read': {
       const p = str('file_path');
-      return { icon: 'fa-file-lines', label: 'Read', hint: p, filePath: p };
+      return { icon: 'fa-file-lines', label, hint: p, filePath: p };
     }
     case 'Glob':
-      return { icon: 'fa-magnifying-glass', label: 'Glob', hint: str('pattern') };
+      return { icon: 'fa-magnifying-glass', label, hint: str('pattern') };
     case 'Grep':
-      return { icon: 'fa-magnifying-glass', label: 'Grep', hint: str('pattern') };
+      return { icon: 'fa-magnifying-glass', label, hint: str('pattern') };
     case 'WebFetch':
-      return { icon: 'fa-globe', label: 'Fetch', hint: str('url') };
+      return { icon: 'fa-globe', label, hint: str('url') };
     case 'WebSearch':
-      return { icon: 'fa-globe', label: 'Search', hint: str('query') };
+      return { icon: 'fa-globe', label, hint: str('query') };
     case 'Task':
-      return { icon: 'fa-robot', label: 'Subagent', hint: str('description') || str('subagent_type') };
+      return { icon: 'fa-robot', label, hint: str('description') || str('subagent_type') };
     case 'TodoWrite':
-      return { icon: 'fa-list-check', label: 'Todos', hint: '' };
+      return { icon: 'fa-list-check', label, hint: '' };
     case 'NotebookEdit': {
       const p = str('notebook_path');
-      return { icon: 'fa-book', label: 'Notebook', hint: p, filePath: p };
+      return { icon: 'fa-book', label, hint: p, filePath: p };
     }
     default:
-      return { icon: 'fa-wrench', label: name || 'tool', hint: '' };
+      return { icon: 'fa-wrench', label, hint: '' };
   }
 }
 
 /** Diffs taller than this are clipped with an "Expand" button. Tuned
  *  on the small side so a single Edit row never dominates the chat. */
 const DIFF_COLLAPSED_MAX_PX = 200;
+
+/** Hard cap on how many lines a diff may feed to the (word-level) diff
+ *  viewer INLINE. Beyond this we stop running the viewer on the full
+ *  text and render only the head of each side, pointing at the pop-out
+ *  for the rest.
+ *
+ *  Why: the inline "collapse-on-tall" path only CSS-clips — it still
+ *  builds the entire diff DOM and runs an O(n²)-ish WORDS_WITH_SPACE
+ *  diff over the whole text. A single 60 KB Write (≈1.5k lines) then
+ *  freezes the renderer main thread for seconds while it word-diffs and
+ *  lays out thousands of clipped-but-still-present nodes. Capping the
+ *  fed text keeps both the diff compute and the DOM bounded.
+ *
+ *  Tuned HIGH on purpose: ordinary edits — even large multi-hunk ones —
+ *  sit well under this and render in full, unchanged. Only pathological
+ *  whole-file dumps get capped. */
+const DIFF_INLINE_MAX_LINES = 300;
+/** When a diff is capped, how many head lines of each side we still
+ *  render inline — ~two-thirds of the cap, enough to read the gist
+ *  before the "open full diff" hand-off. */
+const DIFF_INLINE_HEAD_LINES = 200;
+
+/** First `n` lines of `text`, plus how many were dropped. */
+function headLines(text: string, n: number): { text: string; hidden: number } {
+  const lines = text.split('\n');
+  if (lines.length <= n) return { text, hidden: 0 };
+  return { text: lines.slice(0, n).join('\n'), hidden: lines.length - n };
+}
 
 /** Compact horizontal padding for the diff display. We're not losing
  *  any data — the underlying text is unchanged for copy / fidelity —
@@ -940,6 +1012,7 @@ function compactIndent(text: string): string {
 /** Inline diff for Edit / Write. Wraps `react-diff-viewer-continued`
  *  with our dark theme + a collapse-on-tall behavior. */
 function DiffView({ before, after, title }: { before: string; after: string; title?: string }): JSX.Element {
+  const { t } = useTranslation();
   const [expanded, setExpanded] = useState(false);
   const [popped, setPopped] = useState(false);
   const compactBefore = useMemo(() => compactIndent(before), [before]);
@@ -947,7 +1020,34 @@ function DiffView({ before, after, title }: { before: string; after: string; tit
   // Use total line count as a cheap proxy for height. ~16 lines ≈ the
   // max-height threshold; below that the container hugs naturally.
   const lineCount = (before.match(/\n/g)?.length ?? 0) + (after.match(/\n/g)?.length ?? 0) + 2;
-  const isTall = lineCount > 16;
+  // Oversized diffs (e.g. a whole-file Write) are too expensive to
+  // word-diff and render inline in full — they're the multi-second
+  // renderer freeze. Past the cap we feed the viewer only the head of
+  // each side; the full diff stays one click away in the pop-out modal.
+  // Modest diffs (the overwhelming majority) skip this entirely and
+  // render exactly as before.
+  const oversized = lineCount > DIFF_INLINE_MAX_LINES;
+  const inlineBefore = useMemo(
+    () => (oversized ? headLines(compactBefore, DIFF_INLINE_HEAD_LINES) : { text: compactBefore, hidden: 0 }),
+    [compactBefore, oversized],
+  );
+  const inlineAfter = useMemo(
+    () => (oversized ? headLines(compactAfter, DIFF_INLINE_HEAD_LINES) : { text: compactAfter, hidden: 0 }),
+    [compactAfter, oversized],
+  );
+  const hiddenLines = inlineBefore.hidden + inlineAfter.hidden;
+  // Whether the inline view was ACTUALLY shortened. `oversized` (combined
+  // line count past the cap) is necessary but not sufficient: headLines
+  // only drops content when an INDIVIDUAL side exceeds the head cap, so a
+  // diff like 151-before + 151-after trips `oversized` yet hides nothing.
+  // Key the truncated-footer + collapse handoff off real truncation, not
+  // the combined-count proxy, or such a diff renders fully expanded inline
+  // with no expand control and no "open full diff" footer.
+  const truncatedInline = hiddenLines > 0;
+  // The CSS-clip "collapse" path is only for diffs we render in full. A
+  // head-truncated diff already shows just its head, so clipping it would
+  // hide the head we DID choose to show — and the footer handoff covers it.
+  const isTall = !truncatedInline && lineCount > 16;
   const collapsed = isTall && !expanded;
 
   return (
@@ -957,8 +1057,8 @@ function DiffView({ before, after, title }: { before: string; after: string; tit
         style={collapsed ? { maxHeight: DIFF_COLLAPSED_MAX_PX, overflow: 'hidden' } : undefined}
       >
         <ReactDiffViewer
-          oldValue={compactBefore}
-          newValue={compactAfter}
+          oldValue={inlineBefore.text}
+          newValue={inlineAfter.text}
           splitView={false}
           useDarkTheme
           hideLineNumbers={true}
@@ -972,7 +1072,7 @@ function DiffView({ before, after, title }: { before: string; after: string; tit
         <button
           className="diff-popout-btn"
           onClick={(e) => { e.stopPropagation(); setPopped(true); }}
-          title="Open full diff in a panel"
+          title={t('chat.diff.popoutTitle')}
         >
           <i className="fa-solid fa-up-right-and-down-left-from-center" aria-hidden="true" />
         </button>
@@ -983,12 +1083,21 @@ function DiffView({ before, after, title }: { before: string; after: string; tit
               e.stopPropagation();
               setExpanded((v) => !v);
             }}
-            title={expanded ? 'Collapse' : `Show all ${lineCount} lines`}
+            title={expanded ? t('chat.diff.collapseTitle') : t('chat.diff.showAllLines', { count: lineCount })}
           >
-            {expanded ? 'Collapse' : `+${lineCount - 16}`}
+            {expanded ? t('chat.diff.collapse') : `+${lineCount - 16}`}
           </button>
         )}
       </div>
+      {truncatedInline && (
+        <button
+          className="btn ghost sm diff-truncated-foot"
+          onClick={(e) => { e.stopPropagation(); setPopped(true); }}
+          title="This diff is large — open the full diff in a panel"
+        >
+          Diff truncated — open full diff ({hiddenLines.toLocaleString()} more lines)
+        </button>
+      )}
       {popped && (
         <DiffModal
           before={compactBefore}
@@ -1011,6 +1120,7 @@ function DiffModal({ before, after, title, onClose }: {
   title?: string;
   onClose: () => void;
 }): JSX.Element {
+  const { t } = useTranslation();
   useEffect(() => {
     const onKey = (e: KeyboardEvent): void => { if (e.key === 'Escape') onClose(); };
     document.addEventListener('keydown', onKey);
@@ -1022,13 +1132,13 @@ function DiffModal({ before, after, title, onClose }: {
       <div
         className="diff-modal"
         role="dialog"
-        aria-label={title ? `Diff for ${title}` : 'Diff'}
+        aria-label={title ? t('chat.diff.modalAriaFor', { title }) : t('chat.diff.modalAria')}
         onMouseDown={(e) => e.stopPropagation()}
       >
         <div className="diff-modal-head">
           <i className="fa-solid fa-file-pen" aria-hidden="true" />
-          <span className="diff-modal-title" title={title}>{title || 'Diff'}</span>
-          <button className="diff-modal-close" onClick={onClose} title="Close (Esc)">
+          <span className="diff-modal-title" title={title}>{title || t('chat.diff.modalTitleFallback')}</span>
+          <button className="diff-modal-close" onClick={onClose} title={t('chat.diff.modalCloseTitle')}>
             <i className="fa-solid fa-xmark" />
           </button>
         </div>
@@ -1105,6 +1215,7 @@ const DIFF_MODAL_STYLES = {
 };
 
 function ToolBlock({ body }: { body: MessageBodyTool }): JSX.Element {
+  const { t } = useTranslation();
   const chatId = useContext(ChatIdContext);
   const expandable = body.result !== undefined;
   const isError = !!body.isError;
@@ -1120,10 +1231,10 @@ function ToolBlock({ body }: { body: MessageBodyTool }): JSX.Element {
     if (expandable || hasRichBody(body)) setOpen((v) => !v);
   };
   const trunc = useMemo(
-    () => (body.result !== undefined ? truncateOutput(body.result) : null),
-    [body.result],
+    () => (body.result !== undefined ? truncateOutput(body.result, t) : null),
+    [body.result, t],
   );
-  const { icon, label, hint, filePath } = presentTool(body.name, body.args);
+  const { icon, label, hint, filePath } = presentTool(body.name, body.args, t);
   // For file-path hints, render just the basename inline; the full path
   // goes in the tooltip. Keeps the row scannable when paths are deep.
   const displayHint = filePath
@@ -1255,7 +1366,7 @@ function ToolBlock({ body }: { body: MessageBodyTool }): JSX.Element {
                 <pre
                   className={`tool-output ${hasMore ? 'clickable' : ''}`}
                   onClick={hasMore ? (e) => { e.stopPropagation(); setOutputModal(true); } : undefined}
-                  title={hasMore ? 'Click to view full output' : undefined}
+                  title={hasMore ? t('chat.output.viewFullTitle') : undefined}
                 >
                   {previewText}
                 </pre>
@@ -1265,9 +1376,9 @@ function ToolBlock({ body }: { body: MessageBodyTool }): JSX.Element {
                       className="btn ghost sm"
                       onClick={(e) => { e.stopPropagation(); setOutputModal(true); }}
                     >
-                      View full output
-                      {overflowLines > 0 && ` (+${overflowLines} lines)`}
-                      {overflowChars > 0 && overflowLines === 0 && ` (+${overflowChars} chars)`}
+                      {t('chat.output.viewFull')}
+                      {overflowLines > 0 && t('chat.output.overflowLines', { count: overflowLines })}
+                      {overflowChars > 0 && overflowLines === 0 && t('chat.output.overflowChars', { count: overflowChars })}
                     </button>
                   </div>
                 )}
@@ -1278,8 +1389,8 @@ function ToolBlock({ body }: { body: MessageBodyTool }): JSX.Element {
       )}
       {outputModal && body.result !== undefined && (
         <OutputModal
-          title={presentTool(body.name, body.args).label}
-          subtitle={presentTool(body.name, body.args).hint}
+          title={presentTool(body.name, body.args, t).label}
+          subtitle={presentTool(body.name, body.args, t).hint}
           text={body.result}
           onClose={() => setOutputModal(false)}
         />
@@ -1302,6 +1413,7 @@ function OutputModal({
   text: string;
   onClose: () => void;
 }): JSX.Element {
+  const { t } = useTranslation();
   // Portal'd into <body>, but React events bubble up the React tree
   // (not the DOM tree). If we don't stop them here they fire ChatColumn
   // onMouseDown / setFocusedId etc — which is what made the whole
@@ -1323,9 +1435,9 @@ function OutputModal({
             className="btn ghost"
             onClick={() => { void navigator.clipboard.writeText(text); }}
           >
-            Copy
+            {t('common.copy')}
           </button>
-          <button className="btn primary" onClick={onClose}>Close</button>
+          <button className="btn primary" onClick={onClose}>{t('common.close')}</button>
         </div>
       </div>
     </div>,
@@ -1402,6 +1514,7 @@ function PermissionBlock({
   onDecide?: (permissionId: string, decision: ScopedDecision) => void;
   onQuickReply?: (text: string) => void;
 }): JSX.Element {
+  const { t } = useTranslation();
   const decided = body.decision !== undefined;
   const ask = asAskUserQuestionArgs(body.tool, body.args);
   if (ask) {
@@ -1425,18 +1538,18 @@ function PermissionBlock({
     <div className="banner wait">
       <div className="banner-head">
         <span className="glyph">?</span>
-        Agent wants to use <code>{body.tool}</code>
+        {t('chat.permission.wantsToUse')} <code>{toolLabel(body.tool, t)}</code>
       </div>
       {body.reason && <div className="banner-body">{body.reason}</div>}
       <div className="banner-body">
         <ArgsBlock args={body.args} />
       </div>
       <div className="banner-actions perm-actions">
-        <button className="btn primary sm" onClick={() => onDecide?.(body.permissionId, 'allow')}>Allow once</button>
-        <button className="btn sm"         onClick={() => onDecide?.(body.permissionId, 'allow-chat')}>Allow this chat</button>
-        <button className="btn sm"         onClick={() => onDecide?.(body.permissionId, 'allow-everywhere')}>Allow everywhere</button>
-        <button className="btn sm"         onClick={() => onDecide?.(body.permissionId, 'deny')}>Deny</button>
-        <button className="btn sm"         onClick={() => onDecide?.(body.permissionId, 'deny-everywhere')}>Deny everywhere</button>
+        <button className="btn primary sm" onClick={() => onDecide?.(body.permissionId, 'allow')}>{t('chat.permission.allowOnce')}</button>
+        <button className="btn sm"         onClick={() => onDecide?.(body.permissionId, 'allow-chat')}>{t('chat.permission.allowChat')}</button>
+        <button className="btn sm"         onClick={() => onDecide?.(body.permissionId, 'allow-everywhere')}>{t('chat.permission.allowEverywhere')}</button>
+        <button className="btn sm"         onClick={() => onDecide?.(body.permissionId, 'deny')}>{t('chat.permission.deny')}</button>
+        <button className="btn sm"         onClick={() => onDecide?.(body.permissionId, 'deny-everywhere')}>{t('chat.permission.denyEverywhere')}</button>
       </div>
     </div>
   );
@@ -1486,6 +1599,7 @@ function computeQAPairs(messages: MessageRecord[]): {
  *  answer. Tight spacing, slight visual differentiation so it doesn't
  *  read as plain prose. */
 function QAPair({ question, answer }: { question: string; answer: string }): JSX.Element {
+  const { t } = useTranslation();
   return (
     <div
       style={{
@@ -1498,10 +1612,10 @@ function QAPair({ question, answer }: { question: string; answer: string }): JSX
       }}
     >
       <div style={{ fontSize: 11, color: 'var(--fg-3)', fontStyle: 'italic' }}>
-        Q: {question}
+        {t('chat.qa.questionPrefix')} {question}
       </div>
       <div style={{ fontSize: 12, color: 'var(--fg-1)' }}>
-        <span style={{ color: 'var(--fg-3)' }}>A:</span> {answer}
+        <span style={{ color: 'var(--fg-3)' }}>{t('chat.qa.answerPrefix')}</span> {answer}
       </div>
     </div>
   );
@@ -1532,6 +1646,7 @@ function QuestionCard({
   text: string;
   onQuickReply?: (text: string) => void;
 }): JSX.Element {
+  const { t } = useTranslation();
   const yesNo = isYesNoQuestion(text);
   return (
     <div className="plan wait">
@@ -1539,7 +1654,7 @@ function QuestionCard({
         <span className="plan-head-icon">
           <i className="fa-solid fa-circle-question" />
         </span>
-        Question
+        {t('chat.question.heading')}
       </div>
       <div className="plan-q">
         <div className="prose">
@@ -1549,19 +1664,19 @@ function QuestionCard({
       {yesNo && onQuickReply ? (
         <div className="plan-actions">
           <button className="btn-yn sm" onClick={() => onQuickReply('Yes')}>
-            Yes
+            {t('chat.question.yes')}
           </button>
           <button className="btn-yn sm" onClick={() => onQuickReply('No')}>
-            No
+            {t('chat.question.no')}
           </button>
           <span className="spacer" />
           <span style={{ fontSize: 10.5, color: 'var(--fg-3)' }}>
-            …or type a longer reply below.
+            {t('chat.question.typeLonger')}
           </span>
         </div>
       ) : (
         <div className="plan-foot" style={{ paddingBottom: 12 }}>
-          Reply below to continue.
+          {t('chat.question.replyBelow')}
         </div>
       )}
     </div>
@@ -1587,6 +1702,7 @@ function PlanCard({
   onDeny?: (permissionId: string) => void;
   onQuickReply?: (text: string) => void;
 }): JSX.Element {
+  const { t } = useTranslation();
   const q = ask.questions[0];
   const [showOther, setShowOther] = useState(false);
   const [otherText, setOtherText] = useState('');
@@ -1604,7 +1720,7 @@ function PlanCard({
           fontStyle: 'italic',
         }}
       >
-        Asked: {q.question}
+        {t('chat.plan.asked', { question: q.question })}
       </div>
     );
   }
@@ -1633,7 +1749,7 @@ function PlanCard({
         <span className="plan-head-icon">
           <i className="fa-solid fa-list-check" />
         </span>
-        {q.header || 'Pick one'}
+        {q.header || t('chat.plan.pickOne')}
       </div>
       {q.question && <div className="plan-q">{q.question}</div>}
       <div className="plan-options">
@@ -1658,7 +1774,7 @@ function PlanCard({
           <div className="plan-opt" onClick={() => setShowOther(true)} role="button">
             <span className="plan-opt-key">{String.fromCodePoint(65 + q.options.length)}</span>
             <div className="plan-opt-body">
-              <span className="plan-opt-title">Other — type your own answer</span>
+              <span className="plan-opt-title">{t('chat.plan.otherOption')}</span>
             </div>
           </div>
         )}
@@ -1669,7 +1785,7 @@ function PlanCard({
               <div style={{ display: 'flex', gap: 6, alignItems: 'center', width: '100%' }}>
                 <input
                   className="input mono"
-                  placeholder="Type your answer and press Enter…"
+                  placeholder={t('chat.plan.otherPlaceholder')}
                   value={otherText}
                   onChange={(e) => setOtherText(e.target.value)}
                   onKeyDown={(e) => {
@@ -1685,7 +1801,7 @@ function PlanCard({
                   onClick={submitOther}
                   style={{ flex: '0 0 auto' }}
                 >
-                  Send
+                  {t('common.send')}
                 </button>
               </div>
               <button
@@ -1693,7 +1809,7 @@ function PlanCard({
                 onClick={() => setShowOther(false)}
                 style={{ marginTop: 6, fontSize: 10.5 }}
               >
-                Cancel
+                {t('common.cancel')}
               </button>
             </div>
           </div>
@@ -1702,16 +1818,16 @@ function PlanCard({
       {!decided ? (
         <div className="plan-actions">
           <button className="btn sm" onClick={() => onDeny?.(body.permissionId)}>
-            Skip
+            {t('chat.plan.skip')}
           </button>
           <span className="spacer" />
           <span style={{ fontSize: 10.5, color: 'var(--fg-3)' }}>
-            Click an option to submit
+            {t('chat.plan.clickToSubmit')}
           </span>
         </div>
       ) : (
         <div className="plan-foot" style={{ paddingBottom: 12 }}>
-          {body.decision === 'deny' ? '✗ Skipped' : '✓ Submitted'}
+          {body.decision === 'deny' ? t('chat.plan.skipped') : t('chat.plan.submitted')}
         </div>
       )}
     </div>

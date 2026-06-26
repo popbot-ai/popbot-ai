@@ -2,6 +2,9 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react
 import { createPortal } from 'react-dom';
 import type { LinearIssueDto, LinearWorkflowStateDto } from '@shared/linear';
 import type { ReviewItem } from '@shared/reviews';
+import { TICKET_PROVIDERS, type TicketProviderId } from '@shared/ticketProvider';
+import type { MessageKey, Translator } from '@shared/i18n';
+import { useTranslation } from '../lib/i18n';
 import { Tooltip } from './Tooltip';
 import { useHighlight, usePulseActive } from '../lib/highlightBus';
 import {
@@ -102,7 +105,27 @@ export function PanelA({
   reviewChats,
   ticketChats,
 }: PanelAProps): JSX.Element {
+  const { t } = useTranslation();
   const [tab, setTab] = useState<'tickets' | 'reviews' | 'slack'>('tickets');
+  // Which tracker feeds the queue, so the UI can feature-detect provider
+  // capabilities (e.g. hide the inline status picker for GitHub Issues,
+  // which have no workflow states). Re-read whenever the issue list changes
+  // — switching trackers in Preferences bumps the version, which re-fetches
+  // and gives `linearStatus` a fresh identity, so this self-corrects.
+  const [ticketProvider, setTicketProvider] = useState<TicketProviderId>('linear');
+  useEffect(() => {
+    void window.popbot.settings.get<string>('ticketSource').then((id) => {
+      // Own-property check, not `in`: `'constructor' in TICKET_PROVIDERS` is
+      // true via the prototype, so a corrupted ticketSource could otherwise
+      // slip past the fallback and crash on the capabilities read below.
+      const providerId =
+        typeof id === 'string' && Object.prototype.hasOwnProperty.call(TICKET_PROVIDERS, id)
+          ? (id as TicketProviderId)
+          : 'linear';
+      setTicketProvider(providerId);
+    });
+  }, [linearStatus]);
+  const canChangeStatus = TICKET_PROVIDERS[ticketProvider].capabilities.changeStatus;
   const handleNewReviews = useCallback(
     (fresh: ReviewItem[]) => onNewReviews?.(fresh),  // playPing now happens in the App-level notify subscriber
     [onNewReviews],
@@ -204,7 +227,10 @@ export function PanelA({
     setPinnedPrsData(next);
   }, []);
 
-  useEffect(() => { void refreshPinnedTickets(pinnedTicketIds); }, [pinnedTicketIds, refreshPinnedTickets]);
+  // `ticketProvider` in the deps so switching trackers re-fetches the pinned
+  // rows against the new provider instead of leaving the prior provider's
+  // resolved tickets on screen.
+  useEffect(() => { void refreshPinnedTickets(pinnedTicketIds); }, [pinnedTicketIds, refreshPinnedTickets, ticketProvider]);
   useEffect(() => { void refreshPinnedPrs(pinnedPrNumbers); }, [pinnedPrNumbers, refreshPinnedPrs]);
 
   /** Pull the search-cache from Linear + GitHub. Runs alongside the
@@ -223,7 +249,9 @@ export function PanelA({
       setRecentPrs(prsRes.prs);
     }
   }, []);
-  useEffect(() => { void refreshSearchCaches(); }, [refreshSearchCaches]);
+  // Re-pull the search cache on provider switch too, so the WorkItemSearch
+  // corpus reflects the active tracker rather than the previous one.
+  useEffect(() => { void refreshSearchCaches(); }, [refreshSearchCaches, ticketProvider]);
 
   /** Pin a ticket by identifier. Validates with a single Linear fetch
    *  before persisting so a typo / unknown ticket surfaces an error
@@ -233,18 +261,30 @@ export function PanelA({
     | { ok: true }
     | { ok: false; reason: 'not-found' | 'not-configured' | 'auth-failed' | 'duplicate' | 'error'; error?: string }
   > => {
-    const id = identifier.trim().toUpperCase();
-    if (pinnedTicketIds.includes(id)) return { ok: false, reason: 'duplicate' };
-    const res = await window.popbot.linear.getIssue(id);
+    // GitHub identifiers are case-sensitive `owner/repo#number`; upper-casing
+    // them would break the lookup. Linear/Jira keys are conventionally upper.
+    const trimmed = identifier.trim();
+    const lookupId = ticketProvider === 'github' ? trimmed : trimmed.toUpperCase();
+    if (pinnedTicketIds.includes(lookupId)) return { ok: false, reason: 'duplicate' };
+    const res = await window.popbot.linear.getIssue(lookupId);
     if (!res.ok) return res;
+    // Pin and persist the provider's canonical identifier, not the typed
+    // form — a GitHub id entered with off-canonical casing passes lookup but
+    // would otherwise store an id that never matches the auto-list row,
+    // breaking dedupe, unpin, and chat matching.
+    const id = res.issue.identifier;
+    if (pinnedTicketIds.includes(id)) return { ok: false, reason: 'duplicate' };
     setPinnedTicketIds((prev) => {
+      if (prev.includes(id)) return prev;
       const next = [...prev, id];
       void window.popbot.settings.set('panela.pinned.tickets', next);
       return next;
     });
-    setPinnedTicketsData((prev) => [res.issue, ...prev]);
+    setPinnedTicketsData((prev) =>
+      prev.some((issue) => issue.identifier === id) ? prev : [res.issue, ...prev],
+    );
     return { ok: true };
-  }, [pinnedTicketIds]);
+  }, [pinnedTicketIds, ticketProvider]);
 
   const pinPr = useCallback(async (prNumber: number): Promise<
     | { ok: true }
@@ -305,10 +345,11 @@ export function PanelA({
     label: string;
     url: string | null;
     onIgnore: () => void;
-    /** "Ignore" for auto-fetched rows, "Unpin" for manually-pinned
-     *  ones — both share the same context-menu slot but mean different
-     *  things, so the label clarifies which. */
-    ignoreLabel?: string;
+    /** True for manually-pinned rows (action is "Unpin"); false/undefined
+     *  for auto-fetched rows (action is "Ignore"). Both share the same
+     *  context-menu slot but mean different things, so this flag selects
+     *  the right icon + label. */
+    isUnpin?: boolean;
   } | null>(null);
   useEffect(() => {
     if (!rowMenu) return;
@@ -623,9 +664,9 @@ export function PanelA({
             aria-selected={tab === 'tickets'}
             onClick={() => setTab('tickets')}
           >
-            Tickets
+            {t('panelA.tab.tickets')}
             {unseenTickets > 0 && (
-              <span className="tab-unseen" title={`${unseenTickets} new`}>
+              <span className="tab-unseen" title={t('panelA.tab.unseenTitle', { count: unseenTickets })}>
                 {unseenTickets > 9 ? '9+' : unseenTickets}
               </span>
             )}
@@ -635,16 +676,16 @@ export function PanelA({
             aria-selected={tab === 'reviews'}
             onClick={() => setTab('reviews')}
           >
-            Reviews
+            {t('panelA.tab.reviews')}
             {unseenReviews > 0 && (
-              <span className="tab-unseen" title={`${unseenReviews} new`}>
+              <span className="tab-unseen" title={t('panelA.tab.unseenTitle', { count: unseenReviews })}>
                 {unseenReviews > 9 ? '9+' : unseenReviews}
               </span>
             )}
           </button>
           {SLACK_TAB_ENABLED && (
             <button className="panel-tab" aria-selected={tab === 'slack'} onClick={() => setTab('slack')}>
-              Slack
+              {t('panelA.tab.slack')}
             </button>
           )}
         </div>
@@ -652,7 +693,7 @@ export function PanelA({
           {tab === 'tickets' && unseenTickets > 0 && (
             <button
               className="iconbtn"
-              title={`Mark all ${unseenTickets} new tickets as seen`}
+              title={t('panelA.action.markAllTicketsSeen', { count: unseenTickets })}
               onClick={markTicketsSeen}
             >
               <i className="fa-solid fa-check-double" />
@@ -661,7 +702,7 @@ export function PanelA({
           {tab === 'reviews' && unseenReviews > 0 && (
             <button
               className="iconbtn"
-              title={`Mark all ${unseenReviews} new PRs as seen`}
+              title={t('panelA.action.markAllReviewsSeen', { count: unseenReviews })}
               onClick={markReviewsSeen}
             >
               <i className="fa-solid fa-check-double" />
@@ -669,20 +710,20 @@ export function PanelA({
           )}
           <button
             className="iconbtn"
-            title="Add ticket or PR by id (e.g. ENG-12345 or PR #1234)"
+            title={t('panelA.action.addItem')}
             onClick={() => setAddPinOpen(true)}
           >
             <i className="fa-solid fa-plus" />
           </button>
           <button
             className="iconbtn"
-            title="Refresh tickets + PRs"
+            title={t('panelA.action.refresh')}
             onClick={() => void refreshAll()}
             disabled={refreshState === 'refreshing'}
           >
             <i className="fa-solid fa-arrows-rotate" />
           </button>
-          <button className="iconbtn" title="Filter">
+          <button className="iconbtn" title={t('panelA.action.filter')}>
             <i className="fa-solid fa-filter" />
           </button>
         </div>
@@ -692,11 +733,11 @@ export function PanelA({
           {refreshState === 'refreshing'
             ? <>
                 <i className="fa-solid fa-arrows-rotate fa-spin" />
-                <span>Refreshing tickets &amp; PRs…</span>
+                <span>{t('panelA.refresh.inProgress')}</span>
               </>
             : <>
                 <i className="fa-solid fa-check" />
-                <span>Refreshed.</span>
+                <span>{t('panelA.refresh.done')}</span>
               </>}
         </div>
       )}
@@ -707,6 +748,7 @@ export function PanelA({
             onSpawn={onSpawnFromTicket}
             onOpenPrefs={onOpenPrefs}
             onRefresh={refreshAll}
+            canChangeStatus={canChangeStatus}
             ticketChats={ticketChats}
             ignoredTickets={ignoredTickets}
             isNew={(id) => seenTickets ? !seenTickets.has(id) : false}
@@ -720,7 +762,7 @@ export function PanelA({
               onIgnore: pinnedTicketIds.includes(issue.identifier)
                 ? () => unpinTicket(issue.identifier)
                 : () => void ignoreTicket(issue.identifier),
-              ignoreLabel: pinnedTicketIds.includes(issue.identifier) ? 'Unpin' : 'Ignore',
+              isUnpin: pinnedTicketIds.includes(issue.identifier),
             })}
           />
         )}
@@ -754,19 +796,19 @@ export function PanelA({
               onIgnore: pinnedPrNumbers.includes(review.number)
                 ? () => unpinPr(review.number)
                 : () => void ignorePr(review.number),
-              ignoreLabel: pinnedPrNumbers.includes(review.number) ? 'Unpin' : 'Ignore',
+              isUnpin: pinnedPrNumbers.includes(review.number),
             })}
           />
         )}
         {tab === 'slack' && (
           <div className="row-empty">
-            <p>Slack isn't connected yet.</p>
+            <p>{t('slack.empty.notConnected')}</p>
             <p style={{ color: 'var(--fg-3)', fontSize: 12, marginBottom: 12 }}>
-              Once configured, this tab will surface unread DMs and channel mentions.
+              {t('slack.empty.description')}
             </p>
             {onOpenPrefs && (
               <button className="btn primary sm" onClick={() => onOpenPrefs('integ')}>
-                <i className="fa-solid fa-plug" /> Connect Slack
+                <i className="fa-solid fa-plug" /> {t('slack.empty.connectButton')}
               </button>
             )}
           </div>
@@ -803,7 +845,7 @@ export function PanelA({
                 setRowMenu(null);
               }}
             >
-              <i className="fa-solid fa-arrow-up-right-from-square" /> Open web page
+              <i className="fa-solid fa-arrow-up-right-from-square" /> {t('panelA.menu.openWebPage')}
             </button>
           )}
           <button
@@ -813,8 +855,8 @@ export function PanelA({
               setRowMenu(null);
             }}
           >
-            <i className={`fa-solid ${rowMenu.ignoreLabel === 'Unpin' ? 'fa-thumbtack-slash' : 'fa-eye-slash'}`} />
-            &nbsp;{rowMenu.ignoreLabel ?? 'Ignore'}
+            <i className={`fa-solid ${rowMenu.isUnpin ? 'fa-thumbtack-slash' : 'fa-eye-slash'}`} />
+            &nbsp;{rowMenu.isUnpin ? t('panelA.menu.unpin') : t('panelA.menu.ignore')}
           </button>
         </div>
       )}
@@ -940,6 +982,7 @@ function ReviewsReadiness({
   onOpenPrefs?: (section?: string) => void;
   footer?: JSX.Element;
 }): JSX.Element {
+  const { t } = useTranslation();
   const ghInstalled = status.kind !== 'gh-not-found';
   const ghAuthed = ghInstalled && status.kind !== 'gh-not-authed';
   const hasRepo = ghAuthed && status.kind !== 'no-repo';
@@ -948,31 +991,31 @@ function ReviewsReadiness({
     <div className="empty reviews-readiness">
       <div className="ico"><i className="fa-brands fa-github" /></div>
       <div style={{ fontWeight: 600, color: 'var(--fg-2)' }}>
-        {allReady ? 'GitHub connected' : 'Connect GitHub to see reviews'}
+        {allReady ? t('reviews.readiness.connected') : t('reviews.readiness.connectPrompt')}
       </div>
       <div className="reviews-steps">
         <ReviewStep
           state={ghInstalled ? 'ok' : 'needed'}
-          label="GitHub CLI installed"
+          label={t('reviews.readiness.installLabel')}
           action={ghInstalled ? undefined : {
-            text: 'Install gh',
+            text: t('reviews.readiness.installAction'),
             onClick: () => window.open('https://cli.github.com', '_blank'),
           }}
         />
         <ReviewStep
           state={!ghInstalled ? 'pending' : ghAuthed ? 'ok' : 'needed'}
-          label="Signed in to GitHub"
-          hint={ghInstalled && !ghAuthed ? 'run gh auth login' : undefined}
+          label={t('reviews.readiness.signedInLabel')}
+          hint={ghInstalled && !ghAuthed ? t('reviews.readiness.signedInHint') : undefined}
           action={ghInstalled && !ghAuthed ? {
-            text: 'How to sign in',
+            text: t('reviews.readiness.signedInAction'),
             onClick: () => window.open('https://cli.github.com/manual/gh_auth_login', '_blank'),
           } : undefined}
         />
         <ReviewStep
           state={!ghAuthed ? 'pending' : hasRepo ? 'ok' : 'needed'}
-          label="Repository configured"
+          label={t('reviews.readiness.repoLabel')}
           action={ghAuthed && !hasRepo && onOpenPrefs ? {
-            text: 'Add repository',
+            text: t('reviews.readiness.repoAction'),
             onClick: () => onOpenPrefs('repos'),
           } : undefined}
         />
@@ -995,8 +1038,9 @@ function ReviewList({
   onPromptAction,
   onContextMenu,
 }: ReviewListProps): JSX.Element {
+  const { t } = useTranslation();
   if (status.kind === 'loading') {
-    return <div className="row-empty">Loading reviews…</div>;
+    return <div className="row-empty">{t('reviews.list.loading')}</div>;
   }
   // gh missing / not signed in / no repo → the progressive readiness
   // checklist (green checks for what's done, a button for what's next).
@@ -1004,7 +1048,7 @@ function ReviewList({
     return <ReviewsReadiness status={status} onOpenPrefs={onOpenPrefs} />;
   }
   if (status.kind === 'error') {
-    return <div className="row-empty error">Couldn't load reviews: {status.message}</div>;
+    return <div className="row-empty error">{t('reviews.list.loadError', { message: status.message })}</div>;
   }
   // Drop ignored PRs before checking emptiness — if the only remaining
   // PRs are ones the user already dismissed, the panel should read as
@@ -1018,7 +1062,7 @@ function ReviewList({
     return (
       <div className="empty reviews-readiness">
         <div className="ico"><i className="fa-brands fa-github" /></div>
-        <div className="reviews-empty-note">No PRs need your review right now.</div>
+        <div className="reviews-empty-note">{t('reviews.empty.none')}</div>
       </div>
     );
   }
@@ -1027,12 +1071,12 @@ function ReviewList({
       {visibleReviews.map((r) => {
         const linked = reviewChats?.get(r.number);
         const linkedTitle = linked?.focused
-          ? 'This PR is the focused chat'
+          ? t('reviews.row.linkedFocused')
           : linked?.open
-            ? 'Click to focus the existing chat for this PR'
+            ? t('reviews.row.linkedOpen')
             : linked
-              ? 'Click to reopen the closed chat for this PR'
-              : `#${r.number} · ${r.title}`;
+              ? t('reviews.row.linkedClosed')
+              : t('reviews.row.linkedDefault', { number: r.number, title: r.title });
         // Linked rows skip the prompt — clicking them is "focus / reopen
         // the existing chat for this PR." Non-linked rows go through the
         // action dialog so the user can choose Create / Ignore / Cancel.
@@ -1071,6 +1115,7 @@ function ReviewRow({ review: r, linked, onClick, avatarColor, linkedTitle, isNew
   onReReview?: (r: ReviewItem) => void;
   onContextMenu?: (review: ReviewItem, x: number, y: number) => void;
 }): JSX.Element {
+  const { t } = useTranslation();
   const pulsing = usePulseActive('review', r.number);
   // Re-review wins over NEW when both apply: the RE-REVIEW chip is
   // more specific (the user has already engaged with this PR — they
@@ -1107,25 +1152,25 @@ function ReviewRow({ review: r, linked, onClick, avatarColor, linkedTitle, isNew
                 type="button"
                 className="row-new-chip row-rereview-chip"
                 title={linked
-                  ? 'Click to start the re-review — opens the chat and sends the re-review prompt'
-                  : 'Click to create a review chat'}
+                  ? t('reviews.row.reReviewLinkedTitle')
+                  : t('reviews.row.reReviewNewTitle')}
                 onClick={(e) => {
                   e.stopPropagation();
                   if (linked) onReReview?.(r);
                   else onClick();
                 }}
               >
-                RE-REVIEW
+                {t('reviews.row.reReviewChip')}
               </button>
             )}
             {showNewChip && (
               <button
                 type="button"
                 className="row-new-chip"
-                title="Mark as seen"
+                title={t('common.markAsSeen')}
                 onClick={(e) => { e.stopPropagation(); onMarkSeen?.(r.number); }}
               >
-                NEW
+                {t('reviews.row.newChip')}
               </button>
             )}
             <span className="id">#{r.number}</span>
@@ -1136,18 +1181,18 @@ function ReviewRow({ review: r, linked, onClick, avatarColor, linkedTitle, isNew
                   className={`pill ${linked.focused ? 'done' : linked.open ? 'wait' : 'muted'}`}
                   title={linkedTitle}
                 >
-                  <i className="fa-solid fa-comment" />{linked.open ? ' chat' : ' closed'}
+                  <i className="fa-solid fa-comment" /> {linked.open ? t('reviews.row.chatPill') : t('reviews.row.closedPill')}
                 </span>
               )}
               {r.flags.requestedReviewer && (
-                <span className="pill wait" title="You're requested as a reviewer">
-                  <span className="glyph">?</span>You
+                <span className="pill wait" title={t('reviews.row.requestedReviewerTitle')}>
+                  <span className="glyph">?</span>{t('reviews.row.requestedReviewerLabel')}
                 </span>
               )}
               {r.flags.noReviewsYet && !r.flags.requestedReviewer && (
-                <span className="pill muted" title="No reviews yet">No reviews</span>
+                <span className="pill muted" title={t('reviews.row.noReviewsTitle')}>{t('reviews.row.noReviewsLabel')}</span>
               )}
-              {r.isDraft && <span className="pill muted">draft</span>}
+              {r.isDraft && <span className="pill muted">{t('reviews.row.draft')}</span>}
               {/* Open-in-browser is now exposed via right-click → "Open
                   web page" — see the work-item context menu in PanelA. */}
             </span>
@@ -1160,6 +1205,10 @@ interface LinearTicketsProps {
   onSpawn: (t: Ticket) => void;
   onOpenPrefs?: (section?: string) => void;
   onRefresh: () => void;
+  /** Whether the active tracker supports changing an issue's status from
+   *  PopBot (Linear/Jira do; GitHub Issues don't). Off → the row renders a
+   *  read-only status glyph instead of the interactive picker. */
+  canChangeStatus: boolean;
   ticketChats?: Map<string, { open: boolean; focused: boolean; slotId: number | null; pr: number | null }>;
   /** Linear identifiers the user has chosen to ignore — filtered out
    *  of the rendered list. Mirrors the PR-ignore behavior. */
@@ -1177,16 +1226,26 @@ interface LinearTicketsProps {
  *  Linear's priority enum (0=none, 1=urgent, 2=high, 3=medium, 4=low). */
 const GROUPS: Array<{
   key: 'urgent' | 'high' | 'med' | 'low' | 'none';
-  label: string;
+  labelKey: MessageKey;
   priority: number;
   defaultOpen: boolean;
 }> = [
-  { key: 'urgent', label: 'Urgent', priority: 1, defaultOpen: true },
-  { key: 'high', label: 'High', priority: 2, defaultOpen: true },
-  { key: 'med', label: 'Medium', priority: 3, defaultOpen: true },
-  { key: 'low', label: 'Low', priority: 4, defaultOpen: false },
-  { key: 'none', label: 'No priority', priority: 0, defaultOpen: false },
+  { key: 'urgent', labelKey: 'priority.urgent', priority: 1, defaultOpen: true },
+  { key: 'high', labelKey: 'priority.high', priority: 2, defaultOpen: true },
+  { key: 'med', labelKey: 'priority.med', priority: 3, defaultOpen: true },
+  { key: 'low', labelKey: 'priority.low', priority: 4, defaultOpen: false },
+  { key: 'none', labelKey: 'priority.none', priority: 0, defaultOpen: false },
 ];
+
+/** Maps the legacy Ticket priority key → its message catalog key for
+ *  the IssueTooltip priority line. */
+const PRIORITY_KEY: Record<Ticket['priority'] | 'none', MessageKey> = {
+  urgent: 'priority.urgent',
+  high: 'priority.high',
+  med: 'priority.med',
+  low: 'priority.low',
+  none: 'priority.none',
+};
 
 
 /** Linear-style priority glyph. Numeric priority matches Linear's API:
@@ -1233,6 +1292,7 @@ function LinearPriorityIcon({ priority, size = 14 }: { priority: number; size?: 
  *  states; selecting one updates the issue in Linear and refreshes
  *  the local list. Replaces the read-only StatusIcon for issue rows. */
 function StatusPicker({ issue, onChanged }: { issue: LinearIssueDto; onChanged: () => void }): JSX.Element {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const [states, setStates] = useState<LinearWorkflowStateDto[] | null>(null);
   const [loading, setLoading] = useState(false);
@@ -1254,8 +1314,8 @@ function StatusPicker({ issue, onChanged }: { issue: LinearIssueDto; onChanged: 
       if (cancelled) return;
       setLoading(false);
       if ('error' in res && res.error) setError(res.error);
-      else if (res.notConfigured) setError('Linear API key not configured.');
-      else if (res.authFailed) setError('Linear auth failed.');
+      else if (res.notConfigured) setError(t('linear.error.notConfigured'));
+      else if (res.authFailed) setError(t('linear.error.authFailed'));
       else setStates(res.states);
     });
     return () => { cancelled = true; };
@@ -1311,8 +1371,8 @@ function StatusPicker({ issue, onChanged }: { issue: LinearIssueDto; onChanged: 
         type="button"
         className="status-picker-btn"
         onClick={(e) => { e.stopPropagation(); setOpen((o) => !o); }}
-        title={`Status: ${issue.state.name} — click to change`}
-        aria-label={`Change status (currently ${issue.state.name})`}
+        title={t('linear.status.changeTitle', { state: issue.state.name })}
+        aria-label={t('linear.status.changeAriaLabel', { state: issue.state.name })}
       >
         <LinearStateIcon state={issue.state} />
       </button>
@@ -1324,10 +1384,10 @@ function StatusPicker({ issue, onChanged }: { issue: LinearIssueDto; onChanged: 
           role="listbox"
           onClick={(e) => e.stopPropagation()}
         >
-          {loading && <div className="status-picker-empty">Loading…</div>}
+          {loading && <div className="status-picker-empty">{t('common.loading')}</div>}
           {error && <div className="status-picker-error">{error}</div>}
           {states && states.length === 0 && (
-            <div className="status-picker-empty">No states defined.</div>
+            <div className="status-picker-empty">{t('linear.status.noStates')}</div>
           )}
           {states?.map((s) => (
             <button
@@ -1348,18 +1408,19 @@ function StatusPicker({ issue, onChanged }: { issue: LinearIssueDto; onChanged: 
   );
 }
 
-function relTime(iso: string): string {
+function relTime(iso: string, t: Translator): string {
   const diff = Date.now() - new Date(iso).getTime();
-  if (diff < 60_000) return 'just now';
-  if (diff < 60 * 60_000) return `${Math.floor(diff / 60_000)}m ago`;
-  if (diff < 24 * 60 * 60_000) return `${Math.floor(diff / 3_600_000)}h ago`;
-  return `${Math.floor(diff / 86_400_000)}d ago`;
+  if (diff < 60_000) return t('time.justNow');
+  if (diff < 60 * 60_000) return t('time.minutesAgo', { count: Math.floor(diff / 60_000) });
+  if (diff < 24 * 60 * 60_000) return t('time.hoursAgo', { count: Math.floor(diff / 3_600_000) });
+  return t('time.daysAgo', { count: Math.floor(diff / 86_400_000) });
 }
 
 /** Rich tooltip body for a Linear ticket row. Includes the status icon
  *  inline so it's clear what state we're in without re-reading text. */
 function IssueTooltip({ issue }: { issue: LinearIssueDto }): JSX.Element {
-  const priority = PRIORITY_LABEL[issue.priority] ?? 'none';
+  const { t } = useTranslation();
+  const priorityKey = PRIORITY_LABEL[issue.priority] ?? 'none';
   return (
     <div className="tip-issue">
       <div className="tip-issue-head">
@@ -1367,44 +1428,48 @@ function IssueTooltip({ issue }: { issue: LinearIssueDto }): JSX.Element {
         <span className="tip-title">{issue.title}</span>
       </div>
       <dl className="tip-meta">
-        <dt>Status</dt>
+        <dt>{t('linear.tooltip.status')}</dt>
         <dd>
           <LinearStateIcon state={issue.state} /> {issue.state.name}
         </dd>
-        <dt>Priority</dt>
+        <dt>{t('linear.tooltip.priority')}</dt>
         <dd>
-          <LinearPriorityIcon priority={issue.priority} /> {priority}
+          <LinearPriorityIcon priority={issue.priority} /> {t(PRIORITY_KEY[priorityKey])}
         </dd>
         {issue.project?.name && (<>
-          <dt>Project</dt>
+          <dt>{t('linear.tooltip.project')}</dt>
           <dd>{issue.project.name}</dd>
         </>)}
-        <dt>Updated</dt>
-        <dd title={new Date(issue.updatedAt).toLocaleString()}>{relTime(issue.updatedAt)}</dd>
+        <dt>{t('linear.tooltip.updated')}</dt>
+        <dd title={new Date(issue.updatedAt).toLocaleString()}>{relTime(issue.updatedAt, t)}</dd>
       </dl>
       <div className="tip-foot mono">{issue.url}</div>
     </div>
   );
 }
 
-function LinearRow({ issue, onSpawn, onRefresh, chatLink, isNew, onMarkSeen, onContextMenu }: {
+function LinearRow({ issue, onSpawn, onRefresh, canChangeStatus, chatLink, isNew, onMarkSeen, onContextMenu }: {
   issue: LinearIssueDto;
   onSpawn: (t: Ticket) => void;
   onRefresh: () => void;
+  /** When false, the status is shown as a read-only glyph (the active
+   *  tracker can't change status from PopBot — e.g. GitHub Issues). */
+  canChangeStatus: boolean;
   chatLink?: { open: boolean; focused: boolean; slotId: number | null; pr: number | null };
   isNew: boolean;
   onMarkSeen?: (identifier: string) => void;
   onContextMenu?: (issue: LinearIssueDto, x: number, y: number) => void;
 }): JSX.Element {
-  const t = issueToTicket(issue);
+  const { t } = useTranslation();
+  const ticket = issueToTicket(issue);
   const pulsing = usePulseActive('linear-issue', issue.id);
   const linkedTitle = chatLink?.focused
-    ? `${t.id} · this ticket is the focused chat`
+    ? t('linear.row.linkedFocused', { id: ticket.id })
     : chatLink?.open
-      ? `${t.id} · click to focus the existing chat`
+      ? t('linear.row.linkedOpen', { id: ticket.id })
       : chatLink
-        ? `${t.id} · click to reopen the closed chat`
-        : `${t.id} · ${t.title}`;
+        ? t('linear.row.linkedClosed', { id: ticket.id })
+        : t('linear.row.linkedDefault', { id: ticket.id, title: ticket.title });
   return (
     <Tooltip content={<IssueTooltip issue={issue} />}>
       <div
@@ -1416,7 +1481,7 @@ function LinearRow({ issue, onSpawn, onRefresh, chatLink, isNew, onMarkSeen, onC
           // click on the row body (to spawn / focus) also clears it,
           // not just the dedicated chip.
           if (isNew) onMarkSeen?.(issue.identifier);
-          onSpawn(t);
+          onSpawn(ticket);
         }}
         onContextMenu={(e) => {
           if (!onContextMenu) return;
@@ -1431,29 +1496,41 @@ function LinearRow({ issue, onSpawn, onRefresh, chatLink, isNew, onMarkSeen, onC
           <button
             type="button"
             className="row-new-chip"
-            title="Mark as seen"
+            title={t('common.markAsSeen')}
             onClick={(e) => { e.stopPropagation(); onMarkSeen?.(issue.identifier); }}
           >
-            NEW
+            {t('reviews.row.newChip')}
           </button>
         )}
-        <span className="id">{t.id}</span>
-        <span className="title">{t.title}</span>
+        <span className="id">{ticket.id}</span>
+        <span className="title">{ticket.title}</span>
         <span className="meta">
           {chatLink && (
             <span
               className={`pill ${chatLink.focused ? 'done' : chatLink.open ? 'wait' : 'muted'}`}
               title={linkedTitle}
             >
-              <i className="fa-solid fa-comment" />
+              <i className="fa-solid fa-comment" />{' '}
               {chatLink.pr != null
-                ? ` PR #${chatLink.pr}`
+                ? t('panelB.kind.pr', { pr: chatLink.pr })
                 : chatLink.slotId != null
-                  ? ` S${chatLink.slotId}`
-                  : chatLink.open ? ' chat' : ' closed'}
+                  ? `S${chatLink.slotId}`
+                  : chatLink.open ? t('reviews.row.chatPill') : t('reviews.row.closedPill')}
             </span>
           )}
-          <StatusPicker issue={issue} onChanged={onRefresh} />
+          {canChangeStatus ? (
+            <StatusPicker issue={issue} onChanged={onRefresh} />
+          ) : (
+            // Tracker can't change status from PopBot (e.g. GitHub Issues,
+            // which only have open/closed). Show a read-only status glyph.
+            <span
+              className="status-picker-btn read-only"
+              title={`Status: ${issue.state.name}`}
+              aria-label={`Status: ${issue.state.name}`}
+            >
+              <LinearStateIcon state={issue.state} />
+            </span>
+          )}
           {/* Open-in-Linear is now via right-click → "Open web page". */}
         </span>
       </div>
@@ -1466,28 +1543,30 @@ function LinearTickets({
   onSpawn,
   onOpenPrefs,
   onRefresh,
+  canChangeStatus,
   ticketChats,
   ignoredTickets,
   isNew,
   onMarkSeen,
   onContextMenu,
 }: LinearTicketsProps): JSX.Element {
+  const { t } = useTranslation();
   const [query, setQuery] = useState('');
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(
     () => Object.fromEntries(GROUPS.map((g) => [g.key, g.defaultOpen])),
   );
 
   if (status.kind === 'loading') {
-    return <div className="empty"><div className="ico">…</div><div>Loading tickets…</div></div>;
+    return <div className="empty"><div className="ico">…</div><div>{t('linear.list.loading')}</div></div>;
   }
   if (status.kind === 'not-configured') {
     return (
       <div className="empty">
         <div className="ico"><i className="fa-solid fa-ticket" /></div>
-        <div>No ticket source connected.</div>
+        <div>{t('linear.empty.notConfigured')}</div>
         {onOpenPrefs && (
           <button className="btn primary sm" onClick={() => onOpenPrefs('integ')}>
-            <i className="fa-solid fa-plug" /> Connect to Issue Tracker
+            <i className="fa-solid fa-plug" /> {t('linear.empty.connectButton')}
           </button>
         )}
       </div>
@@ -1497,9 +1576,9 @@ function LinearTickets({
     return (
       <div className="empty">
         <div className="ico"><i className="fa-solid fa-circle-exclamation" /></div>
-        <div>Linear API key was rejected.</div>
+        <div>{t('linear.empty.authFailed')}</div>
         {onOpenPrefs && (
-          <button className="btn primary sm" onClick={() => onOpenPrefs('integ')}>Reconnect</button>
+          <button className="btn primary sm" onClick={() => onOpenPrefs('integ')}>{t('common.reconnect')}</button>
         )}
       </div>
     );
@@ -1508,9 +1587,9 @@ function LinearTickets({
     return (
       <div className="empty">
         <div className="ico"><i className="fa-solid fa-circle-exclamation" /></div>
-        <div>Couldn't load tickets.</div>
+        <div>{t('linear.error.loadFailed')}</div>
         <div className="hint">{status.message}</div>
-        <button className="btn ghost sm" onClick={onRefresh}>Retry</button>
+        <button className="btn ghost sm" onClick={onRefresh}>{t('common.retry')}</button>
       </div>
     );
   }
@@ -1555,18 +1634,18 @@ function LinearTickets({
         <i className="fa-solid fa-magnifying-glass" />
         <input
           type="text"
-          placeholder="Search tickets…"
+          placeholder={t('linear.search.placeholder')}
           value={query}
           onChange={(e) => setQuery(e.target.value)}
         />
         {query && (
-          <button className="linear-search-clear" title="Clear" onClick={() => setQuery('')}>×</button>
+          <button className="linear-search-clear" title={t('common.clear')} onClick={() => setQuery('')}>×</button>
         )}
       </div>
       {sorted.length === 0 && (
         <div className="empty">
           <div className="ico">○</div>
-          <div>{q ? 'No matches.' : 'No active tickets assigned to you.'}</div>
+          <div>{q ? t('linear.empty.noMatches') : t('linear.empty.noTickets')}</div>
         </div>
       )}
       {GROUPS.map((g) => {
@@ -1581,7 +1660,7 @@ function LinearTickets({
             >
               <span className="caret">▼</span>
               <span className="status-ico-wrap"><LinearPriorityIcon priority={g.priority} /></span>
-              {g.label}
+              {t(g.labelKey)}
               <span className="count">{items.length}</span>
             </div>
             {open && items.map((issue) => (
@@ -1590,6 +1669,7 @@ function LinearTickets({
                 issue={issue}
                 onSpawn={onSpawn}
                 onRefresh={onRefresh}
+                canChangeStatus={canChangeStatus}
                 chatLink={ticketChats?.get(issue.identifier)}
                 isNew={isNew?.(issue.identifier) ?? false}
                 onMarkSeen={onMarkSeen}

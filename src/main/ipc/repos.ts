@@ -34,12 +34,7 @@ import {
 } from '../persistence/repos';
 import { listSlotOccupantsForRepo } from '../persistence/chats';
 import { slotWorktreePathForRepo } from '../git/chatPaths';
-import {
-  deleteBranch,
-  ensureSlotWorktree,
-  parkingBranch,
-  removeWorktree,
-} from '../git/worktrees';
+import { getSourceControlProvider } from '../scm';
 
 const ID_PATTERN = /^[a-z0-9][a-z0-9-]*$/;
 
@@ -122,10 +117,14 @@ export function registerReposHandlers(): void {
         return { ok: true, slotId, alreadyReady: true };
       }
       try {
-        await ensureSlotWorktree({
+        // Inside the try: getSourceControlProvider throws for unimplemented
+        // SCM ids, and this handler must return a RepoSlotStepResult rather
+        // than reject the IPC call.
+        const scm = getSourceControlProvider(repo);
+        await scm.ensureSlotWorktree({
           repoPath: repo.repoPath,
           worktreePath: path,
-          parkBranch: parkingBranch(repo.id, slotId),
+          parkBranch: scm.parkingBranch(repo.id, slotId),
           baseBranch: repo.defaultBase,
         });
         return { ok: true, slotId, alreadyReady: false };
@@ -150,8 +149,12 @@ export function registerReposHandlers(): void {
       if (here) return { ok: false, reason: 'slot-in-use', chatName: here.chatName };
       const path = slotWorktreePathForRepo(repo, slotId);
       try {
-        await removeWorktree({ repoPath: repo.repoPath, worktreePath: path });
-        await deleteBranch(repo.repoPath, parkingBranch(repo.id, slotId));
+        // Inside the try: getSourceControlProvider throws for unimplemented
+        // SCM ids, and this handler must return a RepoSlotStepResult rather
+        // than reject the IPC call.
+        const scm = getSourceControlProvider(repo);
+        await scm.removeWorktree({ repoPath: repo.repoPath, worktreePath: path });
+        await scm.deleteBranch(repo.repoPath, scm.parkingBranch(repo.id, slotId));
         return { ok: true, slotId };
       } catch (err) {
         return { ok: false, slotId, error: (err as Error).message };

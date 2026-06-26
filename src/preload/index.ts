@@ -26,6 +26,9 @@ const api: PopBotApi = {
     getVersion: () => ipcRenderer.invoke(IpcChannel.AppGetVersion),
     quit: () => ipcRenderer.invoke(IpcChannel.AppQuit),
   },
+  i18n: {
+    localeChanged: (locale: string) => ipcRenderer.send(IpcChannel.LocaleChanged, locale),
+  },
   win: {
     action: (name) => ipcRenderer.invoke(IpcChannel.WinAction, name),
     onMaximizeChange: (handler: (maximized: boolean) => void) => {
@@ -121,6 +124,13 @@ const api: PopBotApi = {
       ipcRenderer.invoke(IpcChannel.LinearSetIssueState, issueId, stateId),
     promoteIssue: (identifier: string) =>
       ipcRenderer.invoke(IpcChannel.LinearPromoteIssue, identifier),
+  },
+  jira: {
+    test: (settings) => ipcRenderer.invoke(IpcChannel.JiraTest, settings),
+    listProjects: (settings) => ipcRenderer.invoke(IpcChannel.JiraListProjects, settings),
+  },
+  github: {
+    test: () => ipcRenderer.invoke(IpcChannel.GithubTest),
   },
   git: {
     status: (chatId: string) => ipcRenderer.invoke(IpcChannel.GitStatus, chatId),

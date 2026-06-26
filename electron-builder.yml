@@ -8,6 +8,11 @@ files:
   - out/**/*
   - package.json
   - "!**/{.DS_Store,Thumbs.db,*.log}"
+  # The Claude agent SDK ships its Linux CLI binary TWICE (~225MB each) as
+  # optional deps — a glibc build and a musl build. A glibc system (our
+  # .deb, and Linux desktops generally) only ever resolves the glibc one,
+  # so the musl copy is dead weight. Drop it. (~225MB unpacked off Linux.)
+  - "!**/@anthropic-ai/claude-agent-sdk-*-musl/**"
 mac:
   target:
     - dmg

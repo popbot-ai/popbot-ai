@@ -3,6 +3,7 @@ import { execFile } from 'node:child_process';
 import { join } from 'node:path';
 import { dlog } from './diagLog';
 import { IpcChannel } from '@shared/ipc';
+import { createTranslator, LOCALE_SETTING_KEY, resolveLocale } from '@shared/i18n';
 import { fixShellPath } from './env';
 import { initDb, closeDb, isDbOpen } from './persistence/db';
 import { importExistingJsonlsIfNeeded } from './agents/sqliteSessionStoreImport';
@@ -51,7 +52,7 @@ import { probeCodexForPath } from './agents/codexProbe';
 import { registerChatHandlers } from './ipc/chats';
 import { registerAgentHandlers } from './ipc/agent';
 import { registerSettingsHandlers } from './ipc/settings';
-import { registerLinearHandlers } from './ipc/linear';
+import { registerTicketHandlers } from './ipc/tickets';
 import { registerFilesHandlers } from './ipc/files';
 import { registerAppsHandlers } from './ipc/apps';
 import { registerGitHandlers } from './ipc/git';
@@ -305,6 +306,10 @@ function registerCoreHandlers(): void {
   // bar is hidden). Routes through app.quit() so the before-quit flush
   // (SDK session JSONLs) still runs.
   ipcMain.handle(IpcChannel.AppQuit, () => app.quit());
+  // The renderer changed the UI language (and already persisted it to
+  // settings). Rebuild the native app menu so its labels follow suit
+  // without requiring a restart.
+  ipcMain.on(IpcChannel.LocaleChanged, () => installAppMenu());
   // Window / edit / view commands from the custom menu bar. Acts on the
   // window that sent the request so it works regardless of which window
   // (we only have one today, but keep it correct).
@@ -335,33 +340,45 @@ function registerCoreHandlers(): void {
   });
 }
 
+/** Current UI locale, read from the persisted setting (falls back to the
+ *  OS locale, then English). The renderer owns this setting; main mirrors
+ *  it so native chrome (the app menu) matches the in-app language. */
+function currentLocale(): import('@shared/i18n').Locale {
+  return resolveLocale(getSetting<string>(LOCALE_SETTING_KEY) ?? app.getLocale());
+}
+
 /** Build the application menu. We mostly want Electron's defaults
  *  (Edit/View/Window with their stock keybindings), but spell the
  *  Quit item out so it's obviously named "Quit PopBot" with ⌘Q —
  *  closing the window doesn't quit (hibernation), so users need a
- *  clear visible escape hatch. */
+ *  clear visible escape hatch.
+ *
+ *  Labels we set ourselves are localized via the active locale; the
+ *  role-based submenus (Edit/View/Window) keep Electron's OS-locale
+ *  strings, which is the platform-native behavior. */
 function installAppMenu(): void {
   const isMac = process.platform === 'darwin';
+  const t = createTranslator(currentLocale());
   const template: Electron.MenuItemConstructorOptions[] = [
     ...(isMac ? [{
       label: app.name,
       submenu: [
-        { label: 'About PopBot', click: () => sendShowAbout() },
+        { label: t('menu.about'), click: () => sendShowAbout() },
         { type: 'separator' as const },
         { role: 'hide' as const },
         { role: 'hideOthers' as const },
         { role: 'unhide' as const },
         { type: 'separator' as const },
-        { label: `Quit ${app.name}`, accelerator: 'Cmd+Q', click: () => app.quit() },
+        { label: t('menu.quit'), accelerator: 'Cmd+Q', click: () => app.quit() },
       ],
     }] : []),
     { role: 'editMenu' },
     { role: 'viewMenu' },
     { role: 'windowMenu' },
     ...(!isMac ? [{
-      label: 'File',
+      label: t('menu.file'),
       submenu: [
-        { label: 'Quit', accelerator: 'Ctrl+Q', click: () => app.quit() },
+        { label: t('menu.quit'), accelerator: 'Ctrl+Q', click: () => app.quit() },
       ],
     } satisfies Electron.MenuItemConstructorOptions] : []),
   ];
@@ -459,7 +476,7 @@ void app.whenReady().then(async () => {
   registerChatHandlers();
   registerAgentHandlers();
   registerSettingsHandlers();
-  registerLinearHandlers();
+  registerTicketHandlers();
   registerFilesHandlers();
   registerAppsHandlers();
   registerGitHandlers();

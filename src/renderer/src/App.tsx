@@ -7,7 +7,7 @@ import { PanelB } from './components/PanelB';
 import { MonitorCard } from './components/MonitorCard';
 import { ChatColumn, EmptyColumn, ReadinessGateModal } from './components/ChatColumn';
 import { PanelD } from './components/PanelD';
-import { GitPanel } from './components/GitPanel';
+import { SourceControlPanel } from './components/SourceControlPanel';
 import { DiffOverlay } from './components/DiffOverlay';
 import { BaseBranchDialog } from './components/BaseBranchDialog';
 import { ChatSettingsSheet } from './components/ChatSettingsSheet';
@@ -37,6 +37,8 @@ import type { CreateChatInput } from '@shared/ipc';
 import { useChats } from './lib/useChats';
 import { useReadiness } from './lib/useReadiness';
 import { hotkey } from './lib/hotkeys';
+import { useTranslation } from './lib/i18n';
+import type { Translator } from '@shared/i18n';
 import {
   type Chat as ChatFixture,
   type Ticket,
@@ -59,13 +61,13 @@ const MIN_COL_WIDTH = 560;
  * ChatRecord into that shape until those components are migrated to take
  * ChatRecord directly.
  */
-function chatRecordToFixture(c: ChatRecord): ChatFixture {
+function chatRecordToFixture(c: ChatRecord, t: Translator): ChatFixture {
   return {
     id: c.id,
     name: c.name,
-    branch: c.branch ?? '(no branch)',
+    branch: c.branch ?? t('common.noBranch'),
     status: c.status,
-    timestamp: relativeTime(c.lastActiveAt),
+    timestamp: relativeTime(c.lastActiveAt, t),
     tokens: { used: c.tokensUsed, budget: c.tokensBudget },
     snippet: c.snippet,
     type: c.type,
@@ -78,16 +80,17 @@ function chatRecordToFixture(c: ChatRecord): ChatFixture {
   };
 }
 
-function relativeTime(ts: number): string {
+function relativeTime(ts: number, t: Translator): string {
   const diff = Date.now() - ts;
-  if (diff < 30_000) return 'active now';
-  if (diff < 60_000) return 'just now';
-  if (diff < 60 * 60_000) return `${Math.floor(diff / 60_000)}m ago`;
-  if (diff < 24 * 60 * 60_000) return `${Math.floor(diff / 3_600_000)}h ago`;
-  return `${Math.floor(diff / 86_400_000)}d ago`;
+  if (diff < 30_000) return t('time.activeNow');
+  if (diff < 60_000) return t('time.justNow');
+  if (diff < 60 * 60_000) return t('time.minutesAgo', { count: Math.floor(diff / 60_000) });
+  if (diff < 24 * 60 * 60_000) return t('time.hoursAgo', { count: Math.floor(diff / 3_600_000) });
+  return t('time.daysAgo', { count: Math.floor(diff / 86_400_000) });
 }
 
 export default function App(): JSX.Element {
+  const { t } = useTranslation();
   const { chats, closedChats, loading, create, close, reopen, attachSlot, remove, refresh } = useChats();
   // The visible columns are a contiguous window of `chats`. windowStart is
   // the index of the leftmost visible chat. Click a thumbnail to scroll
@@ -129,17 +132,17 @@ export default function App(): JSX.Element {
         urgency: issue.priority === 1 ? 'high' : 'med',
         source: 'Linear',
         title: `${issue.identifier} · ${issue.title}`,
-        subtitle: issue.project?.name ? `New ticket · ${issue.project.name}` : 'New ticket',
+        subtitle: issue.project?.name ? t('notify.ticket.newWithProject', { project: issue.project.name }) : t('notify.ticket.new'),
         summary: '',
         actor: { name: 'Linear', avatar: 'LI', color: '#5e6ad2' },
         actions: [
-          { kind: 'external', label: 'Open in Linear', url: issue.url, primary: true },
-          { kind: 'internal', label: 'Show in PopBot', targetKind: 'linear-issue', targetId: issue.id },
+          { kind: 'external', label: t('notify.action.openInLinear'), url: issue.url, primary: true },
+          { kind: 'internal', label: t('notify.action.showInPopBot'), targetKind: 'linear-issue', targetId: issue.id },
         ],
         dedupKey: `ticket:${issue.id}`,
       });
     }
-  }, []);
+  }, [t]);
   // Lifted out of PanelA so the same poll feeds the ticket list AND
   // the per-chat status chip on every column. PanelA still drives the
   // refresh button via `refreshLinear`; the chips re-render whenever
@@ -441,8 +444,8 @@ export default function App(): JSX.Element {
     window.addEventListener('mouseup', onUp);
   };
 
-  const fixtures = chats.map(chatRecordToFixture);
-  const inactiveFixtures = closedChats.map(chatRecordToFixture);
+  const fixtures = chats.map((c) => chatRecordToFixture(c, t));
+  const inactiveFixtures = closedChats.map((c) => chatRecordToFixture(c, t));
   const focusedRecord = chats.find((c) => c.id === focusedId);
   const settingsChat = chats.find((c) => c.id === settingsForId);
 
@@ -538,7 +541,7 @@ export default function App(): JSX.Element {
       } else if (result.reason === 'worktree-failed') {
         // eslint-disable-next-line no-console
         console.error('worktree setup failed:', result.message);
-        setBusy({ message: 'Worktree setup failed', detail: result.message });
+        setBusy({ message: t('app.busy.worktreeFailed'), detail: result.message });
         setTimeout(() => setBusy(null), 2500);
       }
       return;
@@ -571,7 +574,16 @@ export default function App(): JSX.Element {
   const ticketBranch = (t: Ticket): string => {
     const override = getSetting<{ username?: string }>('git', {})?.username?.trim();
     const username = override || branchUsername || 'pop';
-    return `${username}/${t.id.toLowerCase()}-${slugifyTitle(t.title)}`;
+    // Sanitize the ticket id into a branch-safe slug. Linear/Jira ids
+    // (`ENG-4`) pass through unchanged; GitHub's `owner/repo#123` carries a
+    // slash and hash that aren't valid in a branch ref, so collapse any
+    // non-alphanumeric run to a single dash.
+    const idSlug = t.id
+      .toLowerCase()
+      .replace(/[^a-z0-9-]+/g, '-')
+      .replace(/-+/g, '-')
+      .replace(/^-|-$/g, '');
+    return `${username}/${idSlug}-${slugifyTitle(t.title)}`;
   };
 
   /** Focus an existing chat — and if it doesn't yet have a slot, kick
@@ -585,7 +597,7 @@ export default function App(): JSX.Element {
       if (!result.ok) {
         if (result.reason === 'no-free-slot') setNoSlotsOpen(true);
         else if (result.reason === 'worktree-failed') {
-          setBusy({ message: 'Worktree setup failed', detail: result.message });
+          setBusy({ message: t('app.busy.worktreeFailed'), detail: result.message });
           setTimeout(() => setBusy(null), 2500);
         }
         return;
@@ -595,7 +607,7 @@ export default function App(): JSX.Element {
     if (!target) return;
     scrollToChat(target.id);
     if (target.slotId == null && target.branch) {
-      setBusy({ message: 'Setting up workspace…', detail: `Checking out ${target.branch}` });
+      setBusy({ message: t('app.busy.settingUpWorkspace'), detail: t('app.busy.checkingOutBranch', { branch: target.branch }) });
       let result;
       try {
         result = await attachSlot(target.id);
@@ -607,29 +619,29 @@ export default function App(): JSX.Element {
         else if (result.reason === 'no-free-slot') setNoSlotsOpen(true);
         else if (result.reason === 'git-not-configured') openPrefsAt('git');
         else if (result.reason === 'worktree-failed') {
-          setBusy({ message: 'Worktree setup failed', detail: result.message });
+          setBusy({ message: t('app.busy.worktreeFailed'), detail: result.message });
           setTimeout(() => setBusy(null), 2500);
         }
       }
     }
   };
 
-  const handleSpawnFromTicket = (t: Ticket) => {
+  const handleSpawnFromTicket = (ticket: Ticket) => {
     const existing =
-      chats.find((c) => c.ticket === t.id) ??
-      closedChats.find((c) => c.ticket === t.id);
+      chats.find((c) => c.ticket === ticket.id) ??
+      closedChats.find((c) => c.ticket === ticket.id);
     if (existing) { void focusOrAttach(existing); return; }
     if (!requireReady()) return;
-    const branch = ticketBranch(t);
+    const branch = ticketBranch(ticket);
     setPendingCreate({
-      subtitle: `${t.id} · ${t.title.slice(0, 60)}`,
+      subtitle: `${ticket.id} · ${ticket.title.slice(0, 60)}`,
       showAgentPicker: true,
       run: async ({ repoId, baseBranch, agentConfig }) => {
         if (!repoId || !baseBranch) return;
         await createWithSlot(
       {
-        name: `${t.id} · ${t.title.slice(0, 60)}`,
-        ticket: t.id,
+        name: `${ticket.id} · ${ticket.title.slice(0, 60)}`,
+        ticket: ticket.id,
         branch,
         baseBranch,
         type: 'lite',
@@ -638,7 +650,7 @@ export default function App(): JSX.Element {
         ...agentConfig,
       },
       {
-        busy: { message: 'Setting up workspace…', detail: `Branching ${branch} from ${baseBranch}` },
+        busy: { message: t('app.busy.settingUpWorkspace'), detail: t('app.busy.branchingFrom', { branch, baseBranch }) },
         onCreated: (chatId) => {
           // Auto-promote the ticket to "In Progress" when we open a
           // chat for it. Idempotent + scoped on the main side: only
@@ -647,7 +659,7 @@ export default function App(): JSX.Element {
           // alone. Fire-and-forget — chat startup doesn't block on
           // the Linear API. After Linear acknowledges, the next
           // poll cycle (≤90s) refreshes the ticket list / chat chip.
-          void window.popbot.linear.promoteIssue(t.id).then(() => refreshLinear());
+          void window.popbot.linear.promoteIssue(ticket.id).then(() => refreshLinear());
           // Send the start-ticket prompt as the chat's first user message.
           // Falls back to the built-in default if the user hasn't customized it.
           const tmpl = (
@@ -659,18 +671,18 @@ export default function App(): JSX.Element {
           // state may not have hit React yet, so query by ticket).
           const justCreated = chats.find((c) => c.id === chatId);
           const slot = justCreated?.slotId ?? '';
-          const description = t.description ?? '';
+          const description = ticket.description ?? '';
           const text = expandTemplate(tmpl, {
-            ticketid: t.id,
-            tickettitle: t.title,
+            ticketid: ticket.id,
+            tickettitle: ticket.title,
             description,
             // Linear's `description` field is already markdown, so expose
             // it under both names — pick whichever reads better in your
             // template.
             markdown: description,
-            ticketurl: t.url ?? '',
-            priority: t.priority,
-            project: t.project,
+            ticketurl: ticket.url ?? '',
+            priority: ticket.priority,
+            project: ticket.project,
             branch,
             slot,
           });
@@ -720,7 +732,7 @@ export default function App(): JSX.Element {
     if (!requireReady()) return;
     await createWithSlot(
       {
-        name: `[CR] PR #${r.number} · ${r.title.slice(0, 80)}`,
+        name: t('app.chat.reviewName', { number: r.number, title: r.title.slice(0, 80) }),
         pr: r.number,
         type: 'lite',
         repoId: defaultRepoId(),
@@ -755,7 +767,7 @@ export default function App(): JSX.Element {
       {
         // `[CR]` prefix so review chats are obvious in the column
         // header + thumbnail strip vs. work / ticket chats.
-        name: `[CR] PR #${r.number} · ${r.title.slice(0, 80)}`,
+        name: t('app.chat.reviewName', { number: r.number, title: r.title.slice(0, 80) }),
         pr: r.number,
         type: 'lite',
         repoId: defaultRepoId(),
@@ -894,13 +906,13 @@ export default function App(): JSX.Element {
         summary: '',
         actor: { name: r.author || 'GitHub', avatar: (r.author || '?').slice(0, 2).toUpperCase(), color: '#9b51e0' },
         actions: [
-          { kind: 'external', label: 'Open on GitHub', url: r.url, primary: true },
-          { kind: 'internal', label: 'Show in PopBot', targetKind: 'review', targetId: String(r.number) },
+          { kind: 'external', label: t('notify.action.openOnGitHub'), url: r.url, primary: true },
+          { kind: 'internal', label: t('notify.action.showInPopBot'), targetKind: 'review', targetId: String(r.number) },
         ],
         dedupKey: isReReview ? `review:${r.number}:rereview` : `review:${r.number}`,
       });
     }
-  }, []);
+  }, [t]);
 
   // Surface "newer release on GitHub" pushes from main as a clickable
   // toast that opens the release page. Reuses the review-toast slot —
@@ -919,25 +931,25 @@ export default function App(): JSX.Element {
   useEffect(() => {
     if (!update) return;
     setToast({
-      message: `Update available — ${update.name}`,
-      detail: `You're on v${update.current}. Click to download v${update.latest}.`,
+      message: t('app.update.available', { name: update.name }),
+      detail: t('app.update.availableDetail', { current: update.current, latest: update.latest }),
       onClick: () => {
         window.open(update.htmlUrl, '_blank');
         dismissUpdate();
         setToast(null);
       },
     });
-  }, [update, dismissUpdate]);
+  }, [update, dismissUpdate, t]);
   // In-app auto-update staged and ready: clicking quits and relaunches into
   // the new version.
   useEffect(() => {
     if (!updateReady) return;
     setToast({
-      message: `Update ready — ${updateReady.name}`,
-      detail: `v${updateReady.version} downloaded. Click to restart and install.`,
+      message: t('app.update.ready', { name: updateReady.name }),
+      detail: t('app.update.readyDetail', { version: updateReady.version }),
       onClick: () => installUpdate(),
     });
-  }, [updateReady, installUpdate]);
+  }, [updateReady, installUpdate, t]);
 
   /** Best-effort default repo for "no-prompt" chat creation paths
    *  (review chats, Slack chats) — they don't surface the
@@ -970,13 +982,13 @@ export default function App(): JSX.Element {
     // `<username>/<slug>`. createWithSlot calls scrollToChat on success
     // so the new chat lands at the right edge of the strip.
     setPendingCreate({
-      subtitle: type === 'lite' ? 'New chat' : 'New client-test chat',
+      subtitle: type === 'lite' ? t('common.newChat') : t('app.create.newClientTestChat'),
       askSubject: true,
       allowNoRepo: true,
       allowRepoRoot: type === 'lite',
       showAgentPicker: true,
       run: async ({ repoId, baseBranch, subject, branch, workspaceMode, agentConfig }) => {
-        const name = (subject?.trim() || (type === 'lite' ? 'New chat' : 'New client-test chat'));
+        const name = (subject?.trim() || (type === 'lite' ? t('common.newChat') : t('app.create.newClientTestChat')));
         if (repoId === null) {
           await createWithSlot({
             name,
@@ -1084,7 +1096,7 @@ export default function App(): JSX.Element {
             reviewChats={reviewChats}
             ticketChats={ticketChats}
           />
-          <div className="resize-v" onMouseDown={startResizePanelA} title="Drag to resize" />
+          <div className="resize-v" onMouseDown={startResizePanelA} title={t('common.dragToResize')} />
           <PanelB
             chats={fixtures}
             inactive={inactiveFixtures}
@@ -1103,7 +1115,7 @@ export default function App(): JSX.Element {
               } else if (result.reason === 'no-free-slot') {
                 setNoSlotsOpen(true);
               } else if (result.reason === 'worktree-failed') {
-                setBusy({ message: 'Worktree setup failed', detail: result.message });
+                setBusy({ message: t('app.busy.worktreeFailed'), detail: result.message });
                 setTimeout(() => setBusy(null), 2500);
               }
             }}
@@ -1116,7 +1128,7 @@ export default function App(): JSX.Element {
               void remove(id);
             }}
             onNewChat={() => void handleNewChat('lite')}
-            toFixture={chatRecordToFixture}
+            toFixture={(c) => chatRecordToFixture(c, t)}
           />
         </div>
         <div
@@ -1133,8 +1145,8 @@ export default function App(): JSX.Element {
                 <div className="thumbstrip-empty">
                   <i className="fa-regular fa-images" />
                   <div className="thumbstrip-empty-text">
-                    <strong>Thumbnails Panel</strong>
-                    <span>Miniature versions of your chats will display here when you open chats.</span>
+                    <strong>{t('app.thumbstrip.emptyTitle')}</strong>
+                    <span>{t('app.thumbstrip.emptyBody')}</span>
                   </div>
                 </div>
               )}
@@ -1177,10 +1189,10 @@ export default function App(): JSX.Element {
               />
             )}
             <div className="center-actions">
-              <button className="iconbtn" title={`Command palette ${hotkey('K')}`}>{hotkey('K')}</button>
+              <button className="iconbtn" title={t('app.actions.commandPalette', { shortcut: hotkey('K') })}>{hotkey('K')}</button>
               <button
                 className="iconbtn primary"
-                title={`New chat ${hotkey('T')}`}
+                title={t('app.actions.newChat', { shortcut: hotkey('T') })}
                 onClick={() => void handleNewChat('lite')}
               >
                 +
@@ -1228,7 +1240,7 @@ export default function App(): JSX.Element {
         />
 
         <PanelD
-          focusedChat={focusedRecord ? chatRecordToFixture(focusedRecord) : undefined}
+          focusedChat={focusedRecord ? chatRecordToFixture(focusedRecord, t) : undefined}
           focusedRecord={focusedRecord ?? null}
         />
 
@@ -1239,10 +1251,13 @@ export default function App(): JSX.Element {
               className="resize-h-right"
               onMouseDown={startResizeHRight}
               style={{ right: colRight }}
-              title="Drag to resize"
+              title={t('common.dragToResize')}
             />
             <div className="right">
-              <GitPanel
+              {/* Dispatcher: renders the git sidebar today; routes to a
+                  provider-specific panel (e.g. P4Panel) once the focused
+                  repo's SCM is threaded through as `providerId`. */}
+              <SourceControlPanel
                 chatId={focusedRecord?.id ?? null}
                 chatName={focusedRecord?.name}
                 chatTicket={focusedRecord?.ticket ?? null}
@@ -1340,15 +1355,14 @@ export default function App(): JSX.Element {
           <div className="scrim" onClick={() => setNoSlotsOpen(false)} />
           <div className="modal" data-screen-label="Modal · no-slots">
             <div className="modal-head">
-              <h2>No free workspace slots</h2>
-              <div className="sub">Every slot is held by an open chat.</div>
+              <h2>{t('app.noSlots.title')}</h2>
+              <div className="sub">{t('app.noSlots.subtitle')}</div>
             </div>
             <div className="modal-body">
-              Close one of your active chats to free a slot, or raise the slot
-              limit in <b>Preferences → Runtime &amp; Slots</b>.
+              {t('app.noSlots.body', { prefsLink: t('app.noSlots.prefsPath') })}
             </div>
             <div className="modal-foot">
-              <button className="btn ghost" onClick={() => setNoSlotsOpen(false)}>Cancel</button>
+              <button className="btn ghost" onClick={() => setNoSlotsOpen(false)}>{t('common.cancel')}</button>
               <button
                 className="btn primary"
                 onClick={() => {
@@ -1356,7 +1370,7 @@ export default function App(): JSX.Element {
                   openPrefsAt('runtime');
                 }}
               >
-                Open Preferences
+                {t('app.noSlots.openPreferences')}
               </button>
             </div>
           </div>

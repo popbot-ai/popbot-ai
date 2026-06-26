@@ -24,6 +24,8 @@ import { useAppsRunning } from '../lib/useAppsRunning';
 import { LinearStateIcon, isPausedState, PAUSED_COLOR } from '../lib/linearIcons';
 import { colAccentStyle } from '../lib/repoColor';
 import { ConfirmDialog } from './ConfirmDialog';
+import { useTranslation } from '../lib/i18n';
+import type { MessageKey, Translator } from '@shared/i18n';
 
 /** Build an `rgba(r,g,b,alpha)` from a `#rrggbb` color. Used by chips
  *  to derive their background + border tints from the state's primary
@@ -42,10 +44,11 @@ function tintFromHex(hex: string, alpha: number): string {
  *  passed in from App's shared `useLinearIssues` poll. Click anywhere
  *  on the chip opens the ticket page; the trailing ↗ icon makes that
  *  affordance obvious without taking a separate click target. */
-function TicketChip({ identifier, state, url }: {
+function TicketChip({ identifier, state, url, t }: {
   identifier: string;
   state: { name: string; type: string; color?: string };
   url: string;
+  t: Translator;
 }): JSX.Element {
   // Paused/blocked: force the brown PAUSED_COLOR so they stay visually
   // distinct from In Progress even when Linear's workflow palette
@@ -60,7 +63,7 @@ function TicketChip({ identifier, state, url }: {
         background: tintFromHex(stateColor, 0.12),
         borderColor: tintFromHex(stateColor, 0.45),
       }}
-      title={`${identifier} · ${state.name} — open in Linear`}
+      title={t('chat.ticket.chipTitle', { identifier, state: state.name })}
       onClick={() => window.open(url, '_blank')}
     >
       <LinearStateIcon state={state} size={11} />
@@ -72,7 +75,7 @@ function TicketChip({ identifier, state, url }: {
 
 /** GitHub PR status chip. Same shape as TicketChip but with PR-state
  *  palette and a fa-code-* icon. */
-function PrChip({ pr }: { pr: GitPrInfo }): JSX.Element {
+function PrChip({ pr, t }: { pr: GitPrInfo; t: Translator }): JSX.Element {
   // GitHub PR state palette:
   //   OPEN   → green (active work)
   //   MERGED → purple (committed; what GitHub itself uses)
@@ -85,17 +88,24 @@ function PrChip({ pr }: { pr: GitPrInfo }): JSX.Element {
       : pr.state === 'CLOSED'
         ? { color: '#c08660', bg: 'rgba(192,134,96,0.12)', border: 'rgba(192,134,96,0.45)', icon: 'fa-circle-xmark' }
         : { color: 'var(--st-done)', bg: 'var(--st-done-bg)', border: 'rgba(63,178,127,0.45)', icon: 'fa-code-pull-request' };
-  const label = pr.isDraft ? 'Draft' : pr.state === 'MERGED' ? 'Merged' : pr.state === 'CLOSED' ? 'Closed' : 'Open';
+  const labelKey: MessageKey = pr.isDraft
+    ? 'chat.pr.stateDraft'
+    : pr.state === 'MERGED'
+      ? 'chat.pr.stateMerged'
+      : pr.state === 'CLOSED'
+        ? 'chat.pr.stateClosed'
+        : 'chat.pr.stateOpen';
+  const label = t(labelKey);
   return (
     <button
       type="button"
       className="chat-status-chip"
       style={{ color: palette.color, background: palette.bg, borderColor: palette.border }}
-      title={`PR #${pr.number} · ${label} — open on GitHub`}
+      title={t('chat.pr.chipTitle', { number: pr.number, label })}
       onClick={() => window.open(pr.url, '_blank')}
     >
       <i className={`fa-solid ${palette.icon}`} aria-hidden />
-      <span>PR #{pr.number} · {label}</span>
+      <span>{t('chat.pr.chipLabel', { number: pr.number, label })}</span>
       <i className="fa-solid fa-arrow-up-right-from-square chat-status-chip-ext" aria-hidden />
     </button>
   );
@@ -125,13 +135,20 @@ const MODEL_OPTIONS = [
   },
 ] as const;
 
-const REASONING_LABELS: Record<ClaudeReasoningEffort | CodexReasoningEffort, string> = {
-  none: 'None',
-  low: 'Low',
-  medium: 'Medium',
-  high: 'High',
-  xhigh: 'XHigh',
-  max: 'Max',
+const REASONING_LABEL_KEYS: Record<ClaudeReasoningEffort | CodexReasoningEffort, MessageKey> = {
+  none: 'chat.reasoning.none',
+  low: 'chat.reasoning.low',
+  medium: 'chat.reasoning.medium',
+  high: 'chat.reasoning.high',
+  xhigh: 'chat.reasoning.xhigh',
+  max: 'chat.reasoning.max',
+};
+
+const STATUS_LABEL_KEYS: Record<string, MessageKey> = {
+  run: 'chat.status.running',
+  done: 'chat.status.done',
+  wait: 'chat.status.needsYou',
+  err: 'chat.status.error',
 };
 
 interface PendingAgentSwitch {
@@ -181,6 +198,7 @@ export function ChatColumn({
   ticket,
   pr,
 }: ChatColumnProps): JSX.Element {
+  const { t } = useTranslation();
   const [draft, setDraft] = useState('');
   const [sending, setSending] = useState(false);
   const [configuringAgent, setConfiguringAgent] = useState(false);
@@ -412,7 +430,9 @@ export function ChatColumn({
       console.error('agent.approve failed', err);
     }
   }, [chat.id]);
-  const repoTitle = chat.repoId === RAW_CHAT_REPO_ID ? 'No repo' : `Repo · ${chat.repoId}`;
+  const repoTitle = chat.repoId === RAW_CHAT_REPO_ID
+    ? t('chat.repo.none')
+    : t('chat.repo.withName', { repoId: chat.repoId });
 
   return (
     <>
@@ -429,7 +449,7 @@ export function ChatColumn({
     >
       {isActive && <div className="active-rail" aria-hidden="true" />}
       <div className="col-head">
-        <button className="col-close" title="Close chat" onClick={onClose}>
+        <button className="col-close" title={t('chat.col.closeTitle')} onClick={onClose}>
           <i className="fa-solid fa-xmark" />
         </button>
         <span className="col-name" title={chat.name}>
@@ -443,19 +463,15 @@ export function ChatColumn({
               was redundant noise. */}
         </span>
         <span className="col-meta">
-          <span className={`pill ${chat.status}`} title={`status: ${chat.status}`}>
+          <span className={`pill ${chat.status}`} title={t('chat.col.statusTitle', { status: chat.status })}>
             <i className={`fa-solid ${statusIcon}`} style={{ fontSize: 9 }} />
-            {chat.status === 'run' ? 'running' :
-             chat.status === 'done' ? 'done' :
-             chat.status === 'wait' ? 'needs you' :
-             chat.status === 'err' ? 'error' :
-             'idle'}
+            {t(STATUS_LABEL_KEYS[chat.status] ?? 'chat.status.idle')}
           </span>
           <button
             className="iconbtn"
             style={{ width: 22, height: 22, borderRadius: 4, color: 'var(--fg-2)' }}
             onClick={handleSettings}
-            title="Per-chat settings"
+            title={t('chat.col.settingsTitle')}
           >
             <i className="fa-solid fa-gear" />
           </button>
@@ -466,16 +482,16 @@ export function ChatColumn({
         {/* Both chips render side-by-side when applicable so the user
             can jump to either Linear or GitHub from the chat header. */}
         {ticket && chat.ticket && (
-          <TicketChip identifier={chat.ticket} state={ticket.state} url={ticket.url} />
+          <TicketChip identifier={chat.ticket} state={ticket.state} url={ticket.url} t={t} />
         )}
-        {pr && <PrChip pr={pr} />}
+        {pr && <PrChip pr={pr} t={t} />}
       </div>
       <div className="col-body">
         <div className="col-branch-strip">
           {chat.slotId != null && (
             <span
               className="slot-pip occupied slot-pip-wide"
-              title={`Workspace slot ${chat.slotId} · ${chat.repoId}`}
+              title={t('chat.slot.workspaceTitle', { slotId: chat.slotId, repoId: chat.repoId })}
             >
               {/* Compose `${prefix}-${slotId}` from the live repo
                   record (joined into ChatRecord). Reading from the
@@ -485,7 +501,7 @@ export function ChatColumn({
                   was later configured with prefix `ops`. */}
               {chat.repoSlotPrefix
                 ? `${chat.repoSlotPrefix}-${chat.slotId}`
-                : (chat.worktreePath?.split(/[/\\]/).pop() ?? `Slot ${chat.slotId}`)}
+                : (chat.worktreePath?.split(/[/\\]/).pop() ?? t('chat.slot.fallback', { slotId: chat.slotId }))}
             </span>
           )}
           {/* Ephemeral chats have no slot id — they get an outline-style
@@ -498,19 +514,19 @@ export function ChatColumn({
             <span
               className="slot-pip slot-pip-wide slot-pip-outline"
               style={chat.repoColor ? { color: chat.repoColor, borderColor: chat.repoColor } : undefined}
-              title={`Worktree · ${chat.worktreePath}`}
+              title={t('chat.slot.worktreeTitle', { worktreePath: chat.worktreePath })}
             >
               {chat.worktreePath.split(/[/\\]/).pop()}
             </span>
           )}
           {chat.branch && (
-            <span className="col-branch" title={`Branch · ${chat.branch}`}>
+            <span className="col-branch" title={t('chat.branch.title', { branch: chat.branch })}>
               <i className="fa-solid fa-code-branch col-branch-icon" />
               <span className="col-branch-name mono">{chat.branch}</span>
             </span>
           )}
           <span className="col-branch-meta">
-            {chat.type === 'lite' ? 'Lite' : 'Client Test'}
+            {chat.type === 'lite' ? t('chat.type.lite') : t('chat.type.clientTest')}
             {chat.ticket ? ` · ${chat.ticket}` : ''}
             {chat.pr ? ` · PR #${chat.pr}` : ''}
           </span>
@@ -525,7 +541,7 @@ export function ChatColumn({
       <div
         className="col-foot-resize"
         onMouseDown={startResizeInput}
-        title="Drag to resize the input"
+        title={t('chat.input.resizeTitle')}
         role="separator"
         aria-orientation="horizontal"
       />
@@ -540,7 +556,7 @@ export function ChatColumn({
                   <button
                     className="attachment-chip-x"
                     onClick={() => removeAttachment(a.id)}
-                    title="Remove attachment"
+                    title={t('chat.attachment.removeTitle')}
                   >
                     <i className="fa-solid fa-xmark" />
                   </button>
@@ -552,9 +568,9 @@ export function ChatColumn({
             placeholder={
               isActive
                 ? chat.status === 'run'
-                  ? 'Agent running… type to queue a message  ·  Shift+Enter for newline'
-                  : 'Send a message…  ·  Shift+Enter for newline'
-                : 'Click to make this the active chat'
+                  ? t('chat.input.placeholderRunning')
+                  : t('chat.input.placeholderIdle')
+                : t('chat.input.placeholderInactive')
             }
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
@@ -564,22 +580,22 @@ export function ChatColumn({
           <div className="input-row">
             <button
               className="iconbtn"
-              title="Attach image"
+              title={t('chat.input.attachImage')}
               onClick={() => void pickAttachment('image')}
             >
               <i className="fa-solid fa-image" />
             </button>
             <button
               className="iconbtn"
-              title="Attach file"
+              title={t('chat.input.attachFile')}
               onClick={() => void pickAttachment('any')}
             >
               <i className="fa-solid fa-paperclip" />
             </button>
             <select
               className={`agent-select ${agent}`}
-              title="Model"
-              aria-label="Model"
+              title={t('chat.input.model')}
+              aria-label={t('chat.input.model')}
               value={selectedModelValue}
               disabled={configuringAgent || chat.status === 'run'}
               onChange={(e) => changeModel(e.currentTarget.value)}
@@ -590,8 +606,8 @@ export function ChatColumn({
             </select>
             <select
               className={`reasoning-select ${agent}`}
-              title="Effort"
-              aria-label="Effort"
+              title={t('chat.input.effort')}
+              aria-label={t('chat.input.effort')}
               value={selectedReasoningEffort}
               disabled={configuringAgent || chat.status === 'run'}
               onChange={(e) => changeReasoning(
@@ -599,7 +615,7 @@ export function ChatColumn({
               )}
             >
               {reasoningEfforts.map((effort) => (
-                <option key={effort} value={effort}>{REASONING_LABELS[effort]}</option>
+                <option key={effort} value={effort}>{t(REASONING_LABEL_KEYS[effort])}</option>
               ))}
             </select>
             <span className="spacer" />
@@ -607,8 +623,8 @@ export function ChatColumn({
               <b>{fmtTokens(chat.tokensUsed)}</b> / {fmtTokens(chat.tokensBudget)}
             </span>
             {chat.status === 'run' ? (
-              <button className="btn danger sm" title="Stop agent" onClick={stop}>
-                <i className="fa-solid fa-stop" /> Stop
+              <button className="btn danger sm" title={t('chat.input.stopTitle')} onClick={stop}>
+                <i className="fa-solid fa-stop" /> {t('chat.input.stop')}
               </button>
             ) : (
               <button
@@ -616,7 +632,7 @@ export function ChatColumn({
                 onClick={() => void send()}
                 disabled={sending || !draft.trim()}
               >
-                Send <span className="kbd">↵</span>
+                {t('common.send')} <span className="kbd">↵</span>
               </button>
             )}
           </div>
@@ -625,14 +641,10 @@ export function ChatColumn({
     </div>
     {pendingAgentSwitch && (
       <ConfirmDialog
-        title="Resume with a different agent?"
-        message={
-          'The current agent session id will be kept, so you can switch back later. ' +
-          'The new agent uses its own session and will be restarted with this chat transcript as context. ' +
-          'Some private agent state may be lost.'
-        }
-        cancelLabel="Cancel"
-        confirmLabel="Restart"
+        title={t('chat.agentSwitch.title')}
+        message={t('chat.agentSwitch.message')}
+        cancelLabel={t('common.cancel')}
+        confirmLabel={t('chat.agentSwitch.confirm')}
         onCancel={() => setPendingAgentSwitch(null)}
         onConfirm={() => void switchAgentAndRestart(pendingAgentSwitch)}
       />
@@ -647,69 +659,16 @@ export function ChatColumn({
 // Git client deliberately omitted for now: GitHub Desktop doesn't
 // support worktrees, so launching it would point at the parent repo
 // instead of the slot. Re-add once we have a worktree-friendly client.
-// A "verb" a platform (or the slot itself) offers: an icon, a name (tooltip), and
-// the action it runs. A verb with no `action` is modeled but not wired yet (shown
-// disabled / "coming soon"). Platforms proffer their OWN verbs — Open Editor / Run
-// / Build / Debug are just common conventions, NOT a fixed set; a platform can
-// offer any verbs it wishes.
-type SlotVerbAction = 'terminal' | 'editor' | 'unity';
-interface Verb {
-  id: string;
+const APP_BUTTONS: Array<{
+  kind: 'terminal' | 'editor' | 'unity';
   icon: string;
-  name: string;
+  labelKey: MessageKey;
   color: string;
-  action?: SlotVerbAction;
-}
-
-// Slot-level dev tools, available on any chat with a worktree regardless of platform.
-const DEV_VERBS: Verb[] = [
-  { id: 'terminal', icon: 'fa-solid fa-terminal', name: 'Terminal', color: '#7fb676', action: 'terminal' },
-  { id: 'editor',   icon: 'fa-solid fa-code',     name: 'Editor',   color: '#4f8bff', action: 'editor' },
+}> = [
+  { kind: 'terminal', icon: 'fa-solid fa-terminal',         labelKey: 'chat.app.terminal', color: '#7fb676' },
+  { kind: 'editor',   icon: 'fa-solid fa-code',             labelKey: 'chat.app.editor',   color: '#4f8bff' },
+  { kind: 'unity',    icon: 'fa-solid fa-cube',             labelKey: 'chat.app.unity',    color: '#d6a13b' },
 ];
-
-// Stock Font Awesome icons + names for well-known verbs. A platform names one of
-// these by id and skips the icon/name; custom verbs supply their own.
-const WELL_KNOWN_VERBS: Record<string, { icon: string; name: string; color: string }> = {
-  'open-editor': { icon: 'fa-solid fa-pen-ruler', name: 'Open Editor', color: '#d6a13b' },
-  run:     { icon: 'fa-solid fa-play',       name: 'Run',     color: '#5fb35f' },
-  dev:     { icon: 'fa-solid fa-bolt',       name: 'Dev',     color: '#5fb39f' },
-  debug:   { icon: 'fa-solid fa-bug',        name: 'Debug',   color: '#c95f5f' },
-  build:   { icon: 'fa-solid fa-hammer',     name: 'Build',   color: '#c98a3a' },
-  test:    { icon: 'fa-solid fa-vial',       name: 'Test',    color: '#7fb6c0' },
-  migrate: { icon: 'fa-solid fa-database',   name: 'Migrate', color: '#8a9ad0' },
-  shell:   { icon: 'fa-solid fa-terminal',   name: 'Shell',   color: '#9fb37f' },
-  package: { icon: 'fa-solid fa-box-open',   name: 'Package', color: '#c0a060' },
-  profile: { icon: 'fa-solid fa-gauge-high', name: 'Profile', color: '#b08ad0' },
-  stop:    { icon: 'fa-solid fa-stop',       name: 'Stop',    color: '#c95f5f' },
-};
-
-// A platform proffers verbs as either a well-known id (icon/name from stock) or a
-// custom partial that overrides/extends. `action` wires it to a launcher; absent
-// = modeled but not wired yet. Platforms span game engines (unity, unreal, godot)
-// AND app frameworks (node, flask, django, …), each with its own verbs.
-type PlatformVerb = string | (Partial<Verb> & { id: string });
-
-const PLATFORM_VERBS: Record<string, PlatformVerb[]> = {
-  unity: [{ id: 'open-editor', action: 'unity' }, 'run', 'build', 'debug'],
-  // unreal / godot / node / flask / django … declare their verbs here as
-  // each platform's launcher backend lands. e.g.:
-  //   django: ['run', 'migrate', 'shell', 'test'],
-  //   node:   ['dev', 'test', 'build'],
-};
-
-// Resolve a platform verb to a concrete Verb, filling icon/name/color from the
-// well-known stock when the platform didn't provide them.
-function resolveVerb(v: PlatformVerb): Verb {
-  const ref = typeof v === 'string' ? { id: v } : v;
-  const stock = WELL_KNOWN_VERBS[ref.id];
-  return {
-    id: ref.id,
-    icon: ref.icon ?? stock?.icon ?? 'fa-solid fa-bolt',
-    name: ref.name ?? stock?.name ?? ref.id,
-    color: ref.color ?? stock?.color ?? '#9aa0a6',
-    action: ref.action,
-  };
-}
 
 function SlotAppButtons({
   worktreePath,
@@ -718,16 +677,13 @@ function SlotAppButtons({
   worktreePath: string | null;
   onOpenPrefs?: (section?: string) => void;
 }): JSX.Element {
+  const { t } = useTranslation();
   const enabled = !!worktreePath;
   const running = useAppsRunning();
   // Main reports running state by slot basename (e.g. 'slot-3') so
   // we don't have to worry about per-app path conventions in the
   // renderer (Unity's project-subpath setting, etc.).
   const slotName = worktreePath ? worktreePath.split(/[/\\]/).pop() ?? '' : '';
-  // TODO: resolve the chat's platform from its repo (per-repo platform selection
-  // is a follow-up). Defaulting to 'unity' for now so engine verbs show.
-  const platform = 'unity';
-  const verbs: Verb[] = [...DEV_VERBS, ...(PLATFORM_VERBS[platform] ?? []).map(resolveVerb)];
   const open = async (kind: 'terminal' | 'editor' | 'git' | 'unity') => {
     if (!worktreePath) return;
     const res = await window.popbot.apps.open(kind, worktreePath);
@@ -751,9 +707,7 @@ function SlotAppButtons({
   };
   const openAll = () => {
     if (!worktreePath) return;
-    verbs.forEach((b) => {
-      if (b.action) void open(b.action);
-    });
+    APP_BUTTONS.forEach((b) => void open(b.kind));
   };
   return (
     <div
@@ -765,26 +719,23 @@ function SlotAppButtons({
         openAll();
       }}
     >
-      {verbs.map((b) => {
-        const wired = !!b.action;
-        const isRunning = !!b.action && !!slotName && (running[b.action]?.has(slotName) ?? false);
-        const usable = enabled && wired;
+      {APP_BUTTONS.map((b) => {
+        const isRunning = !!slotName && running[b.kind].has(slotName);
+        const label = t(b.labelKey);
         return (
           <button
-            key={b.id}
+            key={b.kind}
             className={`slot-app-btn ${isRunning ? 'running' : ''}`}
-            disabled={!usable}
-            onClick={() => b.action && open(b.action)}
+            disabled={!enabled}
+            onClick={() => open(b.kind)}
             title={
-              !wired
-                ? `${b.name} — coming soon`
-                : isRunning
-                  ? `${b.name} — running for this slot (click to focus)`
-                  : enabled
-                    ? `${b.name} — ${worktreePath}`
-                    : `${b.name} (no slot)`
+              isRunning
+                ? t('chat.app.runningTitle', { label })
+                : enabled
+                  ? `${label} — ${worktreePath}`
+                  : t('chat.app.noSlotTitle', { label })
             }
-            style={usable ? { color: b.color } : undefined}
+            style={enabled ? { color: b.color } : undefined}
           >
             <i className={b.icon} />
           </button>
@@ -864,31 +815,32 @@ function InstallHelpDialog({
   provider: 'claude' | 'codex';
   onClose: () => void;
 }): JSX.Element {
+  const { t } = useTranslation();
   const info = provider === 'claude'
     ? {
-        title: 'Enable the Claude agent',
+        title: t('chat.install.claudeTitle'),
         cli: 'Claude Code CLI',
         vendor: 'Anthropic',
-        intro: 'PopBot runs Anthropic’s official Claude Code CLI — it doesn’t bundle or install it for you. Once the CLI is installed and signed in, PopBot detects it automatically and the Claude agent turns on.',
+        intro: t('chat.install.claudeIntro'),
         docsUrl: 'https://docs.claude.com/en/docs/claude-code/setup',
-        signin: 'Run claude once and sign in with your Anthropic account.',
+        signin: t('chat.install.claudeSignin'),
       }
     : {
-        title: 'Enable the Codex agent',
+        title: t('chat.install.codexTitle'),
         cli: 'Codex CLI',
         vendor: 'OpenAI',
-        intro: 'Codex is optional — an alternative agent PopBot can drive. PopBot runs OpenAI’s official Codex CLI and doesn’t install it for you. Once it’s installed and signed in, PopBot detects it automatically.',
+        intro: t('chat.install.codexIntro'),
         docsUrl: 'https://developers.openai.com/codex/cli/',
-        signin: 'Run codex once and sign in with your OpenAI account.',
+        signin: t('chat.install.codexSignin'),
       };
   const steps: Array<{ title: string; desc: string; cta?: { text: string; onClick: () => void } }> = [
     {
-      title: `Install the ${info.cli}`,
-      desc: `Follow ${info.vendor}’s official install guide for your operating system.`,
-      cta: { text: `Open ${info.vendor}’s install guide`, onClick: () => window.open(info.docsUrl, '_blank') },
+      title: t('chat.install.stepInstall', { cli: info.cli }),
+      desc: t('chat.install.stepInstallDesc', { vendor: info.vendor }),
+      cta: { text: t('chat.install.openGuide', { vendor: info.vendor }), onClick: () => window.open(info.docsUrl, '_blank') },
     },
-    { title: 'Sign in', desc: info.signin },
-    { title: 'Restart PopBot', desc: 'PopBot re-checks on launch and enables the agent automatically.' },
+    { title: t('chat.install.stepSignin'), desc: info.signin },
+    { title: t('chat.install.stepRestart'), desc: t('chat.install.stepRestartDesc') },
   ];
   return (
     <>
@@ -917,7 +869,7 @@ function InstallHelpDialog({
           </ol>
         </div>
         <div className="modal-foot">
-          <button className="btn primary" onClick={onClose}>Got it</button>
+          <button className="btn primary" onClick={onClose}>{t('common.gotIt')}</button>
         </div>
       </div>
     </>
@@ -936,6 +888,7 @@ export function ReadinessChecklist({
   readiness: Readiness;
   onOpenPrefs?: (section?: string) => void;
 }): JSX.Element {
+  const { t } = useTranslation();
   const [installHelp, setInstallHelp] = useState<'claude' | 'codex' | null>(null);
   const claudeOk = r.backends?.claude.ok ?? false;
   const codexOk = r.backends?.codex.ok ?? false;
@@ -943,10 +896,10 @@ export function ReadinessChecklist({
     <>
       <div className="ready-card">
         <div className="ready-card-head">
-          <span>{r.loading ? 'Checking setup…' : r.ready ? 'Ready to go' : 'Finish setup'}</span>
+          <span>{r.loading ? t('chat.ready.checking') : r.ready ? t('chat.ready.ready') : t('chat.ready.finish')}</span>
           <button
             className="ready-recheck"
-            title="Re-check (after installing a CLI or adding a repo)"
+            title={t('chat.ready.recheckTitle')}
             onClick={() => r.refresh()}
             disabled={r.loading}
           >
@@ -955,37 +908,37 @@ export function ReadinessChecklist({
         </div>
         <ReadyRow
           state={claudeOk ? 'ok' : 'missing'}
-          label="Claude"
+          label={t('chat.ready.claudeLabel')}
           detail={claudeOk
             ? (r.backends?.claude.version?.replace(/\s*\(.*\)$/, '') ?? '')
-            : 'not found'}
-          okText="Online"
+            : t('chat.ready.notFound')}
+          okText={t('chat.ready.online')}
           action={claudeOk ? undefined : {
-            text: 'How to install',
+            text: t('chat.ready.howToInstall'),
             onClick: () => setInstallHelp('claude'),
           }}
         />
         <ReadyRow
           state={codexOk ? 'ok' : 'optional'}
-          label="Codex"
+          label={t('chat.ready.codexLabel')}
           detail={codexOk
             ? (r.backends?.codex.version?.replace(/\s*\(.*\)$/, '') ?? '')
-            : 'optional'}
-          okText="Online"
+            : t('chat.ready.optional')}
+          okText={t('chat.ready.online')}
           action={codexOk ? undefined : {
-            text: 'How to install',
+            text: t('chat.ready.howToInstall'),
             onClick: () => setInstallHelp('codex'),
           }}
         />
         <ReadyRow
           state={r.hasRepo ? 'ok' : 'missing'}
-          label="Repository"
+          label={t('chat.ready.repoLabel')}
           detail={r.hasRepo
-            ? (r.repoCount > 1 ? `${r.repoCount} repos` : (r.repoName ?? ''))
-            : 'none'}
-          okText="Ready"
+            ? (r.repoCount > 1 ? t('chat.ready.repoCount', { count: r.repoCount }) : (r.repoName ?? ''))
+            : t('common.none')}
+          okText={t('chat.ready.ok')}
           action={r.hasRepo ? undefined : {
-            text: 'Add repository',
+            text: t('chat.ready.addRepo'),
             icon: 'fa-code-fork',
             onClick: () => onOpenPrefs?.('repos'),
           }}
@@ -1012,24 +965,24 @@ export function ReadinessGateModal({
   readiness: Readiness;
   onClose: () => void;
 }): JSX.Element {
+  const { t } = useTranslation();
   const missing = !readiness.hasAgent && !readiness.hasRepo
-    ? 'an AI provider and at least one git repository'
+    ? t('chat.gate.missingBoth')
     : !readiness.hasAgent
-      ? 'an AI provider (Claude or Codex)'
-      : 'at least one git repository';
+      ? t('chat.gate.missingAgent')
+      : t('chat.gate.missingRepo');
   return (
     <>
       <div className="scrim" onClick={onClose} />
       <div className="modal" data-screen-label="Modal · finish-setup">
         <div className="modal-head">
-          <h2>Finish setup first</h2>
+          <h2>{t('chat.gate.title')}</h2>
         </div>
         <div className="modal-body">
-          PopBot needs {missing} before it can start a chat. Complete the setup steps
-          shown in the center of the screen, then try again.
+          {t('chat.gate.body', { missing })}
         </div>
         <div className="modal-foot">
-          <button className="btn primary" onClick={onClose}>Got it</button>
+          <button className="btn primary" onClick={onClose}>{t('common.gotIt')}</button>
         </div>
       </div>
     </>
@@ -1042,27 +995,28 @@ export function EmptyColumn({
   onOpenPrefs,
   readiness: r,
 }: EmptyColumnProps): JSX.Element {
+  const { t } = useTranslation();
   // Block chat creation until a repo + at least one agent are ready.
   // While the probe is in-flight, don't disable (avoid a flash of the
   // disabled state on a machine that's actually set up).
   const blocked = !r.loading && !r.ready;
   const gateReason = !r.hasAgent
-    ? 'Install an agent CLI (Claude or Codex) to start a chat.'
+    ? t('chat.empty.gateNoAgent')
     : !r.hasRepo
-      ? 'Add a repository before starting a chat.'
+      ? t('chat.empty.gateNoRepo')
       : undefined;
 
   return (
     <div className="col" data-screen-label="Chat · Empty">
       <div className="col-head">
         {onClose && (
-          <button className="col-close" title="Close" onClick={onClose}>×</button>
+          <button className="col-close" title={t('chat.empty.closeTitle')} onClick={onClose}>×</button>
         )}
-        <span className="col-name" style={{ color: 'var(--fg-2)' }}>New chat</span>
+        <span className="col-name" style={{ color: 'var(--fg-2)' }}>{t('chat.empty.newChat')}</span>
       </div>
       <div className="col-empty">
-        <h3>Start a new chat</h3>
-        <p>Click a ticket or PR on the left to seed a chat, or start one below.</p>
+        <h3>{t('chat.empty.heading')}</h3>
+        <p>{t('chat.empty.subtext')}</p>
 
         {/* Once the required pieces (an AI provider + a repo) are ready,
             the setup checklist disappears — just show the create buttons.
@@ -1071,11 +1025,11 @@ export function EmptyColumn({
         {r.ready ? (
           <>
             <div className="options">
-              <button className="btn primary" onClick={onNewChat}>+ New chat</button>
+              <button className="btn primary" onClick={onNewChat}>{t('chat.empty.newChatBtn')}</button>
             </div>
             <div style={{ fontSize: 10.5, color: 'var(--fg-3)', marginTop: 12, lineHeight: 1.6 }}>
-              <span className="kbd">{hotkey('T')}</span> new chat · <span className="kbd">{hotkey('T', { shift: true })}</span> from clipboard URL ·{' '}
-              <span className="kbd">{hotkey('K')}</span> palette
+              <span className="kbd">{hotkey('T')}</span> {t('chat.empty.hintNewChat')} · <span className="kbd">{hotkey('T', { shift: true })}</span> {t('chat.empty.hintFromClipboard')} ·{' '}
+              <span className="kbd">{hotkey('K')}</span> {t('chat.empty.hintPalette')}
             </div>
           </>
         ) : (
@@ -1083,7 +1037,7 @@ export function EmptyColumn({
             <ReadinessChecklist readiness={r} onOpenPrefs={onOpenPrefs} />
             {blocked && (
               <div style={{ fontSize: 12, color: 'var(--warn, #e6b04a)', marginTop: 4 }}>
-                {gateReason} Use the buttons above to finish setup.
+                {t('chat.empty.useButtons', { gateReason: gateReason ?? '' })}
               </div>
             )}
           </>

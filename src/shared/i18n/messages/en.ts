@@ -1,0 +1,1039 @@
+/**
+ * English message catalog — the SOURCE OF TRUTH for localization.
+ *
+ * Every other locale is a `Partial` of this object's keys (see
+ * `../types.ts`), and any key missing from a locale falls back to the
+ * English string here. That means:
+ *   - This file must contain EVERY user-facing string key.
+ *   - Adding a new string = add it here first, then translate.
+ *
+ * Interpolation: use `{name}` placeholders and pass values as the second
+ * argument to `t()`, e.g. `t('about.version', { version: '1.2.3' })`.
+ *
+ * Keys are namespaced by surface (`menu.*`, `about.*`, `prefs.*`, …) so
+ * the catalog stays navigable as more of the app gets localized.
+ */
+export const en = {
+  // ---------------------------------------------------------------------------
+  // Generic, reused across many surfaces.
+  // ---------------------------------------------------------------------------
+  'common.confirm': 'Confirm',
+  'common.cancel': 'Cancel',
+  'common.close': 'Close',
+  'common.done': 'Done',
+  'common.save': 'Save',
+  'common.saved': 'Saved.',
+  'common.saving': 'Saving…',
+  'common.loading': 'Loading…',
+  'common.retry': 'Retry',
+  'common.reconnect': 'Reconnect',
+  'common.refresh': 'Refresh',
+  'common.clear': 'Clear',
+  'common.copy': 'Copy',
+  'common.send': 'Send',
+  'common.dismiss': 'Dismiss',
+  'common.gotIt': 'Got it',
+  'common.ok': 'OK',
+  'common.back': 'Back',
+  'common.next': 'Next',
+  'common.continue': 'Continue',
+  'common.edit': 'Edit',
+  'common.disconnect': 'Disconnect',
+  'common.status': 'Status',
+  'common.days': 'days',
+  'common.minutes': 'minutes',
+  'common.newChat': 'New chat',
+  'common.noBranch': '(no branch)',
+  'common.none': 'none',
+  'common.markAsSeen': 'Mark as seen',
+  'common.dragToResize': 'Drag to resize',
+
+  // ---------------------------------------------------------------------------
+  // Relative time (App.tsx, PanelA.tsx, ChatSettingsSheet.tsx, notifications).
+  // ---------------------------------------------------------------------------
+  'time.justNow': 'just now',
+  'time.activeNow': 'active now',
+  'time.secondsAgo': '{count}s ago',
+  'time.minutesAgo': '{count}m ago',
+  'time.hoursAgo': '{count}h ago',
+  'time.daysAgo': '{count}d ago',
+  'time.now': 'now',
+  'time.minutesShort': '{count}m',
+  'time.hoursShort': '{count}h',
+  'time.daysShort': '{count}d',
+
+  // ---------------------------------------------------------------------------
+  // Custom Windows/Linux menu bar (MenuBar.tsx) + native app menu.
+  // ---------------------------------------------------------------------------
+  'menu.file': 'File',
+  'menu.edit': 'Edit',
+  'menu.view': 'View',
+  'menu.help': 'Help',
+  'menu.newChat': 'New Chat',
+  'menu.preferences': 'Preferences…',
+  'menu.quit': 'Quit PopBot',
+  'menu.undo': 'Undo',
+  'menu.redo': 'Redo',
+  'menu.cut': 'Cut',
+  'menu.copy': 'Copy',
+  'menu.paste': 'Paste',
+  'menu.selectAll': 'Select All',
+  'menu.gitPanel': 'Git Panel',
+  'menu.resetZoom': 'Reset Zoom',
+  'menu.zoomIn': 'Zoom In',
+  'menu.zoomOut': 'Zoom Out',
+  'menu.documentation': 'Documentation',
+  'menu.configGuide': 'Configuration Guide',
+  'menu.reportIssue': 'Report an Issue',
+  'menu.about': 'About PopBot',
+
+  // ---------------------------------------------------------------------------
+  // About dialog (AboutDialog.tsx).
+  // ---------------------------------------------------------------------------
+  'about.version': 'Version {version}',
+  'about.versionUnknown': 'Version …',
+  'about.checking': 'Checking for updates…',
+  'about.checkingShort': 'Checking…',
+  'about.upToDate': 'You’re up to date.',
+  'about.updateAvailable': 'Update available:',
+  'about.download': 'Download',
+  'about.github': 'GitHub',
+  'about.documentation': 'Documentation',
+  'about.checkBtn': 'Check for updates',
+
+  // ---------------------------------------------------------------------------
+  // App shell (App.tsx).
+  // ---------------------------------------------------------------------------
+  'app.busy.worktreeFailed': 'Worktree setup failed',
+  'app.busy.settingUpWorkspace': 'Setting up workspace…',
+  'app.busy.checkingOutBranch': 'Checking out {branch}',
+  'app.busy.branchingFrom': 'Branching {branch} from {baseBranch}',
+  'app.create.newClientTestChat': 'New client-test chat',
+  'app.chat.reviewName': '[CR] PR #{number} · {title}',
+  'app.update.available': 'Update available — {name}',
+  'app.update.availableDetail': 'You’re on v{current}. Click to download v{latest}.',
+  'app.update.ready': 'Update ready — {name}',
+  'app.update.readyDetail': 'v{version} downloaded. Click to restart and install.',
+  'app.thumbstrip.emptyTitle': 'Thumbnails Panel',
+  'app.thumbstrip.emptyBody':
+    'Miniature versions of your chats will display here when you open chats.',
+  'app.actions.commandPalette': 'Command palette {shortcut}',
+  'app.actions.newChat': 'New chat {shortcut}',
+  'app.noSlots.title': 'No free workspace slots',
+  'app.noSlots.subtitle': 'Every slot is held by an open chat.',
+  'app.noSlots.body':
+    'Close one of your active chats to free a slot, or raise the slot limit in {prefsLink}.',
+  'app.noSlots.prefsPath': 'Preferences → Repositories',
+  'app.noSlots.openPreferences': 'Open Preferences',
+
+  // ---------------------------------------------------------------------------
+  // Notifications (App.tsx dispatch, NotificationsBell.tsx, NotificationToast.tsx).
+  // ---------------------------------------------------------------------------
+  'notify.action.openInLinear': 'Open in Linear',
+  'notify.action.openOnGitHub': 'Open on GitHub',
+  'notify.action.showInPopBot': 'Show in PopBot',
+  'notify.ticket.new': 'New ticket',
+  'notify.ticket.newWithProject': 'New ticket · {project}',
+  'notify.review.new': 'New PR to review',
+  'notify.review.newWithAuthor': 'New PR to review · @{author}',
+  'notify.urgency.high': 'High',
+  'notify.urgency.med': 'Med',
+  'notify.urgency.low': 'Low',
+  'notify.vip': 'VIP',
+  'notify.vipTitle': 'VIP — bumped to urgent',
+  'notify.bell.title': 'Notifications',
+  'notify.bell.unreadTitle': '{count} unread notification',
+  'notify.bell.unreadTitlePlural': '{count} unread notifications',
+  'notify.head.title': 'Notifications',
+  'notify.summary.high': '{count} high',
+  'notify.summary.med': '{count} med',
+  'notify.summary.low': '{count} low',
+  'notify.clearAll': 'Clear all',
+  'notify.empty': 'No notifications yet.',
+  'notify.toast.stackAria': 'New notifications',
+
+  // ---------------------------------------------------------------------------
+  // Panel A — incoming tickets / reviews / slack (PanelA.tsx).
+  // ---------------------------------------------------------------------------
+  'panelA.tab.tickets': 'Tickets',
+  'panelA.tab.reviews': 'Reviews',
+  'panelA.tab.slack': 'Slack',
+  'panelA.tab.unseenTitle': '{count} new',
+  'panelA.action.markAllTicketsSeen': 'Mark all {count} new tickets as seen',
+  'panelA.action.markAllReviewsSeen': 'Mark all {count} new PRs as seen',
+  'panelA.action.addItem': 'Add ticket or PR by id (e.g. ENG-12345 or PR #1234)',
+  'panelA.action.refresh': 'Refresh tickets + PRs',
+  'panelA.action.filter': 'Filter',
+  'panelA.refresh.inProgress': 'Refreshing tickets & PRs…',
+  'panelA.refresh.done': 'Refreshed.',
+  'panelA.menu.unpin': 'Unpin',
+  'panelA.menu.ignore': 'Ignore',
+  'panelA.menu.openWebPage': 'Open web page',
+
+  'slack.empty.notConnected': 'Slack isn’t connected yet.',
+  'slack.empty.description':
+    'Once configured, this tab will surface unread DMs and channel mentions.',
+  'slack.empty.connectButton': 'Connect Slack',
+
+  'reviews.readiness.connected': 'GitHub connected',
+  'reviews.readiness.connectPrompt': 'Connect GitHub to see reviews',
+  'reviews.readiness.installLabel': 'GitHub CLI installed',
+  'reviews.readiness.installAction': 'Install gh',
+  'reviews.readiness.signedInLabel': 'Signed in to GitHub',
+  'reviews.readiness.signedInHint': 'run gh auth login',
+  'reviews.readiness.signedInAction': 'How to sign in',
+  'reviews.readiness.repoLabel': 'Repository configured',
+  'reviews.readiness.repoAction': 'Add repository',
+  'reviews.list.loading': 'Loading reviews…',
+  'reviews.list.loadError': 'Couldn’t load reviews: {message}',
+  'reviews.empty.none': 'No PRs need your review right now.',
+  'reviews.row.linkedFocused': 'This PR is the focused chat',
+  'reviews.row.linkedOpen': 'Click to focus the existing chat for this PR',
+  'reviews.row.linkedClosed': 'Click to reopen the closed chat for this PR',
+  'reviews.row.linkedDefault': '#{number} · {title}',
+  'reviews.row.reReviewLinkedTitle':
+    'Click to start the re-review — opens the chat and sends the re-review prompt',
+  'reviews.row.reReviewNewTitle': 'Click to create a review chat',
+  'reviews.row.reReviewChip': 'RE-REVIEW',
+  'reviews.row.newChip': 'NEW',
+  'reviews.row.requestedReviewerTitle': 'You’re requested as a reviewer',
+  'reviews.row.requestedReviewerLabel': 'You',
+  'reviews.row.noReviewsTitle': 'No reviews yet',
+  'reviews.row.noReviewsLabel': 'No reviews',
+  'reviews.row.draft': 'draft',
+  'reviews.row.chatPill': 'chat',
+  'reviews.row.closedPill': 'closed',
+
+  'priority.urgent': 'Urgent',
+  'priority.high': 'High',
+  'priority.med': 'Medium',
+  'priority.low': 'Low',
+  'priority.none': 'No priority',
+
+  'linear.error.notConfigured': 'Linear API key not configured.',
+  'linear.error.authFailed': 'Linear auth failed.',
+  'linear.status.changeTitle': 'Status: {state} — click to change',
+  'linear.status.changeAriaLabel': 'Change status (currently {state})',
+  'linear.status.noStates': 'No states defined.',
+  'linear.tooltip.status': 'Status',
+  'linear.tooltip.priority': 'Priority',
+  'linear.tooltip.project': 'Project',
+  'linear.tooltip.updated': 'Updated',
+  'linear.row.linkedFocused': '{id} · this ticket is the focused chat',
+  'linear.row.linkedOpen': '{id} · click to focus the existing chat',
+  'linear.row.linkedClosed': '{id} · click to reopen the closed chat',
+  'linear.row.linkedDefault': '{id} · {title}',
+  'linear.list.loading': 'Loading tickets…',
+  'linear.empty.notConfigured': 'No ticket source connected.',
+  'linear.empty.connectButton': 'Connect to Issue Tracker',
+  'linear.empty.authFailed': 'Linear API key was rejected.',
+  'linear.error.loadFailed': 'Couldn’t load tickets.',
+  'linear.search.placeholder': 'Search tickets…',
+  'linear.empty.noMatches': 'No matches.',
+  'linear.empty.noTickets': 'No active tickets assigned to you.',
+
+  // ---------------------------------------------------------------------------
+  // Panel B — chat list (PanelB.tsx).
+  // ---------------------------------------------------------------------------
+  'panelB.kind.prTooltip': 'Code review · PR #{pr}',
+  'panelB.kind.pr': 'PR #{pr}',
+  'panelB.kind.ticketTooltip': 'Ticket · {ticket}',
+  'panelB.kind.ticket': 'TICKET',
+  'panelB.kind.clientTestTooltip': 'Client test',
+  'panelB.kind.clientTest': 'CLIENT',
+  'panelB.kind.serverTestTooltip': 'Server test',
+  'panelB.kind.serverTest': 'SERVER',
+  'panelB.kind.plainTooltip': 'Plain chat',
+  'panelB.kind.plain': 'CHAT',
+  'panelB.slotTooltip': 'Workspace slot {slotId}',
+  'panelB.deleteChatTooltip': 'Delete chat',
+  'panelB.delete.title': 'Delete this chat?',
+  'panelB.delete.sub':
+    'It will be hidden from your lists. The transcript is preserved and can be restored.',
+  'panelB.delete.body': 'You’re about to delete:',
+  'panelB.delete.confirm': 'Delete chat',
+  'panelB.searchPlaceholder': 'Search chats…',
+  'panelB.clearSearchTooltip': 'Clear search',
+  'panelB.results': 'Results',
+  'panelB.noMatches': 'No matches.',
+  'panelB.active': 'Active',
+  'panelB.noActiveChats': 'No active chats.',
+  'panelB.newChat': '+ New chat',
+  'panelB.inactive': 'Inactive',
+  'panelB.showMore': 'Show {count} more',
+
+  // ---------------------------------------------------------------------------
+  // Panel D — terminal (PanelD.tsx).
+  // ---------------------------------------------------------------------------
+  'panelD.terminalTab': 'Terminal',
+  'panelD.slotSuffix': ' · Slot {slotId}',
+  'panelD.focusedLabel': 'focused: {name}',
+  'panelD.newTerminal': 'New Terminal',
+  'panelD.noWorktree': 'This chat has no slot worktree yet.',
+  'panelD.focusToOpen': 'Focus a chat to open its terminal.',
+
+  // ---------------------------------------------------------------------------
+  // Work-item search (WorkItemSearch.tsx).
+  // ---------------------------------------------------------------------------
+  'work.title': 'Find or add ticket / PR / chat',
+  'work.error.notFound': 'Couldn’t find that — check the id.',
+  'work.error.notConfigured': 'Linear not configured (Preferences → Integrations).',
+  'work.error.authFailed': 'Linear auth failed.',
+  'work.error.ghNotFound': '`gh` CLI not installed.',
+  'work.error.ghNotAuthed': '`gh` is not signed in.',
+  'work.error.noRepo': 'No repo configured.',
+  'work.error.duplicate': 'Already in your list.',
+  'work.error.generic': 'Could not pin.',
+  'work.searchPlaceholder': 'Search tickets, PRs, chats — or paste ENG-12345 / PR #1234',
+  'work.addNew': 'Add new',
+  'work.prNumber': 'PR #{number}',
+  'work.lookingUp': 'Looking up…',
+  'work.pinKind': 'Pin {kind}',
+  'work.tickets': 'Tickets',
+  'work.prs': 'PRs',
+  'work.chats': 'Chats',
+  'work.emptyHint':
+    'No matches. Try a Linear id like {id} or a PR number like {pr} to pin a new one.',
+
+  // ---------------------------------------------------------------------------
+  // Monitor card (MonitorCard.tsx).
+  // ---------------------------------------------------------------------------
+  'monitor.permissionRequested': 'permission requested',
+  'monitor.wantsTool': 'wants {tool}',
+  'monitor.idle': '(idle)',
+  'monitor.foregroundTag': 'FG',
+  'monitor.attn.plan': 'PLAN',
+  'monitor.attn.permission': 'PERMISSION',
+  'monitor.attn.question': 'QUESTION',
+  'monitor.attn.wait': 'WAIT',
+  'monitor.tokensTitle': '{used} / {budget} tokens',
+  'monitor.youTag': 'you',
+  'monitor.fg.foregrounded': 'Foregrounded · click to background',
+  'monitor.fg.bring': 'Bring Unity & server forward',
+  'monitor.fg.fgShort': 'FG',
+  'monitor.fg.bringShort': 'bring',
+
+  // ---------------------------------------------------------------------------
+  // Slot configuration / status (ConfigureSlotsPanel.tsx, SlotStatusStrip.tsx).
+  // ---------------------------------------------------------------------------
+  'slots.alreadyReady': 'already ready',
+  'slots.running.deleting': 'Deleting slot {slotId} ({step} of {total})…',
+  'slots.running.initializing': 'Initializing slot {slotId} ({step} of {total})…',
+  'slots.done': 'Done.',
+  'slots.stopped': 'Stopped — see below.',
+  'slots.detail.noChange': 'No slot changes — only the count needs to update.',
+  'slots.detail.willCreate': 'Will create {count} new slot.',
+  'slots.detail.willCreatePlural': 'Will create {count} new slots.',
+  'slots.detail.willDelete': 'Will delete {count} slot.',
+  'slots.detail.willDeletePlural': 'Will delete {count} slots.',
+  'slots.checkingOccupancy': 'Checking slot occupancy…',
+  'slots.blocked.wrongMode':
+    'This repo is in ephemeral mode — there are no slots to configure.',
+  'slots.blocked.inUseTitle': 'Slots in use.',
+  'slots.blocked.inUseBody': 'Close these chats before resizing the pool:',
+  'slots.occupant': 'Slot {slotId} · {chatName}',
+  'slots.ready.nothing': 'Nothing to do — click Apply to update the count.',
+  'slots.ready.init': 'Click Initialize to create the new slot worktrees.',
+  'slots.ready.delete':
+    'Click Delete to tear down the extra slot worktrees and their parking branches.',
+  'slots.log.init': 'Init',
+  'slots.log.delete': 'Delete',
+  'slots.log.slot': 'slot {slotId}',
+  'slots.btn.apply': 'Apply',
+  'slots.btn.initialize': 'Initialize',
+  'slots.btn.delete': 'Delete',
+  'slots.strip.free': 'Free',
+  'slots.strip.occupiedAria': '{repo} slot {slotId} · {chatName}',
+  'slots.strip.freeAria': '{repo} slot {slotId} · free',
+  'slots.strip.setupBtn': 'Setup worktree slots',
+
+  // ---------------------------------------------------------------------------
+  // Titlebar (Titlebar.tsx).
+  // ---------------------------------------------------------------------------
+  'titlebar.win.minimize': 'Minimize',
+  'titlebar.win.restore': 'Restore',
+  'titlebar.win.maximize': 'Maximize',
+  'titlebar.win.close': 'Close',
+  'titlebar.driftTitle': 'Drift detected',
+  'titlebar.capacityTitle': 'Capacity needed',
+  'titlebar.hideGitPanel': 'Hide git panel',
+  'titlebar.showGitPanel': 'Show git panel',
+  'titlebar.preferencesTitle': 'Preferences {shortcut}',
+
+  // ---------------------------------------------------------------------------
+  // Close-chat prompt (CloseChatPrompt.tsx).
+  // ---------------------------------------------------------------------------
+  'close.title': 'You are closing this branch {branch}.',
+  'close.parkSub': 'Slot {slotId} will be parked back to popbot/slot-{slotId}.',
+  'close.checking': 'Checking worktree…',
+  'close.noWorktree': 'This chat has no worktree to clean up.',
+  'close.clean': 'The worktree is clean — nothing to stash.',
+  'close.stashPrompt':
+    'Do you want to stash all uncommitted changes? These changes will be unstashed if you reopen this chat.',
+  'close.discardClose': 'Discard & close',
+  'close.stashClose': 'Stash & close',
+  'close.closeChat': 'Close chat',
+
+  // ---------------------------------------------------------------------------
+  // Chat column (ChatColumn.tsx).
+  // ---------------------------------------------------------------------------
+  'chat.ticket.chipTitle': '{identifier} · {state} — open in Linear',
+  'chat.pr.stateDraft': 'Draft',
+  'chat.pr.stateMerged': 'Merged',
+  'chat.pr.stateClosed': 'Closed',
+  'chat.pr.stateOpen': 'Open',
+  'chat.pr.chipTitle': 'PR #{number} · {label} — open on GitHub',
+  'chat.pr.chipLabel': 'PR #{number} · {label}',
+  'chat.reasoning.none': 'None',
+  'chat.reasoning.low': 'Low',
+  'chat.reasoning.medium': 'Medium',
+  'chat.reasoning.high': 'High',
+  'chat.reasoning.xhigh': 'XHigh',
+  'chat.reasoning.max': 'Max',
+  'chat.repo.none': 'No repo',
+  'chat.repo.withName': 'Repo · {repoId}',
+  'chat.col.closeTitle': 'Close chat',
+  'chat.col.statusTitle': 'status: {status}',
+  'chat.status.running': 'running',
+  'chat.status.done': 'done',
+  'chat.status.needsYou': 'needs you',
+  'chat.status.error': 'error',
+  'chat.status.idle': 'idle',
+  'chat.col.settingsTitle': 'Per-chat settings',
+  'chat.slot.workspaceTitle': 'Workspace slot {slotId} · {repoId}',
+  'chat.slot.fallback': 'Slot {slotId}',
+  'chat.slot.worktreeTitle': 'Worktree · {worktreePath}',
+  'chat.branch.title': 'Branch · {branch}',
+  'chat.type.lite': 'Lite',
+  'chat.type.clientTest': 'Client Test',
+  'chat.input.resizeTitle': 'Drag to resize the input',
+  'chat.attachment.removeTitle': 'Remove attachment',
+  'chat.input.placeholderRunning':
+    'Agent running… type to queue a message  ·  Shift+Enter for newline',
+  'chat.input.placeholderIdle': 'Send a message…  ·  Shift+Enter for newline',
+  'chat.input.placeholderInactive': 'Click to make this the active chat',
+  'chat.input.attachImage': 'Attach image',
+  'chat.input.attachFile': 'Attach file',
+  'chat.input.model': 'Model',
+  'chat.input.effort': 'Effort',
+  'chat.input.stopTitle': 'Stop agent',
+  'chat.input.stop': 'Stop',
+  'chat.agentSwitch.title': 'Resume with a different agent?',
+  'chat.agentSwitch.message':
+    'The current agent session id will be kept, so you can switch back later. The new agent uses its own session and will be restarted with this chat transcript as context. Some private agent state may be lost.',
+  'chat.agentSwitch.confirm': 'Restart',
+  'chat.app.terminal': 'Terminal',
+  'chat.app.editor': 'Editor',
+  'chat.app.unity': 'Unity',
+  'chat.app.launchFailed': 'Couldn’t launch {kind}:\n\n{error}',
+  'chat.app.runningTitle': '{label} — running for this slot (click to focus)',
+  'chat.app.noSlotTitle': '{label} (no slot)',
+  'chat.install.claudeTitle': 'Enable the Claude agent',
+  'chat.install.claudeIntro':
+    'PopBot runs Anthropic’s official Claude Code CLI — it doesn’t bundle or install it for you. Once the CLI is installed and signed in, PopBot detects it automatically and the Claude agent turns on.',
+  'chat.install.claudeSignin': 'Run claude once and sign in with your Anthropic account.',
+  'chat.install.codexTitle': 'Enable the Codex agent',
+  'chat.install.codexIntro':
+    'Codex is optional — an alternative agent PopBot can drive. PopBot runs OpenAI’s official Codex CLI and doesn’t install it for you. Once it’s installed and signed in, PopBot detects it automatically.',
+  'chat.install.codexSignin': 'Run codex once and sign in with your OpenAI account.',
+  'chat.install.stepInstall': 'Install the {cli}',
+  'chat.install.stepInstallDesc': 'Follow {vendor}’s official install guide for your operating system.',
+  'chat.install.openGuide': 'Open {vendor}’s install guide',
+  'chat.install.stepSignin': 'Sign in',
+  'chat.install.stepRestart': 'Restart PopBot',
+  'chat.install.stepRestartDesc':
+    'PopBot re-checks on launch and enables the agent automatically.',
+  'chat.ready.checking': 'Checking setup…',
+  'chat.ready.ready': 'Ready to go',
+  'chat.ready.finish': 'Finish setup',
+  'chat.ready.recheckTitle': 'Re-check (after installing a CLI or adding a repo)',
+  'chat.ready.claudeLabel': 'Claude',
+  'chat.ready.online': 'Online',
+  'chat.ready.notFound': 'not found',
+  'chat.ready.howToInstall': 'How to install',
+  'chat.ready.codexLabel': 'Codex',
+  'chat.ready.optional': 'optional',
+  'chat.ready.repoLabel': 'Repository',
+  'chat.ready.repoCount': '{count} repos',
+  'chat.ready.ok': 'Ready',
+  'chat.ready.addRepo': 'Add repository',
+  'chat.gate.missingBoth': 'an AI provider and at least one git repository',
+  'chat.gate.missingAgent': 'an AI provider (Claude or Codex)',
+  'chat.gate.missingRepo': 'at least one git repository',
+  'chat.gate.title': 'Finish setup first',
+  'chat.gate.body':
+    'PopBot needs {missing} before it can start a chat. Complete the setup steps shown in the center of the screen, then try again.',
+  'chat.empty.gateNoAgent': 'Install an agent CLI (Claude or Codex) to start a chat.',
+  'chat.empty.gateNoRepo': 'Add a repository before starting a chat.',
+  'chat.empty.closeTitle': 'Close',
+  'chat.empty.newChat': 'New chat',
+  'chat.empty.heading': 'Start a new chat',
+  'chat.empty.subtext':
+    'Click a ticket or PR on the left to seed a chat, or start one below.',
+  'chat.empty.newChatBtn': '+ New chat',
+  'chat.empty.hintNewChat': 'new chat',
+  'chat.empty.hintFromClipboard': 'from clipboard URL',
+  'chat.empty.hintPalette': 'palette',
+  'chat.empty.useButtons': '{gateReason} Use the buttons above to finish setup.',
+
+  // ---------------------------------------------------------------------------
+  // Live chat body (LiveChatBody.tsx).
+  // ---------------------------------------------------------------------------
+  'chat.editor.openInEditor': 'Open {href} in editor',
+  'chat.transcript.loading': 'Loading transcript…',
+  'chat.transcript.empty': 'New chat. Type a message below to start.',
+  'chat.window.olderHidden': '{count} earlier message — scroll up to load',
+  'chat.window.olderHiddenPlural': '{count} earlier messages — scroll up to load',
+  'chat.window.newerHidden': '{count} newer message — scroll down to load',
+  'chat.window.newerHiddenPlural': '{count} newer messages — scroll down to load',
+  'chat.jump.title': 'Jump to latest',
+  'chat.jump.label': 'Latest',
+  'chat.error.expandTitle': 'Click to expand the original error',
+  'chat.error.collapseTitle': 'Collapse this error',
+  'chat.error.collapseAria': 'Collapse error',
+  'chat.error.retryTitle': 'Force-reconnect this chat’s Claude session and replay the last message',
+  'chat.error.retry': 'Retry',
+  'chat.error.restartTitle': 'Spawn a fresh agent session primed with this chat’s transcript',
+  'chat.error.restart': 'Restart with context',
+  'chat.output.linesTruncated': '… {count} line truncated …',
+  'chat.output.linesTruncatedPlural': '… {count} lines truncated …',
+  'chat.output.charsTruncated': '… {count} char truncated …',
+  'chat.output.charsTruncatedPlural': '… {count} chars truncated …',
+  'chat.tool.bash': 'Bash',
+  'chat.tool.edit': 'Edit',
+  'chat.tool.write': 'Write',
+  'chat.tool.read': 'Read',
+  'chat.tool.glob': 'Glob',
+  'chat.tool.grep': 'Grep',
+  'chat.tool.fetch': 'Fetch',
+  'chat.tool.search': 'Search',
+  'chat.tool.subagent': 'Subagent',
+  'chat.tool.todos': 'Todos',
+  'chat.tool.notebook': 'Notebook',
+  'chat.tool.generic': 'tool',
+  'chat.diff.popoutTitle': 'Open full diff in a panel',
+  'chat.diff.collapseTitle': 'Collapse',
+  'chat.diff.showAllLines': 'Show all {count} lines',
+  'chat.diff.collapse': 'Collapse',
+  'chat.diff.modalAriaFor': 'Diff for {title}',
+  'chat.diff.modalAria': 'Diff',
+  'chat.diff.modalTitleFallback': 'Diff',
+  'chat.diff.modalCloseTitle': 'Close (Esc)',
+  'chat.output.viewFullTitle': 'Click to view full output',
+  'chat.output.viewFull': 'View full output',
+  'chat.output.overflowLines': ' (+{count} lines)',
+  'chat.output.overflowChars': ' (+{count} chars)',
+  'chat.permission.wantsToUse': 'Agent wants to use',
+  'chat.permission.allowOnce': 'Allow once',
+  'chat.permission.allowChat': 'Allow this chat',
+  'chat.permission.allowEverywhere': 'Allow everywhere',
+  'chat.permission.deny': 'Deny',
+  'chat.permission.denyEverywhere': 'Deny everywhere',
+  'chat.qa.questionPrefix': 'Q:',
+  'chat.qa.answerPrefix': 'A:',
+  'chat.question.heading': 'Question',
+  'chat.question.yes': 'Yes',
+  'chat.question.no': 'No',
+  'chat.question.typeLonger': '…or type a longer reply below.',
+  'chat.question.replyBelow': 'Reply below to continue.',
+  'chat.plan.asked': 'Asked: {question}',
+  'chat.plan.pickOne': 'Pick one',
+  'chat.plan.otherOption': 'Other — type your own answer',
+  'chat.plan.otherPlaceholder': 'Type your answer and press Enter…',
+  'chat.plan.skip': 'Skip',
+  'chat.plan.clickToSubmit': 'Click an option to submit',
+  'chat.plan.skipped': '✗ Skipped',
+  'chat.plan.submitted': '✓ Submitted',
+
+  // ---------------------------------------------------------------------------
+  // Chat settings sheet (ChatSettingsSheet.tsx).
+  // ---------------------------------------------------------------------------
+  'chatSettings.bytesB': '{n} B',
+  'chatSettings.bytesKB': '{n} KB',
+  'chatSettings.bytesMB': '{n} MB',
+  'chatSettings.noWorktreeError':
+    'No working directory configured for this chat — Linear/git settings need a repo path before sessions can be discovered.',
+  'chatSettings.loadSessionsError': 'Couldn’t load sessions: {error}',
+  'chatSettings.reconnectFailed': 'Reconnect failed:\n\n{message}',
+  'chatSettings.restartConfirm':
+    'Spawn a fresh Claude session and feed it this chat’s prior transcript so the agent picks up where it left off?\n\nThis uses tokens (the transcript becomes the agent’s first message). Older middle turns may be omitted to keep the prompt size reasonable.',
+  'chatSettings.restartFailed': 'Restart failed:\n\n{message}',
+  'chatSettings.noBranch': '(no branch)',
+  'chatSettings.identity': 'Identity',
+  'chatSettings.linked': 'Linked',
+  'chatSettings.slot': 'Slot',
+  'chatSettings.slotNone': '(none)',
+  'chatSettings.slotN': 'slot {slotId}',
+  'chatSettings.worktree': 'Worktree',
+  'chatSettings.worktreeNone': '(none)',
+  'chatSettings.agent': 'Agent',
+  'chatSettings.codexThread': 'Codex thread',
+  'chatSettings.pinnedSession': 'Pinned session',
+  'chatSettings.sessionNone': '(none — fresh on next send)',
+  'chatSettings.recoverContext': 'Recover context',
+  'chatSettings.recoverDesc':
+    'Use when the agent has lost memory of this chat (e.g. the transcript above shows real work but the agent thinks it’s a fresh session). Spawns a new agent session and primes it with this chat’s text history so it can pick up where things left off — first 3 turns and the most recent turns are kept; very old middle turns may be omitted.',
+  'chatSettings.restartTooltip': 'Spawn a fresh agent session primed with this chat’s transcript',
+  'chatSettings.restarting': 'Restarting…',
+  'chatSettings.restartWithContext': 'Restart with context',
+  'chatSettings.tryReconnect': 'Try reconnect',
+  'chatSettings.reconnectDesc':
+    'Pick a saved Claude session for this chat’s worktree. Useful if auto-reconnect picked the wrong one and you want to force a specific transcript. The picked session will be pinned and the agent re-spawned into it.',
+  'chatSettings.loadingSessions': 'Loading sessions…',
+  'chatSettings.noSessionsOnDisk': 'No sessions on disk for this worktree.',
+  'chatSettings.searchSessions': 'Search {count} session…',
+  'chatSettings.searchSessionsPlural': 'Search {count} sessions…',
+  'chatSettings.noSessionsMatch': 'No sessions match.',
+  'chatSettings.gitBranchTooltip': 'git branch',
+  'chatSettings.noFirstPrompt': '(no first prompt)',
+  'chatSettings.alreadyPinned': 'Already pinned',
+  'chatSettings.reconnectRowTooltip': 'Pin the selected session and re-spawn the agent into it',
+  'chatSettings.connecting': 'Connecting…',
+  'chatSettings.connected': 'Connected',
+  'chatSettings.connect': 'Connect',
+
+  // ---------------------------------------------------------------------------
+  // Agent create controls (AgentCreateControls.tsx).
+  // ---------------------------------------------------------------------------
+  'agent.effort.none': 'None',
+  'agent.effort.low': 'Low',
+  'agent.effort.medium': 'Medium',
+  'agent.effort.high': 'High',
+  'agent.effort.xhigh': 'XHigh',
+  'agent.effort.max': 'Max',
+  'agent.label': 'Agent',
+  'agent.model': 'Model',
+  'agent.effort': 'Effort',
+
+  // ---------------------------------------------------------------------------
+  // Git panel (GitPanel.tsx).
+  // ---------------------------------------------------------------------------
+  'git.status.modified': 'Modified',
+  'git.status.added': 'Added',
+  'git.status.deleted': 'Deleted',
+  'git.status.renamed': 'Renamed',
+  'git.status.untracked': 'Untracked',
+  'git.status.conflict': 'Conflict',
+  'git.mode.commit.label': 'COMMIT',
+  'git.mode.commit.short': 'COMMIT',
+  'git.mode.commitAi.label': 'COMMIT (AI)',
+  'git.mode.commitAi.short': 'COMMIT (AI)',
+  'git.mode.pushPr.label': 'PUSH PR (AI)',
+  'git.mode.pushPr.short': 'PUSH PR (AI)',
+  'git.mode.pushDraftPr.label': 'PUSH DRAFT PR (AI)',
+  'git.mode.pushDraftPr.short': 'DRAFT (AI)',
+  'git.mode.makePrReady.label': 'MARK PR READY (AI)',
+  'git.mode.makePrReady.short': 'READY (AI)',
+  'git.mode.addressCr.label': 'ADDRESS CR (AI)',
+  'git.mode.addressCr.short': 'CR (AI)',
+  'git.revert.failed': 'Revert failed:\n\n{error}',
+  'git.commit.failed': 'Commit failed:\n\n{error}',
+  'git.prompt.sendFailed': 'Couldn’t send prompt:\n\n{message}',
+  'git.prompt.rebaseSendFailed': 'Couldn’t send rebase prompt:\n\n{message}',
+  'git.branch.none': 'No chat focused',
+  'git.ahead.title': 'Ahead',
+  'git.behind.title': 'Behind',
+  'git.closePanel.title': 'Close panel',
+  'git.empty.focusChat': 'Focus a chat to see its git status.',
+  'git.empty.noWorktree': 'This chat has no slot worktree yet.',
+  'git.empty.notRepo': 'Not a git repo: {error}',
+  'git.commits.uncommitted': 'Uncommitted changes',
+  'git.commits.fileCount': '{count} file',
+  'git.commits.fileCountPlural': '{count} files',
+  'git.commits.none': 'No commits on this branch yet.',
+  'git.files.uncheckAll': 'Uncheck all',
+  'git.files.checkAll': 'Check all',
+  'git.files.selectedForCommit': '{checked} of {total} for commit',
+  'git.files.revertSelected': 'Revert selected files',
+  'git.files.revertCount': 'Revert {count}',
+  'git.files.readonlyCount': 'Read-only · {count} file',
+  'git.files.readonlyCountPlural': 'Read-only · {count} files',
+  'git.files.noUncommitted': 'No uncommitted changes.',
+  'git.files.noFilesInCommit': 'No files in this commit.',
+  'git.file.rowTitleRenamed': '{label} (was {oldPath})',
+  'git.base.targetTitle': 'PR target / fork-point branch',
+  'git.base.nameTitle': 'Base branch (PR target)',
+  'git.base.changeTitle': 'Change base branch and ask the AI to rebase / cherry-pick',
+  'git.base.change': 'Change',
+  'git.commit.msgPlaceholder': 'Commit message…',
+  'git.commit.checkFilesPlaceholder': 'Check files to commit',
+  'git.commit.promptPreviewPlaceholder': 'Prompt preview',
+  'git.action.btnTitle': '{label} ({hotkey})',
+  'git.base.dialogSubtitle': 'Change base branch — the AI will rebase / cherry-pick onto it.',
+  'git.menu.viewDiff': 'View diff',
+  'git.menu.revertCount': 'Revert {count} file…',
+  'git.menu.revertCountPlural': 'Revert {count} files…',
+  'git.revert.dialogTitle': 'Revert files',
+  'git.revert.confirmOne': 'Discard local changes to "{path}"? This cannot be undone.',
+  'git.revert.confirmMany': 'Discard local changes to {count} files? This cannot be undone.',
+  'git.revert.confirmLabel': 'Revert',
+
+  // ---------------------------------------------------------------------------
+  // Base-branch / new-chat dialog (BaseBranchDialog.tsx).
+  // ---------------------------------------------------------------------------
+  'branch.picker.freeChat': 'Free Chat (no slot)',
+  'branch.picker.selectBase': 'Select base branch',
+  'branch.picker.searchPlaceholder': 'Search branches…',
+  'branch.picker.noBranches': 'No branches found.',
+  'branch.picker.tagRecent': 'recent',
+  'branch.picker.tagDefault': 'default',
+  'branch.picker.tagRepoRoot': 'repo root',
+  'branch.dialog.disabled.pickRepo': 'Pick a repository.',
+  'branch.dialog.disabled.loadingBranches': 'Loading branches…',
+  'branch.dialog.disabled.noBranches':
+    'This repo has no branches to base off — push one first.',
+  'branch.dialog.disabled.pickBranch': 'Pick a base branch.',
+  'branch.dialog.ariaLabel': 'Pick repo and base branch',
+  'branch.dialog.title': 'New chat',
+  'branch.dialog.subjectLabel': 'Subject',
+  'branch.dialog.subjectOptional': '(optional)',
+  'branch.dialog.branchPrefix': 'Branch:',
+  'branch.dialog.loadingRepos': 'Loading repos…',
+  'branch.dialog.noReposConfigured':
+    'No repos configured. Add one in Preferences → Repositories.',
+  'branch.dialog.repoLabel': 'Repo',
+  'branch.dialog.noRepoOption': 'No repo',
+  'branch.dialog.tagRawChat': 'raw chat',
+  'branch.dialog.tagEphemeral': 'ephemeral',
+  'branch.dialog.tagSlots': 'slots × {count}',
+  'branch.dialog.rawChatDesc':
+    'Creates a raw chat with no worktree, slot, branch, or base branch.',
+  'branch.dialog.baseBranchLabel': 'Base branch',
+  'branch.dialog.loadBranchesError': 'Couldn’t load branches: {error}',
+  'branch.dialog.freeChatDesc':
+    'Runs in {repo} from the repo root — no slot, worktree, or branch.',
+  'branch.dialog.createChat': 'Create chat',
+
+  // ---------------------------------------------------------------------------
+  // PR review action dialog (PrReviewActionDialog.tsx).
+  // ---------------------------------------------------------------------------
+  'review.dialog.ariaLabel': 'PR #{number}',
+  'review.dialog.heading': 'PR #{number}',
+  'review.dialog.prompt': 'What do you want to do with this PR?',
+  'review.dialog.ignoreTitle': 'Hide this PR from the review list',
+  'review.dialog.ignore': 'Ignore',
+  'review.dialog.createChat': 'Create chat',
+
+  // ---------------------------------------------------------------------------
+  // Diff overlay (DiffOverlay.tsx).
+  // ---------------------------------------------------------------------------
+  'diff.overlay.ariaLabel': 'Diff for {path}',
+  'diff.overlay.scopeUncommitted': 'Uncommitted',
+  'diff.overlay.closeTitle': 'Close (Esc)',
+  'diff.overlay.loading': 'Loading diff…',
+  'diff.overlay.error': 'Error: {error}',
+  'diff.overlay.binary': 'Binary file — diff not shown.',
+
+  // ---------------------------------------------------------------------------
+  // Preferences sheet (PreferencesSheet.tsx) — chrome + nav.
+  // ---------------------------------------------------------------------------
+  'prefs.title': 'Preferences',
+  'prefs.search': 'Search preferences…',
+  'prefs.section.integ': 'Integrations',
+  'prefs.section.agents': 'Agents',
+  'prefs.section.runtime': 'Runtime',
+  'prefs.section.repos': 'Repositories',
+  'prefs.section.git': 'Source control',
+  'prefs.section.apps': 'External apps',
+  'prefs.section.templates': 'Prompt templates',
+  'prefs.section.reviews': 'Code reviews',
+  'prefs.section.notify': 'Notifications',
+  'prefs.section.permissions': 'Permissions',
+  'prefs.section.language': 'Language',
+  'prefs.footMeta': 'PopBot · pre-alpha',
+
+  // Preferences — Agents pane.
+  'prefs.agents.title': 'Agents',
+  'prefs.agents.desc':
+    'Default effort levels for newly-created chats. Existing chats keep their own saved effort until you change them in the chat composer.',
+  'prefs.agents.newChats.title': 'New chats',
+  'prefs.agents.newChats.desc':
+    'Used by generic chats and ticket chats when the agent picker opens.',
+  'prefs.agents.codeReviews.title': 'Code reviews',
+  'prefs.agents.codeReviews.desc':
+    'Used by PR review chats, re-review fallback chats, and review notifications.',
+
+  // Preferences — Runtime / attachment retention pane.
+  'prefs.runtime.title': 'Attachment retention',
+  'prefs.runtime.desc':
+    'Files and images you attach to a chat are copied into PopBot’s own storage so they keep opening from chat history even after the original moves. A startup sweep deletes copies older than this window to keep the folder from growing without bound.',
+  'prefs.runtime.keepFor.title': 'Keep attachments for',
+  'prefs.runtime.keepFor.desc':
+    'Default {default} days (range {min}–{max}). Lower it to reclaim disk sooner; raise it to keep history longer.',
+
+  // Preferences — Integrations: ticket source / game engine.
+  'prefs.integ.ticketSource.title': 'Ticket source',
+  'prefs.integ.ticketSource.desc':
+    'The issue tracker that feeds the Tickets queue in Panel A, so you can spawn agents straight from your tracker.',
+  'prefs.integ.gameEngine.title': 'Game engine',
+  'prefs.integ.gameEngine.desc':
+    'The engine PopBot launches from a chat’s worktree (the engine icon on each chat column).',
+
+  // Preferences — Source control pane.
+  'prefs.git.title': 'Source control',
+  'prefs.git.desc':
+    'Global git identity. Per-repository settings — path, base branch, slots, and color — live under {reposLink}.',
+  'prefs.git.reposLabel': 'Repositories',
+  'prefs.git.branchUsername.title': 'Branch username',
+  'prefs.git.branchUsername.desc': 'New branches are named {pattern}.',
+  'prefs.git.usernamePlaceholder': 'ben',
+  'prefs.git.actionTemplates.title': 'Action templates',
+  'prefs.git.actionTemplates.intro':
+    'Prompts the git panel sends to the chat agent when you click the big action button (or change base branch). Use {macro} macros to inject context.',
+
+  // Preferences — External apps pane.
+  'prefs.apps.title': 'External apps',
+  'prefs.apps.desc':
+    'The icon row on each chat column launches these apps pointed at the slot’s worktree. Click to bring an existing window forward, or launch a fresh one.',
+  'prefs.apps.terminal.title': 'Terminal',
+  'prefs.apps.terminal.desc': 'Used for the terminal-icon launcher.',
+  'prefs.apps.windowsShell.title': 'Terminal shell (Windows)',
+  'prefs.apps.windowsShell.desc':
+    'Shell used by the in-app terminal panel. Applies to terminals opened after the change.',
+  'prefs.apps.editor.title': 'Code editor',
+  'prefs.apps.editor.desc': 'Also used for clickable file links inside Edit tool rows.',
+  'prefs.apps.gitClient.title': 'Git client',
+  'prefs.apps.gitClient.desc':
+    'Hardcoded to GitHub Desktop for now — picker lands when a teammate uses something else.',
+  'prefs.apps.chromeProfile.title': 'Chrome profile for URLs',
+  'prefs.apps.chromeProfile.desc':
+    'Pin URL opens to a specific Chrome profile so they always land in your work account, never your personal one. Use the Chrome profile directory name — find it at chrome://version on the "Profile Path" line (the last path component, e.g. Profile 1, Default, Person 2). Blank = OS default browser.',
+  'prefs.apps.chromeProfile.placeholder': '(use OS default browser)',
+  'prefs.apps.unity.desc':
+    'Pick which installed Unity Editor version PopBot launches when you click the Unity slot icon. Versions are scanned from {path}.',
+  'prefs.apps.unity.editorVersion.title': 'Editor version',
+  'prefs.apps.unity.scanning': 'Scanning…',
+  'prefs.apps.unity.installedCount': '{count} installed',
+  'prefs.apps.unity.rescan': 'rescan',
+  'prefs.apps.unity.selectVersion': '— Select a Unity version —',
+  'prefs.apps.unity.noneFound':
+    'No Unity versions found under {path}. Install via Unity Hub and click rescan.',
+  'prefs.apps.unity.customBinary.title': 'Custom binary path',
+  'prefs.apps.unity.customBinary.desc': 'Override the dropdown when Unity lives somewhere unusual.',
+  'prefs.apps.unity.subpath.title': 'Project subpath',
+  'prefs.apps.unity.subpath.desc':
+    'Path to the Unity project relative to the worktree root. Leave blank if the worktree root is itself the Unity project.',
+  'prefs.apps.unity.subpath.placeholder': 'e.g. unity-project (blank = worktree root)',
+
+  // Preferences — Prompt templates pane.
+  'prefs.templates.chat.startTicket.label': 'Start ticket (sent on chat creation from Linear)',
+  'prefs.templates.chat.startCodeReview.label': 'Start code review (sent on chat creation from PR)',
+  'prefs.templates.chat.reReview.label':
+    'Re-review (sent when you click a RE-REVIEW chip on the incoming panel)',
+  'prefs.templates.git.commitAi.label': 'COMMIT (AI)',
+  'prefs.templates.git.pushPr.label': 'PUSH PR (AI)',
+  'prefs.templates.git.pushDraftPr.label': 'PUSH DRAFT PR (AI)',
+  'prefs.templates.git.makePrReady.label': 'MARK PR READY (AI)',
+  'prefs.templates.git.addressCr.label': 'ADDRESS CR (AI)',
+  'prefs.templates.git.rebaseBase.label': 'CHANGE BASE BRANCH (AI)',
+  'prefs.templates.resetDefaults': 'Reset to defaults',
+  'prefs.templates.title': 'Prompt templates',
+  'prefs.templates.intro':
+    'These templates fire as the chat’s first user message when you spawn a chat from a Linear ticket or a PR. Use {macro} macros to inject context. Git-panel action templates live under {link}.',
+  'prefs.templates.gitPanelLink': 'Source control → Action templates',
+
+  // Preferences — Code reviews pane.
+  'prefs.reviews.title': 'Code reviews',
+  'prefs.reviews.desc':
+    'The Reviews tab pulls open PRs that either request you as a reviewer or have no reviews yet (and have an {tag} tag in the title, unless you’re explicitly named). PRs you’ve already reviewed are dropped automatically. Use the lists below to mute additional noise.',
+  'prefs.reviews.searchWindow.title': 'Search cache window',
+  'prefs.reviews.searchWindow.desc':
+    'The + Add picker on the incoming panel fuzzy-matches against Linear issues + GitHub PRs updated in the last N days. Bigger window = more searchable, slightly slower refresh + more API budget. Tickets assigned to you are always included regardless of this cutoff.',
+  'prefs.reviews.ignoreTitle.title': 'Ignore by title (one substring per line, case-insensitive)',
+  'prefs.reviews.ignoreTitle.placeholder': 'DO NOT SUBMIT\nCrowdin',
+  'prefs.reviews.ignoreAuthor.title': 'Ignore by GitHub author (one login per line)',
+  'prefs.reviews.ignoreAuthor.placeholder': 'crowdin-bot\nrenovate[bot]',
+
+  // Preferences — Integrations: Linear.
+  'prefs.integ.linear.apiKey.title': 'Personal API key',
+  'prefs.integ.linear.apiKey.desc': 'Stored locally in this app’s database.',
+  'prefs.integ.linear.getKey': 'Get a key →',
+  'prefs.integ.linear.teamKey.title': 'Team key',
+  'prefs.integ.linear.teamKey.desc': 'e.g. {example}. Filters issues + projects to one team.',
+  'prefs.integ.linear.project.title': 'Project',
+  'prefs.integ.linear.project.desc': 'Optional — narrow the ticket list to a single project.',
+  'prefs.integ.linear.allProjects': 'All projects',
+  'prefs.integ.linear.connectedAs': 'Connected as {email}',
+  'prefs.integ.linear.connected': 'Connected',
+  'prefs.integ.linear.notConnected': 'Not connected',
+  'prefs.integ.linear.error.auth': 'Linear rejected this API key.',
+  'prefs.integ.linear.error.generic': 'Linear error: {error}',
+  'prefs.integ.linear.verifying': 'Verifying…',
+
+  // Preferences — Integrations: Jira.
+  'prefs.integ.jira.siteUrl.title': 'Site URL',
+  'prefs.integ.jira.siteUrl.desc': 'Your Jira Cloud base URL, e.g.',
+  'prefs.integ.jira.email.title': 'Account email',
+  'prefs.integ.jira.email.desc': 'The Atlassian account the API token belongs to.',
+  'prefs.integ.jira.apiToken.title': 'API token',
+  'prefs.integ.jira.apiToken.desc': 'Stored locally in this app’s database.',
+  'prefs.integ.jira.getToken': 'Get a token →',
+  'prefs.integ.jira.project.title': 'Project',
+  'prefs.integ.jira.project.desc': 'Optional — narrow the ticket list to a single project.',
+  'prefs.integ.jira.allProjects': 'All projects',
+  'prefs.integ.jira.jql.title': 'JQL filter',
+  'prefs.integ.jira.jql.desc': 'Optional — extra JQL ANDed into the ticket queries, e.g.',
+  'prefs.integ.jira.connectedAs': 'Connected as {email}',
+  'prefs.integ.jira.connected': 'Connected',
+  'prefs.integ.jira.notConnected': 'Not connected',
+  'prefs.integ.jira.error.auth': 'Jira rejected these credentials.',
+  'prefs.integ.jira.error.generic': 'Jira error: {error}',
+  'prefs.integ.jira.verifying': 'Verifying…',
+
+  // Preferences — Integrations: shared status labels.
+  'prefs.integ.enabled': 'Enabled',
+  'prefs.integ.pollingOn': 'Polling on',
+  'prefs.integ.off': 'Off',
+  'prefs.integ.pollInterval': 'Poll interval',
+  'prefs.integ.notVerified': 'Not verified',
+  'prefs.integ.testing': 'Testing…',
+  'prefs.integ.testConnection': 'Test connection',
+
+  // Preferences — Integrations: Sentry.
+  'prefs.integ.sentry.title': 'Sentry',
+  'prefs.integ.sentry.desc':
+    'Surfaces new unresolved Sentry issues as PopBot notifications. Token + org only — your messages and stack traces never leave your machine; PopBot reads the issue summaries via the Sentry REST API. Generate a token at {link} with scopes {scopes}.',
+  'prefs.integ.sentry.authTokensLink': 'sentry.io → Auth Tokens',
+  'prefs.integ.sentry.authToken': 'Auth token',
+  'prefs.integ.sentry.orgSlug': 'Org slug',
+  'prefs.integ.sentry.projectSlug': 'Project slug',
+  'prefs.integ.sentry.projectSlug.placeholder': '(optional — leave blank for all projects)',
+  'prefs.integ.sentry.verified': 'Verified · {org}',
+
+  // Preferences — Integrations: Slack.
+  'prefs.integ.slack.title': 'Slack',
+  'prefs.integ.slack.desc':
+    'Surfaces unread DMs and channel @-mentions as PopBot notifications. Read-only — PopBot never posts on your behalf.',
+  'prefs.integ.slack.tokenHelp':
+    'To get a token: create a Slack app at {link}, add user-token scopes {scopes}, install to your workspace, then copy the User OAuth Token (starts with {prefix}).',
+  'prefs.integ.slack.appsLink': 'api.slack.com/apps',
+  'prefs.integ.slack.userToken': 'User token',
+  'prefs.integ.slack.connectedTo': 'Connected to {team} as {user}',
+
+  // Preferences — Notifications pane.
+  'prefs.notify.title': 'Notifications',
+  'prefs.notify.desc':
+    'VIPs are people whose Slack DMs and channel mentions always get bumped to urgent priority + tagged with a VIP chip on the notification, regardless of message content. Names are matched case-insensitively as substrings of the Slack display name (so "York" matches "York Johnson" and "Yorktown Smith") — keep names specific to avoid false positives.',
+  'prefs.notify.vipNames': 'VIP names',
+  'prefs.notify.vipPlaceholder': 'One name per line, e.g.\nYork\nAmitt\nMatt Van',
+  'prefs.notify.toastPlacement': 'Toast placement',
+  'prefs.notify.centerFly.label': 'Top-center, fly to bell on dismiss',
+  'prefs.notify.centerFly.desc':
+    'On by default — toasts arrive at top-center, animate toward the bell icon when dismissed, and pulse the bell briefly so you can see where the notification went. Turn off if you’d rather have the classic top-right corner toasts. Takes effect immediately — no Save needed.',
+  'prefs.notify.savedPill': 'Saved',
+  'prefs.notify.testFlow.title': 'Test new-item flow',
+  'prefs.notify.testFlow.desc':
+    'Temporarily flags a few existing items in your real queue as NEW so you can verify the chip + tab pip behavior. Nothing is added, removed, or persisted server-side.',
+  'prefs.notify.testFlow.flagTickets': 'Flag 2 tickets as NEW',
+  'prefs.notify.testFlow.flagPrs': 'Flag 2 PRs as NEW',
+
+  // Preferences — Permissions pane.
+  'prefs.permissions.tool.bash.desc': 'Run shell commands on your machine.',
+  'prefs.permissions.tool.read.desc': 'Read the contents of a file.',
+  'prefs.permissions.tool.write.desc': 'Create or overwrite a file.',
+  'prefs.permissions.tool.edit.desc': 'Modify the contents of a file.',
+  'prefs.permissions.tool.notebookEdit.desc': 'Modify cells in a Jupyter notebook.',
+  'prefs.permissions.tool.grep.desc': 'Search inside files for text.',
+  'prefs.permissions.tool.glob.desc': 'Find files matching a name pattern.',
+  'prefs.permissions.tool.webFetch.desc': 'Fetch and read a remote URL.',
+  'prefs.permissions.tool.webSearch.desc': 'Run a web search for context.',
+  'prefs.permissions.tool.todoWrite.desc': 'Update the agent’s internal task list.',
+  'prefs.permissions.tool.task.desc': 'Spawn a sub-agent to delegate work.',
+  'prefs.permissions.tool.exitPlanMode.desc': 'Leave plan mode and present the plan.',
+  'prefs.permissions.title': 'Permissions',
+  'prefs.permissions.desc':
+    'Global default for each tool. Ask prompts the chat each time (the default). Allow auto-approves without prompting. Deny auto-rejects. Per-chat rules — set from the permission card via "Allow this chat" / "Deny this chat" — override these globals, so a single chat can lock down a tool you’ve otherwise allowed everywhere.',
+  'prefs.permissions.toolDefaultAria': '{tool} default',
+  'prefs.permissions.state.ask': 'ask',
+  'prefs.permissions.state.allow': 'allow',
+  'prefs.permissions.state.deny': 'deny',
+
+  // Preferences — Repositories pane.
+  'prefs.repos.colorAria': 'Repo color',
+  'prefs.repos.title': 'Repositories',
+  'prefs.repos.desc':
+    'Each chat lives in a repository. A repo’s mode (slot pool vs. ephemeral worktrees) is set when it’s created and can’t be changed afterward — switching modes would orphan the worktrees of any chats already in flight.',
+  'prefs.repos.mode.ephemeral': 'ephemeral',
+  'prefs.repos.mode.slots': 'slots × {count}',
+  'prefs.repos.delete': 'Delete…',
+  'prefs.repos.card.path': 'Path',
+  'prefs.repos.card.defaultBase': 'Default base',
+  'prefs.repos.card.slotPrefix': 'Slot prefix',
+  'prefs.repos.addRepository': 'Add Repository',
+  'prefs.repos.wizard.title': 'New repository',
+  'prefs.repos.wizard.initializingSlots': 'initializing slots',
+  'prefs.repos.wizard.stepOf': 'step {step} of {total}',
+  'prefs.repos.wizard.modeIntro':
+    'Choose how PopBot manages worktrees for chats in this repo. You can’t change this later.',
+  'prefs.repos.wizard.mode.slots.title': 'Slots',
+  'prefs.repos.wizard.mode.slots.pill': 'keeps build caches warm across chats',
+  'prefs.repos.wizard.mode.slots.lead': 'Permanent worktree slots reused by chats.',
+  'prefs.repos.wizard.mode.slots.desc':
+    'A fixed pool of N pre-allocated worktrees. Chats borrow a slot, work in it, then park back when closed. Each slot keeps its own build artifacts — Unity’s Library/, node_modules/, gradle/maven caches, etc. That means no multi-minute reimport or npm install every time you switch branches. Pick this whenever the per-branch setup cost is non-trivial.',
+  'prefs.repos.wizard.mode.ephemeral.title': 'Ephemeral',
+  'prefs.repos.wizard.mode.ephemeral.pill': 'good for pure-code repos',
+  'prefs.repos.wizard.mode.ephemeral.lead': 'Temporary worktrees removed when a chat is closed.',
+  'prefs.repos.wizard.mode.ephemeral.desc':
+    'Each chat gets its own worktree, created when the chat opens and removed when it closes. No pool, no parking branches. Best when there’s no expensive per-branch cache to keep warm — pure-code repos, scripts, web apps with cheap installs.',
+  'prefs.repos.wizard.repoPath.title': 'Repo path',
+  'prefs.repos.wizard.repoPath.desc':
+    'Absolute path to the source clone. We’ll auto-fill the id and slot prefix from the folder name (you can override).',
+  'prefs.repos.wizard.browseTitle': 'Browse for a folder',
+  'prefs.repos.wizard.pickDirTitle': 'Choose the source repository',
+  'prefs.repos.wizard.browse': 'Browse…',
+  'prefs.repos.wizard.shortId.title': 'Short id',
+  'prefs.repos.wizard.shortId.desc':
+    'Lowercase, no spaces. Used in folder paths and branch prefixes. Permanent.',
+  'prefs.repos.wizard.shortId.placeholder': 'app',
+  'prefs.repos.wizard.defaultBase.title': 'Default base branch',
+  'prefs.repos.wizard.defaultBase.desc': 'New chat branches fork from here.',
+  'prefs.repos.wizard.color.title': 'Color',
+  'prefs.repos.wizard.color.desc': 'Tints this repo’s slot pills + chat accents.',
+  'prefs.repos.wizard.created':
+    '{id} is created. Now we’ll initialize its {count} slot worktrees — each is a long-lived git worktree on its own parking branch, ready to host a chat.',
+  'prefs.repos.wizard.createdOne':
+    '{id} is created. Now we’ll initialize its {count} slot worktree — a long-lived git worktree on its own parking branch, ready to host a chat.',
+  'prefs.repos.wizard.slotPrefix.title': 'Slot prefix',
+  'prefs.repos.wizard.slotPrefix.desc':
+    'Folder + parking-branch prefix. Worktrees become {prefix}-N. Shorter is better — this prefix shows up in worktree paths, parking branches, and the slot pill in the chat header, so a long prefix wastes screen space everywhere.',
+  'prefs.repos.wizard.slotCount.title': 'Slot count',
+  'prefs.repos.wizard.slotCount.desc': 'How many concurrent chats this repo supports. 1–64.',
+  'prefs.repos.wizard.adding': 'Adding…',
+  'prefs.repos.error.duplicateId': 'A repo with id "{id}" already exists.',
+  'prefs.repos.error.generic': 'Could not create repo.',
+  'prefs.repos.error.notFound': 'Repo not found — was it deleted?',
+  'prefs.repos.edit.title': 'Edit {id}',
+  'prefs.repos.edit.mode.title': 'Mode',
+  'prefs.repos.edit.mode.desc': 'Permanent. Delete + recreate the repo to switch modes.',
+  'prefs.repos.edit.slotPrefix.desc': 'Permanent — baked into folder paths and parking branches.',
+  'prefs.repos.edit.repoPath.desc': 'Permanent. Delete + recreate to point at a different clone.',
+  'prefs.repos.edit.slotCount.desc':
+    'Pool size. Resizing creates or tears down worktrees one at a time — refuses if any slot is held by an open chat.',
+  'prefs.repos.edit.resizeSlots': 'Resize slots…',
+  'prefs.repos.resize.title': 'Resize slots',
+  'prefs.repos.resize.newCount.title': 'New slot count',
+  'prefs.repos.resize.newCount.desc':
+    'Current: {count}. Increasing creates more worktrees; decreasing tears down the highest-numbered ones (and their parking branches).',
+  'prefs.repos.delete.title': 'Delete repository',
+  'prefs.repos.delete.about': 'You’re about to delete {id}.',
+  'prefs.repos.delete.attachedWarning':
+    '{count} chats are attached to this repo. Their conversation history is preserved in the database, but they’ll be detached until a repo with the same id is added back.',
+  'prefs.repos.delete.attachedWarningOne':
+    '{count} chat is attached to this repo. Its conversation history is preserved in the database, but it’ll be detached until a repo with the same id is added back.',
+  'prefs.repos.delete.reversible': 'Reversible:',
+  'prefs.repos.delete.reversibleBody':
+    'if you later create a new repo with the id {id}, all detached chats will reattach automatically.',
+  'prefs.repos.delete.noTouch':
+    'This won’t touch the source clone at {path} or any chat branches in it. Slot worktrees on disk are left alone too — you can prune them by hand if you want a clean slate.',
+  'prefs.repos.delete.typeToConfirm': 'Type {id} to confirm:',
+  'prefs.repos.delete.deleting': 'Deleting…',
+
+  // ---------------------------------------------------------------------------
+  // Language preference pane.
+  // ---------------------------------------------------------------------------
+  'language.title': 'Language',
+  'language.description':
+    'Choose the language PopBot uses for its interface. Most text and the menus update right away; a few system strings finish updating after a restart.',
+  'language.label': 'Display language',
+  'language.systemNote': 'New windows and the app menu use this language too.',
+} as const;

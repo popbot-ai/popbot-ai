@@ -32,6 +32,7 @@ import type {
   NotifyInput,
 } from './notifications';
 import type { ListReviewsResult } from './reviews';
+import type { GithubTestResult, JiraSettings } from './ticketProvider';
 import type { SentryTestResult } from './sentry';
 import type { SlackTestResult } from './slack';
 import type { UpdateInfo, UpdateCheckResult, UpdateProgress, UpdateReady } from './updates';
@@ -95,6 +96,22 @@ export const IpcChannel = {
    *  started/completed/canceled states — fired right after a chat is
    *  spawned for the ticket so the workflow reflects active dev. */
   LinearPromoteIssue: 'pb:linear:promote-issue',
+
+  /** Verify Jira Cloud credentials (base URL + email + API token) by
+   *  hitting `myself`. Used by the Jira form's Save button. The other
+   *  ticket data channels (list/get/states/transition/promote) are shared
+   *  with Linear and routed by the `ticketSource` setting in main. */
+  JiraTest: 'pb:jira:test',
+  /** List Jira projects visible to the supplied draft credentials — feeds
+   *  the project picker in the Jira Preferences form. */
+  JiraListProjects: 'pb:jira:list-projects',
+
+  /** Verify the `gh` CLI is installed + authenticated and report how many
+   *  configured repos the Tickets queue will span. GitHub has no
+   *  credentials to enter (it reuses the `gh` login), so this takes no
+   *  args. The shared ticket-data channels (list/get/states/promote) are
+   *  routed by the `ticketSource` setting in main. */
+  GithubTest: 'pb:github:test',
 
   /** Pending PRs (review-requested:@me OR review:none) for the configured repo. */
   ReviewsList: 'pb:reviews:list',
@@ -225,6 +242,11 @@ export const IpcChannel = {
   /** Push channel — main → renderer. Open the About dialog (fired from
    *  the native macOS app menu). */
   ShowAbout: 'pb:app:show-about',
+
+  /** Renderer → main. The UI language changed; main rebuilds the native
+   *  app menu (macOS app menu / non-mac File menu) so its labels track
+   *  the renderer's language without a restart. */
+  LocaleChanged: 'pb:i18n:locale-changed',
 
   /** Multi-repo configuration. Each repo is either slot-pool or
    *  ephemeral; mode is set at create and is immutable thereafter
@@ -468,6 +490,12 @@ export interface PopBotApi {
     /** Quit the whole app (custom titlebar menu on Windows). */
     quit(): Promise<void>;
   };
+  /** Localization. The renderer owns the active locale (persisted via
+   *  `settings`); this lets it nudge main to re-localize native chrome. */
+  i18n: {
+    /** Tell main the UI language changed so it rebuilds the native menu. */
+    localeChanged(locale: string): void;
+  };
   /** Window chrome controls for the custom menu bar (frameless platforms). */
   win: {
     /** Dispatch a window/edit/view command. Resolves to the maximized
@@ -656,6 +684,25 @@ export interface PopBotApi {
       | { ok: true; promoted: boolean; stateName?: string }
       | { ok: false; reason: string }
     >;
+  };
+  jira: {
+    /** Verify draft Jira credentials. Returns the same result shape as
+     *  `linear.test` so the Preferences forms can share status rendering. */
+    test(settings: JiraSettings): Promise<LinearTestResult>;
+    /** List projects for the supplied draft credentials. */
+    listProjects(settings: JiraSettings): Promise<{
+      projects: LinearProjectDto[];
+      notConfigured?: boolean;
+      authFailed?: boolean;
+      error?: string;
+    }>;
+  };
+  github: {
+    /** Verify the `gh` CLI is installed + authenticated and report how
+     *  many configured repos the Tickets queue spans. No args — GitHub
+     *  reuses the `gh` login rather than its own credentials. Feeds the
+     *  GitHub Preferences form's status line. */
+    test(): Promise<GithubTestResult>;
   };
   term: {
     open(chatId: string, cwd: string, cols?: number, rows?: number): Promise<{ ok: true; buffer: string }>;

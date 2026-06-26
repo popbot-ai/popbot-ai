@@ -4,6 +4,7 @@
  */
 
 import type { ChatStatus } from './domain';
+import type { SourceControlProviderId } from './sourceControl';
 
 export const RAW_CHAT_REPO_ID = '__none__';
 
@@ -165,6 +166,10 @@ export interface RepoRecord {
   slotCount: number;
   /** See {@link RepoWorktreeMode}. Defaults to `slots` for back-compat. */
   mode: RepoWorktreeMode;
+  /** Which source-control provider backs this repo. Optional for
+   *  back-compat — repos created before multi-SCM support are git.
+   *  See {@link SourceControlProviderId}. */
+  scm?: SourceControlProviderId;
   createdAt: number;
   updatedAt: number;
 }
