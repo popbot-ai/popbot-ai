@@ -67,7 +67,21 @@ function New-CodeFile {
 }
 
 # ---- prep ----
-if ($Clean -and (Test-Path $Root)) { Remove-Item $Root -Recurse -Force }
+if ($Clean -and (Test-Path $Root)) {
+  # Guard against a typo'd -Root nuking real data: never delete a drive root,
+  # and never recursively delete a non-empty directory unless it's a tree we
+  # generated (marked by FakeGame.uproject).
+  $fullRoot  = [IO.Path]::GetFullPath($Root)
+  $driveRoot = ([IO.Path]::GetPathRoot($fullRoot)).TrimEnd('\', '/')
+  if ($fullRoot.TrimEnd('\', '/') -eq $driveRoot) {
+    throw "Refusing to -Clean a drive root: $fullRoot"
+  }
+  $hasEntries = Get-ChildItem $Root -Force -ErrorAction SilentlyContinue | Select-Object -First 1
+  if ($hasEntries -and -not (Test-Path (Join-Path $Root 'FakeGame.uproject'))) {
+    throw "Refusing to -Clean a non-empty directory that isn't a generated FakeGame: $Root"
+  }
+  Remove-Item $Root -Recurse -Force
+}
 New-Item -ItemType Directory -Path $Root -Force | Out-Null
 $totalBytes = [long]($TotalSizeGB * 1GB)
 

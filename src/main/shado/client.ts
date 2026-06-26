@@ -10,7 +10,7 @@
 // Privileged operations (create/clone/recache/restore) require elevation — those
 // are gated and surfaced to the user, not run silently as admin here.
 
-import { execFile } from 'node:child_process'
+import { execFile, execFileSync } from 'node:child_process'
 import { existsSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join, parse } from 'node:path'
@@ -64,7 +64,17 @@ export function shadoExePath(): string {
 }
 
 export function shadoAvailable(): boolean {
-  return shadoExePath() !== exeName || existsSync(exeName)
+  // A resolved bundled/dev path means it exists. Otherwise we fell back to
+  // the bare name — check whether it's actually on PATH (existsSync against a
+  // relative name would always be false, hiding a PATH install).
+  if (shadoExePath() !== exeName) return true
+  const probe = process.platform === 'win32' ? 'where' : 'which'
+  try {
+    execFileSync(probe, [exeName], { stdio: 'ignore', windowsHide: true })
+    return true
+  } catch {
+    return false
+  }
 }
 
 /**

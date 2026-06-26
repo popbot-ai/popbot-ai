@@ -32,8 +32,12 @@ export function P4Panel({ chatId, chatName, diffPath, onOpenDiff }: SourceContro
   const [checked, setChecked] = useState<Set<string>>(new Set());
   const [desc, setDesc] = useState('');
   const [busy, setBusy] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   const ok = data?.ok ? data : null;
+  // Surface a failed status load explicitly rather than rendering as an empty
+  // (clean) workspace, which would hide real errors.
+  const statusError = data && !data.ok ? (data.error ?? data.reason) : null;
   const files: GitFileChange[] = ok?.files ?? [];
   const commits = ok?.recentCommits ?? [];
   const shelves = ok?.shelves ?? [];
@@ -54,18 +58,22 @@ export function P4Panel({ chatId, chatName, diffPath, onOpenDiff }: SourceContro
     const paths = [...checked].filter((p) => files.some((f) => f.path === p));
     if (!paths.length || !desc.trim() || busy) return;
     setBusy(true);
+    setActionError(null);
     const res = await window.popbot.git.commit({ chatId, message: desc, paths });
     setBusy(false);
     if (res.ok) {
       setChecked(new Set());
       setDesc('');
       refresh();
+    } else {
+      setActionError(res.error || 'Submit failed');
     }
   };
 
   const revert = async (paths: string[]): Promise<void> => {
     if (!paths.length || busy) return;
     setBusy(true);
+    setActionError(null);
     const res = await window.popbot.git.revert({ chatId, paths });
     setBusy(false);
     if (res.ok) {
@@ -75,11 +83,16 @@ export function P4Panel({ chatId, chatName, diffPath, onOpenDiff }: SourceContro
         return next;
       });
       refresh();
+    } else {
+      setActionError(res.error || 'Revert failed');
     }
   };
 
   return (
     <div className="p4-panel">
+      {(actionError || statusError) && (
+        <div className="p4-error" role="alert">{actionError ?? statusError}</div>
+      )}
       {/* top — recent submitted changes */}
       <div className="p4-section p4-commits">
         <div className="p4-section-head">{t('p4.commits.title')}</div>

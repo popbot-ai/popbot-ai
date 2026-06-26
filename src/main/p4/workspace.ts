@@ -13,7 +13,7 @@ import { join } from 'node:path';
 import type { PerforceSettings } from '@shared/persistence';
 import type { P4Shelf } from '@shared/perforce';
 import { getSetting } from '../persistence/settings';
-import { p4exec, parseZtag, type P4Context } from './exec';
+import { p4exec, parseZtag, type P4Context, type P4ExecResult } from './exec';
 
 /**
  * Per-slot metadata the provider needs when it only has the slot path
@@ -90,13 +90,22 @@ export async function ensureClient(opts: EnsureClientOpts): Promise<void> {
     (revertUnchanged ? 'SubmitOptions: revertunchanged\n' : '') +
     `View:\n\t${dp}/... //${ctx.client}/${sub}/...\n`;
   await p4exec(ctx, ['client', '-i'], { input: spec });
-  await flushTo(ctx, dp, baseChangelist);
+  // A silent flush failure would leave the slot's have-list wrong (it would
+  // believe it holds the base when it doesn't) — surface it during setup.
+  const flush = await flushTo(ctx, dp, baseChangelist);
+  if (flush.code !== 0) {
+    throw new Error(
+      `p4 flush of ${dp}/...@${baseChangelist} failed: ${flush.stderr.trim() || flush.stdout.trim()}`,
+    );
+  }
 }
 
-/** Flush the slot client's have-list to a changelist (0-byte transfer). */
-export async function flushTo(ctx: P4Context, depotPath: string, change: number): Promise<void> {
+/** Flush the slot client's have-list to a changelist (0-byte transfer).
+ *  Returns the raw result so callers can decide whether a failure is fatal
+ *  (slot setup) or best-effort (park/refresh re-flush on next allocation). */
+export async function flushTo(ctx: P4Context, depotPath: string, change: number): Promise<P4ExecResult> {
   const dp = normDepot(depotPath);
-  await p4exec(ctx, ['flush', `${dp}/...@${change}`], { tolerant: true });
+  return p4exec(ctx, ['flush', `${dp}/...@${change}`], { tolerant: true });
 }
 
 /** Revert every opened file in the slot — park to a clean base. */

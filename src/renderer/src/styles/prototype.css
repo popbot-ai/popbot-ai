@@ -5253,3 +5253,9 @@ input.input.mono, select.input.mono { font-family: var(--font-mono); font-size: 
   border: 1px solid var(--line-2); color: var(--fg-2); background: var(--bg-3);
 }
 .repo-card-scm svg, .repo-card-scm i { font-size: 0.95em; line-height: 1; }
+
+.p4-error {
+  margin: 6px 10px; padding: 6px 9px; border-radius: 5px;
+  background: rgba(208,86,86,0.12); border: 1px solid rgba(208,86,86,0.4);
+  color: #e58a8a; font-size: var(--fs-xs);
+}

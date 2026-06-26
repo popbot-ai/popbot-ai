@@ -76,6 +76,11 @@ export function listRepos(): RepoRecord[] {
  * can advance the stored base changelist.
  */
 export function upsertRepo(input: Omit<RepoRecord, 'createdAt' | 'updatedAt'>): RepoRecord {
+  // Enforce the Perforce invariant at the persistence boundary so an invalid
+  // state (scm='perforce' with no connection config) can never be written.
+  if (input.scm === 'perforce' && !input.p4) {
+    throw new Error(`Perforce repo "${input.id}" requires p4 config (port, user, depot, base changelist)`);
+  }
   const now = Date.now();
   db().prepare(
     `INSERT INTO repos (id, repo_path, color, slot_prefix, default_base, slot_count, mode, scm, p4_config, created_at, updated_at)

@@ -131,11 +131,13 @@ export function readP4Config(wt: string): P4Context | null {
     if (m) vals[m[1]] = m[2];
   }
   if (!vals.P4PORT || !vals.P4USER) return null;
+  // Deliberately NOT reading P4PASSWD: we never load a stored Perforce
+  // password off disk into the connection. Auth relies on a `p4 login`
+  // ticket (the p4-init hook should likewise not persist the password).
   return {
     port: vals.P4PORT,
     user: vals.P4USER,
     client: vals.P4CLIENT || undefined,
-    password: vals.P4PASSWD || undefined,
   };
 }
 
