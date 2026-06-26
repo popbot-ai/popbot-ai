@@ -23,6 +23,7 @@ import type { LinearIssueDto } from '@shared/linear';
 import type { ReviewItem } from '@shared/reviews';
 import type { ChatRecord } from '@shared/persistence';
 import { LinearStateIcon } from '../lib/linearIcons';
+import { useTranslation } from '../lib/i18n';
 
 interface WorkItemSearchProps {
   title?: string;
@@ -109,7 +110,7 @@ function filterPrs(prs: ReviewItem[], q: string): ReviewItem[] {
 }
 
 export function WorkItemSearch({
-  title = 'Find or add ticket / PR / chat',
+  title,
   onCancel,
   knownTickets,
   knownPrs,
@@ -119,6 +120,8 @@ export function WorkItemSearch({
   onSelectPr,
   onSelectChat,
 }: WorkItemSearchProps): JSX.Element {
+  const { t } = useTranslation();
+  const resolvedTitle = title ?? t('work.title');
   const [query, setQuery] = useState('');
   const [chatHits, setChatHits] = useState<ChatRecord[]>([]);
   const [busyKind, setBusyKind] = useState<'ticket' | 'pr' | null>(null);
@@ -158,14 +161,14 @@ export function WorkItemSearch({
         : await onPinPr(freeForm.number);
       if (!res.ok) {
         setError(
-          res.reason === 'not-found' ? "Couldn't find that — check the id."
-          : res.reason === 'not-configured' ? 'Linear not configured (Preferences → Integrations).'
-          : res.reason === 'auth-failed' ? 'Linear auth failed.'
-          : res.reason === 'gh-not-found' ? '`gh` CLI not installed.'
-          : res.reason === 'gh-not-authed' ? '`gh` is not signed in.'
-          : res.reason === 'no-repo' ? 'No repo configured.'
-          : res.reason === 'duplicate' ? 'Already in your list.'
-          : res.error || 'Could not pin.',
+          res.reason === 'not-found' ? t('work.error.notFound')
+          : res.reason === 'not-configured' ? t('work.error.notConfigured')
+          : res.reason === 'auth-failed' ? t('work.error.authFailed')
+          : res.reason === 'gh-not-found' ? t('work.error.ghNotFound')
+          : res.reason === 'gh-not-authed' ? t('work.error.ghNotAuthed')
+          : res.reason === 'no-repo' ? t('work.error.noRepo')
+          : res.reason === 'duplicate' ? t('work.error.duplicate')
+          : res.error || t('work.error.generic'),
         );
         return;
       }
@@ -187,15 +190,15 @@ export function WorkItemSearch({
       <div
         className="confirm-dialog work-item-search"
         role="dialog"
-        aria-label={title}
+        aria-label={resolvedTitle}
         onMouseDown={(e) => e.stopPropagation()}
         style={{ width: 560, maxWidth: '92vw' }}
       >
-        <div className="confirm-head">{title}</div>
+        <div className="confirm-head">{resolvedTitle}</div>
         <div className="confirm-body" style={{ paddingBottom: 6 }}>
           <input
             className="pref-input mono narrow"
-            placeholder="Search tickets, PRs, chats — or paste ENG-12345 / PR #1234"
+            placeholder={t('work.searchPlaceholder')}
             value={query}
             onChange={(e) => { setQuery(e.target.value); setError(null); }}
             onKeyDown={(e) => {
@@ -208,7 +211,7 @@ export function WorkItemSearch({
 
           {freeForm && (
             <div className="work-item-search-group">
-              <div className="work-item-search-head">Add new</div>
+              <div className="work-item-search-head">{t('work.addNew')}</div>
               <button
                 type="button"
                 className="work-item-search-row pin-new"
@@ -217,11 +220,11 @@ export function WorkItemSearch({
               >
                 <i className="fa-solid fa-thumbtack" />
                 <span className="mono">
-                  {freeForm.kind === 'ticket' ? freeForm.identifier : `PR #${freeForm.number}`}
+                  {freeForm.kind === 'ticket' ? freeForm.identifier : t('work.prNumber', { number: freeForm.number })}
                 </span>
                 <span style={{ flex: 1 }} />
                 <span className="work-item-search-row-hint">
-                  {busyKind ? 'Looking up…' : `Pin ${freeForm.kind}`}
+                  {busyKind ? t('work.lookingUp') : t('work.pinKind', { kind: freeForm.kind })}
                 </span>
               </button>
             </div>
@@ -229,7 +232,7 @@ export function WorkItemSearch({
 
           {ticketHits.length > 0 && (
             <div className="work-item-search-group">
-              <div className="work-item-search-head">Tickets</div>
+              <div className="work-item-search-head">{t('work.tickets')}</div>
               {ticketHits.map((t) => (
                 <button
                   key={t.id}
@@ -247,7 +250,7 @@ export function WorkItemSearch({
 
           {prHits.length > 0 && (
             <div className="work-item-search-group">
-              <div className="work-item-search-head">PRs</div>
+              <div className="work-item-search-head">{t('work.prs')}</div>
               {prHits.map((p) => (
                 <button
                   key={p.number}
@@ -256,7 +259,7 @@ export function WorkItemSearch({
                   onClick={() => { onSelectPr?.(p); onCancel(); }}
                 >
                   <i className="fa-solid fa-code-pull-request" style={{ color: 'var(--fg-3)' }} />
-                  <span className="mono">PR #{p.number}</span>
+                  <span className="mono">{t('work.prNumber', { number: p.number })}</span>
                   <span className="work-item-search-row-title">{p.title}</span>
                 </button>
               ))}
@@ -265,7 +268,7 @@ export function WorkItemSearch({
 
           {chatHits.length > 0 && (
             <div className="work-item-search-group">
-              <div className="work-item-search-head">Chats</div>
+              <div className="work-item-search-head">{t('work.chats')}</div>
               {chatHits.map((c) => (
                 <button
                   key={c.id}
@@ -276,7 +279,7 @@ export function WorkItemSearch({
                   <i className={`fa-solid fa-comments`} style={{ color: 'var(--fg-3)' }} />
                   <span className="work-item-search-row-title">{c.name}</span>
                   {c.ticket && <span className="mono work-item-search-row-hint">{c.ticket}</span>}
-                  {c.pr && <span className="mono work-item-search-row-hint">PR #{c.pr}</span>}
+                  {c.pr && <span className="mono work-item-search-row-hint">{t('work.prNumber', { number: c.pr })}</span>}
                 </button>
               ))}
             </div>
@@ -284,14 +287,14 @@ export function WorkItemSearch({
 
           {empty && (
             <div style={{ padding: '14px 4px 4px', fontSize: 12, color: 'var(--fg-3)' }}>
-              No matches. Try a Linear id like <span className="mono">ENG-12345</span> or a PR number like <span className="mono">PR #1234</span> to pin a new one.
+              {t('work.emptyHint', { id: 'ENG-12345', pr: 'PR #1234' })}
             </div>
           )}
 
           {error && <div className="pref-error" style={{ marginTop: 10 }}>{error}</div>}
         </div>
         <div className="confirm-foot">
-          <button className="btn ghost" onClick={onCancel}>Close</button>
+          <button className="btn ghost" onClick={onCancel}>{t('common.close')}</button>
         </div>
       </div>
     </div>,

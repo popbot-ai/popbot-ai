@@ -1,13 +1,15 @@
 import { useEffect, useRef, useState } from 'react';
 import type { NotificationAction, NotificationRecord, NotificationUrgency } from '@shared/notifications';
+import type { MessageKey } from '@shared/i18n';
+import { useTranslation } from '../lib/i18n';
 import githubIcon from '../assets/notif/github.png';
 import linearIcon from '../assets/notif/linear.png';
 import slackIcon from '../assets/notif/slack.png';
 
-const URGENCY_META: Record<NotificationUrgency, { label: string; color: string; bg: string; border: string; dot: string }> = {
-  high: { label: 'High', color: '#ffffff', bg: 'rgba(239,68,68,0.40)',  border: 'rgba(239,68,68,0.85)',  dot: '#ef4444' },
-  med:  { label: 'Med',  color: '#ffffff', bg: 'rgba(245,158,11,0.32)', border: 'rgba(245,158,11,0.75)', dot: '#f59e0b' },
-  low:  { label: 'Low',  color: '#cdd9ec', bg: 'rgba(99,102,241,0.20)', border: 'rgba(99,102,241,0.55)', dot: '#6366f1' },
+const URGENCY_META: Record<NotificationUrgency, { labelKey: MessageKey; color: string; bg: string; border: string; dot: string }> = {
+  high: { labelKey: 'notify.urgency.high', color: '#ffffff', bg: 'rgba(239,68,68,0.40)',  border: 'rgba(239,68,68,0.85)',  dot: '#ef4444' },
+  med:  { labelKey: 'notify.urgency.med',  color: '#ffffff', bg: 'rgba(245,158,11,0.32)', border: 'rgba(245,158,11,0.75)', dot: '#f59e0b' },
+  low:  { labelKey: 'notify.urgency.low',  color: '#cdd9ec', bg: 'rgba(99,102,241,0.20)', border: 'rgba(99,102,241,0.55)', dot: '#6366f1' },
 };
 
 interface KindMeta { img?: string; icon?: string; bg: string; label: string }
@@ -34,6 +36,7 @@ interface ToastProps {
 }
 
 function NotificationToastItem({ notification: n, onAction, onDismiss, centerFly }: ToastProps): JSX.Element {
+  const { t } = useTranslation();
   const u = URGENCY_META[n.urgency];
   const k = KIND_META[n.kind] ?? KIND_FALLBACK;
   const sourceLabel = n.source || k.label;
@@ -88,16 +91,16 @@ function NotificationToastItem({ notification: n, onAction, onDismiss, centerFly
         <div className="toast-row1">
           {sourceLabel && <span className="toast-source">{sourceLabel}</span>}
           {n.actor && <span className="notif-actor">· {n.actor.name}</span>}
-          {n.actor?.isVip && <span className="notif-vip" title="VIP">VIP</span>}
+          {n.actor?.isVip && <span className="notif-vip" title={t('notify.vip')}>{t('notify.vip')}</span>}
           <span className="toast-urgency" style={{ color: u.color, background: u.bg, borderColor: u.border }}>
-            {u.label}
+            {t(u.labelKey)}
           </span>
           <span className="notif-spacer" />
           <button
             className="toast-x"
             onClick={() => setLeaving(true)}
-            title="Dismiss"
-            aria-label="Dismiss"
+            title={t('common.dismiss')}
+            aria-label={t('common.dismiss')}
           >
             <i className="fa-solid fa-xmark" />
           </button>
@@ -130,8 +133,9 @@ interface StackProps {
 }
 
 export function NotificationToastStack({ toasts, onAction, onDismiss, centerFly }: StackProps): JSX.Element {
+  const { t } = useTranslation();
   return (
-    <div className={`toast-stack ${centerFly ? 'center-fly' : ''}`} role="region" aria-label="New notifications">
+    <div className={`toast-stack ${centerFly ? 'center-fly' : ''}`} role="region" aria-label={t('notify.toast.stackAria')}>
       {toasts.map((n) => (
         <NotificationToastItem
           key={n.id}

@@ -3,6 +3,8 @@ import type { Chat } from '../fixtures/data';
 import type { ChatRecord } from '@shared/persistence';
 import { TerminalView } from './TerminalView';
 import { colAccentStyle } from '../lib/repoColor';
+import { useTranslation } from '../lib/i18n';
+import type { Translator } from '@shared/i18n';
 
 interface PanelDProps {
   /** Used only for the "focused: <name>" label in the header. */
@@ -23,6 +25,7 @@ interface PanelDProps {
 // a chat with an active terminal preserves the PTY (it lives in main),
 // and re-focusing it remounts the existing one without a new click.
 export function PanelD({ focusedChat, focusedRecord }: PanelDProps): JSX.Element {
+  const { t } = useTranslation();
   const [opened, setOpened] = useState<Set<string>>(() => new Set());
   const chatId = focusedRecord?.id ?? null;
   const isOpened = chatId !== null && opened.has(chatId);
@@ -40,7 +43,7 @@ export function PanelD({ focusedChat, focusedRecord }: PanelDProps): JSX.Element
   // Plain "Terminal · Slot N" label — the blue pill version was
   // visually competing with the chat-header pill for attention; flat
   // text reads cleaner here.
-  const slotLabel = focusedRecord?.slotId == null ? '' : ` · Slot ${focusedRecord.slotId}`;
+  const slotLabel = focusedRecord?.slotId == null ? '' : t('panelD.slotSuffix', { slotId: focusedRecord.slotId });
   return (
     <div className="bottom" data-screen-label="Panel D · Terminal">
       <div className="bottom-head">
@@ -48,14 +51,15 @@ export function PanelD({ focusedChat, focusedRecord }: PanelDProps): JSX.Element
           {/* Lint flags aria-selected on plain <button>; CSS selectors here
               key the active-tab styling off it (matches the other tab bars
               in the app), so we keep it. */}
-          <button className="bottom-tab" aria-selected>Terminal{slotLabel}</button>
+          <button className="bottom-tab" aria-selected>{t('panelD.terminalTab')}{slotLabel}</button>
         </div>
         <div className="bottom-actions">
-          <span className="label">focused: {focusedChat?.name?.split(' ').slice(0, 2).join(' ') || '—'}</span>
+          <span className="label">{t('panelD.focusedLabel', { name: focusedChat?.name?.split(' ').slice(0, 2).join(' ') || '—' })}</span>
         </div>
       </div>
       <div className="bottom-body">
         {renderBody({
+          t,
           focusedRecord,
           isOpened,
           openTerminal,
@@ -65,7 +69,8 @@ export function PanelD({ focusedChat, focusedRecord }: PanelDProps): JSX.Element
   );
 }
 
-function renderBody({ focusedRecord, isOpened, openTerminal }: {
+function renderBody({ t, focusedRecord, isOpened, openTerminal }: {
+  t: Translator;
   focusedRecord: ChatRecord | null;
   isOpened: boolean;
   openTerminal: () => void;
@@ -85,7 +90,7 @@ function renderBody({ focusedRecord, isOpened, openTerminal }: {
           onClick={openTerminal}
           style={colAccentStyle(focusedRecord.repoColor)}
         >
-          <i className="fa-solid fa-plus" /> New Terminal
+          <i className="fa-solid fa-plus" /> {t('panelD.newTerminal')}
         </button>
       </div>
     );
@@ -93,8 +98,8 @@ function renderBody({ focusedRecord, isOpened, openTerminal }: {
   return (
     <div className="term-empty">
       {focusedRecord
-        ? 'This chat has no slot worktree yet.'
-        : 'Focus a chat to open its terminal.'}
+        ? t('panelD.noWorktree')
+        : t('panelD.focusToOpen')}
     </div>
   );
 }
