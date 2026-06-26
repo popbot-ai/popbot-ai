@@ -120,7 +120,7 @@ export function PreferencesSheet({
             {section === 'agents' && <PrefsAgents />}
             {section === 'runtime' && <PrefsAttachments />}
             {section === 'repos' && <PrefsRepos onReposChanged={onReposChanged} />}
-            {section === 'git' && <PrefsGit />}
+            {section === 'git' && <PrefsSourceControl />}
             {section === 'apps' && <PrefsApps />}
             {section === 'templates' && <PrefsTemplates />}
             {section === 'reviews' && <PrefsReviews />}
@@ -594,28 +594,73 @@ interface GitSettings {
   slotPrefix?: string;
   worktreesDir?: string;
   defaultBase?: string;
+  /** Whether the Git provider is enabled. Defaults to true (pre-existing
+   *  installs are git-based). Source-control providers are NOT mutually
+   *  exclusive — Git and Perforce can both be enabled at the same time. */
+  enabled?: boolean;
 }
 
-function PrefsGit(): JSX.Element {
-  const { get, set, loading } = useSettings();
-  const initial = get<GitSettings>('git', {}) ?? {};
-  const [username, setUsername] = useState(initial.username ?? '');
-  const [savedAt, setSavedAt] = useState<number | null>(null);
+interface PerforceSettings {
+  enabled?: boolean;
+  /** Helix Core server address, e.g. ssl:host:1666 (keep the ssl: prefix for
+   *  SSL-enabled servers). */
+  p4port?: string;
+  /** Perforce user name. */
+  p4user?: string;
+}
 
-  // Same sync-on-load fix as PrefsApps / UnityConfig. Without this,
-  // useState captures defaults while useSettings is still loading and
-  // a subsequent Save overwrites real persisted values with defaults.
-  useEffect(() => { setUsername(initial.username ?? ''); }, [initial.username]);
-
-  if (loading) return <div className="pref-section"><h3>Source control</h3></div>;
-
+// One source-control provider: an enable toggle plus a config body shown only
+// when enabled. Modeled on the Integrations panel — providers are NOT mutually
+// exclusive, so Git and Perforce can both be on at once.
+function ProviderBlock({
+  title,
+  desc,
+  enabled,
+  onToggle,
+  children,
+}: {
+  title: string;
+  desc?: ReactNode;
+  enabled: boolean;
+  onToggle: (v: boolean) => void;
+  children: ReactNode;
+}): JSX.Element {
   return (
-    <div className="pref-section">
-      <h3>Source control</h3>
-      <p className="pref-section-desc">
-        Global git identity. Per-repository settings — path, base branch,
-        slots, and color — live under <b>Repositories</b>.
-      </p>
+    <div className="pref-section" style={{ marginTop: 18, opacity: enabled ? 1 : 0.7 }}>
+      <div className="pref-row">
+        <div className="pref-label">
+          <div className="pref-label-title">{title}</div>
+          {desc && <div className="pref-label-desc">{desc}</div>}
+        </div>
+        <div className="pref-control" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <button
+            type="button"
+            className={`pref-toggle ${enabled ? 'on' : ''}`}
+            onClick={() => onToggle(!enabled)}
+            aria-pressed={enabled}
+          >
+            <span className="pref-toggle-thumb" />
+          </button>
+          <span style={{ color: 'var(--fg-2)', fontSize: 12 }}>{enabled ? 'Enabled' : 'Disabled'}</span>
+        </div>
+      </div>
+      {enabled && <div style={{ marginTop: 4 }}>{children}</div>}
+    </div>
+  );
+}
+
+function GitProviderBody({
+  git,
+  onSave,
+}: {
+  git: GitSettings;
+  onSave: (next: GitSettings) => Promise<void> | void;
+}): JSX.Element {
+  const [username, setUsername] = useState(git.username ?? '');
+  const [savedAt, setSavedAt] = useState<number | null>(null);
+  useEffect(() => { setUsername(git.username ?? ''); }, [git.username]);
+  return (
+    <>
       <div className="pref-rows">
         <div className="pref-row">
           <div className="pref-label">
@@ -640,9 +685,7 @@ function PrefsGit(): JSX.Element {
             <button
               className="btn primary sm"
               onClick={async () => {
-                // Merge so we only edit the username and preserve any
-                // legacy git fields still used as runtime fallbacks.
-                await set('git', { ...initial, username: username.trim() });
+                await onSave({ ...git, username: username.trim() });
                 setSavedAt(Date.now());
               }}
             >
@@ -652,18 +695,126 @@ function PrefsGit(): JSX.Element {
           </div>
         </div>
       </div>
-
-      <h3 style={{ marginTop: 28 }}>Action templates</h3>
       <TemplatesGroup
         fields={GIT_ACTION_TEMPLATE_FIELDS}
         intro={
-          <p className="pref-section-desc">
-            Prompts the git panel sends to the chat agent when you click the
-            big action button (or change base branch). Use{' '}
+          <p className="pref-section-desc" style={{ marginTop: 14 }}>
+            Prompts the git panel sends to the chat agent for one-click actions. Use{' '}
             <span className="mono">{'${name}'}</span> macros to inject context.
           </p>
         }
       />
+    </>
+  );
+}
+
+function PerforceProviderBody({
+  p4,
+  onSave,
+}: {
+  p4: PerforceSettings;
+  onSave: (next: PerforceSettings) => Promise<void> | void;
+}): JSX.Element {
+  const [port, setPort] = useState(p4.p4port ?? '');
+  const [user, setUser] = useState(p4.p4user ?? '');
+  const [savedAt, setSavedAt] = useState<number | null>(null);
+  useEffect(() => { setPort(p4.p4port ?? ''); }, [p4.p4port]);
+  useEffect(() => { setUser(p4.p4user ?? ''); }, [p4.p4user]);
+  return (
+    <div className="pref-rows">
+      <div className="pref-row">
+        <div className="pref-label">
+          <div className="pref-label-title">Server (P4PORT)</div>
+          <div className="pref-label-desc">
+            e.g. <span className="mono">ssl:host:1666</span> — keep the <span className="mono">ssl:</span> prefix for SSL servers.
+          </div>
+        </div>
+        <div className="pref-control">
+          <input
+            className="pref-input mono"
+            placeholder="ssl:perforce:1666"
+            value={port}
+            onChange={(e) => setPort(e.target.value)}
+            style={{ width: 240 }}
+          />
+        </div>
+      </div>
+      <div className="pref-row">
+        <div className="pref-label">
+          <div className="pref-label-title">User (P4USER)</div>
+        </div>
+        <div className="pref-control">
+          <input
+            className="pref-input mono"
+            placeholder="you"
+            value={user}
+            onChange={(e) => setUser(e.target.value)}
+            style={{ width: 160 }}
+          />
+        </div>
+      </div>
+      <div className="pref-row">
+        <div className="pref-label" />
+        <div className="pref-control" style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <button
+            className="btn primary sm"
+            onClick={async () => {
+              await onSave({ ...p4, p4port: port.trim(), p4user: user.trim() });
+              setSavedAt(Date.now());
+            }}
+          >
+            Save
+          </button>
+          {savedAt && <span style={{ color: 'var(--fg-3)', fontSize: 11 }}>Saved.</span>}
+        </div>
+      </div>
+      <div className="pref-row">
+        <div className="pref-label" />
+        <div className="pref-control">
+          <p className="pref-section-desc" style={{ margin: 0 }}>
+            Perforce workspaces are managed by the bundled <span className="mono">shado</span> controller
+            (VHDX copy-on-write slots) — built for very large depots. Set a repository to use Perforce under{' '}
+            <b>Repositories</b>, and sign in once per machine with <span className="mono">p4 login</span>.
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function PrefsSourceControl(): JSX.Element {
+  const { get, set, loading } = useSettings();
+  const git = get<GitSettings>('git', {}) ?? {};
+  const p4 = get<PerforceSettings>('perforce', {}) ?? {};
+  const gitEnabled = git.enabled !== false; // default on — pre-existing installs are git
+  const p4Enabled = !!p4.enabled;
+
+  if (loading) return <div className="pref-section"><h3>Source control</h3></div>;
+
+  return (
+    <div className="pref-section">
+      <h3>Source control</h3>
+      <p className="pref-section-desc">
+        Enable the providers you use — <b>Git and Perforce can both be on at once</b>. Each
+        repository picks which one it uses under <b>Repositories</b>, and a chat shows the panel
+        for its repo's provider.
+      </p>
+      <ProviderBlock
+        title="Git"
+        desc="Branch-per-chat with warm git-worktree slots."
+        enabled={gitEnabled}
+        onToggle={(v) => set('git', { ...git, enabled: v })}
+      >
+        <GitProviderBody git={git} onSave={(next) => set('git', next)} />
+      </ProviderBlock>
+      <ProviderBlock
+        title="Perforce (Helix Core)"
+        desc="VHDX copy-on-write slots via the bundled shado controller — for very large depots."
+        enabled={p4Enabled}
+        onToggle={(v) => set('perforce', { ...p4, enabled: v })}
+      >
+        <PerforceProviderBody p4={p4} onSave={(next) => set('perforce', next)} />
+      </ProviderBlock>
     </div>
   );
 }
