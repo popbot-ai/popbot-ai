@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { ReviewItem } from '@shared/reviews';
+import { useTranslation } from '../lib/i18n';
 import {
   AGENT_EFFORT_DEFAULTS_SETTING,
   AgentCreateControls,
@@ -38,6 +39,7 @@ export function PrReviewActionDialog({
   onIgnore,
   onCancel,
 }: PrReviewActionDialogProps): JSX.Element {
+  const { t } = useTranslation();
   const [agentConfig, setAgentConfig] = useState<AgentCreateConfig>(DEFAULT_AGENT_CREATE_CONFIG);
 
   useEffect(() => {
@@ -71,14 +73,14 @@ export function PrReviewActionDialog({
       <div
         className="confirm-dialog"
         role="alertdialog"
-        aria-label={`PR #${review.number}`}
+        aria-label={t('review.dialog.ariaLabel', { number: review.number })}
         onMouseDown={(e) => e.stopPropagation()}
       >
-        <div className="confirm-head">PR #{review.number}</div>
+        <div className="confirm-head">{t('review.dialog.heading', { number: review.number })}</div>
         <div className="confirm-body">
           <div style={{ marginBottom: 6, color: 'var(--fg-0)' }}>{review.title}</div>
           <div style={{ color: 'var(--fg-2)', fontSize: 11.5 }}>
-            What do you want to do with this PR?
+            {t('review.dialog.prompt')}
           </div>
           <div style={{ marginTop: 12 }}>
             <AgentCreateControls
@@ -88,13 +90,13 @@ export function PrReviewActionDialog({
           </div>
         </div>
         <div className="confirm-foot">
-          <button className="btn ghost" onClick={onIgnore} title="Hide this PR from the review list">
-            Ignore
+          <button className="btn ghost" onClick={onIgnore} title={t('review.dialog.ignoreTitle')}>
+            {t('review.dialog.ignore')}
           </button>
           <span style={{ flex: 1 }} />
-          <button className="btn ghost" onClick={onCancel}>Cancel</button>
+          <button className="btn ghost" onClick={onCancel}>{t('common.cancel')}</button>
           <button className="btn primary" onClick={create} autoFocus>
-            Create chat
+            {t('review.dialog.createChat')}
           </button>
         </div>
       </div>

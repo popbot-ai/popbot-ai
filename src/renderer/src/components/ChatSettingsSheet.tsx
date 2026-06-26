@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import type { ChatRecord } from '@shared/persistence';
+import { useTranslation } from '../lib/i18n';
+import type { Translator } from '@shared/i18n';
 
 interface SessionEntry {
   sessionId: string;
@@ -31,22 +33,23 @@ interface ChatSettingsSheetProps {
   onClose: () => void;
 }
 
-function fmtBytes(n?: number): string {
+function fmtBytes(t: Translator, n?: number): string {
   if (n == null) return '';
-  if (n < 1024) return `${n} B`;
-  if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`;
-  return `${(n / 1024 / 1024).toFixed(1)} MB`;
+  if (n < 1024) return t('chatSettings.bytesB', { n });
+  if (n < 1024 * 1024) return t('chatSettings.bytesKB', { n: (n / 1024).toFixed(1) });
+  return t('chatSettings.bytesMB', { n: (n / 1024 / 1024).toFixed(1) });
 }
 
-function fmtAge(ms: number): string {
+function fmtAge(t: Translator, ms: number): string {
   const d = (Date.now() - ms) / 1000;
-  if (d < 60) return `${Math.floor(d)}s ago`;
-  if (d < 3600) return `${Math.floor(d / 60)}m ago`;
-  if (d < 86400) return `${Math.floor(d / 3600)}h ago`;
-  return `${Math.floor(d / 86400)}d ago`;
+  if (d < 60) return t('time.secondsAgo', { count: Math.floor(d) });
+  if (d < 3600) return t('time.minutesAgo', { count: Math.floor(d / 60) });
+  if (d < 86400) return t('time.hoursAgo', { count: Math.floor(d / 3600) });
+  return t('time.daysAgo', { count: Math.floor(d / 86400) });
 }
 
 export function ChatSettingsSheet({ chat, onClose }: ChatSettingsSheetProps): JSX.Element {
+  const { t } = useTranslation();
   const [sessions, setSessions] = useState<SessionEntry[] | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -68,12 +71,12 @@ export function ChatSettingsSheet({ chat, onClose }: ChatSettingsSheetProps): JS
         setSelectedId(chat.sessionId ?? res.sessions[0]?.sessionId ?? null);
       } else {
         setLoadError(res.reason === 'no-worktree'
-          ? 'No working directory configured for this chat — Linear/git settings need a repo path before sessions can be discovered.'
-          : `Couldn't load sessions: ${res.error ?? res.reason}`);
+          ? t('chatSettings.noWorktreeError')
+          : t('chatSettings.loadSessionsError', { error: res.error ?? res.reason }));
       }
     });
     return () => { cancelled = true; };
-  }, [chat.id, chat.sessionId, version]);
+  }, [chat.id, chat.sessionId, version, t]);
 
   const filtered = useMemo(() => {
     if (!sessions) return [];
@@ -126,7 +129,7 @@ export function ChatSettingsSheet({ chat, onClose }: ChatSettingsSheetProps): JS
   const ticketLink =
     chat.ticket ? chat.ticket :
     chat.pr ? `PR #${chat.pr}` :
-    'none';
+    t('common.none');
 
   return (
     <>
@@ -135,85 +138,80 @@ export function ChatSettingsSheet({ chat, onClose }: ChatSettingsSheetProps): JS
         <div className="sheet-head">
           <div style={{ flex: 1 }}>
             <h2>{chat.name}</h2>
-            <div className="sub">⎇ {chat.branch ?? '(no branch)'}</div>
+            <div className="sub">⎇ {chat.branch ?? t('chatSettings.noBranch')}</div>
           </div>
           <button className="iconbtn" onClick={onClose} style={{ width: 26, height: 26 }}>×</button>
         </div>
         <div className="sheet-body">
           <div className="section">
-            <h3>Identity</h3>
-            <Field label="Linked"><span className="pill muted">{ticketLink}</span></Field>
-            <Field label="Slot">
-              <span className="mono">{chat.slotId == null ? '(none)' : `slot ${chat.slotId}`}</span>
+            <h3>{t('chatSettings.identity')}</h3>
+            <Field label={t('chatSettings.linked')}><span className="pill muted">{ticketLink}</span></Field>
+            <Field label={t('chatSettings.slot')}>
+              <span className="mono">{chat.slotId == null ? t('chatSettings.slotNone') : t('chatSettings.slotN', { slotId: chat.slotId })}</span>
             </Field>
-            <Field label="Worktree">
+            <Field label={t('chatSettings.worktree')}>
               <span className="mono" style={{ fontSize: 11, color: 'var(--fg-2)', wordBreak: 'break-all' }}>
-                {chat.worktreePath ?? '(none)'}
+                {chat.worktreePath ?? t('chatSettings.worktreeNone')}
               </span>
             </Field>
-            <Field label="Agent">
+            <Field label={t('chatSettings.agent')}>
               <span className="mono">
                 {chat.agent === 'codex'
                   ? `${chat.agent} · ${chat.codexModel} · ${chat.codexReasoningEffort}`
                   : `${chat.agent} · ${chat.claudeModel} · ${chat.claudeReasoningEffort}`}
               </span>
             </Field>
-            <Field label={chat.agent === 'codex' ? 'Codex thread' : 'Pinned session'}>
+            <Field label={chat.agent === 'codex' ? t('chatSettings.codexThread') : t('chatSettings.pinnedSession')}>
               <span className="mono" style={{ fontSize: 11, color: 'var(--fg-2)' }}>
-                {(chat.agent === 'codex' ? chat.codexThreadId : chat.sessionId) ?? '(none — fresh on next send)'}
+                {(chat.agent === 'codex' ? chat.codexThreadId : chat.sessionId) ?? t('chatSettings.sessionNone')}
               </span>
             </Field>
           </div>
 
           <div className="section">
-            <h3>Recover context</h3>
+            <h3>{t('chatSettings.recoverContext')}</h3>
             <p className="pref-section-desc" style={{ marginBottom: 12 }}>
-              Use when the agent has lost memory of this chat (e.g. the transcript above
-              shows real work but the agent thinks it\'s a fresh session). Spawns a new
-              agent session and primes it with this chat\'s text history so it can pick
-              up where things left off — first 3 turns and the most recent turns are
-              kept; very old middle turns may be omitted.
+              {t('chatSettings.recoverDesc')}
             </p>
             <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
               <button
                 className="btn primary"
                 onClick={() => void restartWithContext()}
                 disabled={busy}
-                title="Spawn a fresh agent session primed with this chat's transcript"
+                title={t('chatSettings.restartTooltip')}
               >
-                {busy ? 'Restarting…' : 'Restart with context'}
+                {busy ? t('chatSettings.restarting') : t('chatSettings.restartWithContext')}
               </button>
             </div>
           </div>
 
           {chat.agent === 'claude' && (
           <div className="section">
-            <h3>Try reconnect</h3>
+            <h3>{t('chatSettings.tryReconnect')}</h3>
             <p className="pref-section-desc" style={{ marginBottom: 12 }}>
-              Pick a saved Claude session for this chat's worktree. Useful if
-              auto-reconnect picked the wrong one and you want to force a
-              specific transcript. The picked session will be pinned and the
-              agent re-spawned into it.
+              {t('chatSettings.reconnectDesc')}
             </p>
-            {loading && <div style={{ color: 'var(--fg-3)', fontSize: 12 }}>Loading sessions…</div>}
+            {loading && <div style={{ color: 'var(--fg-3)', fontSize: 12 }}>{t('chatSettings.loadingSessions')}</div>}
             {loadError && <div style={{ color: '#e89696', fontSize: 12 }}>{loadError}</div>}
             {sessions && sessions.length === 0 && (
               <div style={{ color: 'var(--fg-3)', fontSize: 12 }}>
-                No sessions on disk for this worktree.
+                {t('chatSettings.noSessionsOnDisk')}
               </div>
             )}
             {sessions && sessions.length > 0 && (
               <>
                 <input
                   className="input"
-                  placeholder={`Search ${sessions.length} session${sessions.length === 1 ? '' : 's'}…`}
+                  placeholder={sessions.length === 1
+                    ? t('chatSettings.searchSessions', { count: sessions.length })
+                    : t('chatSettings.searchSessionsPlural', { count: sessions.length })}
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   style={{ width: '100%', marginBottom: 8 }}
                 />
                 <div className="session-list-bounded">
                   {filtered.length === 0 ? (
-                    <div className="session-empty">No sessions match.</div>
+                    <div className="session-empty">{t('chatSettings.noSessionsMatch')}</div>
                   ) : filtered.map((s) => {
                     const isCurrent = chat.sessionId === s.sessionId;
                     const isSelected = selectedId === s.sessionId;
@@ -226,14 +224,14 @@ export function ChatSettingsSheet({ chat, onClose }: ChatSettingsSheetProps): JS
                       >
                         <span className="session-id mono">{s.sessionId.slice(0, 8)}</span>
                         {s.gitBranch && (
-                          <span className="session-branch mono" title="git branch">
+                          <span className="session-branch mono" title={t('chatSettings.gitBranchTooltip')}>
                             ⎇ {s.gitBranch}
                           </span>
                         )}
                         <span className="session-pick-prompt">
-                          {s.firstPrompt?.trim() || s.summary || '(no first prompt)'}
+                          {s.firstPrompt?.trim() || s.summary || t('chatSettings.noFirstPrompt')}
                         </span>
-                        <span className="session-meta">{fmtAge(s.lastModified)}</span>
+                        <span className="session-meta">{fmtAge(t, s.lastModified)}</span>
                       </button>
                     );
                   })}
@@ -243,9 +241,9 @@ export function ChatSettingsSheet({ chat, onClose }: ChatSettingsSheetProps): JS
                     <div className="session-preview-head">
                       <span className="session-id mono">{selected.sessionId}</span>
                       <span style={{ flex: 1 }} />
-                      <span className="session-meta">{fmtAge(selected.lastModified)}</span>
+                      <span className="session-meta">{fmtAge(t, selected.lastModified)}</span>
                       {selected.fileSize != null && (
-                        <span className="session-meta mono">{fmtBytes(selected.fileSize)}</span>
+                        <span className="session-meta mono">{fmtBytes(t, selected.fileSize)}</span>
                       )}
                     </div>
                     {selected.gitBranch && (
@@ -254,7 +252,7 @@ export function ChatSettingsSheet({ chat, onClose }: ChatSettingsSheetProps): JS
                       </div>
                     )}
                     <div className="session-preview-prompt">
-                      {selected.firstPrompt?.trim() || selected.summary || '(no first prompt)'}
+                      {selected.firstPrompt?.trim() || selected.summary || t('chatSettings.noFirstPrompt')}
                     </div>
                   </div>
                 )}
@@ -266,11 +264,11 @@ export function ChatSettingsSheet({ chat, onClose }: ChatSettingsSheetProps): JS
                       onClick={() => void reconnect()}
                       title={
                         selected.sessionId === chat.sessionId
-                          ? 'Already pinned'
-                          : 'Pin the selected session and re-spawn the agent into it'
+                          ? t('chatSettings.alreadyPinned')
+                          : t('chatSettings.reconnectRowTooltip')
                       }
                     >
-                      {busy ? 'Connecting…' : (selected.sessionId === chat.sessionId ? 'Connected' : 'Connect')}
+                      {busy ? t('chatSettings.connecting') : (selected.sessionId === chat.sessionId ? t('chatSettings.connected') : t('chatSettings.connect'))}
                     </button>
                   </div>
                 )}
@@ -281,7 +279,7 @@ export function ChatSettingsSheet({ chat, onClose }: ChatSettingsSheetProps): JS
         </div>
         <div className="sheet-foot">
           <span style={{ flex: 1 }} />
-          <button className="btn ghost" onClick={onClose}>Close</button>
+          <button className="btn ghost" onClick={onClose}>{t('common.close')}</button>
         </div>
       </aside>
     </>

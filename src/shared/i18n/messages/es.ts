@@ -2,11 +2,57 @@ import type { PartialMessages } from '../types';
 
 /** Spanish (es). Missing keys fall back to English. */
 export const es = {
+  // ---------------------------------------------------------------------------
+  // Generic, reused across many surfaces.
+  // ---------------------------------------------------------------------------
   'common.confirm': 'Confirmar',
   'common.cancel': 'Cancelar',
   'common.close': 'Cerrar',
   'common.done': 'Listo',
+  'common.save': 'Guardar',
+  'common.saved': 'Guardado.',
+  'common.saving': 'Guardando…',
+  'common.loading': 'Cargando…',
+  'common.retry': 'Reintentar',
+  'common.reconnect': 'Reconectar',
+  'common.refresh': 'Actualizar',
+  'common.clear': 'Borrar',
+  'common.copy': 'Copiar',
+  'common.send': 'Enviar',
+  'common.dismiss': 'Descartar',
+  'common.gotIt': 'Entendido',
+  'common.ok': 'OK',
+  'common.back': 'Atrás',
+  'common.next': 'Siguiente',
+  'common.continue': 'Continuar',
+  'common.edit': 'Editar',
+  'common.disconnect': 'Desconectar',
+  'common.status': 'Estado',
+  'common.days': 'días',
+  'common.minutes': 'minutos',
+  'common.newChat': 'Nuevo chat',
+  'common.noBranch': '(sin rama)',
+  'common.none': 'ninguno',
+  'common.markAsSeen': 'Marcar como visto',
+  'common.dragToResize': 'Arrastra para redimensionar',
 
+  // ---------------------------------------------------------------------------
+  // Relative time (App.tsx, PanelA.tsx, ChatSettingsSheet.tsx, notifications).
+  // ---------------------------------------------------------------------------
+  'time.justNow': 'ahora mismo',
+  'time.activeNow': 'activo ahora',
+  'time.secondsAgo': 'hace {count}s',
+  'time.minutesAgo': 'hace {count}m',
+  'time.hoursAgo': 'hace {count}h',
+  'time.daysAgo': 'hace {count}d',
+  'time.now': 'ahora',
+  'time.minutesShort': '{count}m',
+  'time.hoursShort': '{count}h',
+  'time.daysShort': '{count}d',
+
+  // ---------------------------------------------------------------------------
+  // Custom Windows/Linux menu bar (MenuBar.tsx) + native app menu.
+  // ---------------------------------------------------------------------------
   'menu.file': 'Archivo',
   'menu.edit': 'Editar',
   'menu.view': 'Ver',
@@ -29,6 +75,9 @@ export const es = {
   'menu.reportIssue': 'Informar de un problema',
   'menu.about': 'Acerca de PopBot',
 
+  // ---------------------------------------------------------------------------
+  // About dialog (AboutDialog.tsx).
+  // ---------------------------------------------------------------------------
   'about.version': 'Versión {version}',
   'about.versionUnknown': 'Versión …',
   'about.checking': 'Buscando actualizaciones…',
@@ -40,6 +89,632 @@ export const es = {
   'about.documentation': 'Documentación',
   'about.checkBtn': 'Buscar actualizaciones',
 
+  // ---------------------------------------------------------------------------
+  // App shell (App.tsx).
+  // ---------------------------------------------------------------------------
+  'app.busy.worktreeFailed': 'Error al configurar el worktree',
+  'app.busy.settingUpWorkspace': 'Configurando el espacio de trabajo…',
+  'app.busy.checkingOutBranch': 'Cambiando a {branch}',
+  'app.busy.branchingFrom': 'Creando la rama {branch} desde {baseBranch}',
+  'app.create.newClientTestChat': 'Nuevo chat de prueba de cliente',
+  'app.chat.reviewName': '[CR] PR #{number} · {title}',
+  'app.update.available': 'Actualización disponible — {name}',
+  'app.update.availableDetail': 'Estás en la v{current}. Haz clic para descargar la v{latest}.',
+  'app.update.ready': 'Actualización lista — {name}',
+  'app.update.readyDetail': 'v{version} descargada. Haz clic para reiniciar e instalar.',
+  'app.thumbstrip.emptyTitle': 'Panel de miniaturas',
+  'app.thumbstrip.emptyBody':
+    'Aquí se mostrarán versiones en miniatura de tus chats cuando los abras.',
+  'app.actions.commandPalette': 'Paleta de comandos {shortcut}',
+  'app.actions.newChat': 'Nuevo chat {shortcut}',
+  'app.noSlots.title': 'No hay slots de espacio de trabajo libres',
+  'app.noSlots.subtitle': 'Todos los slots están ocupados por un chat abierto.',
+  'app.noSlots.body':
+    'Cierra uno de tus chats activos para liberar un slot, o aumenta el límite de slots en {prefsLink}.',
+  'app.noSlots.prefsPath': 'Preferencias → Repositorios',
+  'app.noSlots.openPreferences': 'Abrir Preferencias',
+
+  // ---------------------------------------------------------------------------
+  // Notifications (App.tsx dispatch, NotificationsBell.tsx, NotificationToast.tsx).
+  // ---------------------------------------------------------------------------
+  'notify.action.openInLinear': 'Abrir en Linear',
+  'notify.action.openOnGitHub': 'Abrir en GitHub',
+  'notify.action.showInPopBot': 'Mostrar en PopBot',
+  'notify.ticket.new': 'Nuevo ticket',
+  'notify.ticket.newWithProject': 'Nuevo ticket · {project}',
+  'notify.review.new': 'Nuevo PR para revisar',
+  'notify.review.newWithAuthor': 'Nuevo PR para revisar · @{author}',
+  'notify.urgency.high': 'Alta',
+  'notify.urgency.med': 'Media',
+  'notify.urgency.low': 'Baja',
+  'notify.vip': 'VIP',
+  'notify.vipTitle': 'VIP — elevado a urgente',
+  'notify.bell.title': 'Notificaciones',
+  'notify.bell.unreadTitle': '{count} notificación sin leer',
+  'notify.bell.unreadTitlePlural': '{count} notificaciones sin leer',
+  'notify.head.title': 'Notificaciones',
+  'notify.summary.high': '{count} altas',
+  'notify.summary.med': '{count} medias',
+  'notify.summary.low': '{count} bajas',
+  'notify.clearAll': 'Borrar todo',
+  'notify.empty': 'Aún no hay notificaciones.',
+  'notify.toast.stackAria': 'Notificaciones nuevas',
+
+  // ---------------------------------------------------------------------------
+  // Panel A — incoming tickets / reviews / slack (PanelA.tsx).
+  // ---------------------------------------------------------------------------
+  'panelA.tab.tickets': 'Tickets',
+  'panelA.tab.reviews': 'Revisiones',
+  'panelA.tab.slack': 'Slack',
+  'panelA.tab.unseenTitle': '{count} nuevos',
+  'panelA.action.markAllTicketsSeen': 'Marcar los {count} tickets nuevos como vistos',
+  'panelA.action.markAllReviewsSeen': 'Marcar los {count} PRs nuevos como vistos',
+  'panelA.action.addItem': 'Añadir ticket o PR por id (p. ej. ENG-12345 o PR #1234)',
+  'panelA.action.refresh': 'Actualizar tickets + PRs',
+  'panelA.action.filter': 'Filtrar',
+  'panelA.refresh.inProgress': 'Actualizando tickets y PRs…',
+  'panelA.refresh.done': 'Actualizado.',
+  'panelA.menu.unpin': 'Desfijar',
+  'panelA.menu.ignore': 'Ignorar',
+  'panelA.menu.openWebPage': 'Abrir página web',
+
+  'slack.empty.notConnected': 'Slack aún no está conectado.',
+  'slack.empty.description':
+    'Una vez configurado, esta pestaña mostrará los DMs sin leer y las menciones de canal.',
+  'slack.empty.connectButton': 'Conectar Slack',
+
+  'reviews.readiness.connected': 'GitHub conectado',
+  'reviews.readiness.connectPrompt': 'Conecta GitHub para ver las revisiones',
+  'reviews.readiness.installLabel': 'GitHub CLI instalado',
+  'reviews.readiness.installAction': 'Instalar gh',
+  'reviews.readiness.signedInLabel': 'Sesión iniciada en GitHub',
+  'reviews.readiness.signedInHint': 'ejecuta gh auth login',
+  'reviews.readiness.signedInAction': 'Cómo iniciar sesión',
+  'reviews.readiness.repoLabel': 'Repositorio configurado',
+  'reviews.readiness.repoAction': 'Añadir repositorio',
+  'reviews.list.loading': 'Cargando revisiones…',
+  'reviews.list.loadError': 'No se pudieron cargar las revisiones: {message}',
+  'reviews.empty.none': 'No hay PRs que necesiten tu revisión ahora mismo.',
+  'reviews.row.linkedFocused': 'Este PR es el chat enfocado',
+  'reviews.row.linkedOpen': 'Haz clic para enfocar el chat existente de este PR',
+  'reviews.row.linkedClosed': 'Haz clic para reabrir el chat cerrado de este PR',
+  'reviews.row.linkedDefault': '#{number} · {title}',
+  'reviews.row.reReviewLinkedTitle':
+    'Haz clic para iniciar la re-revisión — abre el chat y envía el prompt de re-revisión',
+  'reviews.row.reReviewNewTitle': 'Haz clic para crear un chat de revisión',
+  'reviews.row.reReviewChip': 'RE-REVISIÓN',
+  'reviews.row.newChip': 'NUEVO',
+  'reviews.row.requestedReviewerTitle': 'Se te solicita como revisor',
+  'reviews.row.requestedReviewerLabel': 'Tú',
+  'reviews.row.noReviewsTitle': 'Aún sin revisiones',
+  'reviews.row.noReviewsLabel': 'Sin revisiones',
+  'reviews.row.draft': 'borrador',
+  'reviews.row.chatPill': 'chat',
+  'reviews.row.closedPill': 'cerrado',
+
+  'priority.urgent': 'Urgente',
+  'priority.high': 'Alta',
+  'priority.med': 'Media',
+  'priority.low': 'Baja',
+  'priority.none': 'Sin prioridad',
+
+  'linear.error.notConfigured': 'La clave de API de Linear no está configurada.',
+  'linear.error.authFailed': 'Error de autenticación de Linear.',
+  'linear.status.changeTitle': 'Estado: {state} — haz clic para cambiar',
+  'linear.status.changeAriaLabel': 'Cambiar estado (actualmente {state})',
+  'linear.status.noStates': 'No hay estados definidos.',
+  'linear.tooltip.status': 'Estado',
+  'linear.tooltip.priority': 'Prioridad',
+  'linear.tooltip.project': 'Proyecto',
+  'linear.tooltip.updated': 'Actualizado',
+  'linear.row.linkedFocused': '{id} · este ticket es el chat enfocado',
+  'linear.row.linkedOpen': '{id} · haz clic para enfocar el chat existente',
+  'linear.row.linkedClosed': '{id} · haz clic para reabrir el chat cerrado',
+  'linear.row.linkedDefault': '{id} · {title}',
+  'linear.list.loading': 'Cargando tickets…',
+  'linear.empty.notConfigured': 'No hay ninguna fuente de tickets conectada.',
+  'linear.empty.connectButton': 'Conectar al gestor de incidencias',
+  'linear.empty.authFailed': 'La clave de API de Linear fue rechazada.',
+  'linear.error.loadFailed': 'No se pudieron cargar los tickets.',
+  'linear.search.placeholder': 'Buscar tickets…',
+  'linear.empty.noMatches': 'Sin coincidencias.',
+  'linear.empty.noTickets': 'No tienes tickets activos asignados.',
+
+  // ---------------------------------------------------------------------------
+  // Panel B — chat list (PanelB.tsx).
+  // ---------------------------------------------------------------------------
+  'panelB.kind.prTooltip': 'Revisión de código · PR #{pr}',
+  'panelB.kind.pr': 'PR #{pr}',
+  'panelB.kind.ticketTooltip': 'Ticket · {ticket}',
+  'panelB.kind.ticket': 'TICKET',
+  'panelB.kind.clientTestTooltip': 'Prueba de cliente',
+  'panelB.kind.clientTest': 'CLIENTE',
+  'panelB.kind.serverTestTooltip': 'Prueba de servidor',
+  'panelB.kind.serverTest': 'SERVIDOR',
+  'panelB.kind.plainTooltip': 'Chat simple',
+  'panelB.kind.plain': 'CHAT',
+  'panelB.slotTooltip': 'Slot de espacio de trabajo {slotId}',
+  'panelB.deleteChatTooltip': 'Eliminar chat',
+  'panelB.delete.title': '¿Eliminar este chat?',
+  'panelB.delete.sub':
+    'Se ocultará de tus listas. La transcripción se conserva y se puede restaurar.',
+  'panelB.delete.body': 'Estás a punto de eliminar:',
+  'panelB.delete.confirm': 'Eliminar chat',
+  'panelB.searchPlaceholder': 'Buscar chats…',
+  'panelB.clearSearchTooltip': 'Borrar búsqueda',
+  'panelB.results': 'Resultados',
+  'panelB.noMatches': 'Sin coincidencias.',
+  'panelB.active': 'Activos',
+  'panelB.noActiveChats': 'No hay chats activos.',
+  'panelB.newChat': '+ Nuevo chat',
+  'panelB.inactive': 'Inactivos',
+  'panelB.showMore': 'Mostrar {count} más',
+
+  // ---------------------------------------------------------------------------
+  // Panel D — terminal (PanelD.tsx).
+  // ---------------------------------------------------------------------------
+  'panelD.terminalTab': 'Terminal',
+  'panelD.slotSuffix': ' · Slot {slotId}',
+  'panelD.focusedLabel': 'enfocado: {name}',
+  'panelD.newTerminal': 'Nueva terminal',
+  'panelD.noWorktree': 'Este chat aún no tiene worktree de slot.',
+  'panelD.focusToOpen': 'Enfoca un chat para abrir su terminal.',
+
+  // ---------------------------------------------------------------------------
+  // Work-item search (WorkItemSearch.tsx).
+  // ---------------------------------------------------------------------------
+  'work.title': 'Buscar o añadir ticket / PR / chat',
+  'work.error.notFound': 'No se encontró — comprueba el id.',
+  'work.error.notConfigured': 'Linear no está configurado (Preferencias → Integraciones).',
+  'work.error.authFailed': 'Error de autenticación de Linear.',
+  'work.error.ghNotFound': 'La CLI `gh` no está instalada.',
+  'work.error.ghNotAuthed': '`gh` no tiene la sesión iniciada.',
+  'work.error.noRepo': 'No hay ningún repo configurado.',
+  'work.error.duplicate': 'Ya está en tu lista.',
+  'work.error.generic': 'No se pudo fijar.',
+  'work.searchPlaceholder': 'Buscar tickets, PRs, chats — o pega ENG-12345 / PR #1234',
+  'work.addNew': 'Añadir nuevo',
+  'work.prNumber': 'PR #{number}',
+  'work.lookingUp': 'Buscando…',
+  'work.pinKind': 'Fijar {kind}',
+  'work.tickets': 'Tickets',
+  'work.prs': 'PRs',
+  'work.chats': 'Chats',
+  'work.emptyHint':
+    'Sin coincidencias. Prueba un id de Linear como {id} o un número de PR como {pr} para fijar uno nuevo.',
+
+  // ---------------------------------------------------------------------------
+  // Monitor card (MonitorCard.tsx).
+  // ---------------------------------------------------------------------------
+  'monitor.permissionRequested': 'permiso solicitado',
+  'monitor.wantsTool': 'quiere {tool}',
+  'monitor.idle': '(inactivo)',
+  'monitor.foregroundTag': 'FG',
+  'monitor.attn.plan': 'PLAN',
+  'monitor.attn.permission': 'PERMISO',
+  'monitor.attn.question': 'PREGUNTA',
+  'monitor.attn.wait': 'ESPERA',
+  'monitor.tokensTitle': '{used} / {budget} tokens',
+  'monitor.youTag': 'tú',
+  'monitor.fg.foregrounded': 'En primer plano · haz clic para enviar al fondo',
+  'monitor.fg.bring': 'Traer Unity y el servidor al frente',
+  'monitor.fg.fgShort': 'FG',
+  'monitor.fg.bringShort': 'traer',
+
+  // ---------------------------------------------------------------------------
+  // Slot configuration / status (ConfigureSlotsPanel.tsx, SlotStatusStrip.tsx).
+  // ---------------------------------------------------------------------------
+  'slots.alreadyReady': 'ya está listo',
+  'slots.running.deleting': 'Eliminando slot {slotId} ({step} de {total})…',
+  'slots.running.initializing': 'Inicializando slot {slotId} ({step} de {total})…',
+  'slots.done': 'Listo.',
+  'slots.stopped': 'Detenido — ver abajo.',
+  'slots.detail.noChange': 'Sin cambios de slots — solo hay que actualizar el recuento.',
+  'slots.detail.willCreate': 'Se creará {count} slot nuevo.',
+  'slots.detail.willCreatePlural': 'Se crearán {count} slots nuevos.',
+  'slots.detail.willDelete': 'Se eliminará {count} slot.',
+  'slots.detail.willDeletePlural': 'Se eliminarán {count} slots.',
+  'slots.checkingOccupancy': 'Comprobando la ocupación de los slots…',
+  'slots.blocked.wrongMode':
+    'Este repo está en modo efímero — no hay slots que configurar.',
+  'slots.blocked.inUseTitle': 'Slots en uso.',
+  'slots.blocked.inUseBody': 'Cierra estos chats antes de redimensionar el grupo:',
+  'slots.occupant': 'Slot {slotId} · {chatName}',
+  'slots.ready.nothing': 'Nada que hacer — haz clic en Aplicar para actualizar el recuento.',
+  'slots.ready.init': 'Haz clic en Inicializar para crear los worktrees de los nuevos slots.',
+  'slots.ready.delete':
+    'Haz clic en Eliminar para desmontar los worktrees de slots extra y sus ramas de aparcamiento.',
+  'slots.log.init': 'Inic.',
+  'slots.log.delete': 'Eliminar',
+  'slots.log.slot': 'slot {slotId}',
+  'slots.btn.apply': 'Aplicar',
+  'slots.btn.initialize': 'Inicializar',
+  'slots.btn.delete': 'Eliminar',
+  'slots.strip.free': 'Libre',
+  'slots.strip.occupiedAria': '{repo} slot {slotId} · {chatName}',
+  'slots.strip.freeAria': '{repo} slot {slotId} · libre',
+  'slots.strip.setupBtn': 'Configurar slots de worktree',
+
+  // ---------------------------------------------------------------------------
+  // Titlebar (Titlebar.tsx).
+  // ---------------------------------------------------------------------------
+  'titlebar.win.minimize': 'Minimizar',
+  'titlebar.win.restore': 'Restaurar',
+  'titlebar.win.maximize': 'Maximizar',
+  'titlebar.win.close': 'Cerrar',
+  'titlebar.driftTitle': 'Desviación detectada',
+  'titlebar.capacityTitle': 'Se necesita capacidad',
+  'titlebar.hideGitPanel': 'Ocultar panel de git',
+  'titlebar.showGitPanel': 'Mostrar panel de git',
+  'titlebar.preferencesTitle': 'Preferencias {shortcut}',
+
+  // ---------------------------------------------------------------------------
+  // Close-chat prompt (CloseChatPrompt.tsx).
+  // ---------------------------------------------------------------------------
+  'close.title': 'Estás cerrando esta rama {branch}.',
+  'close.parkSub': 'El slot {slotId} se aparcará de nuevo en popbot/slot-{slotId}.',
+  'close.checking': 'Comprobando worktree…',
+  'close.noWorktree': 'Este chat no tiene worktree que limpiar.',
+  'close.clean': 'El worktree está limpio — no hay nada que guardar en stash.',
+  'close.stashPrompt':
+    '¿Quieres guardar en stash todos los cambios sin confirmar? Estos cambios se restaurarán del stash si reabres este chat.',
+  'close.discardClose': 'Descartar y cerrar',
+  'close.stashClose': 'Guardar en stash y cerrar',
+  'close.closeChat': 'Cerrar chat',
+
+  // ---------------------------------------------------------------------------
+  // Chat column (ChatColumn.tsx).
+  // ---------------------------------------------------------------------------
+  'chat.ticket.chipTitle': '{identifier} · {state} — abrir en Linear',
+  'chat.pr.stateDraft': 'Borrador',
+  'chat.pr.stateMerged': 'Fusionado',
+  'chat.pr.stateClosed': 'Cerrado',
+  'chat.pr.stateOpen': 'Abierto',
+  'chat.pr.chipTitle': 'PR #{number} · {label} — abrir en GitHub',
+  'chat.pr.chipLabel': 'PR #{number} · {label}',
+  'chat.reasoning.none': 'Ninguno',
+  'chat.reasoning.low': 'Bajo',
+  'chat.reasoning.medium': 'Medio',
+  'chat.reasoning.high': 'Alto',
+  'chat.reasoning.xhigh': 'XAlto',
+  'chat.reasoning.max': 'Máx',
+  'chat.repo.none': 'Sin repo',
+  'chat.repo.withName': 'Repo · {repoId}',
+  'chat.col.closeTitle': 'Cerrar chat',
+  'chat.col.statusTitle': 'estado: {status}',
+  'chat.status.running': 'ejecutando',
+  'chat.status.done': 'completado',
+  'chat.status.needsYou': 'te necesita',
+  'chat.status.error': 'error',
+  'chat.status.idle': 'inactivo',
+  'chat.col.settingsTitle': 'Ajustes del chat',
+  'chat.slot.workspaceTitle': 'Slot de espacio de trabajo {slotId} · {repoId}',
+  'chat.slot.fallback': 'Slot {slotId}',
+  'chat.slot.worktreeTitle': 'Worktree · {worktreePath}',
+  'chat.branch.title': 'Rama · {branch}',
+  'chat.type.lite': 'Lite',
+  'chat.type.clientTest': 'Prueba de cliente',
+  'chat.input.resizeTitle': 'Arrastra para redimensionar la entrada',
+  'chat.attachment.removeTitle': 'Quitar adjunto',
+  'chat.input.placeholderRunning':
+    'Agente en ejecución… escribe para encolar un mensaje  ·  Mayús+Intro para salto de línea',
+  'chat.input.placeholderIdle': 'Envía un mensaje…  ·  Mayús+Intro para salto de línea',
+  'chat.input.placeholderInactive': 'Haz clic para que este sea el chat activo',
+  'chat.input.attachImage': 'Adjuntar imagen',
+  'chat.input.attachFile': 'Adjuntar archivo',
+  'chat.input.model': 'Modelo',
+  'chat.input.effort': 'Esfuerzo',
+  'chat.input.stopTitle': 'Detener agente',
+  'chat.input.stop': 'Detener',
+  'chat.agentSwitch.title': '¿Reanudar con un agente distinto?',
+  'chat.agentSwitch.message':
+    'El id de sesión del agente actual se conservará, para que puedas volver más tarde. El nuevo agente usa su propia sesión y se reiniciará con esta transcripción del chat como contexto. Algún estado privado del agente puede perderse.',
+  'chat.agentSwitch.confirm': 'Reiniciar',
+  'chat.app.terminal': 'Terminal',
+  'chat.app.editor': 'Editor',
+  'chat.app.unity': 'Unity',
+  'chat.app.launchFailed': 'No se pudo iniciar {kind}:\n\n{error}',
+  'chat.app.runningTitle': '{label} — en ejecución para este slot (haz clic para enfocar)',
+  'chat.app.noSlotTitle': '{label} (sin slot)',
+  'chat.install.claudeTitle': 'Activar el agente Claude',
+  'chat.install.claudeIntro':
+    'PopBot ejecuta la CLI oficial Claude Code de Anthropic — no la incluye ni la instala por ti. Una vez instalada e iniciada la sesión, PopBot la detecta automáticamente y activa el agente Claude.',
+  'chat.install.claudeSignin': 'Ejecuta claude una vez e inicia sesión con tu cuenta de Anthropic.',
+  'chat.install.codexTitle': 'Activar el agente Codex',
+  'chat.install.codexIntro':
+    'Codex es opcional — un agente alternativo que PopBot puede usar. PopBot ejecuta la CLI oficial Codex de OpenAI y no la instala por ti. Una vez instalada e iniciada la sesión, PopBot la detecta automáticamente.',
+  'chat.install.codexSignin': 'Ejecuta codex una vez e inicia sesión con tu cuenta de OpenAI.',
+  'chat.install.stepInstall': 'Instala la {cli}',
+  'chat.install.stepInstallDesc': 'Sigue la guía oficial de instalación de {vendor} para tu sistema operativo.',
+  'chat.install.openGuide': 'Abrir la guía de instalación de {vendor}',
+  'chat.install.stepSignin': 'Inicia sesión',
+  'chat.install.stepRestart': 'Reinicia PopBot',
+  'chat.install.stepRestartDesc':
+    'PopBot vuelve a comprobar al iniciarse y activa el agente automáticamente.',
+  'chat.ready.checking': 'Comprobando configuración…',
+  'chat.ready.ready': 'Listo para empezar',
+  'chat.ready.finish': 'Finalizar configuración',
+  'chat.ready.recheckTitle': 'Volver a comprobar (tras instalar una CLI o añadir un repo)',
+  'chat.ready.claudeLabel': 'Claude',
+  'chat.ready.online': 'En línea',
+  'chat.ready.notFound': 'no encontrado',
+  'chat.ready.howToInstall': 'Cómo instalar',
+  'chat.ready.codexLabel': 'Codex',
+  'chat.ready.optional': 'opcional',
+  'chat.ready.repoLabel': 'Repositorio',
+  'chat.ready.repoCount': '{count} repos',
+  'chat.ready.ok': 'Listo',
+  'chat.ready.addRepo': 'Añadir repositorio',
+  'chat.gate.missingBoth': 'un proveedor de IA y al menos un repositorio git',
+  'chat.gate.missingAgent': 'un proveedor de IA (Claude o Codex)',
+  'chat.gate.missingRepo': 'al menos un repositorio git',
+  'chat.gate.title': 'Primero finaliza la configuración',
+  'chat.gate.body':
+    'PopBot necesita {missing} antes de poder iniciar un chat. Completa los pasos de configuración que se muestran en el centro de la pantalla y vuelve a intentarlo.',
+  'chat.empty.gateNoAgent': 'Instala una CLI de agente (Claude o Codex) para iniciar un chat.',
+  'chat.empty.gateNoRepo': 'Añade un repositorio antes de iniciar un chat.',
+  'chat.empty.closeTitle': 'Cerrar',
+  'chat.empty.newChat': 'Nuevo chat',
+  'chat.empty.heading': 'Inicia un nuevo chat',
+  'chat.empty.subtext':
+    'Haz clic en un ticket o PR a la izquierda para sembrar un chat, o inicia uno abajo.',
+  'chat.empty.newChatBtn': '+ Nuevo chat',
+  'chat.empty.hintNewChat': 'nuevo chat',
+  'chat.empty.hintFromClipboard': 'desde URL del portapapeles',
+  'chat.empty.hintPalette': 'paleta',
+  'chat.empty.useButtons': '{gateReason} Usa los botones de arriba para finalizar la configuración.',
+
+  // ---------------------------------------------------------------------------
+  // Live chat body (LiveChatBody.tsx).
+  // ---------------------------------------------------------------------------
+  'chat.editor.openInEditor': 'Abrir {href} en el editor',
+  'chat.transcript.loading': 'Cargando transcripción…',
+  'chat.transcript.empty': 'Nuevo chat. Escribe un mensaje abajo para empezar.',
+  'chat.window.olderHidden': '{count} mensaje anterior — desplázate hacia arriba para cargar',
+  'chat.window.olderHiddenPlural': '{count} mensajes anteriores — desplázate hacia arriba para cargar',
+  'chat.window.newerHidden': '{count} mensaje más reciente — desplázate hacia abajo para cargar',
+  'chat.window.newerHiddenPlural': '{count} mensajes más recientes — desplázate hacia abajo para cargar',
+  'chat.jump.title': 'Saltar al más reciente',
+  'chat.jump.label': 'Más reciente',
+  'chat.error.expandTitle': 'Haz clic para expandir el error original',
+  'chat.error.collapseTitle': 'Contraer este error',
+  'chat.error.collapseAria': 'Contraer error',
+  'chat.error.retryTitle': 'Forzar la reconexión de la sesión de Claude de este chat y reproducir el último mensaje',
+  'chat.error.retry': 'Reintentar',
+  'chat.error.restartTitle': 'Crear una nueva sesión de agente preparada con la transcripción de este chat',
+  'chat.error.restart': 'Reiniciar con contexto',
+  'chat.output.linesTruncated': '… {count} línea truncada …',
+  'chat.output.linesTruncatedPlural': '… {count} líneas truncadas …',
+  'chat.output.charsTruncated': '… {count} carácter truncado …',
+  'chat.output.charsTruncatedPlural': '… {count} caracteres truncados …',
+  'chat.tool.bash': 'Bash',
+  'chat.tool.edit': 'Editar',
+  'chat.tool.write': 'Escribir',
+  'chat.tool.read': 'Leer',
+  'chat.tool.glob': 'Glob',
+  'chat.tool.grep': 'Grep',
+  'chat.tool.fetch': 'Fetch',
+  'chat.tool.search': 'Buscar',
+  'chat.tool.subagent': 'Subagente',
+  'chat.tool.todos': 'Tareas',
+  'chat.tool.notebook': 'Notebook',
+  'chat.tool.generic': 'herramienta',
+  'chat.diff.popoutTitle': 'Abrir el diff completo en un panel',
+  'chat.diff.collapseTitle': 'Contraer',
+  'chat.diff.showAllLines': 'Mostrar las {count} líneas',
+  'chat.diff.collapse': 'Contraer',
+  'chat.diff.modalAriaFor': 'Diff de {title}',
+  'chat.diff.modalAria': 'Diff',
+  'chat.diff.modalTitleFallback': 'Diff',
+  'chat.diff.modalCloseTitle': 'Cerrar (Esc)',
+  'chat.output.viewFullTitle': 'Haz clic para ver la salida completa',
+  'chat.output.viewFull': 'Ver salida completa',
+  'chat.output.overflowLines': ' (+{count} líneas)',
+  'chat.output.overflowChars': ' (+{count} caracteres)',
+  'chat.permission.wantsToUse': 'El agente quiere usar',
+  'chat.permission.allowOnce': 'Permitir una vez',
+  'chat.permission.allowChat': 'Permitir en este chat',
+  'chat.permission.allowEverywhere': 'Permitir en todas partes',
+  'chat.permission.deny': 'Denegar',
+  'chat.permission.denyEverywhere': 'Denegar en todas partes',
+  'chat.qa.questionPrefix': 'P:',
+  'chat.qa.answerPrefix': 'R:',
+  'chat.question.heading': 'Pregunta',
+  'chat.question.yes': 'Sí',
+  'chat.question.no': 'No',
+  'chat.question.typeLonger': '…o escribe una respuesta más larga abajo.',
+  'chat.question.replyBelow': 'Responde abajo para continuar.',
+  'chat.plan.asked': 'Preguntado: {question}',
+  'chat.plan.pickOne': 'Elige una',
+  'chat.plan.otherOption': 'Otra — escribe tu propia respuesta',
+  'chat.plan.otherPlaceholder': 'Escribe tu respuesta y pulsa Intro…',
+  'chat.plan.skip': 'Omitir',
+  'chat.plan.clickToSubmit': 'Haz clic en una opción para enviar',
+  'chat.plan.skipped': '✗ Omitido',
+  'chat.plan.submitted': '✓ Enviado',
+
+  // ---------------------------------------------------------------------------
+  // Chat settings sheet (ChatSettingsSheet.tsx).
+  // ---------------------------------------------------------------------------
+  'chatSettings.bytesB': '{n} B',
+  'chatSettings.bytesKB': '{n} KB',
+  'chatSettings.bytesMB': '{n} MB',
+  'chatSettings.noWorktreeError':
+    'No hay ningún directorio de trabajo configurado para este chat — los ajustes de Linear/git necesitan una ruta de repo antes de poder descubrir las sesiones.',
+  'chatSettings.loadSessionsError': 'No se pudieron cargar las sesiones: {error}',
+  'chatSettings.reconnectFailed': 'Error al reconectar:\n\n{message}',
+  'chatSettings.restartConfirm':
+    '¿Crear una nueva sesión de Claude y alimentarla con la transcripción previa de este chat para que el agente retome donde lo dejó?\n\nEsto consume tokens (la transcripción se convierte en el primer mensaje del agente). Los turnos intermedios más antiguos pueden omitirse para mantener un tamaño de prompt razonable.',
+  'chatSettings.restartFailed': 'Error al reiniciar:\n\n{message}',
+  'chatSettings.noBranch': '(sin rama)',
+  'chatSettings.identity': 'Identidad',
+  'chatSettings.linked': 'Vinculado',
+  'chatSettings.slot': 'Slot',
+  'chatSettings.slotNone': '(ninguno)',
+  'chatSettings.slotN': 'slot {slotId}',
+  'chatSettings.worktree': 'Worktree',
+  'chatSettings.worktreeNone': '(ninguno)',
+  'chatSettings.agent': 'Agente',
+  'chatSettings.codexThread': 'Hilo de Codex',
+  'chatSettings.pinnedSession': 'Sesión fijada',
+  'chatSettings.sessionNone': '(ninguna — nueva en el próximo envío)',
+  'chatSettings.recoverContext': 'Recuperar contexto',
+  'chatSettings.recoverDesc':
+    'Úsalo cuando el agente ha perdido la memoria de este chat (p. ej. la transcripción de arriba muestra trabajo real pero el agente cree que es una sesión nueva). Crea una nueva sesión de agente y la prepara con el historial de texto de este chat para que pueda retomar donde se quedó — se conservan los 3 primeros turnos y los más recientes; los turnos intermedios muy antiguos pueden omitirse.',
+  'chatSettings.restartTooltip': 'Crear una nueva sesión de agente preparada con la transcripción de este chat',
+  'chatSettings.restarting': 'Reiniciando…',
+  'chatSettings.restartWithContext': 'Reiniciar con contexto',
+  'chatSettings.tryReconnect': 'Intentar reconectar',
+  'chatSettings.reconnectDesc':
+    'Elige una sesión de Claude guardada para el worktree de este chat. Útil si la reconexión automática eligió la equivocada y quieres forzar una transcripción específica. La sesión elegida se fijará y el agente se volverá a crear en ella.',
+  'chatSettings.loadingSessions': 'Cargando sesiones…',
+  'chatSettings.noSessionsOnDisk': 'No hay sesiones en disco para este worktree.',
+  'chatSettings.searchSessions': 'Buscar {count} sesión…',
+  'chatSettings.searchSessionsPlural': 'Buscar {count} sesiones…',
+  'chatSettings.noSessionsMatch': 'No hay sesiones coincidentes.',
+  'chatSettings.gitBranchTooltip': 'rama de git',
+  'chatSettings.noFirstPrompt': '(sin primer prompt)',
+  'chatSettings.alreadyPinned': 'Ya fijada',
+  'chatSettings.reconnectRowTooltip': 'Fijar la sesión seleccionada y volver a crear el agente en ella',
+  'chatSettings.connecting': 'Conectando…',
+  'chatSettings.connected': 'Conectado',
+  'chatSettings.connect': 'Conectar',
+
+  // ---------------------------------------------------------------------------
+  // Agent create controls (AgentCreateControls.tsx).
+  // ---------------------------------------------------------------------------
+  'agent.effort.none': 'Ninguno',
+  'agent.effort.low': 'Bajo',
+  'agent.effort.medium': 'Medio',
+  'agent.effort.high': 'Alto',
+  'agent.effort.xhigh': 'XAlto',
+  'agent.effort.max': 'Máx',
+  'agent.label': 'Agente',
+  'agent.model': 'Modelo',
+  'agent.effort': 'Esfuerzo',
+
+  // ---------------------------------------------------------------------------
+  // Git panel (GitPanel.tsx).
+  // ---------------------------------------------------------------------------
+  'git.status.modified': 'Modificado',
+  'git.status.added': 'Añadido',
+  'git.status.deleted': 'Eliminado',
+  'git.status.renamed': 'Renombrado',
+  'git.status.untracked': 'Sin seguimiento',
+  'git.status.conflict': 'Conflicto',
+  'git.mode.commit.label': 'COMMIT',
+  'git.mode.commit.short': 'COMMIT',
+  'git.mode.commitAi.label': 'COMMIT (AI)',
+  'git.mode.commitAi.short': 'COMMIT (AI)',
+  'git.mode.pushPr.label': 'PUSH PR (AI)',
+  'git.mode.pushPr.short': 'PUSH PR (AI)',
+  'git.mode.pushDraftPr.label': 'PUSH DRAFT PR (AI)',
+  'git.mode.pushDraftPr.short': 'DRAFT (AI)',
+  'git.mode.makePrReady.label': 'MARK PR READY (AI)',
+  'git.mode.makePrReady.short': 'READY (AI)',
+  'git.mode.addressCr.label': 'ADDRESS CR (AI)',
+  'git.mode.addressCr.short': 'CR (AI)',
+  'git.revert.failed': 'Error al revertir:\n\n{error}',
+  'git.commit.failed': 'Error al hacer commit:\n\n{error}',
+  'git.prompt.sendFailed': 'No se pudo enviar el prompt:\n\n{message}',
+  'git.prompt.rebaseSendFailed': 'No se pudo enviar el prompt de rebase:\n\n{message}',
+  'git.branch.none': 'Ningún chat enfocado',
+  'git.ahead.title': 'Por delante',
+  'git.behind.title': 'Por detrás',
+  'git.closePanel.title': 'Cerrar panel',
+  'git.empty.focusChat': 'Enfoca un chat para ver su estado de git.',
+  'git.empty.noWorktree': 'Este chat aún no tiene worktree de slot.',
+  'git.empty.notRepo': 'No es un repo de git: {error}',
+  'git.commits.uncommitted': 'Cambios sin confirmar',
+  'git.commits.fileCount': '{count} archivo',
+  'git.commits.fileCountPlural': '{count} archivos',
+  'git.commits.none': 'Aún no hay commits en esta rama.',
+  'git.files.uncheckAll': 'Desmarcar todo',
+  'git.files.checkAll': 'Marcar todo',
+  'git.files.selectedForCommit': '{checked} de {total} para commit',
+  'git.files.revertSelected': 'Revertir archivos seleccionados',
+  'git.files.revertCount': 'Revertir {count}',
+  'git.files.readonlyCount': 'Solo lectura · {count} archivo',
+  'git.files.readonlyCountPlural': 'Solo lectura · {count} archivos',
+  'git.files.noUncommitted': 'No hay cambios sin confirmar.',
+  'git.files.noFilesInCommit': 'No hay archivos en este commit.',
+  'git.file.rowTitleRenamed': '{label} (era {oldPath})',
+  'git.base.targetTitle': 'Rama destino del PR / punto de bifurcación',
+  'git.base.nameTitle': 'Rama base (destino del PR)',
+  'git.base.changeTitle': 'Cambiar la rama base y pedir a la IA que haga rebase / cherry-pick',
+  'git.base.change': 'Cambiar',
+  'git.commit.msgPlaceholder': 'Mensaje de commit…',
+  'git.commit.checkFilesPlaceholder': 'Marca archivos para hacer commit',
+  'git.commit.promptPreviewPlaceholder': 'Vista previa del prompt',
+  'git.action.btnTitle': '{label} ({hotkey})',
+  'git.base.dialogSubtitle': 'Cambiar la rama base — la IA hará rebase / cherry-pick sobre ella.',
+  'git.menu.viewDiff': 'Ver diff',
+  'git.menu.revertCount': 'Revertir {count} archivo…',
+  'git.menu.revertCountPlural': 'Revertir {count} archivos…',
+  'git.revert.dialogTitle': 'Revertir archivos',
+  'git.revert.confirmOne': '¿Descartar los cambios locales en "{path}"? Esto no se puede deshacer.',
+  'git.revert.confirmMany': '¿Descartar los cambios locales en {count} archivos? Esto no se puede deshacer.',
+  'git.revert.confirmLabel': 'Revertir',
+
+  // ---------------------------------------------------------------------------
+  // Base-branch / new-chat dialog (BaseBranchDialog.tsx).
+  // ---------------------------------------------------------------------------
+  'branch.picker.freeChat': 'Chat libre (sin slot)',
+  'branch.picker.selectBase': 'Selecciona la rama base',
+  'branch.picker.searchPlaceholder': 'Buscar ramas…',
+  'branch.picker.noBranches': 'No se encontraron ramas.',
+  'branch.picker.tagRecent': 'reciente',
+  'branch.picker.tagDefault': 'predeterminada',
+  'branch.picker.tagRepoRoot': 'raíz del repo',
+  'branch.dialog.disabled.pickRepo': 'Elige un repositorio.',
+  'branch.dialog.disabled.loadingBranches': 'Cargando ramas…',
+  'branch.dialog.disabled.noBranches':
+    'Este repo no tiene ramas sobre las que basarse — sube una primero.',
+  'branch.dialog.disabled.pickBranch': 'Elige una rama base.',
+  'branch.dialog.ariaLabel': 'Elige repo y rama base',
+  'branch.dialog.title': 'Nuevo chat',
+  'branch.dialog.subjectLabel': 'Asunto',
+  'branch.dialog.subjectOptional': '(opcional)',
+  'branch.dialog.branchPrefix': 'Rama:',
+  'branch.dialog.loadingRepos': 'Cargando repos…',
+  'branch.dialog.noReposConfigured':
+    'No hay repos configurados. Añade uno en Preferencias → Repositorios.',
+  'branch.dialog.repoLabel': 'Repo',
+  'branch.dialog.noRepoOption': 'Sin repo',
+  'branch.dialog.tagRawChat': 'chat en bruto',
+  'branch.dialog.tagEphemeral': 'efímero',
+  'branch.dialog.tagSlots': 'slots × {count}',
+  'branch.dialog.rawChatDesc':
+    'Crea un chat en bruto sin worktree, slot, rama ni rama base.',
+  'branch.dialog.baseBranchLabel': 'Rama base',
+  'branch.dialog.loadBranchesError': 'No se pudieron cargar las ramas: {error}',
+  'branch.dialog.freeChatDesc':
+    'Se ejecuta en {repo} desde la raíz del repo — sin slot, worktree ni rama.',
+  'branch.dialog.createChat': 'Crear chat',
+
+  // ---------------------------------------------------------------------------
+  // PR review action dialog (PrReviewActionDialog.tsx).
+  // ---------------------------------------------------------------------------
+  'review.dialog.ariaLabel': 'PR #{number}',
+  'review.dialog.heading': 'PR #{number}',
+  'review.dialog.prompt': '¿Qué quieres hacer con este PR?',
+  'review.dialog.ignoreTitle': 'Ocultar este PR de la lista de revisiones',
+  'review.dialog.ignore': 'Ignorar',
+  'review.dialog.createChat': 'Crear chat',
+
+  // ---------------------------------------------------------------------------
+  // Diff overlay (DiffOverlay.tsx).
+  // ---------------------------------------------------------------------------
+  'diff.overlay.ariaLabel': 'Diff de {path}',
+  'diff.overlay.scopeUncommitted': 'Sin confirmar',
+  'diff.overlay.closeTitle': 'Cerrar (Esc)',
+  'diff.overlay.loading': 'Cargando diff…',
+  'diff.overlay.error': 'Error: {error}',
+  'diff.overlay.binary': 'Archivo binario — diff no mostrado.',
+
+  // ---------------------------------------------------------------------------
+  // Preferences sheet (PreferencesSheet.tsx) — chrome + nav.
+  // ---------------------------------------------------------------------------
   'prefs.title': 'Preferencias',
   'prefs.search': 'Buscar preferencias…',
   'prefs.section.integ': 'Integraciones',
@@ -53,7 +728,297 @@ export const es = {
   'prefs.section.notify': 'Notificaciones',
   'prefs.section.permissions': 'Permisos',
   'prefs.section.language': 'Idioma',
+  'prefs.footMeta': 'PopBot · pre-alpha',
 
+  // Preferences — Agents pane.
+  'prefs.agents.title': 'Agentes',
+  'prefs.agents.desc':
+    'Niveles de esfuerzo predeterminados para los chats recién creados. Los chats existentes conservan su propio esfuerzo guardado hasta que lo cambies en el compositor del chat.',
+  'prefs.agents.newChats.title': 'Chats nuevos',
+  'prefs.agents.newChats.desc':
+    'Usado por los chats genéricos y los chats de ticket cuando se abre el selector de agente.',
+  'prefs.agents.codeReviews.title': 'Revisiones de código',
+  'prefs.agents.codeReviews.desc':
+    'Usado por los chats de revisión de PR, los chats de respaldo de re-revisión y las notificaciones de revisión.',
+
+  // Preferences — Runtime / attachment retention pane.
+  'prefs.runtime.title': 'Retención de adjuntos',
+  'prefs.runtime.desc':
+    'Los archivos e imágenes que adjuntas a un chat se copian al almacenamiento propio de PopBot para que sigan abriéndose desde el historial del chat incluso si el original se mueve. Una limpieza al iniciar elimina las copias más antiguas que esta ventana para evitar que la carpeta crezca sin límite.',
+  'prefs.runtime.keepFor.title': 'Conservar adjuntos durante',
+  'prefs.runtime.keepFor.desc':
+    'Predeterminado {default} días (rango {min}–{max}). Redúcelo para recuperar disco antes; auméntalo para conservar el historial más tiempo.',
+
+  // Preferences — Integrations: ticket source / game engine.
+  'prefs.integ.ticketSource.title': 'Fuente de tickets',
+  'prefs.integ.ticketSource.desc':
+    'El gestor de incidencias que alimenta la cola de Tickets en el Panel A, para que puedas lanzar agentes directamente desde tu gestor.',
+  'prefs.integ.gameEngine.title': 'Motor de juego',
+  'prefs.integ.gameEngine.desc':
+    'El motor que PopBot lanza desde el worktree de un chat (el icono del motor en cada columna de chat).',
+
+  // Preferences — Source control pane.
+  'prefs.git.title': 'Control de versiones',
+  'prefs.git.desc':
+    'Identidad global de git. Los ajustes por repositorio — ruta, rama base, slots y color — están en {reposLink}.',
+  'prefs.git.reposLabel': 'Repositorios',
+  'prefs.git.branchUsername.title': 'Nombre de usuario de la rama',
+  'prefs.git.branchUsername.desc': 'Las ramas nuevas se nombran {pattern}.',
+  'prefs.git.usernamePlaceholder': 'ben',
+  'prefs.git.actionTemplates.title': 'Plantillas de acción',
+  'prefs.git.actionTemplates.intro':
+    'Prompts que el panel de git envía al agente del chat cuando haces clic en el botón de acción grande (o cambias la rama base). Usa macros {macro} para inyectar contexto.',
+
+  // Preferences — External apps pane.
+  'prefs.apps.title': 'Aplicaciones externas',
+  'prefs.apps.desc':
+    'La fila de iconos en cada columna de chat lanza estas aplicaciones apuntando al worktree del slot. Haz clic para traer al frente una ventana existente o lanzar una nueva.',
+  'prefs.apps.terminal.title': 'Terminal',
+  'prefs.apps.terminal.desc': 'Usado por el lanzador del icono de terminal.',
+  'prefs.apps.windowsShell.title': 'Shell de terminal (Windows)',
+  'prefs.apps.windowsShell.desc':
+    'Shell usado por el panel de terminal de la aplicación. Se aplica a las terminales abiertas tras el cambio.',
+  'prefs.apps.editor.title': 'Editor de código',
+  'prefs.apps.editor.desc': 'También usado para los enlaces de archivo clicables en las filas de la herramienta Editar.',
+  'prefs.apps.gitClient.title': 'Cliente de git',
+  'prefs.apps.gitClient.desc':
+    'Fijado a GitHub Desktop por ahora — el selector llegará cuando un compañero use otra cosa.',
+  'prefs.apps.chromeProfile.title': 'Perfil de Chrome para URLs',
+  'prefs.apps.chromeProfile.desc':
+    'Fija la apertura de URLs a un perfil de Chrome específico para que siempre vayan a tu cuenta de trabajo y nunca a la personal. Usa el nombre del directorio del perfil de Chrome — encuéntralo en chrome://version en la línea "Profile Path" (el último componente de la ruta, p. ej. Profile 1, Default, Person 2). En blanco = navegador predeterminado del sistema.',
+  'prefs.apps.chromeProfile.placeholder': '(usar el navegador predeterminado del sistema)',
+  'prefs.apps.unity.desc':
+    'Elige qué versión instalada de Unity Editor lanza PopBot cuando haces clic en el icono de slot de Unity. Las versiones se escanean desde {path}.',
+  'prefs.apps.unity.editorVersion.title': 'Versión del editor',
+  'prefs.apps.unity.scanning': 'Escaneando…',
+  'prefs.apps.unity.installedCount': '{count} instaladas',
+  'prefs.apps.unity.rescan': 'reescanear',
+  'prefs.apps.unity.selectVersion': '— Selecciona una versión de Unity —',
+  'prefs.apps.unity.noneFound':
+    'No se encontraron versiones de Unity en {path}. Instálalas con Unity Hub y haz clic en reescanear.',
+  'prefs.apps.unity.customBinary.title': 'Ruta de binario personalizada',
+  'prefs.apps.unity.customBinary.desc': 'Anula el desplegable cuando Unity está en una ubicación inusual.',
+  'prefs.apps.unity.subpath.title': 'Subruta del proyecto',
+  'prefs.apps.unity.subpath.desc':
+    'Ruta al proyecto de Unity relativa a la raíz del worktree. Déjalo en blanco si la raíz del worktree es el propio proyecto de Unity.',
+  'prefs.apps.unity.subpath.placeholder': 'p. ej. unity-project (en blanco = raíz del worktree)',
+
+  // Preferences — Prompt templates pane.
+  'prefs.templates.chat.startTicket.label': 'Iniciar ticket (enviado al crear el chat desde Linear)',
+  'prefs.templates.chat.startCodeReview.label': 'Iniciar revisión de código (enviado al crear el chat desde un PR)',
+  'prefs.templates.chat.reReview.label':
+    'Re-revisión (enviado al hacer clic en un chip RE-REVISIÓN del panel de entrada)',
+  'prefs.templates.git.commitAi.label': 'COMMIT (AI)',
+  'prefs.templates.git.pushPr.label': 'PUSH PR (AI)',
+  'prefs.templates.git.pushDraftPr.label': 'PUSH DRAFT PR (AI)',
+  'prefs.templates.git.makePrReady.label': 'MARK PR READY (AI)',
+  'prefs.templates.git.addressCr.label': 'ADDRESS CR (AI)',
+  'prefs.templates.git.rebaseBase.label': 'CHANGE BASE BRANCH (AI)',
+  'prefs.templates.resetDefaults': 'Restablecer a los valores predeterminados',
+  'prefs.templates.title': 'Plantillas de prompt',
+  'prefs.templates.intro':
+    'Estas plantillas se disparan como el primer mensaje de usuario del chat cuando lanzas un chat desde un ticket de Linear o un PR. Usa macros {macro} para inyectar contexto. Las plantillas de acción del panel de git están en {link}.',
+  'prefs.templates.gitPanelLink': 'Control de versiones → Plantillas de acción',
+
+  // Preferences — Code reviews pane.
+  'prefs.reviews.title': 'Revisiones de código',
+  'prefs.reviews.desc':
+    'La pestaña Revisiones obtiene los PRs abiertos que te solicitan como revisor o que aún no tienen revisiones (y tienen una etiqueta {tag} en el título, a menos que se te nombre explícitamente). Los PRs que ya has revisado se descartan automáticamente. Usa las listas de abajo para silenciar ruido adicional.',
+  'prefs.reviews.searchWindow.title': 'Ventana de caché de búsqueda',
+  'prefs.reviews.searchWindow.desc':
+    'El selector + Añadir del panel de entrada hace coincidencia difusa contra las incidencias de Linear + los PRs de GitHub actualizados en los últimos N días. Una ventana mayor = más búsqueda posible, actualización ligeramente más lenta + más presupuesto de API. Los tickets asignados a ti siempre se incluyen independientemente de este corte.',
+  'prefs.reviews.ignoreTitle.title': 'Ignorar por título (una subcadena por línea, sin distinción de mayúsculas)',
+  'prefs.reviews.ignoreTitle.placeholder': 'DO NOT SUBMIT\nCrowdin',
+  'prefs.reviews.ignoreAuthor.title': 'Ignorar por autor de GitHub (un login por línea)',
+  'prefs.reviews.ignoreAuthor.placeholder': 'crowdin-bot\nrenovate[bot]',
+
+  // Preferences — Integrations: Linear.
+  'prefs.integ.linear.apiKey.title': 'Clave de API personal',
+  'prefs.integ.linear.apiKey.desc': 'Almacenada localmente en la base de datos de esta aplicación.',
+  'prefs.integ.linear.getKey': 'Obtener una clave →',
+  'prefs.integ.linear.teamKey.title': 'Clave de equipo',
+  'prefs.integ.linear.teamKey.desc': 'p. ej. {example}. Filtra las incidencias + proyectos a un solo equipo.',
+  'prefs.integ.linear.project.title': 'Proyecto',
+  'prefs.integ.linear.project.desc': 'Opcional — limita la lista de tickets a un solo proyecto.',
+  'prefs.integ.linear.allProjects': 'Todos los proyectos',
+  'prefs.integ.linear.connectedAs': 'Conectado como {email}',
+  'prefs.integ.linear.connected': 'Conectado',
+  'prefs.integ.linear.notConnected': 'No conectado',
+  'prefs.integ.linear.error.auth': 'Linear rechazó esta clave de API.',
+  'prefs.integ.linear.error.generic': 'Error de Linear: {error}',
+  'prefs.integ.linear.verifying': 'Verificando…',
+
+  // Preferences — Integrations: Jira.
+  'prefs.integ.jira.siteUrl.title': 'URL del sitio',
+  'prefs.integ.jira.siteUrl.desc': 'La URL base de tu Jira Cloud, p. ej.',
+  'prefs.integ.jira.email.title': 'Correo de la cuenta',
+  'prefs.integ.jira.email.desc': 'La cuenta de Atlassian a la que pertenece el token de API.',
+  'prefs.integ.jira.apiToken.title': 'Token de API',
+  'prefs.integ.jira.apiToken.desc': 'Almacenado localmente en la base de datos de esta aplicación.',
+  'prefs.integ.jira.getToken': 'Obtener un token →',
+  'prefs.integ.jira.project.title': 'Proyecto',
+  'prefs.integ.jira.project.desc': 'Opcional — limita la lista de tickets a un solo proyecto.',
+  'prefs.integ.jira.allProjects': 'Todos los proyectos',
+  'prefs.integ.jira.jql.title': 'Filtro JQL',
+  'prefs.integ.jira.jql.desc': 'Opcional — JQL adicional combinado con AND en las consultas de tickets, p. ej.',
+  'prefs.integ.jira.connectedAs': 'Conectado como {email}',
+  'prefs.integ.jira.connected': 'Conectado',
+  'prefs.integ.jira.notConnected': 'No conectado',
+  'prefs.integ.jira.error.auth': 'Jira rechazó estas credenciales.',
+  'prefs.integ.jira.error.generic': 'Error de Jira: {error}',
+  'prefs.integ.jira.verifying': 'Verificando…',
+
+  // Preferences — Integrations: shared status labels.
+  'prefs.integ.enabled': 'Activado',
+  'prefs.integ.pollingOn': 'Sondeo activado',
+  'prefs.integ.off': 'Desactivado',
+  'prefs.integ.pollInterval': 'Intervalo de sondeo',
+  'prefs.integ.notVerified': 'No verificado',
+  'prefs.integ.testing': 'Probando…',
+  'prefs.integ.testConnection': 'Probar conexión',
+
+  // Preferences — Integrations: Sentry.
+  'prefs.integ.sentry.title': 'Sentry',
+  'prefs.integ.sentry.desc':
+    'Muestra nuevas incidencias sin resolver de Sentry como notificaciones de PopBot. Solo token + org — tus mensajes y trazas de pila nunca salen de tu máquina; PopBot lee los resúmenes de las incidencias mediante la API REST de Sentry. Genera un token en {link} con los ámbitos {scopes}.',
+  'prefs.integ.sentry.authTokensLink': 'sentry.io → Auth Tokens',
+  'prefs.integ.sentry.authToken': 'Token de autenticación',
+  'prefs.integ.sentry.orgSlug': 'Slug de la organización',
+  'prefs.integ.sentry.projectSlug': 'Slug del proyecto',
+  'prefs.integ.sentry.projectSlug.placeholder': '(opcional — déjalo en blanco para todos los proyectos)',
+  'prefs.integ.sentry.verified': 'Verificado · {org}',
+
+  // Preferences — Integrations: Slack.
+  'prefs.integ.slack.title': 'Slack',
+  'prefs.integ.slack.desc':
+    'Muestra los DMs sin leer y las @-menciones de canal como notificaciones de PopBot. Solo lectura — PopBot nunca publica en tu nombre.',
+  'prefs.integ.slack.tokenHelp':
+    'Para obtener un token: crea una app de Slack en {link}, añade los ámbitos de token de usuario {scopes}, instálala en tu espacio de trabajo y luego copia el User OAuth Token (empieza por {prefix}).',
+  'prefs.integ.slack.appsLink': 'api.slack.com/apps',
+  'prefs.integ.slack.userToken': 'Token de usuario',
+  'prefs.integ.slack.connectedTo': 'Conectado a {team} como {user}',
+
+  // Preferences — Notifications pane.
+  'prefs.notify.title': 'Notificaciones',
+  'prefs.notify.desc':
+    'Los VIP son personas cuyos DMs de Slack y menciones de canal siempre se elevan a prioridad urgente + se etiquetan con un chip VIP en la notificación, independientemente del contenido del mensaje. Los nombres se comparan sin distinguir mayúsculas como subcadenas del nombre visible de Slack (así "York" coincide con "York Johnson" y "Yorktown Smith") — mantén los nombres específicos para evitar falsos positivos.',
+  'prefs.notify.vipNames': 'Nombres VIP',
+  'prefs.notify.vipPlaceholder': 'Un nombre por línea, p. ej.\nYork\nAmitt\nMatt Van',
+  'prefs.notify.toastPlacement': 'Ubicación de los avisos',
+  'prefs.notify.centerFly.label': 'Centrado arriba, vuela a la campana al descartar',
+  'prefs.notify.centerFly.desc':
+    'Activado por defecto — los avisos llegan centrados arriba, se animan hacia el icono de campana al descartarse y hacen parpadear brevemente la campana para que veas adónde fue la notificación. Desactívalo si prefieres los avisos clásicos en la esquina superior derecha. Surte efecto inmediatamente — no hace falta Guardar.',
+  'prefs.notify.savedPill': 'Guardado',
+  'prefs.notify.testFlow.title': 'Probar el flujo de elementos nuevos',
+  'prefs.notify.testFlow.desc':
+    'Marca temporalmente algunos elementos existentes de tu cola real como NUEVO para que puedas verificar el comportamiento del chip + el punto de la pestaña. No se añade, elimina ni persiste nada en el servidor.',
+  'prefs.notify.testFlow.flagTickets': 'Marcar 2 tickets como NUEVO',
+  'prefs.notify.testFlow.flagPrs': 'Marcar 2 PRs como NUEVO',
+
+  // Preferences — Permissions pane.
+  'prefs.permissions.tool.bash.desc': 'Ejecutar comandos de shell en tu máquina.',
+  'prefs.permissions.tool.read.desc': 'Leer el contenido de un archivo.',
+  'prefs.permissions.tool.write.desc': 'Crear o sobrescribir un archivo.',
+  'prefs.permissions.tool.edit.desc': 'Modificar el contenido de un archivo.',
+  'prefs.permissions.tool.notebookEdit.desc': 'Modificar celdas en un notebook de Jupyter.',
+  'prefs.permissions.tool.grep.desc': 'Buscar texto dentro de los archivos.',
+  'prefs.permissions.tool.glob.desc': 'Encontrar archivos que coincidan con un patrón de nombre.',
+  'prefs.permissions.tool.webFetch.desc': 'Obtener y leer una URL remota.',
+  'prefs.permissions.tool.webSearch.desc': 'Ejecutar una búsqueda web para obtener contexto.',
+  'prefs.permissions.tool.todoWrite.desc': 'Actualizar la lista de tareas interna del agente.',
+  'prefs.permissions.tool.task.desc': 'Lanzar un subagente para delegar trabajo.',
+  'prefs.permissions.tool.exitPlanMode.desc': 'Salir del modo de plan y presentar el plan.',
+  'prefs.permissions.title': 'Permisos',
+  'prefs.permissions.desc':
+    'Valor predeterminado global para cada herramienta. Preguntar consulta al chat cada vez (el predeterminado). Permitir aprueba automáticamente sin preguntar. Denegar rechaza automáticamente. Las reglas por chat — establecidas desde la tarjeta de permiso mediante "Permitir en este chat" / "Denegar en este chat" — anulan estos valores globales, así que un único chat puede bloquear una herramienta que de otro modo has permitido en todas partes.',
+  'prefs.permissions.toolDefaultAria': 'predeterminado de {tool}',
+  'prefs.permissions.state.ask': 'preguntar',
+  'prefs.permissions.state.allow': 'permitir',
+  'prefs.permissions.state.deny': 'denegar',
+
+  // Preferences — Repositories pane.
+  'prefs.repos.colorAria': 'Color del repo',
+  'prefs.repos.title': 'Repositorios',
+  'prefs.repos.desc':
+    'Cada chat vive en un repositorio. El modo de un repo (grupo de slots vs. worktrees efímeros) se establece al crearlo y no se puede cambiar después — cambiar de modo dejaría huérfanos los worktrees de los chats que ya estén en curso.',
+  'prefs.repos.mode.ephemeral': 'efímero',
+  'prefs.repos.mode.slots': 'slots × {count}',
+  'prefs.repos.delete': 'Eliminar…',
+  'prefs.repos.card.path': 'Ruta',
+  'prefs.repos.card.defaultBase': 'Base predeterminada',
+  'prefs.repos.card.slotPrefix': 'Prefijo de slot',
+  'prefs.repos.addRepository': 'Añadir repositorio',
+  'prefs.repos.wizard.title': 'Nuevo repositorio',
+  'prefs.repos.wizard.initializingSlots': 'inicializando slots',
+  'prefs.repos.wizard.stepOf': 'paso {step} de {total}',
+  'prefs.repos.wizard.modeIntro':
+    'Elige cómo gestiona PopBot los worktrees de los chats en este repo. No podrás cambiarlo después.',
+  'prefs.repos.wizard.mode.slots.title': 'Slots',
+  'prefs.repos.wizard.mode.slots.pill': 'mantiene las cachés de compilación calientes entre chats',
+  'prefs.repos.wizard.mode.slots.lead': 'Slots de worktree permanentes reutilizados por los chats.',
+  'prefs.repos.wizard.mode.slots.desc':
+    'Un grupo fijo de N worktrees preasignados. Los chats toman prestado un slot, trabajan en él y luego lo aparcan al cerrarse. Cada slot conserva sus propios artefactos de compilación — Library/ de Unity, node_modules/, cachés de gradle/maven, etc. Eso significa que no hay reimportaciones de varios minutos ni npm install cada vez que cambias de rama. Elige esto siempre que el coste de configuración por rama no sea trivial.',
+  'prefs.repos.wizard.mode.ephemeral.title': 'Efímero',
+  'prefs.repos.wizard.mode.ephemeral.pill': 'bueno para repos de solo código',
+  'prefs.repos.wizard.mode.ephemeral.lead': 'Worktrees temporales eliminados al cerrar un chat.',
+  'prefs.repos.wizard.mode.ephemeral.desc':
+    'Cada chat obtiene su propio worktree, creado al abrir el chat y eliminado al cerrarse. Sin grupo ni ramas de aparcamiento. Ideal cuando no hay una caché costosa por rama que mantener caliente — repos de solo código, scripts, apps web con instalaciones baratas.',
+  'prefs.repos.wizard.repoPath.title': 'Ruta del repo',
+  'prefs.repos.wizard.repoPath.desc':
+    'Ruta absoluta al clon de origen. Rellenaremos automáticamente el id y el prefijo de slot a partir del nombre de la carpeta (puedes anularlo).',
+  'prefs.repos.wizard.browseTitle': 'Examinar una carpeta',
+  'prefs.repos.wizard.pickDirTitle': 'Elige el repositorio de origen',
+  'prefs.repos.wizard.browse': 'Examinar…',
+  'prefs.repos.wizard.shortId.title': 'Id corto',
+  'prefs.repos.wizard.shortId.desc':
+    'Minúsculas, sin espacios. Usado en las rutas de carpeta y los prefijos de rama. Permanente.',
+  'prefs.repos.wizard.shortId.placeholder': 'app',
+  'prefs.repos.wizard.defaultBase.title': 'Rama base predeterminada',
+  'prefs.repos.wizard.defaultBase.desc': 'Las nuevas ramas de chat se bifurcan desde aquí.',
+  'prefs.repos.wizard.color.title': 'Color',
+  'prefs.repos.wizard.color.desc': 'Tiñe los chips de slot y los acentos de chat de este repo.',
+  'prefs.repos.wizard.created':
+    '{id} está creado. Ahora inicializaremos sus {count} worktrees de slot — cada uno es un worktree de git de larga duración en su propia rama de aparcamiento, listo para alojar un chat.',
+  'prefs.repos.wizard.createdOne':
+    '{id} está creado. Ahora inicializaremos su {count} worktree de slot — un worktree de git de larga duración en su propia rama de aparcamiento, listo para alojar un chat.',
+  'prefs.repos.wizard.slotPrefix.title': 'Prefijo de slot',
+  'prefs.repos.wizard.slotPrefix.desc':
+    'Prefijo de carpeta + rama de aparcamiento. Los worktrees pasan a ser {prefix}-N. Cuanto más corto, mejor — este prefijo aparece en las rutas de worktree, las ramas de aparcamiento y el chip de slot en la cabecera del chat, así que un prefijo largo desperdicia espacio de pantalla por todas partes.',
+  'prefs.repos.wizard.slotCount.title': 'Recuento de slots',
+  'prefs.repos.wizard.slotCount.desc': 'Cuántos chats concurrentes admite este repo. 1–64.',
+  'prefs.repos.wizard.adding': 'Añadiendo…',
+  'prefs.repos.error.duplicateId': 'Ya existe un repo con el id "{id}".',
+  'prefs.repos.error.generic': 'No se pudo crear el repo.',
+  'prefs.repos.error.notFound': 'Repo no encontrado — ¿se eliminó?',
+  'prefs.repos.edit.title': 'Editar {id}',
+  'prefs.repos.edit.mode.title': 'Modo',
+  'prefs.repos.edit.mode.desc': 'Permanente. Elimina + recrea el repo para cambiar de modo.',
+  'prefs.repos.edit.slotPrefix.desc': 'Permanente — integrado en las rutas de carpeta y las ramas de aparcamiento.',
+  'prefs.repos.edit.repoPath.desc': 'Permanente. Elimina + recrea para apuntar a un clon diferente.',
+  'prefs.repos.edit.slotCount.desc':
+    'Tamaño del grupo. Al redimensionar se crean o desmontan worktrees de uno en uno — se rechaza si algún slot está ocupado por un chat abierto.',
+  'prefs.repos.edit.resizeSlots': 'Redimensionar slots…',
+  'prefs.repos.resize.title': 'Redimensionar slots',
+  'prefs.repos.resize.newCount.title': 'Nuevo recuento de slots',
+  'prefs.repos.resize.newCount.desc':
+    'Actual: {count}. Aumentarlo crea más worktrees; reducirlo desmonta los de número más alto (y sus ramas de aparcamiento).',
+  'prefs.repos.delete.title': 'Eliminar repositorio',
+  'prefs.repos.delete.about': 'Estás a punto de eliminar {id}.',
+  'prefs.repos.delete.attachedWarning':
+    '{count} chats están adjuntos a este repo. Su historial de conversación se conserva en la base de datos, pero quedarán desvinculados hasta que se vuelva a añadir un repo con el mismo id.',
+  'prefs.repos.delete.attachedWarningOne':
+    '{count} chat está adjunto a este repo. Su historial de conversación se conserva en la base de datos, pero quedará desvinculado hasta que se vuelva a añadir un repo con el mismo id.',
+  'prefs.repos.delete.reversible': 'Reversible:',
+  'prefs.repos.delete.reversibleBody':
+    'si más tarde creas un nuevo repo con el id {id}, todos los chats desvinculados se volverán a vincular automáticamente.',
+  'prefs.repos.delete.noTouch':
+    'Esto no tocará el clon de origen en {path} ni ninguna rama de chat dentro de él. Los worktrees de slot en disco también se dejan intactos — puedes podarlos a mano si quieres empezar de cero.',
+  'prefs.repos.delete.typeToConfirm': 'Escribe {id} para confirmar:',
+  'prefs.repos.delete.deleting': 'Eliminando…',
+
+  // ---------------------------------------------------------------------------
+  // Language preference pane.
+  // ---------------------------------------------------------------------------
   'language.title': 'Idioma',
   'language.description':
     'Elige el idioma que PopBot usa para su interfaz. La mayoría de los textos y los menús se actualizan al instante; algunas cadenas del sistema terminan de actualizarse tras reiniciar.',

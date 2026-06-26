@@ -20,6 +20,7 @@
 import { useEffect, useState } from 'react';
 import type { RepoRecord, RepoWorktreeMode } from '@shared/persistence';
 import type { RepoSlotStepResult } from '@shared/ipc';
+import { useTranslation } from '../lib/i18n';
 
 interface ConfigureSlotsPanelProps {
   repo: Pick<RepoRecord, 'id' | 'slotPrefix' | 'mode' | 'slotCount'>;
@@ -52,6 +53,7 @@ export function ConfigureSlotsPanel({
   targetCount,
   onDone,
 }: ConfigureSlotsPanelProps): JSX.Element {
+  const { t } = useTranslation();
   const [phase, setPhase] = useState<Phase>({ kind: 'preflight' });
   const [steps, setSteps] = useState<StepRecord[]>([]);
 
@@ -112,7 +114,7 @@ export function ConfigureSlotsPanel({
         : await window.popbot.repos.deleteOneSlot(repo.id, step.slotId);
       const ok = res.ok;
       const message = res.ok
-        ? (res.alreadyReady ? 'already ready' : '')
+        ? (res.alreadyReady ? t('slots.alreadyReady') : '')
         : ('reason' in res ? res.reason : res.error);
       setSteps((prev) => [...prev, { slotId: step.slotId, kind: step.kind, ok, message }]);
       if (!ok) { allOk = false; break; }
@@ -133,9 +135,11 @@ export function ConfigureSlotsPanel({
   };
 
   const phaseLabel = phase.kind === 'running'
-    ? `${phase.current?.kind === 'delete' ? 'Deleting' : 'Initializing'} slot ${phase.current?.slotId} (${phase.step} of ${phase.total})…`
+    ? (phase.current?.kind === 'delete'
+      ? t('slots.running.deleting', { slotId: phase.current?.slotId ?? '', step: phase.step, total: phase.total })
+      : t('slots.running.initializing', { slotId: phase.current?.slotId ?? '', step: phase.step, total: phase.total }))
     : phase.kind === 'done'
-      ? (phase.ok ? 'Done.' : 'Stopped — see below.')
+      ? (phase.ok ? t('slots.done') : t('slots.stopped'))
       : '';
 
   return (
@@ -145,27 +149,31 @@ export function ConfigureSlotsPanel({
         <span className="configure-slots-arrow">{currentCount} → {targetCount}</span>
         <span className="configure-slots-detail">
           {plan.length === 0
-            ? 'No slot changes — only the count needs to update.'
+            ? t('slots.detail.noChange')
             : plan[0]?.kind === 'init'
-              ? `Will create ${plan.length} new slot${plan.length === 1 ? '' : 's'}.`
-              : `Will delete ${plan.length} slot${plan.length === 1 ? '' : 's'}.`}
+              ? (plan.length === 1
+                ? t('slots.detail.willCreate', { count: plan.length })
+                : t('slots.detail.willCreatePlural', { count: plan.length }))
+              : (plan.length === 1
+                ? t('slots.detail.willDelete', { count: plan.length })
+                : t('slots.detail.willDeletePlural', { count: plan.length }))}
         </span>
       </div>
 
       {phase.kind === 'preflight' && (
-        <p className="pref-section-desc">Checking slot occupancy…</p>
+        <p className="pref-section-desc">{t('slots.checkingOccupancy')}</p>
       )}
 
       {phase.kind === 'blocked' && phase.reason === 'wrong-mode' && (
-        <div className="pref-error">This repo is in ephemeral mode — there are no slots to configure.</div>
+        <div className="pref-error">{t('slots.blocked.wrongMode')}</div>
       )}
 
       {phase.kind === 'blocked' && phase.reason === 'occupied' && (
         <div className="pref-warn">
-          <strong>Slots in use.</strong> Close these chats before resizing the pool:
+          <strong>{t('slots.blocked.inUseTitle')}</strong> {t('slots.blocked.inUseBody')}
           <ul style={{ margin: '6px 0 0 18px', padding: 0 }}>
             {phase.occupants.map((o) => (
-              <li key={o.slotId}>Slot {o.slotId} · {o.chatName}</li>
+              <li key={o.slotId}>{t('slots.occupant', { slotId: o.slotId, chatName: o.chatName })}</li>
             ))}
           </ul>
         </div>
@@ -174,10 +182,10 @@ export function ConfigureSlotsPanel({
       {phase.kind === 'ready' && (
         <p className="pref-section-desc">
           {plan.length === 0
-            ? 'Nothing to do — click Apply to update the count.'
+            ? t('slots.ready.nothing')
             : plan[0]?.kind === 'init'
-              ? 'Click Initialize to create the new slot worktrees.'
-              : 'Click Delete to tear down the extra slot worktrees and their parking branches.'}
+              ? t('slots.ready.init')
+              : t('slots.ready.delete')}
         </p>
       )}
 
@@ -198,7 +206,7 @@ export function ConfigureSlotsPanel({
           {steps.map((s) => (
             <li key={`${s.kind}-${s.slotId}`} className={s.ok ? 'ok' : 'err'}>
               <i className={`fa-solid ${s.ok ? 'fa-check' : 'fa-xmark'}`} />
-              &nbsp;{s.kind === 'init' ? 'Init' : 'Delete'} slot {s.slotId}
+              &nbsp;{s.kind === 'init' ? t('slots.log.init') : t('slots.log.delete')} {t('slots.log.slot', { slotId: s.slotId })}
               {s.message ? <span className="mono">&nbsp;— {s.message}</span> : null}
             </li>
           ))}
@@ -208,25 +216,25 @@ export function ConfigureSlotsPanel({
       <div className="configure-slots-foot">
         {phase.kind === 'ready' && (
           <>
-            <button className="btn" onClick={onDone}>Cancel</button>
+            <button className="btn" onClick={onDone}>{t('common.cancel')}</button>
             <span style={{ flex: 1 }} />
             <button className="btn primary" onClick={() => void start()}>
               {plan.length === 0
-                ? 'Apply'
-                : plan[0]?.kind === 'init' ? 'Initialize' : 'Delete'}
+                ? t('slots.btn.apply')
+                : plan[0]?.kind === 'init' ? t('slots.btn.initialize') : t('slots.btn.delete')}
             </button>
           </>
         )}
         {phase.kind === 'blocked' && (
           <>
             <span style={{ flex: 1 }} />
-            <button className="btn" onClick={onDone}>Close</button>
+            <button className="btn" onClick={onDone}>{t('common.close')}</button>
           </>
         )}
         {phase.kind === 'done' && (
           <>
             <span style={{ flex: 1 }} />
-            <button className="btn primary" onClick={onDone}>Done</button>
+            <button className="btn primary" onClick={onDone}>{t('common.done')}</button>
           </>
         )}
       </div>

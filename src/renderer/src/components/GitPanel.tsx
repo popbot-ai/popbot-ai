@@ -6,11 +6,13 @@ import type {
   GitScope,
   GitStatusResult,
 } from '@shared/git';
+import type { MessageKey } from '@shared/i18n';
 // Type-only import → erased at compile time, so the SourceControlPanel ↔
 // GitPanel cycle never exists at runtime. GitPanel is the git
 // implementation of the shared provider-panel contract.
 import type { SourceControlPanelProps } from './SourceControlPanel';
 import { useGitStatus } from '../lib/useGitStatus';
+import { useTranslation } from '../lib/i18n';
 import { hotkey } from '../lib/hotkeys';
 import { ConfirmDialog } from './ConfirmDialog';
 import { BaseBranchDialog } from './BaseBranchDialog';
@@ -33,15 +35,16 @@ interface StatusMeta {
   icon: string;
   color: string;
   abbr: string;
-  label: string;
+  /** i18n key for the human-readable status label. */
+  labelKey: MessageKey;
 }
 const STATUS_META: Record<GitFileStatus, StatusMeta> = {
-  modified:  { icon: 'fa-pen',                  color: '#4f8bff', abbr: 'M', label: 'Modified' },
-  added:     { icon: 'fa-plus',                 color: '#3fb27f', abbr: 'A', label: 'Added' },
-  deleted:   { icon: 'fa-trash',                color: '#dc5858', abbr: 'D', label: 'Deleted' },
-  renamed:   { icon: 'fa-right-left',           color: '#d6a13b', abbr: 'R', label: 'Renamed' },
-  untracked: { icon: 'fa-circle-plus',          color: '#3fb27f', abbr: '?', label: 'Untracked' },
-  conflict:  { icon: 'fa-triangle-exclamation', color: '#dc5858', abbr: 'C', label: 'Conflict' },
+  modified:  { icon: 'fa-pen',                  color: '#4f8bff', abbr: 'M', labelKey: 'git.status.modified' },
+  added:     { icon: 'fa-plus',                 color: '#3fb27f', abbr: 'A', labelKey: 'git.status.added' },
+  deleted:   { icon: 'fa-trash',                color: '#dc5858', abbr: 'D', labelKey: 'git.status.deleted' },
+  renamed:   { icon: 'fa-right-left',           color: '#d6a13b', abbr: 'R', labelKey: 'git.status.renamed' },
+  untracked: { icon: 'fa-circle-plus',          color: '#3fb27f', abbr: '?', labelKey: 'git.status.untracked' },
+  conflict:  { icon: 'fa-triangle-exclamation', color: '#dc5858', abbr: 'C', labelKey: 'git.status.conflict' },
 };
 
 interface ContextMenu {
@@ -65,10 +68,10 @@ function clamp(n: number, lo: number, hi: number): number {
 type Mode = 'commit' | 'commitAi' | 'pushPr' | 'pushDraftPr' | 'makePrReady' | 'addressCr';
 
 interface ModeMeta {
-  /** Big-button label. */
-  label: string;
-  /** Small-pill label (the mode picker row). */
-  short: string;
+  /** i18n key for the big-button label. */
+  labelKey: MessageKey;
+  /** i18n key for the small-pill label (the mode picker row). */
+  shortKey: MessageKey;
   icon: string;
   /** True when clicking the action sends a templated prompt to the
    *  agent. False = manual git op (only plain commit). */
@@ -78,12 +81,12 @@ interface ModeMeta {
 }
 
 const MODE_META: Record<Mode, ModeMeta> = {
-  commit:      { label: 'COMMIT',             short: 'COMMIT',      icon: 'fa-check',             isAi: false, next: 'commit' },
-  commitAi:    { label: 'COMMIT (AI)',        short: 'COMMIT (AI)', icon: 'fa-wand-magic-sparkles', isAi: true,  next: 'commitAi' },
-  pushPr:      { label: 'PUSH PR (AI)',       short: 'PUSH PR (AI)', icon: 'fa-code-pull-request', isAi: true,  next: 'addressCr' },
-  pushDraftPr: { label: 'PUSH DRAFT PR (AI)', short: 'DRAFT (AI)',  icon: 'fa-code-pull-request', isAi: true,  next: 'makePrReady' },
-  makePrReady: { label: 'MARK PR READY (AI)', short: 'READY (AI)',  icon: 'fa-circle-check',      isAi: true,  next: 'addressCr' },
-  addressCr:   { label: 'ADDRESS CR (AI)',    short: 'CR (AI)',     icon: 'fa-comments',          isAi: true,  next: 'addressCr' },
+  commit:      { labelKey: 'git.mode.commit.label',      shortKey: 'git.mode.commit.short',      icon: 'fa-check',               isAi: false, next: 'commit' },
+  commitAi:    { labelKey: 'git.mode.commitAi.label',    shortKey: 'git.mode.commitAi.short',    icon: 'fa-wand-magic-sparkles', isAi: true,  next: 'commitAi' },
+  pushPr:      { labelKey: 'git.mode.pushPr.label',      shortKey: 'git.mode.pushPr.short',      icon: 'fa-code-pull-request',   isAi: true,  next: 'addressCr' },
+  pushDraftPr: { labelKey: 'git.mode.pushDraftPr.label', shortKey: 'git.mode.pushDraftPr.short', icon: 'fa-code-pull-request',   isAi: true,  next: 'makePrReady' },
+  makePrReady: { labelKey: 'git.mode.makePrReady.label', shortKey: 'git.mode.makePrReady.short', icon: 'fa-circle-check',        isAi: true,  next: 'addressCr' },
+  addressCr:   { labelKey: 'git.mode.addressCr.label',   shortKey: 'git.mode.addressCr.short',   icon: 'fa-comments',            isAi: true,  next: 'addressCr' },
 };
 
 /** Default mode based on PR state. */
@@ -121,6 +124,7 @@ export function GitPanel({
   onOpenDiff,
   onCloseDiff,
 }: GitPanelProps): JSX.Element {
+  const { t } = useTranslation();
   const [scope, setScope] = useState<GitScope>({ kind: 'wip' });
   const { data, refresh } = useGitStatus(chatId);
 
@@ -446,39 +450,39 @@ export function GitPanel({
         <div className="git-panel-title">
           <i className="fa-solid fa-code-branch" />
           <span className="git-branch" title={status?.branch ?? ''}>
-            {status?.branch ?? (chatId ? '—' : 'No chat focused')}
+            {status?.branch ?? (chatId ? '—' : t('git.branch.none'))}
           </span>
           {status && (status.ahead > 0 || status.behind > 0) && (
             <span className="git-ab">
-              {status.ahead > 0 && <span title="Ahead"><i className="fa-solid fa-arrow-up" />{status.ahead}</span>}
-              {status.behind > 0 && <span title="Behind"><i className="fa-solid fa-arrow-down" />{status.behind}</span>}
+              {status.ahead > 0 && <span title={t('git.ahead.title')}><i className="fa-solid fa-arrow-up" />{status.ahead}</span>}
+              {status.behind > 0 && <span title={t('git.behind.title')}><i className="fa-solid fa-arrow-down" />{status.behind}</span>}
             </span>
           )}
         </div>
         <div className="git-panel-actions">
           <button
             className="iconbtn"
-            title="Refresh"
+            title={t('common.refresh')}
             onClick={refresh}
             disabled={!chatId}
           >
             <i className="fa-solid fa-arrows-rotate" />
           </button>
-          <button className="iconbtn" title="Close panel" onClick={onClose}>
+          <button className="iconbtn" title={t('git.closePanel.title')} onClick={onClose}>
             <i className="fa-solid fa-xmark" />
           </button>
         </div>
       </div>
 
       {!chatId && (
-        <div className="git-panel-empty">Focus a chat to see its git status.</div>
+        <div className="git-panel-empty">{t('git.empty.focusChat')}</div>
       )}
 
       {chatId && data && !data.ok && (
         <div className="git-panel-empty">
           {data.reason === 'no-worktree'
-            ? 'This chat has no slot worktree yet.'
-            : `Not a git repo: ${data.error ?? ''}`}
+            ? t('git.empty.noWorktree')
+            : t('git.empty.notRepo', { error: data.error ?? '' })}
         </div>
       )}
 
@@ -495,10 +499,12 @@ export function GitPanel({
               onClick={() => setScope({ kind: 'wip' })}
             >
               <i className="fa-regular fa-pen-to-square git-commit-icon" />
-              <span className="git-commit-subject">Uncommitted changes</span>
+              <span className="git-commit-subject">{t('git.commits.uncommitted')}</span>
               {status && (
                 <span className="git-commit-meta">
-                  {status.files.length} file{status.files.length === 1 ? '' : 's'}
+                  {status.files.length === 1
+                    ? t('git.commits.fileCount', { count: status.files.length })
+                    : t('git.commits.fileCountPlural', { count: status.files.length })}
                 </span>
               )}
             </div>
@@ -515,14 +521,14 @@ export function GitPanel({
               </div>
             ))}
             {chatId && status && status.recentCommits.length === 0 && (
-              <div className="git-empty-line">No commits on this branch yet.</div>
+              <div className="git-empty-line">{t('git.commits.none')}</div>
             )}
           </div>
 
           <div
             className="git-splitter"
             onMouseDown={startVerticalDrag(commitsPx, setCommitsPx, commitsRef, 'down')}
-            title="Drag to resize"
+            title={t('common.dragToResize')}
           />
 
           {/* Files list — fills remaining vertical space. */}
@@ -530,7 +536,7 @@ export function GitPanel({
             <div className="git-files-toolbar">
               {isWip ? (
                 <>
-                  <label className="git-checkbox-label" title={allChecked ? 'Uncheck all' : 'Check all'}>
+                  <label className="git-checkbox-label" title={allChecked ? t('git.files.uncheckAll') : t('git.files.checkAll')}>
                     <input
                       type="checkbox"
                       className="git-row-check"
@@ -538,21 +544,23 @@ export function GitPanel({
                       onChange={toggleAllChecked}
                       ref={(el) => { if (el) el.indeterminate = !allChecked && anyChecked; }}
                     />
-                    <span>{checked.size} of {files.length} for commit</span>
+                    <span>{t('git.files.selectedForCommit', { checked: checked.size, total: files.length })}</span>
                   </label>
                   {selected.size > 0 && (
                     <button
                       className="git-mini-action danger"
-                      title="Revert selected files"
+                      title={t('git.files.revertSelected')}
                       onClick={() => askRevert([...selected])}
                     >
-                      <i className="fa-solid fa-rotate-left" /> Revert {selected.size}
+                      <i className="fa-solid fa-rotate-left" /> {t('git.files.revertCount', { count: selected.size })}
                     </button>
                   )}
                 </>
               ) : (
                 <span className="git-files-readonly">
-                  Read-only · {files.length} file{files.length === 1 ? '' : 's'}
+                  {files.length === 1
+                    ? t('git.files.readonlyCount', { count: files.length })
+                    : t('git.files.readonlyCountPlural', { count: files.length })}
                   {historyError && ` · ${historyError}`}
                 </span>
               )}
@@ -560,6 +568,7 @@ export function GitPanel({
             <div className="git-files-body">
               {files.map((f) => {
                 const meta = STATUS_META[f.status];
+                const statusLabel = t(meta.labelKey);
                 const isSelected = selected.has(f.path);
                 const isChecked = checked.has(f.path);
                 const isOpen = diffPath === f.path;
@@ -569,7 +578,9 @@ export function GitPanel({
                     className={`git-file-row ${isSelected ? 'selected' : ''} ${isOpen ? 'open' : ''}`}
                     onClick={(e) => handleRowClick(f, e)}
                     onContextMenu={(e) => onContextMenu(f, e)}
-                    title={`${meta.label}${f.oldPath ? ` (was ${f.oldPath})` : ''}`}
+                    title={f.oldPath
+                      ? t('git.file.rowTitleRenamed', { label: statusLabel, oldPath: f.oldPath })
+                      : statusLabel}
                   >
                     {isWip ? (
                       <input
@@ -595,7 +606,7 @@ export function GitPanel({
               })}
               {files.length === 0 && !historyError && (
                 <div className="git-empty-line">
-                  {isWip ? 'No uncommitted changes.' : 'No files in this commit.'}
+                  {isWip ? t('git.files.noUncommitted') : t('git.files.noFilesInCommit')}
                 </div>
               )}
             </div>
@@ -607,7 +618,7 @@ export function GitPanel({
               <div
                 className="git-splitter"
                 onMouseDown={startVerticalDrag(commitFootPx, setCommitFootPx, commitFootRef, 'up')}
-                title="Drag to resize"
+                title={t('common.dragToResize')}
               />
               <div
                 ref={commitFootRef}
@@ -616,14 +627,14 @@ export function GitPanel({
               >
                 {/* Base branch + Open PR row */}
                 <div className="git-base-row">
-                  <span className="git-base-label" title="PR target / fork-point branch">→</span>
-                  <span className="git-base-name" title="Base branch (PR target)">{baseBranch}</span>
+                  <span className="git-base-label" title={t('git.base.targetTitle')}>→</span>
+                  <span className="git-base-name" title={t('git.base.nameTitle')}>{baseBranch}</span>
                   <button
                     className="btn ghost sm git-base-change"
                     onClick={() => setPickingBranch(true)}
-                    title="Change base branch and ask the AI to rebase / cherry-pick"
+                    title={t('git.base.changeTitle')}
                   >
-                    Change
+                    {t('git.base.change')}
                   </button>
                   {/* The PR link previously rendered here moved to the
                       runtime-strip PR chip in the chat header — that's
@@ -638,9 +649,9 @@ export function GitPanel({
                       key={m}
                       className={`git-mode-pill ${mode === m ? 'active' : ''}`}
                       onClick={() => setMode(m)}
-                      title={MODE_META[m].label}
+                      title={t(MODE_META[m].labelKey)}
                     >
-                      {MODE_META[m].short}
+                      {t(MODE_META[m].shortKey)}
                     </button>
                   ))}
                 </div>
@@ -650,8 +661,8 @@ export function GitPanel({
                   className={`git-commit-msg ${mode === 'commit' ? '' : 'preview'}`}
                   placeholder={
                     mode === 'commit'
-                      ? (anyChecked ? 'Commit message…' : 'Check files to commit')
-                      : 'Prompt preview'
+                      ? (anyChecked ? t('git.commit.msgPlaceholder') : t('git.commit.checkFilesPlaceholder'))
+                      : t('git.commit.promptPreviewPlaceholder')
                   }
                   value={mode === 'commit' ? commitMsg : previewText}
                   onChange={(e) => mode === 'commit' && setCommitMsg(e.target.value)}
@@ -671,10 +682,10 @@ export function GitPanel({
                       : !chatId
                   }
                   onClick={() => void runAction()}
-                  title={`${MODE_META[mode].label} (${hotkey('Enter')})`}
+                  title={t('git.action.btnTitle', { label: t(MODE_META[mode].labelKey), hotkey: hotkey('Enter') })}
                 >
                   <i className={`fa-solid ${MODE_META[mode].icon}`} />
-                  &nbsp;{MODE_META[mode].label}
+                  &nbsp;{t(MODE_META[mode].labelKey)}
                   {mode === 'commit' && checked.size > 0 && ` (${checked.size})`}
                 </button>
               </div>
@@ -685,7 +696,7 @@ export function GitPanel({
 
       {pickingBranch && (
         <BaseBranchDialog
-          subtitle="Change base branch — the AI will rebase / cherry-pick onto it."
+          subtitle={t('git.base.dialogSubtitle')}
           initial={baseBranch}
           lockedRepoId={chatRepoId ?? undefined}
           onCancel={() => setPickingBranch(false)}
@@ -710,7 +721,7 @@ export function GitPanel({
             }}
             disabled={menu.paths.length !== 1}
           >
-            <i className="fa-solid fa-eye" /> View diff
+            <i className="fa-solid fa-eye" /> {t('git.menu.viewDiff')}
           </button>
           {isWip && (
             <button
@@ -718,7 +729,9 @@ export function GitPanel({
               onClick={() => askRevert(menu.paths)}
             >
               <i className="fa-solid fa-rotate-left" />
-              Revert {menu.paths.length} file{menu.paths.length === 1 ? '' : 's'}…
+              {menu.paths.length === 1
+                ? t('git.menu.revertCount', { count: menu.paths.length })
+                : t('git.menu.revertCountPlural', { count: menu.paths.length })}
             </button>
           )}
         </div>
@@ -726,13 +739,13 @@ export function GitPanel({
 
       {confirm && (
         <ConfirmDialog
-          title="Revert files"
+          title={t('git.revert.dialogTitle')}
           message={
             confirm.paths.length === 1
-              ? `Discard local changes to "${confirm.paths[0]}"? This cannot be undone.`
-              : `Discard local changes to ${confirm.paths.length} files? This cannot be undone.`
+              ? t('git.revert.confirmOne', { path: confirm.paths[0] })
+              : t('git.revert.confirmMany', { count: confirm.paths.length })
           }
-          confirmLabel="Revert"
+          confirmLabel={t('git.revert.confirmLabel')}
           destructive
           onCancel={() => setConfirm(null)}
           onConfirm={() => void doRevert(confirm.paths)}

@@ -15,6 +15,8 @@ import {
   closestReasoningEffort,
   normalizeClaudeModel,
 } from '@shared/persistence';
+import type { MessageKey, Translator } from '@shared/i18n';
+import { useTranslation } from '../lib/i18n';
 
 export interface AgentCreateConfig {
   agent: AgentBackendId;
@@ -58,17 +60,25 @@ const MODEL_OPTIONS = [
   },
 ] as const;
 
-const REASONING_LABELS: Record<ClaudeReasoningEffort | CodexReasoningEffort, string> = {
-  none: 'None',
-  low: 'Low',
-  medium: 'Medium',
-  high: 'High',
-  xhigh: 'XHigh',
-  max: 'Max',
+/** i18n keys for each reasoning-effort label — resolved via `t()` so the
+ *  option labels follow the active locale. */
+const REASONING_LABEL_KEYS: Record<ClaudeReasoningEffort | CodexReasoningEffort, MessageKey> = {
+  none: 'agent.effort.none',
+  low: 'agent.effort.low',
+  medium: 'agent.effort.medium',
+  high: 'agent.effort.high',
+  xhigh: 'agent.effort.xhigh',
+  max: 'agent.effort.max',
 };
 
-export function reasoningEffortLabel(effort: ClaudeReasoningEffort | CodexReasoningEffort): string {
-  return REASONING_LABELS[effort];
+/** Localized label for a reasoning-effort value. Takes the caller's `t()`
+ *  so the text follows the active locale (used by both the create-controls
+ *  dropdown and the Preferences effort defaults). */
+export function reasoningEffortLabel(
+  effort: ClaudeReasoningEffort | CodexReasoningEffort,
+  t: Translator,
+): string {
+  return t(REASONING_LABEL_KEYS[effort]);
 }
 
 export const DEFAULT_AGENT_CREATE_CONFIG: AgentCreateConfig = {
@@ -176,6 +186,7 @@ export function AgentCreateControls({
   value: AgentCreateConfig;
   onChange: (next: AgentCreateConfig) => void;
 }): JSX.Element {
+  const { t } = useTranslation();
   const agent = value.agent;
   const claudeEffort = value.claudeReasoningEffort ?? DEFAULT_CLAUDE_REASONING_EFFORT;
   const codexEffort = value.codexReasoningEffort ?? DEFAULT_CODEX_REASONING_EFFORT;
@@ -189,12 +200,12 @@ export function AgentCreateControls({
 
   return (
     <div style={{ marginBottom: 12 }}>
-      <div style={{ fontSize: 11, color: 'var(--fg-3)', marginBottom: 4 }}>Agent</div>
+      <div style={{ fontSize: 11, color: 'var(--fg-3)', marginBottom: 4 }}>{t('agent.label')}</div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
         <select
           className={`agent-select ${agent}`}
-          title="Model"
-          aria-label="Model"
+          title={t('agent.model')}
+          aria-label={t('agent.model')}
           value={selectedModelValue}
           onChange={(e) => {
             const next = MODEL_OPTIONS.find((item) => item.value === e.currentTarget.value);
@@ -214,8 +225,8 @@ export function AgentCreateControls({
         </select>
         <select
           className={`reasoning-select ${agent}`}
-          title="Effort"
-          aria-label="Effort"
+          title={t('agent.effort')}
+          aria-label={t('agent.effort')}
           value={effort}
           onChange={(e) => {
             if (agent === 'codex') {
@@ -232,7 +243,7 @@ export function AgentCreateControls({
           }}
         >
           {effortOptions.map((item) => (
-            <option key={item} value={item}>{REASONING_LABELS[item]}</option>
+            <option key={item} value={item}>{t(REASONING_LABEL_KEYS[item])}</option>
           ))}
         </select>
       </div>
