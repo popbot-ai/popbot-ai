@@ -42,12 +42,19 @@ import {
   ensureClient,
   findLatestShelf,
   flushTo,
+  openChanges,
   readSlotMeta,
   revertAll,
   shelveWork,
   unshelvePop,
   writeSlotMeta,
 } from '../p4/workspace';
+import {
+  clearSlotChanges,
+  getSlotChanges,
+  startSlotWatch,
+  stopSlotWatch,
+} from '../p4/watcher';
 import {
   SourceControlProvider,
   type CheckoutBranchOpts,
@@ -91,7 +98,17 @@ export class PerforceProvider extends SourceControlProvider {
 
   async listStatus(wt: string): Promise<ScmStatus> {
     try {
-      return await p4ListStatus(this.ctx(wt), wt);
+      const ctx = this.ctx(wt);
+      // Make p4 track the agent's free edits like git: open whatever the
+      // slot watcher saw change (targeted edit/add/delete, never reconcile),
+      // then report p4 opened as the working-tree change list.
+      startSlotWatch(wt); // idempotent
+      const changes = getSlotChanges(wt);
+      if (changes.length) {
+        await openChanges(ctx, wt, changes);
+        clearSlotChanges(wt);
+      }
+      return await p4ListStatus(ctx, wt);
     } catch {
       return { branch: null, ahead: 0, behind: 0, files: [], recentCommits: [] };
     }
@@ -152,6 +169,7 @@ export class PerforceProvider extends SourceControlProvider {
       host: hostname(),
     });
     writeSlotMeta(opts.worktreePath, { depotPath: p4.depotPath, baseChangelist: p4.baseChangelist });
+    startSlotWatch(opts.worktreePath);
   }
 
   /** Perforce has no branches; a freshly-allocated slot is reset to a clean
@@ -161,6 +179,9 @@ export class PerforceProvider extends SourceControlProvider {
     const meta = readSlotMeta(opts.worktreePath);
     await revertAll(ctx, opts.worktreePath);
     if (meta) await flushTo(ctx, meta.depotPath, meta.baseChangelist);
+    // Fresh slot for a new chat — forget any prior watched edits, watch anew.
+    clearSlotChanges(opts.worktreePath);
+    startSlotWatch(opts.worktreePath);
   }
 
   async worktreeStatus(worktreePath: string): Promise<WorktreeStatus> {
@@ -185,6 +206,8 @@ export class PerforceProvider extends SourceControlProvider {
     // discarded. Then re-anchor the have-list at the base changelist.
     await revertAll(ctx, opts.worktreePath);
     if (meta) await flushTo(ctx, meta.depotPath, meta.baseChangelist);
+    clearSlotChanges(opts.worktreePath);
+    stopSlotWatch(opts.worktreePath);
   }
 
   async refreshSlotForAllocation(opts: { worktreePath: string; baseBranch: string }): Promise<void> {
@@ -229,6 +252,7 @@ export class PerforceProvider extends SourceControlProvider {
 
   /** Hard teardown of a slot: delete the P4 client + destroy the shado clone. */
   async removeWorktree(opts: { repoPath: string; worktreePath: string }): Promise<void> {
+    stopSlotWatch(opts.worktreePath);
     try {
       await deleteClient(this.ctx(opts.worktreePath));
     } catch {

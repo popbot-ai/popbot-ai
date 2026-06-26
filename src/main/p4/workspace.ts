@@ -146,6 +146,32 @@ export async function findLatestShelf(ctx: P4Context, prefix: string): Promise<s
   return best == null ? null : String(best);
 }
 
+/**
+ * Open filesystem changes (from the slot watcher) in Perforce with targeted
+ * `p4 edit/add/delete` — the bridge that makes p4 track an agent's free
+ * edits like git, WITHOUT a reconcile. For changed-present files we run
+ * BOTH `edit` and `add`: `edit` opens the ones already in the depot, `add`
+ * opens the ones that aren't, and each is a tolerated no-op for the other
+ * category — so we never have to probe per file. Batched via `p4 -x -`.
+ */
+export async function openChanges(
+  ctx: P4Context,
+  wt: string,
+  changes: { path: string; kind: 'modify' | 'add' | 'delete' }[],
+): Promise<void> {
+  const present = changes.filter((c) => c.kind !== 'delete').map((c) => `//${c.path}`);
+  const removed = changes.filter((c) => c.kind === 'delete').map((c) => `//${c.path}`);
+  const run = (action: string, files: string[]): Promise<unknown> =>
+    files.length
+      ? p4exec(ctx, ['-x', '-', action], { cwd: wt, input: files.join('\n') + '\n', tolerant: true })
+      : Promise.resolve();
+  if (present.length) {
+    await run('edit', present);
+    await run('add', present);
+  }
+  if (removed.length) await run('delete', removed);
+}
+
 /** Restore a shelved change into the slot, then drop the shelf + its
  *  (now redundant) changelist. */
 export async function unshelvePop(ctx: P4Context, wt: string, change: string): Promise<void> {
