@@ -12,6 +12,7 @@
 
 import { execFile } from 'node:child_process'
 import { existsSync } from 'node:fs'
+import { homedir } from 'node:os'
 import { join, parse } from 'node:path'
 import { app } from 'electron'
 
@@ -67,15 +68,27 @@ export function shadoAvailable(): boolean {
 }
 
 /**
- * SHADO_HOME for a repo's slots. The frozen base VHDX and every per-slot
- * differencing child MUST live on the same drive as the source repo —
- * a hard requirement of the VHDX differencing model (children reference
- * the parent by path) and the user's workflow. Derive a stable home on
- * the repo's own drive so base creation and slot cloning always agree.
+ * The PopBot folder on the drive of `repoPath`. Slots MUST live on the
+ * same drive as the source repo (the VHDX differencing model + the user's
+ * workflow), so we mirror the user-folder-relative path onto the repo's
+ * drive: the path AFTER the drive letter is identical on every drive.
+ * On the home drive this is `~/popbot` (back-compat with the existing
+ * layout); on a data drive it's the same sub-path rooted there
+ * (e.g. `D:\Users\me\popbot`). Workspaces live under `…/popbot/workspaces`,
+ * the shado base + diffs under `…/popbot/shado`.
  */
+export function popbotRootForRepo(repoPath: string): string {
+  const home = homedir()
+  const homeRel = home.slice(parse(home).root.length) // e.g. "Users\\me"
+  const drive = parse(repoPath).root || parse(home).root
+  return join(drive, homeRel, 'popbot')
+}
+
+/** SHADO_HOME for a repo's slots — the frozen base VHDX and every per-slot
+ *  differencing child, on the repo's drive so base creation and slot
+ *  cloning always agree on the parent path. */
 export function shadoHomeForRepo(repoPath: string): string {
-  const root = parse(repoPath).root || process.cwd()
-  return join(root, 'popbot-shado')
+  return join(popbotRootForRepo(repoPath), 'shado')
 }
 
 /** Run shado with the given args. Never throws; returns a structured
