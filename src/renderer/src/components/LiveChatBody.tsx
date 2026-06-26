@@ -132,17 +132,26 @@ import type { Translator } from '@shared/i18n';
 //     tool blocks). Anything older than this is dropped from the DOM
 //     while sticky-bottom is engaged.
 //
-//   BROWSE_WINDOW: the "I scrolled up to read history" mode. Sized
-//     intentionally large — any chat shorter than this stays fully
-//     mounted while you're browsing, so the bottom never gets pulled
-//     out from under you no matter how far you scroll up. Only the
-//     truly enormous outliers cross this and start trimming the
-//     bottom on slide-back.
+//   BROWSE_WINDOW: the "I scrolled up to read history" mode. Larger
+//     than the tail so casual scroll-ups don't constantly slide, but
+//     still BOUNDED — this is the cap that actually protects the main
+//     thread.
+//
+//     It used to be 1000, which on a long, heavy chat (e.g. a single
+//     turn that read/wrote whole files — hundreds of rows, several tens
+//     of KB each) meant a scroll-up mounted ~1000 MessageRows at once.
+//     The post-commit `useLayoutEffect` then reads `scrollHeight`,
+//     forcing ONE synchronous layout over that entire tree — seconds of
+//     a frozen, non-interactive main thread (input events queue while
+//     the compositor keeps painting already-composited layers, so the
+//     window looks "alive but stuck"). Capping the mounted set keeps
+//     that forced layout cheap; the slide-on-rest machinery still pages
+//     the full history in as you scroll, so nothing is lost.
 //
 // Re-engaging sticky (hitting bottom + the rest timer, or pressing
 // Latest) flips back to TAIL_WINDOW and the extras get unmounted.
 const TAIL_WINDOW = 30;
-const BROWSE_WINDOW = 1000;
+const BROWSE_WINDOW = 200;
 /** How many to slide the window per scroll-edge trigger. MUST stay
  *  strictly less than the smaller cap (TAIL_WINDOW) so the anchor message captured at the
  *  edge stays mounted across the slide — otherwise anchor restoration in
@@ -664,7 +673,7 @@ interface MessageRowProps {
   ) => void;
 }
 
-function MessageRow({ message, renderAsQuestion, isStale, consumed, qaAnswer, chatId, onQuickReply, onDecide }: MessageRowProps): JSX.Element | null {
+function MessageRowImpl({ message, renderAsQuestion, isStale, consumed, qaAnswer, chatId, onQuickReply, onDecide }: MessageRowProps): JSX.Element | null {
   if (consumed) return null;
   if (message.kind === 'text' || message.kind === 'system') {
     const body = parseBody<MessageBodyText>(message.body, { text: '' });
@@ -744,6 +753,20 @@ function MessageRow({ message, renderAsQuestion, isStale, consumed, qaAnswer, ch
 
   return null;
 }
+
+/** Memoized row. During streaming, `useMessages` patches messages with
+ *  `.map`, returning the SAME object reference for every untouched row —
+ *  only the row receiving a text-delta / tool-result gets a fresh
+ *  reference. With a plain function component, a single delta still
+ *  re-rendered every mounted row (re-parsing markdown, re-reconciling
+ *  the whole subtree, and churning DOM via add/removeChild), which the
+ *  post-commit `useLayoutEffect` then forced a full synchronous layout
+ *  over — the multi-hundred-ms "rendering pauses". Shallow prop equality
+ *  here lets unchanged rows bail out entirely. The handler props
+ *  (`onDecide`/`onQuickReply`) are stable `useCallback` refs from
+ *  ChatColumn, and the value props (`consumed`/`qaAnswer`/`isStale`/…)
+ *  compare equal by value for unchanged rows, so the bail-out holds. */
+const MessageRow = memo(MessageRowImpl);
 
 function AttachmentList({ attachments }: { attachments: ChatAttachment[] }): JSX.Element {
   return (
@@ -948,6 +971,34 @@ function presentTool(name: string, args: Record<string, unknown>, t: Translator)
  *  on the small side so a single Edit row never dominates the chat. */
 const DIFF_COLLAPSED_MAX_PX = 200;
 
+/** Hard cap on how many lines a diff may feed to the (word-level) diff
+ *  viewer INLINE. Beyond this we stop running the viewer on the full
+ *  text and render only the head of each side, pointing at the pop-out
+ *  for the rest.
+ *
+ *  Why: the inline "collapse-on-tall" path only CSS-clips — it still
+ *  builds the entire diff DOM and runs an O(n²)-ish WORDS_WITH_SPACE
+ *  diff over the whole text. A single 60 KB Write (≈1.5k lines) then
+ *  freezes the renderer main thread for seconds while it word-diffs and
+ *  lays out thousands of clipped-but-still-present nodes. Capping the
+ *  fed text keeps both the diff compute and the DOM bounded.
+ *
+ *  Tuned HIGH on purpose: ordinary edits — even large multi-hunk ones —
+ *  sit well under this and render in full, unchanged. Only pathological
+ *  whole-file dumps get capped. */
+const DIFF_INLINE_MAX_LINES = 300;
+/** When a diff is capped, how many head lines of each side we still
+ *  render inline — ~two-thirds of the cap, enough to read the gist
+ *  before the "open full diff" hand-off. */
+const DIFF_INLINE_HEAD_LINES = 200;
+
+/** First `n` lines of `text`, plus how many were dropped. */
+function headLines(text: string, n: number): { text: string; hidden: number } {
+  const lines = text.split('\n');
+  if (lines.length <= n) return { text, hidden: 0 };
+  return { text: lines.slice(0, n).join('\n'), hidden: lines.length - n };
+}
+
 /** Compact horizontal padding for the diff display. We're not losing
  *  any data — the underlying text is unchanged for copy / fidelity —
  *  this only shrinks how it's rendered. */
@@ -969,7 +1020,34 @@ function DiffView({ before, after, title }: { before: string; after: string; tit
   // Use total line count as a cheap proxy for height. ~16 lines ≈ the
   // max-height threshold; below that the container hugs naturally.
   const lineCount = (before.match(/\n/g)?.length ?? 0) + (after.match(/\n/g)?.length ?? 0) + 2;
-  const isTall = lineCount > 16;
+  // Oversized diffs (e.g. a whole-file Write) are too expensive to
+  // word-diff and render inline in full — they're the multi-second
+  // renderer freeze. Past the cap we feed the viewer only the head of
+  // each side; the full diff stays one click away in the pop-out modal.
+  // Modest diffs (the overwhelming majority) skip this entirely and
+  // render exactly as before.
+  const oversized = lineCount > DIFF_INLINE_MAX_LINES;
+  const inlineBefore = useMemo(
+    () => (oversized ? headLines(compactBefore, DIFF_INLINE_HEAD_LINES) : { text: compactBefore, hidden: 0 }),
+    [compactBefore, oversized],
+  );
+  const inlineAfter = useMemo(
+    () => (oversized ? headLines(compactAfter, DIFF_INLINE_HEAD_LINES) : { text: compactAfter, hidden: 0 }),
+    [compactAfter, oversized],
+  );
+  const hiddenLines = inlineBefore.hidden + inlineAfter.hidden;
+  // Whether the inline view was ACTUALLY shortened. `oversized` (combined
+  // line count past the cap) is necessary but not sufficient: headLines
+  // only drops content when an INDIVIDUAL side exceeds the head cap, so a
+  // diff like 151-before + 151-after trips `oversized` yet hides nothing.
+  // Key the truncated-footer + collapse handoff off real truncation, not
+  // the combined-count proxy, or such a diff renders fully expanded inline
+  // with no expand control and no "open full diff" footer.
+  const truncatedInline = hiddenLines > 0;
+  // The CSS-clip "collapse" path is only for diffs we render in full. A
+  // head-truncated diff already shows just its head, so clipping it would
+  // hide the head we DID choose to show — and the footer handoff covers it.
+  const isTall = !truncatedInline && lineCount > 16;
   const collapsed = isTall && !expanded;
 
   return (
@@ -979,8 +1057,8 @@ function DiffView({ before, after, title }: { before: string; after: string; tit
         style={collapsed ? { maxHeight: DIFF_COLLAPSED_MAX_PX, overflow: 'hidden' } : undefined}
       >
         <ReactDiffViewer
-          oldValue={compactBefore}
-          newValue={compactAfter}
+          oldValue={inlineBefore.text}
+          newValue={inlineAfter.text}
           splitView={false}
           useDarkTheme
           hideLineNumbers={true}
@@ -1011,6 +1089,15 @@ function DiffView({ before, after, title }: { before: string; after: string; tit
           </button>
         )}
       </div>
+      {truncatedInline && (
+        <button
+          className="btn ghost sm diff-truncated-foot"
+          onClick={(e) => { e.stopPropagation(); setPopped(true); }}
+          title="This diff is large — open the full diff in a panel"
+        >
+          Diff truncated — open full diff ({hiddenLines.toLocaleString()} more lines)
+        </button>
+      )}
       {popped && (
         <DiffModal
           before={compactBefore}
