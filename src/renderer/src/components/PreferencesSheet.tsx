@@ -14,7 +14,12 @@ import {
   CLAUDE_REASONING_EFFORTS,
   CODEX_REASONING_EFFORTS,
   clampAttachmentTtlDays,
+  clampMaxChangedFiles,
+  MAX_CHANGED_FILES_DEFAULT,
+  MAX_CHANGED_FILES_MAX,
+  MAX_CHANGED_FILES_MIN,
   type AttachmentsSettings,
+  type SourceControlSettings,
   type ClaudeReasoningEffort,
   type CodexReasoningEffort,
   type RepoRecord,
@@ -674,13 +679,20 @@ function PrefsGit(): JSX.Element {
   const { t } = useTranslation();
   const { get, set, loading } = useSettings();
   const initial = get<GitSettings>('git', {}) ?? {};
+  const scInitial = get<SourceControlSettings>('sourceControl', {}) ?? {};
   const [username, setUsername] = useState(initial.username ?? '');
+  const [maxFiles, setMaxFiles] = useState<number>(
+    clampMaxChangedFiles(scInitial.maxChangedFiles ?? MAX_CHANGED_FILES_DEFAULT),
+  );
   const [savedAt, setSavedAt] = useState<number | null>(null);
 
   // Same sync-on-load fix as PrefsApps / UnityConfig. Without this,
   // useState captures defaults while useSettings is still loading and
   // a subsequent Save overwrites real persisted values with defaults.
   useEffect(() => { setUsername(initial.username ?? ''); }, [initial.username]);
+  useEffect(() => {
+    setMaxFiles(clampMaxChangedFiles(scInitial.maxChangedFiles ?? MAX_CHANGED_FILES_DEFAULT));
+  }, [scInitial.maxChangedFiles]);
 
   if (loading) return <div className="pref-section"><h3>{t('prefs.git.title')}</h3></div>;
 
@@ -709,6 +721,35 @@ function PrefsGit(): JSX.Element {
           </div>
         </div>
         <div className="pref-row">
+          <div className="pref-label">
+            <div className="pref-label-title">{t('prefs.git.maxChangedFiles.title')}</div>
+            <div className="pref-label-desc">
+              {t('prefs.git.maxChangedFiles.desc', {
+                min: MAX_CHANGED_FILES_MIN,
+                max: MAX_CHANGED_FILES_MAX,
+              })}
+            </div>
+          </div>
+          <div className="pref-control">
+            <input
+              type="number"
+              className="pref-input mono"
+              min={MAX_CHANGED_FILES_MIN}
+              max={MAX_CHANGED_FILES_MAX}
+              value={maxFiles}
+              onChange={(e) =>
+                setMaxFiles(
+                  Math.max(
+                    MAX_CHANGED_FILES_MIN,
+                    Math.min(MAX_CHANGED_FILES_MAX, Number(e.target.value) || MAX_CHANGED_FILES_DEFAULT),
+                  ),
+                )
+              }
+              style={{ width: 100 }}
+            />
+          </div>
+        </div>
+        <div className="pref-row">
           <div className="pref-label" />
           <div className="pref-control" style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
             <button
@@ -717,6 +758,12 @@ function PrefsGit(): JSX.Element {
                 // Merge so we only edit the username and preserve any
                 // legacy git fields still used as runtime fallbacks.
                 await set('git', { ...initial, username: username.trim() });
+                const max = clampMaxChangedFiles(maxFiles);
+                setMaxFiles(max);
+                await set('sourceControl', {
+                  ...scInitial,
+                  maxChangedFiles: max,
+                } satisfies SourceControlSettings);
                 setSavedAt(Date.now());
               }}
             >

@@ -21,6 +21,10 @@ import type {
   GitStatusResultOrErr,
   GitBaseBranchesResult,
 } from '@shared/git';
+import {
+  clampMaxChangedFiles,
+  type SourceControlSettings,
+} from '@shared/persistence';
 import { getChat } from '../persistence/chats';
 import { backfillChatFields } from '../persistence/chatBackfill';
 import { getRepo, listRepos } from '../persistence/repos';
@@ -93,6 +97,16 @@ export function registerGitHandlers(): void {
       if (typeof wt !== 'string') return { ok: false, reason: wt.error };
       try {
         const r = await providerForChat(chatId).listStatus(wt);
+        // Cap the change list (provider-agnostic — git + Perforce). A slot
+        // off a huge depot can open tens of thousands of files; rendering
+        // them all would choke the panel. Surface the true total so the
+        // panel can show "showing N of M".
+        const cap = clampMaxChangedFiles(
+          getSetting<SourceControlSettings>('sourceControl')?.maxChangedFiles,
+        );
+        if (r.files.length > cap) {
+          return { ok: true, ...r, files: r.files.slice(0, cap), truncatedFrom: r.files.length };
+        }
         return { ok: true, ...r };
       } catch (err) {
         return { ok: false, reason: 'not-a-git-repo', error: (err as Error).message };

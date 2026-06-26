@@ -243,6 +243,29 @@ export function clampAttachmentTtlDays(days: number | undefined | null): number 
   return Math.min(ATTACHMENT_TTL_DAYS_MAX, Math.max(ATTACHMENT_TTL_DAYS_MIN, Math.round(days)));
 }
 
+/** Max changed files rendered in the source-control change view before the
+ *  list is capped (and a "showing N of M" row is shown). Guards the panel
+ *  against pathological changesets — a Perforce slot off a huge depot can
+ *  open tens of thousands of files. Configurable in Preferences → Source
+ *  Control. Applies to git and Perforce alike (capped in the SCM IPC layer). */
+export const MAX_CHANGED_FILES_DEFAULT = 500;
+export const MAX_CHANGED_FILES_MIN = 50;
+export const MAX_CHANGED_FILES_MAX = 10000;
+
+/** Settings stored under the `sourceControl` key. */
+export interface SourceControlSettings {
+  /** Max changed files shown in the change view. Clamped to [MIN, MAX];
+   *  undefined → DEFAULT. */
+  maxChangedFiles?: number;
+}
+
+/** Coerce a stored/typed cap into a safe file count. Non-finite or
+ *  out-of-range values fall back to the default / nearest bound. */
+export function clampMaxChangedFiles(n: number | undefined | null): number {
+  if (typeof n !== 'number' || !Number.isFinite(n)) return MAX_CHANGED_FILES_DEFAULT;
+  return Math.min(MAX_CHANGED_FILES_MAX, Math.max(MAX_CHANGED_FILES_MIN, Math.round(n)));
+}
+
 export interface MessageBodyTool {
   toolUseId: string;
   name: string;

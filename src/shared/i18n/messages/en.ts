@@ -650,6 +650,7 @@ export const en = {
   'git.files.readonlyCountPlural': 'Read-only · {count} files',
   'git.files.noUncommitted': 'No uncommitted changes.',
   'git.files.noFilesInCommit': 'No files in this commit.',
+  'git.files.truncated': 'Showing {shown} of {total} changed files. Raise the limit in Preferences → Source Control.',
   'git.file.rowTitleRenamed': '{label} (was {oldPath})',
   'git.base.targetTitle': 'PR target / fork-point branch',
   'git.base.nameTitle': 'Base branch (PR target)',
@@ -777,6 +778,9 @@ export const en = {
   'prefs.git.branchUsername.title': 'Branch username',
   'prefs.git.branchUsername.desc': 'New branches are named {pattern}.',
   'prefs.git.usernamePlaceholder': 'ben',
+  'prefs.git.maxChangedFiles.title': 'Change-view file limit',
+  'prefs.git.maxChangedFiles.desc':
+    'Most files shown in the change view before the list is capped (applies to git and Perforce). {min}–{max}.',
   'prefs.git.actionTemplates.title': 'Action templates',
   'prefs.git.actionTemplates.intro':
     'Prompts the git panel sends to the chat agent when you click the big action button (or change base branch). Use {macro} macros to inject context.',
