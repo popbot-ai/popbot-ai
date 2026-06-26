@@ -19,9 +19,7 @@
  * service (pbworkspaced) is future work — until then the app must run
  * elevated for slot allocation on Perforce repos.
  */
-import { existsSync } from 'node:fs';
 import { hostname } from 'node:os';
-import { basename, parse } from 'node:path';
 import type { GitBaseBranches, GitFileChange, GitScope } from '@shared/git';
 import type { PerforceRepoConfig, RepoRecord } from '@shared/persistence';
 import {
@@ -29,7 +27,7 @@ import {
   SOURCE_CONTROL_PROVIDERS,
 } from '@shared/sourceControl';
 import { listRepos } from '../persistence/repos';
-import { runShado, shadoHomeForRepo } from '../shado/client';
+import { ensureSlot, removeSlot } from '../shado/slots';
 import { readP4Config, type P4Context } from '../p4/exec';
 import {
   deriveUsername as p4DeriveUsername,
@@ -89,17 +87,6 @@ export class PerforceProvider extends SourceControlProvider {
     return { repo, p4: repo.p4 };
   }
 
-  /** shado slot id = the worktree folder name. With `slotPrefix` set to the
-   *  shado base, that's the `<base>-<n>` convention (e.g. `league-1`). */
-  private shadoSlot(worktreePath: string): string {
-    return basename(worktreePath);
-  }
-
-  /** Drive root (case-folded) for the same-drive invariant. */
-  private drive(p: string): string {
-    return parse(p).root.toLowerCase();
-  }
-
   /* ---------- review / working-tree ---------- */
 
   async listStatus(wt: string): Promise<ScmStatus> {
@@ -148,24 +135,13 @@ export class PerforceProvider extends SourceControlProvider {
 
   async ensureSlotWorktree(opts: EnsureSlotWorktreeOpts): Promise<void> {
     const { p4 } = this.repoFor(opts.repoPath);
-    // Slots and the source repo MUST be on the same drive — the VHDX base
-    // and its differencing children live together on the repo's drive.
-    if (this.drive(opts.worktreePath) !== this.drive(opts.repoPath)) {
-      throw new Error(
-        `Perforce slot must be on the same drive as its repo (slot ${opts.worktreePath}, repo ${opts.repoPath})`,
-      );
-    }
-    const slot = this.shadoSlot(opts.worktreePath); // "<base>-<n>"
-    const env = { SHADO_HOME: shadoHomeForRepo(opts.repoPath) };
-    // shado differencing clone mounted at the slot path (base + diffs on the
-    // repo's drive via SHADO_HOME).
-    const r = await runShado(
-      ['clone', 'create', '--name', p4.shadoBase, '--slot', slot, '--mount', opts.worktreePath],
-      { env },
-    );
-    if (!r.ok && !existsSync(opts.worktreePath)) {
-      throw new Error(`shado clone create failed for slot ${slot}: ${r.stderr || r.stdout}`);
-    }
+    // shado COW clone mounted at the slot path (shared substrate enforces
+    // same-drive + <base>-N naming + SHADO_HOME on the repo's drive).
+    await ensureSlot({
+      baseName: p4.shadoBase,
+      repoPath: opts.repoPath,
+      worktreePath: opts.worktreePath,
+    });
     // Per-slot P4 client + flush to the base changelist (0-byte), locked to
     // this host so P4V lists it.
     await ensureClient({
@@ -260,10 +236,7 @@ export class PerforceProvider extends SourceControlProvider {
     }
     try {
       const { p4 } = this.repoFor(opts.repoPath);
-      await runShado(
-        ['clone', 'rm', '--name', p4.shadoBase, '--slot', this.shadoSlot(opts.worktreePath), '--force'],
-        { env: { SHADO_HOME: shadoHomeForRepo(opts.repoPath) } },
-      );
+      await removeSlot({ baseName: p4.shadoBase, repoPath: opts.repoPath, worktreePath: opts.worktreePath });
     } catch {
       /* repo gone or shado unavailable — best-effort */
     }
