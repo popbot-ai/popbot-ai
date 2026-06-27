@@ -47,8 +47,10 @@ export function P4Panel({ chatId, chatName, diffPath, onOpenDiff }: SourceContro
   // written to the ref directly during drag (no per-pixel re-render).
   const [commitsPx, setCommitsPx] = useState(120);
   const [shelfPx, setShelfPx] = useState(100);
+  const [submitPx, setSubmitPx] = useState(110);
   const commitsRef = useRef<HTMLDivElement | null>(null);
   const shelfRef = useRef<HTMLDivElement | null>(null);
+  const submitRef = useRef<HTMLDivElement | null>(null);
   const startVerticalDrag =
     (current: number, setter: (n: number) => void, target: React.RefObject<HTMLDivElement>, direction: 'down' | 'up') =>
     (e: React.MouseEvent): void => {
@@ -211,7 +213,12 @@ export function P4Panel({ chatId, chatName, diffPath, onOpenDiff }: SourceContro
             </div>
           )}
         </div>
-        <div className="p4-submit">
+        <div
+          className="git-splitter"
+          onMouseDown={startVerticalDrag(submitPx, setSubmitPx, submitRef, 'up')}
+          title={t('common.dragToResize')}
+        />
+        <div className="p4-submit" ref={submitRef} style={{ flex: `0 0 ${submitPx}px` }}>
           {ok?.client && (
             <div className="p4-workspace mono" title={t('p4.workspace.title', { client: ok.client })}>
               <i className="fa-solid fa-desktop" />&nbsp;{ok.client}

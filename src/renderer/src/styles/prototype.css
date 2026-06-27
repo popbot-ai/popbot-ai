@@ -5277,7 +5277,8 @@ input.input.mono, select.input.mono { font-family: var(--font-mono); font-size: 
   border-top: 1px solid var(--line-2); flex: 0 0 auto;
 }
 .p4-submit-msg {
-  resize: vertical; width: 100%; background: var(--bg-3); color: var(--fg-0);
+  resize: none; width: 100%; flex: 1 1 auto; min-height: 36px;
+  background: var(--bg-3); color: var(--fg-0);
   border: 1px solid var(--line-2); border-radius: 4px; padding: 5px 7px; font-size: var(--fs-sm);
 }
 .p4-foot { padding: 4px 10px; color: var(--fg-2); font-size: var(--fs-xs); border-top: 1px solid var(--line-2); }
