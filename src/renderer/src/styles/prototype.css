@@ -5257,6 +5257,8 @@ input.input.mono, select.input.mono { font-family: var(--font-mono); font-size: 
 .p4-panel { display: flex; flex-direction: column; height: 100%; overflow: hidden; font-size: var(--fs-sm); }
 .p4-empty { padding: 16px; color: var(--fg-2); }
 .p4-head-actions { display: flex; align-items: center; gap: 6px; }
+.p4-head-all { display: flex; align-items: center; gap: 7px; }
+.p4-head-all .git-row-check { margin: 0; }
 .p4-workspace { padding: 0 10px 6px; font-size: var(--fs-xs); color: var(--fg-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .p4-section { display: flex; flex-direction: column; min-height: 0; border-bottom: 1px solid var(--line-2); }
 /* Top/bottom heights are splitter-driven (inline flexBasis); the middle

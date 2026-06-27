@@ -666,6 +666,7 @@ export const en = {
   'p4.submit': 'Submit {count}',
   'p4.submitPlaceholder': 'Changelist description…',
   'p4.revert': 'Revert',
+  'p4.selectAll': 'Select all / none',
   'p4.shelve': 'Shelve',
   'p4.shelveChecked': 'Shelve Checked Changes',
   'p4.unshelve': 'Unshelve',

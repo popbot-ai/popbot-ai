@@ -162,6 +162,21 @@ export function P4Panel({ chatId, chatName, diffPath, onOpenDiff }: SourceContro
     }
   };
 
+  // Header select-all / none toggles (the indeterminate state is set on the
+  // DOM node via a ref callback since React has no `indeterminate` prop).
+  const allFilesChecked = files.length > 0 && files.every((f) => checked.has(f.path));
+  const someFilesChecked = files.some((f) => checked.has(f.path));
+  const toggleAllFiles = (): void => {
+    setChecked(allFilesChecked ? new Set() : new Set(files.map((f) => f.path)));
+    fileAnchor.current = null;
+  };
+  const allShelvesChecked = shelves.length > 0 && shelves.every((s) => shelfChecked.has(String(s.change)));
+  const someShelvesChecked = shelves.some((s) => shelfChecked.has(String(s.change)));
+  const toggleAllShelves = (): void => {
+    setShelfChecked(allShelvesChecked ? new Set() : new Set(shelves.map((s) => String(s.change))));
+    shelfAnchor.current = null;
+  };
+
   const submit = async (): Promise<void> => {
     const paths = [...checked].filter((p) => files.some((f) => f.path === p));
     if (!paths.length || !desc.trim() || busy) return;
@@ -243,7 +258,19 @@ export function P4Panel({ chatId, chatName, diffPath, onOpenDiff }: SourceContro
       {/* middle — current changes (p4 opened) */}
       <div className="p4-section p4-changes">
         <div className="p4-section-head">
-          {t('p4.changes.title')}
+          <span className="p4-head-all">
+            {files.length > 0 && (
+              <input
+                type="checkbox"
+                className="git-row-check"
+                ref={(el) => { if (el) el.indeterminate = someFilesChecked && !allFilesChecked; }}
+                checked={allFilesChecked}
+                onChange={toggleAllFiles}
+                title={t('p4.selectAll')}
+              />
+            )}
+            {t('p4.changes.title')}
+          </span>
           {files.length > 0 && (
             <span className="p4-head-actions">
               <button
@@ -331,7 +358,19 @@ export function P4Panel({ chatId, chatName, diffPath, onOpenDiff }: SourceContro
       {/* bottom — shelf */}
       <div className="p4-section p4-shelf" ref={shelfRef} style={{ flex: `0 0 ${shelfPx}px` }}>
         <div className="p4-section-head">
-          {t('p4.shelf.title')}
+          <span className="p4-head-all">
+            {shelves.length > 0 && (
+              <input
+                type="checkbox"
+                className="git-row-check"
+                ref={(el) => { if (el) el.indeterminate = someShelvesChecked && !allShelvesChecked; }}
+                checked={allShelvesChecked}
+                onChange={toggleAllShelves}
+                title={t('p4.selectAll')}
+              />
+            )}
+            {t('p4.shelf.title')}
+          </span>
           {shelves.length > 0 && (
             <span className="p4-head-actions">
               <button
