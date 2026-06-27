@@ -39,6 +39,13 @@
   --st-err-bg:  rgba(214,90,90,0.16);
   --st-idle-bg: rgba(107,114,128,0.16);
 
+  /* Source-control brand colors (git orange, perforce purplish-blue) — used
+     for the scm chips + the wizard "detected" lines. */
+  --scm-git: #f1936f;
+  --scm-git-bg: rgba(240,96,64,0.14);
+  --scm-perforce: #8884ff;
+  --scm-perforce-bg: rgba(136,132,255,0.18);
+
   /* Type */
   --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
@@ -5263,8 +5270,8 @@ input.input.mono, select.input.mono { font-family: var(--font-mono); font-size: 
   border: 1px solid transparent;
 }
 /* Branded, legible badges (gray was invisible against the card). */
-.repo-card-scm.scm-git { background: rgba(240,96,64,0.14); color: #f1936f; }
-.repo-card-scm.scm-perforce { background: rgba(124,92,255,0.18); color: #a78bff; }
+.repo-card-scm.scm-git { background: var(--scm-git-bg); color: var(--scm-git); }
+.repo-card-scm.scm-perforce { background: var(--scm-perforce-bg); color: var(--scm-perforce); }
 .repo-card-scm svg, .repo-card-scm i { font-size: 0.95em; line-height: 1; }
 
 .p4-error {
@@ -5285,8 +5292,8 @@ input.input.mono, select.input.mono { font-family: var(--font-mono); font-size: 
 /* "Detected" lines wear the SCM brand color — icon + text inherit the same
    currentColor (the P4 glyph fills with currentColor too), and bright enough
    to read on the near-black modal. */
-.repo-detect-git { display: inline-flex; align-items: center; gap: 6px; color: #f1936f; }
-.repo-detect-perforce { display: inline-flex; align-items: center; gap: 6px; color: #a78bff; }
+.repo-detect-git { display: inline-flex; align-items: center; gap: 6px; color: var(--scm-git); }
+.repo-detect-perforce { display: inline-flex; align-items: center; gap: 6px; color: var(--scm-perforce); }
 .repo-detect-ok svg, .repo-detect-ok i,
 .repo-detect-bad i, .repo-detect-busy i,
 .repo-detect-git i, .repo-detect-perforce svg { font-size: 0.95em; line-height: 1; }

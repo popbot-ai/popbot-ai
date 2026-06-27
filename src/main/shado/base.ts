@@ -158,7 +158,10 @@ export async function buildBase(
   let batBody =
     '@echo off\r\n' +
     `set "SHADO_HOME=${home}"\r\n` +
-    `"${shado}" create "${opts.repoPath}" --name ${opts.baseName} --size-gb ${opts.sizeGb} > "${log}" 2>&1\r\n` +
+    // --count 0 + --no-main: just the frozen base, no auto "main"/slot clones —
+    // we mount the real slots (<prefix>-N) ourselves below, so shado's default
+    // main + slot "1" would just be unused shadows taking disk.
+    `"${shado}" create "${opts.repoPath}" --name ${opts.baseName} --count 0 --no-main --size-gb ${opts.sizeGb} > "${log}" 2>&1\r\n` +
     'if errorlevel 1 exit /b %errorlevel%\r\n';
   for (let k = 1; k <= opts.slotCount; k += 1) {
     const slot = `${opts.slotPrefix}-${k}`;

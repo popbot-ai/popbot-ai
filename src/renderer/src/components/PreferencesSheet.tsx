@@ -141,6 +141,10 @@ export function PreferencesSheet({
     SECTIONS.some((s) => s.id === id) ? (id as string) : SECTIONS[0].id;
   const [section, setSection] = useState(() => known(initialSection));
   const { t } = useTranslation();
+  const [version, setVersion] = useState('');
+  useEffect(() => {
+    void window.popbot.app.getVersion().then(setVersion).catch(() => {});
+  }, []);
 
   return (
     <>
@@ -181,7 +185,9 @@ export function PreferencesSheet({
           </div>
         </div>
         <div className="prefs-foot">
-          <span className="prefs-foot-meta">{t('prefs.footMeta')}</span>
+          <span className="prefs-foot-meta">
+            {t('prefs.footMeta')}{version ? ` · v${version}` : ''}
+          </span>
           <span style={{ flex: 1 }} />
           <button className="btn primary" onClick={onClose}>{t('common.done')}</button>
         </div>
@@ -834,7 +840,7 @@ function PerforceConfigPanel(): JSX.Element {
   return (
     <div className="tracker-config" style={{ marginTop: 16 }}>
       <div className="tracker-config-head">
-        <P4Glyph style={{ color: '#a78bff' }} />
+        <P4Glyph style={{ color: 'var(--scm-perforce)' }} />
         <span>{t('prefs.repos.scm.perforce')}</span>
       </div>
       <div className="tracker-config-body">
@@ -2855,14 +2861,9 @@ function PrefsRepos({ onReposChanged }: { onReposChanged?: () => void }): JSX.El
                 <span className="repo-card-label">{t('prefs.repos.card.path')}</span>
                 <span className="mono">{r.repoPath}</span>
               </div>
-              {(r.scm ?? 'git') === 'perforce' ? (
-                // Perforce has no default branch — keep the row's height so
-                // the card doesn't resize.
-                <div className="repo-card-row" aria-hidden>
-                  <span className="repo-card-label">&nbsp;</span>
-                  <span className="mono">&nbsp;</span>
-                </div>
-              ) : (
+              {/* Perforce has no default branch — it just shows Path + Slot
+                  prefix, so its card matches the height of a 2-row git card. */}
+              {(r.scm ?? 'git') !== 'perforce' && (
                 <div className="repo-card-row">
                   <span className="repo-card-label">{t('prefs.repos.card.defaultBase')}</span>
                   <span className="mono">{r.defaultBase}</span>
