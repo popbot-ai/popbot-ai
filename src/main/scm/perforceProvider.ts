@@ -170,11 +170,12 @@ export class PerforceProvider extends SourceControlProvider {
   }
 
   async ensureSlotWorktree(opts: EnsureSlotWorktreeOpts): Promise<void> {
-    const { p4 } = this.repoFor(opts.repoPath);
+    const { repo, p4 } = this.repoFor(opts.repoPath);
     // shado COW clone mounted at the slot path (shared substrate enforces
-    // same-drive + <base>-N naming + SHADO_HOME on the repo's drive).
+    // same-drive + <base>-N naming + SHADO_HOME under workspaces/<id>/shado).
     await ensureSlot({
       baseName: p4.shadoBase,
+      repoId: repo.id,
       repoPath: opts.repoPath,
       worktreePath: opts.worktreePath,
     });
@@ -280,8 +281,8 @@ export class PerforceProvider extends SourceControlProvider {
       /* no client / config — fall through to shado teardown */
     }
     try {
-      const { p4 } = this.repoFor(opts.repoPath);
-      await removeSlot({ baseName: p4.shadoBase, repoPath: opts.repoPath, worktreePath: opts.worktreePath });
+      const { repo, p4 } = this.repoFor(opts.repoPath);
+      await removeSlot({ baseName: p4.shadoBase, repoId: repo.id, repoPath: opts.repoPath, worktreePath: opts.worktreePath });
     } catch {
       /* repo gone or shado unavailable — best-effort */
     }

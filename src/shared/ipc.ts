@@ -418,6 +418,8 @@ export interface BasePreflightInfo {
  *  `depotPath` + connection let us capture the synced changelist. */
 export interface BuildBaseInput {
   repoPath: string;
+  /** Repo short id — pins SHADO_HOME to workspaces/<id>/shado. */
+  repoId: string;
   baseName: string;
   sizeGb: number;
   port: string;

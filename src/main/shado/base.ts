@@ -44,12 +44,25 @@ export interface BaseBuildResult {
   log: string;
 }
 
+/** A coarse progress line for the renderer (e.g. "Measuring… 12,000 files").
+ *  Long operations stream these so the wizard never shows a dead spinner. */
+export type ProgressFn = (message: string) => void;
+
+function gb(n: number): string {
+  return `${(n / 1024 ** 3).toFixed(1)} GB`;
+}
+
 /** Recursively sum file sizes under `dir`. Best-effort: unreadable entries
  *  (permissions, races, reparse points) are skipped, never fatal. Iterative
- *  to avoid blowing the stack on deep game trees. */
-async function measureFolder(dir: string): Promise<{ bytes: number; count: number }> {
+ *  to avoid blowing the stack on deep game trees. Emits a running count so a
+ *  multi-minute walk of a 1 TB tree shows real progress. */
+async function measureFolder(
+  dir: string,
+  onProgress?: ProgressFn,
+): Promise<{ bytes: number; count: number }> {
   let bytes = 0;
   let count = 0;
+  let ticked = 0;
   const stack: string[] = [dir];
   while (stack.length) {
     const d = stack.pop() as string;
@@ -68,6 +81,10 @@ async function measureFolder(dir: string): Promise<{ bytes: number; count: numbe
         try {
           bytes += (await stat(p)).size;
           count += 1;
+          if (onProgress && count - ticked >= 2000) {
+            ticked = count;
+            onProgress(`Measuring… ${count.toLocaleString()} files, ${gb(bytes)}`);
+          }
         } catch {
           /* vanished mid-walk */
         }
@@ -80,8 +97,8 @@ async function measureFolder(dir: string): Promise<{ bytes: number; count: numbe
 /** Measure the source folder + the repo drive's free space and decide
  *  whether a base build is allowed. The base lives under SHADO_HOME on the
  *  repo's drive (same-drive invariant), so free space is checked there. */
-export async function basePreflight(repoPath: string): Promise<BasePreflight> {
-  const { bytes, count } = await measureFolder(repoPath);
+export async function basePreflight(repoPath: string, onProgress?: ProgressFn): Promise<BasePreflight> {
+  const { bytes, count } = await measureFolder(repoPath, onProgress);
   let freeBytes = 0;
   try {
     const s = await statfs(repoPath);
@@ -113,15 +130,14 @@ export async function basePreflight(repoPath: string): Promise<BasePreflight> {
  * elevated process's exit code back out. Windows-only (the whole shado/VHDX
  * path is); never throws.
  */
-export async function buildBase(opts: {
-  repoPath: string;
-  baseName: string;
-  sizeGb: number;
-}): Promise<BaseBuildResult> {
+export async function buildBase(
+  opts: { repoPath: string; repoId: string; baseName: string; sizeGb: number },
+  onProgress?: ProgressFn,
+): Promise<BaseBuildResult> {
   if (process.platform !== 'win32') {
     return { ok: false, log: 'Base build is only supported on Windows.' };
   }
-  const home = shadoHomeForRepo(opts.repoPath);
+  const home = shadoHomeForRepo(opts.repoPath, opts.repoId);
   const shado = shadoExePath();
   const stamp = `${Date.now()}-${Math.floor(process.hrtime()[1] % 1e6)}`;
   const log = join(tmpdir(), `shado-base-${stamp}.log`);
@@ -146,6 +162,24 @@ export async function buildBase(opts: {
     `try { $p = Start-Process -FilePath '${bat}' -Verb RunAs -Wait -PassThru -WindowStyle Hidden; exit $p.ExitCode } ` +
     `catch { Write-Error $_; exit 1223 }`; // 1223 = ERROR_CANCELLED (UAC declined)
 
+  // Stream progress while the elevated build runs: an elapsed timer plus the
+  // tail of shado's log (whatever it has flushed). Honest even if shado
+  // buffers — the user always sees the build is alive, not a frozen spinner.
+  const startedMs = Date.now();
+  let tail = '';
+  const timer = setInterval(() => {
+    if (!onProgress) return;
+    const secs = Math.floor((Date.now() - startedMs) / 1000);
+    const elapsed = secs >= 60 ? `${Math.floor(secs / 60)}m ${secs % 60}s` : `${secs}s`;
+    readFile(log, 'utf8')
+      .then((txt) => {
+        const lines = txt.split(/\r?\n/).filter((l) => l.trim());
+        tail = lines.length ? lines[lines.length - 1].slice(0, 120) : tail;
+        onProgress(`Building base — ${elapsed}${tail ? `  ·  ${tail}` : ''}`);
+      })
+      .catch(() => onProgress(`Building base — ${elapsed}`));
+  }, 1000);
+
   const exitCode: number = await new Promise((resolvePromise) => {
     execFile(
       'powershell.exe',
@@ -157,6 +191,7 @@ export async function buildBase(opts: {
       },
     );
   });
+  clearInterval(timer);
 
   let log_ = '';
   try {
@@ -183,9 +218,9 @@ export interface BaseDu {
 }
 
 /** Post-build size report via `shado du --name <base>`. */
-export async function baseDiskUsage(repoPath: string, baseName: string): Promise<BaseDu> {
+export async function baseDiskUsage(repoPath: string, repoId: string, baseName: string): Promise<BaseDu> {
   const r = await runShado(['du', '--name', baseName], {
-    env: { SHADO_HOME: shadoHomeForRepo(repoPath) },
+    env: { SHADO_HOME: shadoHomeForRepo(repoPath, repoId) },
   });
   const text = r.stdout || r.stderr || '';
   const m = /base\s*=\s*(\d+)\s*MB/i.exec(text);

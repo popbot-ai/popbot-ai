@@ -3092,6 +3092,7 @@ function NewRepoWizard({
     try {
       const res = await window.popbot.repos.buildBase({
         repoPath: draft.repoPath.trim(),
+        repoId: draft.id.trim().toLowerCase(),
         baseName: draft.shadoBase.trim(),
         sizeGb: preflight?.sizeGb ?? 32,
         port: draft.p4Port.trim(),

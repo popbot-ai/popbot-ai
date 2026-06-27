@@ -138,7 +138,7 @@ export function registerReposHandlers(): void {
     IpcChannel.ReposBuildBase,
     async (e, input: BuildBaseInput): Promise<BuildBaseResult> => {
       const built = await buildBase(
-        { repoPath: input.repoPath, baseName: input.baseName, sizeGb: input.sizeGb },
+        { repoPath: input.repoPath, repoId: input.repoId, baseName: input.baseName, sizeGb: input.sizeGb },
         (msg) => e.sender.send(IpcChannel.ReposBaseProgress, msg),
       );
       if (!built.ok) return { ok: false, error: built.log };
@@ -154,7 +154,7 @@ export function registerReposHandlers(): void {
       } catch {
         /* leave 0 — the wizard surfaces it and lets the user enter it */
       }
-      const du = await baseDiskUsage(input.repoPath, input.baseName);
+      const du = await baseDiskUsage(input.repoPath, input.repoId, input.baseName);
       return { ok: true, baseChangelist, baseMb: du.baseMb, log: built.log };
     },
   );

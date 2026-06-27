@@ -94,11 +94,15 @@ export function popbotRootForRepo(repoPath: string): string {
   return join(drive, homeRel, 'popbot')
 }
 
-/** SHADO_HOME for a repo's slots — the frozen base VHDX and every per-slot
- *  differencing child, on the repo's drive so base creation and slot
- *  cloning always agree on the parent path. */
-export function shadoHomeForRepo(repoPath: string): string {
-  return join(popbotRootForRepo(repoPath), 'shado')
+/** SHADO_HOME for a repo's slots — the frozen base VHDX, every per-slot
+ *  differencing child, and the slot metadata. Lives in a `shado` subfolder of
+ *  the repo's app-id workspace folder (`…/popbot/workspaces/<id>/shado`), so a
+ *  repo's shado data is grouped by id and the slot clone folders stay
+ *  byte-identical to the original worktree layout
+ *  (`…/popbot/workspaces/<id>/<prefix>-N`). On the repo's drive so base
+ *  creation and slot cloning always agree on the parent path. */
+export function shadoHomeForRepo(repoPath: string, repoId: string): string {
+  return join(popbotRootForRepo(repoPath), 'workspaces', repoId, 'shado')
 }
 
 /** Run shado with the given args. Never throws; returns a structured
