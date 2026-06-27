@@ -2597,8 +2597,10 @@ input.input.mono, select.input.mono { font-family: var(--font-mono); font-size: 
   border: 1px solid var(--line-3);
 }
 .repo-card-body { display: flex; flex-direction: column; gap: 4px; margin-top: 8px; font-size: 11.5px; color: var(--fg-2); }
-.repo-card-row { display: flex; gap: 10px; }
-.repo-card-label { color: var(--fg-3); min-width: 100px; }
+.repo-card-row { display: flex; gap: 8px; align-items: baseline; min-width: 0; }
+.repo-card-label { color: var(--fg-3); flex: 0 0 78px; }
+/* Long paths truncate cleanly instead of clipping at the card edge. */
+.repo-card-row .mono { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* Mode picker cards in the New Repo wizard step 1. */
 .mode-card {

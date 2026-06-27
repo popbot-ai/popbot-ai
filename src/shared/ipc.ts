@@ -281,6 +281,9 @@ export const IpcChannel = {
    *  changelist so slots can flush to it. */
   ReposBasePreflight: 'pb:repos:base-preflight',
   ReposBuildBase: 'pb:repos:build-base',
+  /** Main→renderer progress lines streamed during the (long) folder measure
+   *  and base build, so the wizard shows live, accurate progress. */
+  ReposBaseProgress: 'pb:repos:base-progress',
 
   /** Notifications. Anywhere in the app can `notify(...)` to record
    *  a row + fan out a toast + bell-icon update. The renderer also
@@ -440,6 +443,7 @@ export interface UpdateRepoInput {
 export type RepoCreateResult =
   | { ok: true; repo: RepoRecord }
   | { ok: false; reason: 'duplicate-id' }
+  | { ok: false; reason: 'duplicate-path'; existingId: string }
   | { ok: false; reason: 'invalid'; message: string };
 
 export type RepoUpdateResult =
@@ -681,6 +685,9 @@ export interface PopBotApi {
     /** Run the elevated `shado create` (UAC) to freeze a base off the warm
      *  folder, then capture the synced changelist for slot flushes. */
     buildBase(input: BuildBaseInput): Promise<BuildBaseResult>;
+    /** Subscribe to live progress lines from basePreflight()/buildBase().
+     *  Returns an unsubscribe fn. */
+    onBaseProgress(cb: (message: string) => void): () => void;
   };
   sentry: {
     /** Verify a Sentry auth token + org slug. The renderer passes the

@@ -688,7 +688,8 @@ function PrefsGit(): JSX.Element {
   const [maxFiles, setMaxFiles] = useState<number>(
     clampMaxChangedFiles(scInitial.maxChangedFiles ?? MAX_CHANGED_FILES_DEFAULT),
   );
-  const [savedAt, setSavedAt] = useState<number | null>(null);
+  const [savedCap, setSavedCap] = useState(false);
+  const [savedGit, setSavedGit] = useState(false);
 
   // Same sync-on-load fix as PrefsApps / UnityConfig. Without this,
   // useState captures defaults while useSettings is still loading and
@@ -706,24 +707,9 @@ function PrefsGit(): JSX.Element {
       <p className="pref-section-desc">
         {t('prefs.git.desc', { reposLink: t('prefs.git.reposLabel') })}
       </p>
+
+      {/* Shared (git + perforce): the change-view file cap. */}
       <div className="pref-rows">
-        <div className="pref-row">
-          <div className="pref-label">
-            <div className="pref-label-title">{t('prefs.git.branchUsername.title')}</div>
-            <div className="pref-label-desc">
-              {t('prefs.git.branchUsername.desc', { pattern: '<username>/<ticket>-<slug>' })}
-            </div>
-          </div>
-          <div className="pref-control">
-            <input
-              className="pref-input mono"
-              placeholder={t('prefs.git.usernamePlaceholder')}
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              style={{ width: 160 }}
-            />
-          </div>
-        </div>
         <div className="pref-row">
           <div className="pref-label">
             <div className="pref-label-title">{t('prefs.git.maxChangedFiles.title')}</div>
@@ -734,7 +720,7 @@ function PrefsGit(): JSX.Element {
               })}
             </div>
           </div>
-          <div className="pref-control">
+          <div className="pref-control" style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
             <input
               type="number"
               className="pref-input mono"
@@ -751,42 +737,185 @@ function PrefsGit(): JSX.Element {
               }
               style={{ width: 100 }}
             />
-          </div>
-        </div>
-        <div className="pref-row">
-          <div className="pref-label" />
-          <div className="pref-control" style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
             <button
               className="btn primary sm"
               onClick={async () => {
-                // Merge so we only edit the username and preserve any
-                // legacy git fields still used as runtime fallbacks.
-                await set('git', { ...initial, username: username.trim() });
                 const max = clampMaxChangedFiles(maxFiles);
                 setMaxFiles(max);
-                await set('sourceControl', {
-                  ...scInitial,
-                  maxChangedFiles: max,
-                } satisfies SourceControlSettings);
-                setSavedAt(Date.now());
+                await set('sourceControl', { ...scInitial, maxChangedFiles: max } satisfies SourceControlSettings);
+                setSavedCap(true);
               }}
             >
               {t('common.save')}
             </button>
-            {savedAt && <span style={{ color: 'var(--fg-3)', fontSize: 11 }}>{t('common.saved')}</span>}
+            {savedCap && <span style={{ color: 'var(--fg-3)', fontSize: 11 }}>{t('common.saved')}</span>}
           </div>
         </div>
       </div>
 
-      <h3 style={{ marginTop: 28 }}>{t('prefs.git.actionTemplates.title')}</h3>
-      <TemplatesGroup
-        fields={GIT_ACTION_TEMPLATE_FIELDS}
-        intro={
-          <p className="pref-section-desc">
-            {t('prefs.git.actionTemplates.intro', { macro: '${name}' })}
-          </p>
-        }
-      />
+      {/* Git config sub-panel (icon + label header, like Integrations). */}
+      <div className="tracker-config" style={{ marginTop: 16 }}>
+        <div className="tracker-config-head">
+          <i className="fa-solid fa-code-branch" />
+          <span>{t('prefs.repos.scm.git')}</span>
+        </div>
+        <div className="tracker-config-body">
+          <div className="pref-rows">
+            <div className="pref-row">
+              <div className="pref-label">
+                <div className="pref-label-title">{t('prefs.git.branchUsername.title')}</div>
+                <div className="pref-label-desc">
+                  {t('prefs.git.branchUsername.desc', { pattern: '<username>/<ticket>-<slug>' })}
+                </div>
+              </div>
+              <div className="pref-control" style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                <input
+                  className="pref-input mono"
+                  placeholder={t('prefs.git.usernamePlaceholder')}
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  style={{ width: 160 }}
+                />
+                <button
+                  className="btn primary sm"
+                  onClick={async () => {
+                    await set('git', { ...initial, username: username.trim() });
+                    setSavedGit(true);
+                  }}
+                >
+                  {t('common.save')}
+                </button>
+                {savedGit && <span style={{ color: 'var(--fg-3)', fontSize: 11 }}>{t('common.saved')}</span>}
+              </div>
+            </div>
+          </div>
+          <h4 style={{ margin: '16px 0 6px', fontSize: 'var(--fs-sm)' }}>{t('prefs.git.actionTemplates.title')}</h4>
+          <TemplatesGroup
+            fields={GIT_ACTION_TEMPLATE_FIELDS}
+            intro={
+              <p className="pref-section-desc">
+                {t('prefs.git.actionTemplates.intro', { macro: '${name}' })}
+              </p>
+            }
+          />
+        </div>
+      </div>
+
+      {/* Perforce config sub-panel — always shown alongside Git. */}
+      <PerforceConfigPanel />
+    </div>
+  );
+}
+
+/** Perforce connection defaults + transfer/submit options. Always shown in
+ *  Source control beside the Git panel (no enable toggle): a repo's SCM is
+ *  detected per-folder, so both providers' settings are always relevant. The
+ *  defaults pre-fill the Add-Repository → Perforce connect step; the rest are
+ *  read by the p4 provider (parallel sync threads, revert-unchanged on submit). */
+function PerforceConfigPanel(): JSX.Element {
+  const { t } = useTranslation();
+  const { get, set, loading } = useSettings();
+  const initial = get<PerforceSettings>('perforce', {}) ?? {};
+  const [p4Path, setP4Path] = useState(initial.p4Path ?? '');
+  const [defaultPort, setDefaultPort] = useState(initial.defaultPort ?? '');
+  const [defaultUser, setDefaultUser] = useState(initial.defaultUser ?? '');
+  const [parallelThreads, setParallelThreads] = useState<number>(initial.parallelThreads ?? 4);
+  const [revertUnchanged, setRevertUnchanged] = useState<boolean>(initial.revertUnchanged !== false);
+  const [saved, setSaved] = useState(false);
+
+  useEffect(() => { setP4Path(initial.p4Path ?? ''); }, [initial.p4Path]);
+  useEffect(() => { setDefaultPort(initial.defaultPort ?? ''); }, [initial.defaultPort]);
+  useEffect(() => { setDefaultUser(initial.defaultUser ?? ''); }, [initial.defaultUser]);
+  useEffect(() => { setParallelThreads(initial.parallelThreads ?? 4); }, [initial.parallelThreads]);
+  useEffect(() => { setRevertUnchanged(initial.revertUnchanged !== false); }, [initial.revertUnchanged]);
+
+  if (loading) return <></>;
+
+  return (
+    <div className="tracker-config" style={{ marginTop: 16 }}>
+      <div className="tracker-config-head">
+        <P4Glyph style={{ color: '#4c00ff' }} />
+        <span>{t('prefs.repos.scm.perforce')}</span>
+      </div>
+      <div className="tracker-config-body">
+        <div className="pref-rows">
+          <div className="pref-row">
+            <div className="pref-label">
+              <div className="pref-label-title">{t('prefs.perforce.p4Path.title')}</div>
+              <div className="pref-label-desc">{t('prefs.perforce.p4Path.desc')}</div>
+            </div>
+            <div className="pref-control">
+              <input className="pref-input mono" placeholder="p4" value={p4Path}
+                     onChange={(e) => setP4Path(e.target.value)} style={{ width: 240 }} />
+            </div>
+          </div>
+          <div className="pref-row">
+            <div className="pref-label">
+              <div className="pref-label-title">{t('prefs.perforce.defaultPort.title')}</div>
+              <div className="pref-label-desc">{t('prefs.perforce.defaultPort.desc')}</div>
+            </div>
+            <div className="pref-control">
+              <input className="pref-input mono" placeholder="ssl:host:1666" value={defaultPort}
+                     onChange={(e) => setDefaultPort(e.target.value)} style={{ width: 240 }} />
+            </div>
+          </div>
+          <div className="pref-row">
+            <div className="pref-label">
+              <div className="pref-label-title">{t('prefs.perforce.defaultUser.title')}</div>
+              <div className="pref-label-desc">{t('prefs.perforce.defaultUser.desc')}</div>
+            </div>
+            <div className="pref-control">
+              <input className="pref-input mono" placeholder="user" value={defaultUser}
+                     onChange={(e) => setDefaultUser(e.target.value)} style={{ width: 240 }} />
+            </div>
+          </div>
+          <div className="pref-row">
+            <div className="pref-label">
+              <div className="pref-label-title">{t('prefs.perforce.parallelThreads.title')}</div>
+              <div className="pref-label-desc">{t('prefs.perforce.parallelThreads.desc')}</div>
+            </div>
+            <div className="pref-control">
+              <input type="number" className="pref-input mono" min={1} max={64} value={parallelThreads}
+                     onChange={(e) => setParallelThreads(Math.max(1, Math.min(64, Number(e.target.value) || 1)))}
+                     style={{ width: 100 }} />
+            </div>
+          </div>
+          <div className="pref-row">
+            <div className="pref-label">
+              <div className="pref-label-title">{t('prefs.perforce.revertUnchanged.title')}</div>
+              <div className="pref-label-desc">{t('prefs.perforce.revertUnchanged.desc')}</div>
+            </div>
+            <div className="pref-control">
+              <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                <input type="checkbox" checked={revertUnchanged} onChange={(e) => setRevertUnchanged(e.target.checked)} />
+                <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--fg-2)' }}>{t('prefs.perforce.revertUnchanged.toggle')}</span>
+              </label>
+            </div>
+          </div>
+          <div className="pref-row">
+            <div className="pref-label" />
+            <div className="pref-control" style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              <button
+                className="btn primary sm"
+                onClick={async () => {
+                  await set('perforce', {
+                    ...initial,
+                    p4Path: p4Path.trim() || undefined,
+                    defaultPort: defaultPort.trim() || undefined,
+                    defaultUser: defaultUser.trim() || undefined,
+                    parallelThreads,
+                    revertUnchanged,
+                  } satisfies PerforceSettings);
+                  setSaved(true);
+                }}
+              >
+                {t('common.save')}
+              </button>
+              {saved && <span style={{ color: 'var(--fg-3)', fontSize: 11 }}>{t('common.saved')}</span>}
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
@@ -2746,6 +2875,8 @@ function PrefsRepos({ onReposChanged }: { onReposChanged?: () => void }): JSX.El
         <NewRepoWizard
           draft={newRepo}
           onChange={setNewRepo}
+          existingIds={repos.map((r) => r.id)}
+          existingPaths={repos.map((r) => r.repoPath)}
           onCancel={() => setNewRepo(null)}
           onCreated={async () => {
             setNewRepo(null);
@@ -2807,11 +2938,15 @@ function NewRepoWizard({
   onChange,
   onCancel,
   onCreated,
+  existingIds,
+  existingPaths,
 }: {
   draft: NewRepoDraft;
   onChange: (d: NewRepoDraft) => void;
   onCancel: () => void;
   onCreated: () => void;
+  existingIds: string[];
+  existingPaths: string[];
 }): JSX.Element {
   const { t } = useTranslation();
   const { get } = useSettings();
@@ -2838,6 +2973,17 @@ function NewRepoWizard({
   // Lock the modal-dismiss while a long, side-effecting op is mid-flight so a
   // stray scrim click can't abandon a running measure/build.
   const locked = busy || building || preflighting;
+
+  // Uniqueness guards (also enforced server-side on create). Surface them on
+  // the repo step so the user can't get all the way to submit before failing.
+  const normPath = (p: string): string =>
+    p.trim().replace(/[\\/]+$/, '').replace(/\\/g, '/').toLowerCase();
+  const alreadyAdded =
+    draft.repoPath.trim().length > 0 &&
+    existingPaths.some((p) => normPath(p) === normPath(draft.repoPath));
+  const idTaken =
+    draft.id.trim().length > 0 &&
+    existingIds.some((id) => id.toLowerCase() === draft.id.trim().toLowerCase());
 
   // Live progress lines from the main process (measure + build).
   useEffect(() => window.popbot.repos.onBaseProgress((m) => setProgress(m)), []);
@@ -2918,6 +3064,8 @@ function NewRepoWizard({
   const canAdvance =
     step === 'repo'
       ? !detecting &&
+        !alreadyAdded &&
+        !idTaken &&
         draft.id.trim().length > 0 &&
         draft.repoPath.trim().length > 0 &&
         draft.scm != null &&
@@ -2989,9 +3137,13 @@ function NewRepoWizard({
           : undefined,
       });
       if (!res.ok) {
-        setError(res.reason === 'duplicate-id'
-          ? t('prefs.repos.error.duplicateId', { id: draft.id.trim() })
-          : res.reason === 'invalid' ? res.message : t('prefs.repos.error.generic'));
+        setError(
+          res.reason === 'duplicate-id'
+            ? t('prefs.repos.error.duplicateId', { id: draft.id.trim() })
+            : res.reason === 'duplicate-path'
+              ? t('prefs.repos.error.duplicatePath', { id: res.existingId })
+              : res.reason === 'invalid' ? res.message : t('prefs.repos.error.generic'),
+        );
         return;
       }
       // Both git-slots and perforce run the shared slot-init step next.
@@ -3077,6 +3229,8 @@ function NewRepoWizard({
             <div className="repo-detect">
               {detecting ? (
                 <span className="repo-detect-busy"><i className="fa-solid fa-spinner fa-spin" /> {t('prefs.repos.wizard.detect.detecting')}</span>
+              ) : alreadyAdded ? (
+                <span className="repo-detect-bad"><i className="fa-solid fa-triangle-exclamation" /> {t('prefs.repos.wizard.detect.alreadyAdded')}</span>
               ) : draft.scm === 'git' ? (
                 <span className="repo-detect-ok"><i className="fa-solid fa-code-branch" /> {t('prefs.repos.wizard.detect.git')}</span>
               ) : draft.scm === 'perforce' ? (
@@ -3090,7 +3244,11 @@ function NewRepoWizard({
             <div className="pref-row">
               <div className="pref-label">
                 <div className="pref-label-title">{t('prefs.repos.wizard.shortId.title')}</div>
-                <div className="pref-label-desc">{t('prefs.repos.wizard.shortId.desc')}</div>
+                <div className="pref-label-desc">
+                  {idTaken
+                    ? <span className="repo-detect-bad">{t('prefs.repos.wizard.detect.idTaken')}</span>
+                    : t('prefs.repos.wizard.shortId.desc')}
+                </div>
               </div>
               <div className="pref-control">
                 <input className="pref-input mono narrow" placeholder={t('prefs.repos.wizard.shortId.placeholder')} value={draft.id}

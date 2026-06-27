@@ -44,6 +44,13 @@ import { captureSyncedChangelist } from '../p4/workspace';
 
 const ID_PATTERN = /^[a-z0-9][a-z0-9-]*$/;
 
+/** Normalize a repo path for equality: trim, unify separators, drop trailing
+ *  slash, lowercase (Windows paths are case-insensitive; on macOS/Linux a repo
+ *  added twice under different casing is still the same tree in practice). */
+function normRepoPath(p: string): string {
+  return p.trim().replace(/[\\/]+$/, '').replace(/\\/g, '/').toLowerCase();
+}
+
 function validateCreateInput(input: CreateRepoInput): string | null {
   if (!input.id || !ID_PATTERN.test(input.id)) {
     return 'Repo id must be lowercase alphanumeric with optional dashes (e.g. app, my-game-2).';
@@ -73,6 +80,11 @@ export function registerReposHandlers(): void {
     const err = validateCreateInput(input);
     if (err) return { ok: false, reason: 'invalid', message: err };
     if (getRepo(input.id)) return { ok: false, reason: 'duplicate-id' };
+    // Reject a folder already backing another repo — two repos over one tree
+    // would collide on slots / the shado base.
+    const want = normRepoPath(input.repoPath);
+    const clash = listRepos().find((r) => normRepoPath(r.repoPath) === want);
+    if (clash) return { ok: false, reason: 'duplicate-path', existingId: clash.id };
     const repo = upsertRepo({
       id: input.id.trim(),
       repoPath: input.repoPath.trim(),
@@ -118,17 +130,17 @@ export function registerReposHandlers(): void {
 
   ipcMain.handle(
     IpcChannel.ReposBasePreflight,
-    (_e, repoPath: string): Promise<BasePreflightInfo> => basePreflight(repoPath),
+    (e, repoPath: string): Promise<BasePreflightInfo> =>
+      basePreflight(repoPath, (msg) => e.sender.send(IpcChannel.ReposBaseProgress, msg)),
   );
 
   ipcMain.handle(
     IpcChannel.ReposBuildBase,
-    async (_e, input: BuildBaseInput): Promise<BuildBaseResult> => {
-      const built = await buildBase({
-        repoPath: input.repoPath,
-        baseName: input.baseName,
-        sizeGb: input.sizeGb,
-      });
+    async (e, input: BuildBaseInput): Promise<BuildBaseResult> => {
+      const built = await buildBase(
+        { repoPath: input.repoPath, baseName: input.baseName, sizeGb: input.sizeGb },
+        (msg) => e.sender.send(IpcChannel.ReposBaseProgress, msg),
+      );
       if (!built.ok) return { ok: false, error: built.log };
       // The frozen base reflects the warm folder's synced state; capture the
       // changelist so every slot can `p4 flush @baseChangelist` (0-byte).
