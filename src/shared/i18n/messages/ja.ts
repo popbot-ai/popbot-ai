@@ -92,7 +92,7 @@ export const ja = {
   // ---------------------------------------------------------------------------
   // App shell (App.tsx).
   // ---------------------------------------------------------------------------
-  'app.busy.worktreeFailed': 'worktree のセットアップに失敗しました',
+  'app.busy.worktreeFailed': 'ワークスペースのセットアップに失敗しました',
   'app.busy.settingUpWorkspace': 'ワークスペースをセットアップ中…',
   'app.busy.checkingOutBranch': '{branch} をチェックアウト中',
   'app.busy.branchingFrom': '{baseBranch} から {branch} を作成中',
@@ -987,6 +987,16 @@ export const ja = {
   'prefs.repos.wizard.slotCount.title': 'スロット数',
   'prefs.repos.wizard.slotCount.desc': 'このリポジトリがサポートする同時チャット数。1–64。',
   'prefs.repos.wizard.adding': '追加中…',
+  'prefs.repos.wizard.setUp': 'リポジトリをセットアップ',
+  'prefs.repos.wizard.settingUp': 'セットアップ中',
+  'prefs.repos.wizard.setup.slotsHead': 'slot',
+  'prefs.repos.wizard.setup.diskHead': 'ディスク容量',
+  'prefs.repos.wizard.progress.building': 'ベース + slot を構築中 (admin プロンプトを承認してください)…',
+  'prefs.repos.wizard.progress.creating': 'リポジトリを作成中…',
+  'prefs.repos.wizard.progress.initing': 'slot を初期化中 {total} 個中 {done} 個目…',
+  'prefs.repos.wizard.progress.done': '{id} の準備ができました — slot {count} 個。',
+  'prefs.repos.wizard.progress.failHint':
+    'セットアップを中止しました。戻って調整し、もう一度お試しください — 凍結されたベースはディスク上に残り、再利用されます。',
   'prefs.repos.error.duplicateId': 'ID "{id}" のリポジトリはすでに存在します。',
   'prefs.repos.error.generic': 'リポジトリを作成できませんでした。',
   'prefs.repos.error.notFound': 'リポジトリが見つかりません — 削除されましたか?',
@@ -1012,7 +1022,7 @@ export const ja = {
   'prefs.repos.delete.reversibleBody':
     '後で ID {id} の新しいリポジトリを作成すると、切り離されたすべてのチャットが自動的に再関連付けされます。',
   'prefs.repos.delete.noTouch':
-    'これは {path} のソースクローンやその中のチャットブランチには影響しません。ディスク上のスロット worktree もそのまま残ります — クリーンな状態にしたい場合は手動で整理できます。',
+    '{path} にある元のリポジトリには一切手を加えません — 削除されるのは PopBot の slot クローン／worktree だけです。(ディスク上に残ったものは、クリーンな状態にしたい場合は手動で整理できます。)',
   'prefs.repos.delete.typeToConfirm': '確認のため {id} と入力してください:',
   'prefs.repos.delete.deleting': '削除中…',
 
@@ -1024,4 +1034,70 @@ export const ja = {
     'PopBot のインターフェイスで使用する言語を選択します。ほとんどのテキストとメニューはすぐに更新されますが、一部のシステム文字列は再起動後に更新が完了します。',
   'language.label': '表示言語',
   'language.systemNote': '新しいウィンドウとアプリメニューもこの言語を使用します。',
+
+  // ---------------------------------------------------------------------------
+  // Repositories — Add-Repository wizard (Perforce / Git) + Perforce prefs.
+  // ---------------------------------------------------------------------------
+  'prefs.repos.colorTaken': '他のリポジトリで既に使用されています',
+  'prefs.repos.wizard.step': 'ステップ {step}',
+  'prefs.repos.wizard.buildingBase': 'ベースを構築中',
+  'prefs.repos.wizard.detect.detecting': '検出中…',
+  'prefs.repos.wizard.detect.git': 'Git リポジトリ',
+  'prefs.repos.wizard.detect.perforce': 'Perforce リポジトリ',
+  'prefs.repos.wizard.detect.invalid': 'git でも Perforce でもないリポジトリです',
+  'prefs.repos.wizard.detect.alreadyAdded': 'このフォルダは既にリポジトリとして追加されています',
+  'prefs.repos.wizard.detect.idTaken': 'その短縮 ID は既に使用されています — 別のものを選んでください',
+  'prefs.repos.wizard.connect.intro':
+    'Perforce サーバーに接続します。フォルダが同期されている changelist を取得し、すべてのスロットがそこへ flush されるようにします (再転送は不要です)。',
+  'prefs.repos.wizard.connect.port.title': 'P4PORT',
+  'prefs.repos.wizard.connect.port.desc': 'サーバーアドレス。例: ssl:host:1666。',
+  'prefs.repos.wizard.connect.user.title': 'P4USER',
+  'prefs.repos.wizard.connect.user.desc':
+    'Perforce のユーザーです。認証には既存の p4 ログインチケットを使用します。',
+  'prefs.repos.wizard.connect.depot.title': 'Depot パス',
+  'prefs.repos.wizard.connect.depot.desc':
+    'このフォルダがマッピングする depot パス。例: //depot/MyGame。',
+  'prefs.repos.wizard.connect.baseName.title': 'ベース名',
+  'prefs.repos.wizard.connect.baseName.desc':
+    '凍結された shado ベースの名前。スロットはこれからクローンされます。',
+  'prefs.repos.wizard.connect.discovered':
+    'これらは、このリポジトリをセットアップするために使用される値で、お使いの Perforce ワークスペース ({client}) から読み取られます。',
+  'prefs.repos.wizard.connect.changelist': '同期済み changelist',
+  'prefs.repos.wizard.connect.base': 'ベース名',
+  'prefs.repos.wizard.preflight.intro':
+    'ディスク容量を確認しています。ベースはフォルダ (そのままの場所に残ります) から構築されるため、同じドライブにフォルダとほぼ同じサイズの空き容量が必要です。',
+  'prefs.repos.wizard.preflight.measuring': 'フォルダを測定中…',
+  'prefs.repos.wizard.preflight.folder': 'ソースフォルダ',
+  'prefs.repos.wizard.preflight.free': 'ドライブの空き容量',
+  'prefs.repos.wizard.preflight.needs': 'ベースに必要な容量 (≈ +5%)',
+  'prefs.repos.wizard.preflight.ok': '空き容量は十分です — ベースを構築する準備ができました。',
+  'prefs.repos.wizard.preflight.block':
+    '空き容量が不足しています: 利用可能 {free}、ベースには {need} が必要です。空き容量を確保するか (またはより余裕のあるドライブのフォルダを選択して)、もう一度お試しください。',
+  'prefs.repos.wizard.build.intro':
+    'フォルダから凍結ベース ({gb}) を構築します。これは昇格された shado 操作を実行します — Windows の管理者 (UAC) プロンプトが表示されます。数分かかる場合があります。進捗はリアルタイムで表示されます。',
+  'prefs.repos.wizard.build.baseName': 'ベース',
+  'prefs.repos.wizard.build.start': 'ベースを構築',
+  'prefs.repos.wizard.build.starting': 'ベースの構築を開始中 (管理者プロンプトを承認してください)…',
+  'prefs.repos.wizard.build.done':
+    'ベースを構築しました。ここでキャンセルしても、ベースはディスク上に残り、再利用できます。',
+  'prefs.repos.wizard.build.changelist': 'ベースの changelist',
+  'prefs.repos.wizard.build.changelistDesc':
+    'ベースが同期されている changelist — 自動的に取得されます。誤っている場合のみ上書きしてください。',
+  'prefs.perforce.p4Path.title': 'p4 実行ファイル',
+  'prefs.perforce.p4Path.desc':
+    'p4 バイナリへのパス。空欄のままにすると PATH の「p4」を使用します。',
+  'prefs.perforce.defaultPort.title': 'デフォルトの P4PORT',
+  'prefs.perforce.defaultPort.desc':
+    'リポジトリ追加 → Perforce 接続ステップに事前入力します。',
+  'prefs.perforce.defaultUser.title': 'デフォルトの P4USER',
+  'prefs.perforce.defaultUser.desc':
+    'リポジトリ追加 → Perforce 接続ステップに事前入力します。',
+  'prefs.perforce.parallelThreads.title': '並列転送スレッド数',
+  'prefs.perforce.parallelThreads.desc':
+    'p4 の並列 sync/submit 用のスレッド数。1 にすると無効になります。',
+  'prefs.perforce.revertUnchanged.title': '変更のないファイルを revert',
+  'prefs.perforce.revertUnchanged.desc':
+    'submit の前に、バイト単位で同一のファイルを changelist から除外します。',
+  'prefs.perforce.revertUnchanged.toggle': 'submit 時にバイト単位で同一のファイルを revert',
+  'prefs.repos.error.duplicatePath': 'そのフォルダは既にリポジトリ "{id}" として追加されています。',
 } satisfies PartialMessages;

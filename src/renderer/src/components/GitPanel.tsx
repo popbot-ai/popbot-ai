@@ -451,7 +451,9 @@ export function GitPanel({
     <div className="git-panel" data-screen-label="Git Panel">
       <div className="git-panel-head">
         <div className="git-panel-title">
-          <i className="fa-solid fa-code-branch" />
+          <span className="repo-card-scm scm-git" title={t('prefs.repos.scm.git')}>
+            <i className="fa-solid fa-code-branch" /> {t('prefs.repos.scm.git')}
+          </span>
           <span className="git-branch" title={status?.branch ?? ''}>
             {status?.branch ?? (chatId ? '—' : t('git.branch.none'))}
           </span>

@@ -92,7 +92,7 @@ export const ko = {
   // ---------------------------------------------------------------------------
   // App shell (App.tsx).
   // ---------------------------------------------------------------------------
-  'app.busy.worktreeFailed': '워크트리 설정에 실패했습니다',
+  'app.busy.worktreeFailed': '워크스페이스 설정에 실패했습니다',
   'app.busy.settingUpWorkspace': '작업 공간을 설정하는 중…',
   'app.busy.checkingOutBranch': '{branch} 체크아웃 중',
   'app.busy.branchingFrom': '{baseBranch}에서 {branch} 브랜치 생성 중',
@@ -987,6 +987,15 @@ export const ko = {
   'prefs.repos.wizard.slotCount.title': '슬롯 개수',
   'prefs.repos.wizard.slotCount.desc': '이 저장소가 지원하는 동시 채팅 수입니다. 1–64.',
   'prefs.repos.wizard.adding': '추가 중…',
+  'prefs.repos.wizard.setUp': '저장소 설정',
+  'prefs.repos.wizard.settingUp': '설정 중',
+  'prefs.repos.wizard.setup.slotsHead': '슬롯',
+  'prefs.repos.wizard.setup.diskHead': '디스크 공간',
+  'prefs.repos.wizard.progress.building': '베이스 + 슬롯 빌드 중 (관리자 프롬프트를 승인하세요)…',
+  'prefs.repos.wizard.progress.creating': '저장소 생성 중…',
+  'prefs.repos.wizard.progress.initing': '슬롯 {total}개 중 {done}개 초기화 중…',
+  'prefs.repos.wizard.progress.done': '{id} 준비 완료 — 슬롯 {count}개.',
+  'prefs.repos.wizard.progress.failHint': '설정이 중단되었습니다. 돌아가서 조정한 뒤 다시 시도하세요 — 고정된 베이스는 디스크에 남아 재사용됩니다.',
   'prefs.repos.error.duplicateId': 'id "{id}"을(를) 가진 저장소가 이미 존재합니다.',
   'prefs.repos.error.generic': '저장소를 생성할 수 없습니다.',
   'prefs.repos.error.notFound': '저장소를 찾을 수 없습니다 — 삭제되었나요?',
@@ -1012,9 +1021,64 @@ export const ko = {
   'prefs.repos.delete.reversibleBody':
     '나중에 id {id}을(를) 가진 새 저장소를 만들면 분리된 모든 채팅이 자동으로 다시 연결됩니다.',
   'prefs.repos.delete.noTouch':
-    '{path}의 소스 클론이나 그 안의 채팅 브랜치는 건드리지 않습니다. 디스크의 슬롯 워크트리도 그대로 둡니다 — 깨끗한 상태를 원하면 직접 정리할 수 있습니다.',
+    '{path}에 있는 원본 저장소는 절대 건드리지 않습니다 — PopBot의 슬롯 클론 / 워크트리만 제거됩니다. (디스크에 남은 것은 깨끗한 상태를 위해 직접 정리할 수 있습니다.)',
   'prefs.repos.delete.typeToConfirm': '확인하려면 {id}을(를) 입력하세요:',
   'prefs.repos.delete.deleting': '삭제 중…',
+
+  // Preferences — Repos: Perforce add-repository wizard + misc.
+  'prefs.repos.colorTaken': '다른 저장소에서 이미 사용 중입니다',
+  'prefs.repos.wizard.step': '{step}단계',
+  'prefs.repos.wizard.buildingBase': '기준 빌드 중',
+  'prefs.repos.wizard.detect.detecting': '감지 중…',
+  'prefs.repos.wizard.detect.git': 'Git 저장소',
+  'prefs.repos.wizard.detect.perforce': 'Perforce 저장소',
+  'prefs.repos.wizard.detect.invalid': 'git 또는 Perforce 저장소가 아닙니다',
+  'prefs.repos.wizard.detect.alreadyAdded': '이 폴더는 이미 저장소로 추가되어 있습니다',
+  'prefs.repos.wizard.detect.idTaken': '이미 사용 중인 짧은 id입니다 — 다른 id를 선택하세요',
+  'prefs.repos.wizard.connect.intro':
+    'Perforce 서버에 연결합니다. 폴더가 동기화된 changelist를 기록하여 모든 슬롯이 해당 changelist로 플러시되도록 합니다 (재전송 없음).',
+  'prefs.repos.wizard.connect.port.title': 'P4PORT',
+  'prefs.repos.wizard.connect.port.desc': '서버 주소, 예: ssl:host:1666.',
+  'prefs.repos.wizard.connect.user.title': 'P4USER',
+  'prefs.repos.wizard.connect.user.desc': 'Perforce 사용자입니다. 인증은 기존 p4 로그인 티켓을 사용합니다.',
+  'prefs.repos.wizard.connect.depot.title': 'Depot 경로',
+  'prefs.repos.wizard.connect.depot.desc': '이 폴더가 매핑되는 depot 경로, 예: //depot/MyGame.',
+  'prefs.repos.wizard.connect.baseName.title': '기준 이름',
+  'prefs.repos.wizard.connect.baseName.desc': '고정된 shado 기준의 이름입니다. 슬롯은 여기서 복제됩니다.',
+  'prefs.repos.wizard.connect.discovered':
+    '이 저장소를 설정하는 데 사용될 값으로, Perforce 작업 공간 ({client})에서 읽었습니다.',
+  'prefs.repos.wizard.connect.changelist': '동기화된 changelist',
+  'prefs.repos.wizard.connect.base': '기준 이름',
+  'prefs.repos.wizard.preflight.intro':
+    '디스크 공간을 확인합니다. 기준은 폴더에서 빌드되므로 (폴더는 그대로 유지) 같은 드라이브에 대략 폴더 크기만큼의 여유 공간이 필요합니다.',
+  'prefs.repos.wizard.preflight.measuring': '폴더 측정 중…',
+  'prefs.repos.wizard.preflight.folder': '소스 폴더',
+  'prefs.repos.wizard.preflight.free': '드라이브 여유 공간',
+  'prefs.repos.wizard.preflight.needs': '기준 필요 공간 (≈ +5%)',
+  'prefs.repos.wizard.preflight.ok': '여유 공간이 충분합니다 — 기준을 빌드할 준비가 되었습니다.',
+  'prefs.repos.wizard.preflight.block':
+    '여유 공간이 부족합니다: {free} 사용 가능, 기준에는 {need}이(가) 필요합니다. 공간을 확보하거나 (또는 여유가 더 많은 드라이브의 폴더를 선택하여) 다시 시도하세요.',
+  'prefs.repos.wizard.build.intro':
+    '폴더에서 고정된 기준 ({gb})을 빌드합니다. 이 작업은 권한 상승된 shado 작업을 실행합니다 — Windows 관리자 (UAC) 프롬프트가 표시됩니다. 몇 분 정도 걸릴 수 있으며 진행 상황이 실시간으로 표시됩니다.',
+  'prefs.repos.wizard.build.baseName': '기준',
+  'prefs.repos.wizard.build.start': '기준 빌드',
+  'prefs.repos.wizard.build.starting': '기준 빌드를 시작하는 중 (관리자 프롬프트를 승인하세요)…',
+  'prefs.repos.wizard.build.done': '기준이 빌드되었습니다. 지금 취소해도 기준은 디스크에 남아 재사용할 수 있습니다.',
+  'prefs.repos.wizard.build.changelist': '기준 changelist',
+  'prefs.repos.wizard.build.changelistDesc':
+    '기준이 동기화된 changelist로, 자동으로 기록됩니다. 잘못된 경우에만 재정의하세요.',
+  'prefs.perforce.p4Path.title': 'p4 실행 파일',
+  'prefs.perforce.p4Path.desc': 'p4 바이너리 경로입니다. 비워 두면 PATH의 "p4"를 사용합니다.',
+  'prefs.perforce.defaultPort.title': '기본 P4PORT',
+  'prefs.perforce.defaultPort.desc': '저장소 추가 → Perforce 연결 단계를 미리 채웁니다.',
+  'prefs.perforce.defaultUser.title': '기본 P4USER',
+  'prefs.perforce.defaultUser.desc': '저장소 추가 → Perforce 연결 단계를 미리 채웁니다.',
+  'prefs.perforce.parallelThreads.title': '병렬 전송 스레드',
+  'prefs.perforce.parallelThreads.desc': 'p4 병렬 sync/submit에 사용할 스레드입니다. 1이면 비활성화됩니다.',
+  'prefs.perforce.revertUnchanged.title': '변경되지 않은 파일 되돌리기',
+  'prefs.perforce.revertUnchanged.desc': 'submit 전에 바이트가 동일한 파일을 changelist에서 제외합니다.',
+  'prefs.perforce.revertUnchanged.toggle': 'submit 시 바이트가 동일한 파일 되돌리기',
+  'prefs.repos.error.duplicatePath': '이 폴더는 이미 저장소 "{id}"(으)로 추가되어 있습니다.',
 
   // ---------------------------------------------------------------------------
   // Language preference pane.

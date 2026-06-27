@@ -36,23 +36,31 @@ import {
   listStatus as p4ListStatus,
   revertFiles as p4RevertFiles,
   submitFiles as p4SubmitFiles,
+  submitChangelist,
 } from '../p4/files';
 import {
   deleteClient,
+  createChangelist,
+  deleteChangelist,
   ensureClient,
   findLatestShelf,
   flushTo,
   listShelves,
   openChanges,
   readSlotMeta,
+  deleteShelf,
   revertAll,
+  shelveFiles,
   shelveWork,
+  syncLatest,
   unshelvePop,
   writeSlotMeta,
 } from '../p4/workspace';
 import {
   clearSlotChanges,
   getSlotChanges,
+  pauseSlotWatch,
+  resumeSlotWatch,
   startSlotWatch,
   stopSlotWatch,
 } from '../p4/watcher';
@@ -99,7 +107,8 @@ export class PerforceProvider extends SourceControlProvider {
     startSlotWatch(wt); // idempotent
     const changes = getSlotChanges(wt);
     if (changes.length) {
-      await openChanges(ctx, wt, changes);
+      // Open the watcher's changes into the chat's named changelist.
+      await openChanges(ctx, wt, changes, readSlotMeta(wt)?.changelist);
       clearSlotChanges(wt);
     }
   }
@@ -128,7 +137,9 @@ export class PerforceProvider extends SourceControlProvider {
     await this.syncWatched(ctx, wt);
     const status = await p4ListStatus(ctx, wt);
     const shelves = await listShelves(ctx).catch(() => []);
-    return { ...status, shelves };
+    // Surface the chat's changelist name (its branch analog) as the branch.
+    const name = readSlotMeta(wt)?.changelistName;
+    return { ...status, branch: name ?? status.branch, shelves };
   }
   fileDiff(wt: string, scope: GitScope, path: string): Promise<ScmFileDiff> {
     return p4FileDiff(this.ctx(wt), wt, scope, path);
@@ -136,10 +147,53 @@ export class PerforceProvider extends SourceControlProvider {
   async commitFiles(wt: string, message: string, paths: string[]): Promise<{ sha: string }> {
     const ctx = this.ctx(wt);
     await this.syncWatched(ctx, wt);
+    const meta = readSlotMeta(wt);
+    if (meta?.changelist) {
+      const res = await submitChangelist(ctx, wt, meta.changelist, message);
+      // Keep the chat going in a fresh changelist with the same name.
+      const cl = await createChangelist(ctx, meta.changelistName ?? message);
+      writeSlotMeta(wt, { ...meta, changelist: cl || undefined });
+      return res;
+    }
     return p4SubmitFiles(ctx, wt, message, paths);
   }
   revertFiles(wt: string, paths: string[]): Promise<void> {
     return p4RevertFiles(this.ctx(wt), wt, paths);
+  }
+  /** Shelve the checked files. "Move" (default) reverts the working copies;
+   *  "Copy" (keepWorking) leaves them opened. Opens watched edits first so the
+   *  checked files are really opened, and PAUSES the slot watcher around the
+   *  revert so those p4-driven rewrites aren't re-recorded + re-opened. */
+  async shelveFiles(wt: string, paths: string[], message: string, keepWorking = false): Promise<{ change: string }> {
+    const ctx = this.ctx(wt);
+    await this.syncWatched(ctx, wt);
+    pauseSlotWatch(wt);
+    try {
+      const change = await shelveFiles(ctx, wt, paths, message, keepWorking);
+      return { change: change ?? '' };
+    } finally {
+      // Let the revert's fs events drain (dropped while paused), then clear +
+      // resume so a stale edit doesn't reappear on the next status.
+      setTimeout(() => {
+        clearSlotChanges(wt);
+        resumeSlotWatch(wt);
+      }, 600);
+    }
+  }
+  /** Restore the checked shelved changelists into the working area ("Return to
+   *  Changelist") — unshelve + drop the shelf. */
+  async unshelve(wt: string, changes: string[]): Promise<void> {
+    const ctx = this.ctx(wt);
+    for (const c of changes) {
+      await unshelvePop(ctx, wt, c);
+    }
+  }
+  /** Discard the checked shelves ("Delete From Shelf") without restoring. */
+  async deleteShelf(wt: string, changes: string[]): Promise<void> {
+    const ctx = this.ctx(wt);
+    for (const c of changes) {
+      await deleteShelf(ctx, wt, c);
+    }
   }
   listFilesInCommit(wt: string, sha: string): Promise<GitFileChange[]> {
     return p4FilesInChange(this.ctx(wt), wt, sha);
@@ -170,11 +224,12 @@ export class PerforceProvider extends SourceControlProvider {
   }
 
   async ensureSlotWorktree(opts: EnsureSlotWorktreeOpts): Promise<void> {
-    const { p4 } = this.repoFor(opts.repoPath);
+    const { repo, p4 } = this.repoFor(opts.repoPath);
     // shado COW clone mounted at the slot path (shared substrate enforces
-    // same-drive + <base>-N naming + SHADO_HOME on the repo's drive).
+    // same-drive + <base>-N naming + SHADO_HOME under workspaces/<id>/shado).
     await ensureSlot({
       baseName: p4.shadoBase,
+      repoId: repo.id,
       repoPath: opts.repoPath,
       worktreePath: opts.worktreePath,
     });
@@ -197,7 +252,25 @@ export class PerforceProvider extends SourceControlProvider {
     const ctx = this.ctx(opts.worktreePath);
     const meta = readSlotMeta(opts.worktreePath);
     await revertAll(ctx, opts.worktreePath);
-    if (meta) await flushTo(ctx, meta.depotPath, meta.baseChangelist);
+    // Drop the prior chat's (now reverted / empty) changelist.
+    if (meta?.changelist) await deleteChangelist(ctx, meta.changelist);
+    if (meta) {
+      await flushTo(ctx, meta.depotPath, meta.baseChangelist);
+      // A new chat starts from the LATEST changelist — flushing re-anchors the
+      // have-list at the warm frozen base, then sync transfers only the
+      // base→head delta (the warm-slot payoff).
+      await syncLatest(ctx, opts.worktreePath, meta.depotPath);
+    }
+    // The chat's named pending changelist (its git-branch analog) — the slot
+    // watcher opens edits into it; commit submits it.
+    const cl = await createChangelist(ctx, opts.branch);
+    if (meta) {
+      writeSlotMeta(opts.worktreePath, {
+        ...meta,
+        changelist: cl || undefined,
+        changelistName: opts.branch,
+      });
+    }
     // Fresh slot for a new chat — forget any prior watched edits, watch anew.
     clearSlotChanges(opts.worktreePath);
     startSlotWatch(opts.worktreePath);
@@ -280,8 +353,8 @@ export class PerforceProvider extends SourceControlProvider {
       /* no client / config — fall through to shado teardown */
     }
     try {
-      const { p4 } = this.repoFor(opts.repoPath);
-      await removeSlot({ baseName: p4.shadoBase, repoPath: opts.repoPath, worktreePath: opts.worktreePath });
+      const { repo, p4 } = this.repoFor(opts.repoPath);
+      await removeSlot({ baseName: p4.shadoBase, repoId: repo.id, repoPath: opts.repoPath, worktreePath: opts.worktreePath });
     } catch {
       /* repo gone or shado unavailable — best-effort */
     }

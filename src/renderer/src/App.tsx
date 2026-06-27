@@ -22,6 +22,7 @@ import {
   type AgentEffortDefaultsSettings,
 } from './components/AgentCreateControls';
 import { DEFAULT_RE_REVIEW_TEMPLATE, DEFAULT_START_CODE_REVIEW_TEMPLATE, DEFAULT_START_TICKET_TEMPLATE, expandTemplate } from './lib/templates';
+import { DEFAULT_SOURCE_CONTROL, SOURCE_CONTROL_PROVIDERS } from '@shared/sourceControl';
 import type { ReviewItem } from '@shared/reviews';
 import type { LinearIssueDto } from '@shared/linear';
 import { useLinearIssues } from './lib/useLinearIssues';
@@ -77,6 +78,7 @@ function chatRecordToFixture(c: ChatRecord, t: Translator): ChatFixture {
     slotId: c.slotId,
     worktreePath: c.worktreePath,
     repoColor: c.repoColor,
+    scm: c.repoScm,
   };
 }
 
@@ -172,7 +174,17 @@ export default function App(): JSX.Element {
   const [slotConfigVersion, setSlotConfigVersion] = useState(0);
   /** Whole-window "please wait" overlay shown during slow main-side
    *  work (git worktree add, checkout, stash pop, …). */
-  const [busy, setBusy] = useState<{ message: string; detail?: string } | null>(null);
+  const [busy, setBusy] = useState<{ message: string; detail?: string; error?: boolean } | null>(null);
+  // Stream Perforce sync/open progress into the busy overlay's detail while
+  // it's up — e.g. "Syncing to latest — N files…" during a new chat's slot
+  // prep. Only enhances an existing overlay; never pops one on its own.
+  useEffect(
+    () =>
+      window.popbot.repos.onP4OpenProgress((msg) => {
+        if (msg) setBusy((b) => (b ? { ...b, detail: msg } : b));
+      }),
+    [],
+  );
   /** Chat that's mid-close (showing the CloseChatPrompt). */
   const [closingChat, setClosingChat] = useState<ChatRecord | null>(null);
   /** True when a chat-create failed because the slot pool is full. */
@@ -231,6 +243,9 @@ export default function App(): JSX.Element {
      *  (and derives the branch name from it). Used by the generic
      *  "+" / Cmd-K new-chat flow where there's no ticket/PR. */
     askSubject?: boolean;
+    /** Pre-derived branch/changelist name (ticket/PR flows) — shown editable
+     *  so the user always sees it; the edited value comes back in run(). */
+    initialBranch?: string;
     /** Generic new-chat flow can intentionally skip repo selection. */
     allowNoRepo?: boolean;
     /** Generic lite chats can run from repo root without a slot. */
@@ -521,7 +536,10 @@ export default function App(): JSX.Element {
    *  the count. Shows a busy overlay during the slow git work. */
   const createWithSlot = async (
     input: CreateChatInput,
-    opts?: { busy?: { message: string; detail?: string }; onCreated?: (chatId: string) => void },
+    opts?: {
+      busy?: { message: string; detail?: string };
+      onCreated?: (chatId: string, slotId: number | null) => void;
+    },
   ) => {
     if (opts?.busy) setBusy(opts.busy);
     let result;
@@ -541,12 +559,11 @@ export default function App(): JSX.Element {
       } else if (result.reason === 'worktree-failed') {
         // eslint-disable-next-line no-console
         console.error('worktree setup failed:', result.message);
-        setBusy({ message: t('app.busy.worktreeFailed'), detail: result.message });
-        setTimeout(() => setBusy(null), 2500);
+        setBusy({ message: t('app.busy.worktreeFailed'), detail: result.message, error: true });
       }
       return;
     }
-    opts?.onCreated?.(result.chat.id);
+    opts?.onCreated?.(result.chat.id, result.chat.slotId ?? null);
     scrollToChat(result.chat.id);
   };
 
@@ -597,8 +614,7 @@ export default function App(): JSX.Element {
       if (!result.ok) {
         if (result.reason === 'no-free-slot') setNoSlotsOpen(true);
         else if (result.reason === 'worktree-failed') {
-          setBusy({ message: t('app.busy.worktreeFailed'), detail: result.message });
-          setTimeout(() => setBusy(null), 2500);
+          setBusy({ message: t('app.busy.worktreeFailed'), detail: result.message, error: true });
         }
         return;
       }
@@ -619,8 +635,7 @@ export default function App(): JSX.Element {
         else if (result.reason === 'no-free-slot') setNoSlotsOpen(true);
         else if (result.reason === 'git-not-configured') openPrefsAt('git');
         else if (result.reason === 'worktree-failed') {
-          setBusy({ message: t('app.busy.worktreeFailed'), detail: result.message });
-          setTimeout(() => setBusy(null), 2500);
+          setBusy({ message: t('app.busy.worktreeFailed'), detail: result.message, error: true });
         }
       }
     }
@@ -636,13 +651,16 @@ export default function App(): JSX.Element {
     setPendingCreate({
       subtitle: `${ticket.id} · ${ticket.title.slice(0, 60)}`,
       showAgentPicker: true,
-      run: async ({ repoId, baseBranch, agentConfig }) => {
+      initialBranch: branch,
+      run: async ({ repoId, baseBranch, branch: editedBranch, agentConfig }) => {
         if (!repoId || !baseBranch) return;
+        // The user may have tweaked the branch/changelist name in the dialog.
+        const finalBranch = editedBranch?.trim() || branch;
         await createWithSlot(
       {
         name: `${ticket.id} · ${ticket.title.slice(0, 60)}`,
         ticket: ticket.id,
-        branch,
+        branch: finalBranch,
         baseBranch,
         type: 'lite',
         allocateSlot: true,
@@ -650,8 +668,8 @@ export default function App(): JSX.Element {
         ...agentConfig,
       },
       {
-        busy: { message: t('app.busy.settingUpWorkspace'), detail: t('app.busy.branchingFrom', { branch, baseBranch }) },
-        onCreated: (chatId) => {
+        busy: { message: t('app.busy.settingUpWorkspace'), detail: t('app.busy.branchingFrom', { branch: finalBranch, baseBranch }) },
+        onCreated: async (chatId, slotId) => {
           // Auto-promote the ticket to "In Progress" when we open a
           // chat for it. Idempotent + scoped on the main side: only
           // upstream states (backlog/triage/unstarted) get touched;
@@ -667,10 +685,13 @@ export default function App(): JSX.Element {
             ?? DEFAULT_START_TICKET_TEMPLATE
           ).trim();
           if (!tmpl) return;
-          // Look up the slot the chat just got assigned (post-create
-          // state may not have hit React yet, so query by ticket).
-          const justCreated = chats.find((c) => c.id === chatId);
-          const slot = justCreated?.slotId ?? '';
+          // SCM-aware wording comes from the repo's source-control provider
+          // (scm name, "branch"/"changelist", commit verb, …) — a key/value
+          // map per VCS, so this scales past git/perforce with no branching.
+          const scm =
+            (await window.popbot.repos.list()).find((r) => r.id === repoId)?.scm
+            ?? DEFAULT_SOURCE_CONTROL;
+          const scmVars = (SOURCE_CONTROL_PROVIDERS[scm] ?? SOURCE_CONTROL_PROVIDERS[DEFAULT_SOURCE_CONTROL]).promptVars;
           const description = ticket.description ?? '';
           const text = expandTemplate(tmpl, {
             ticketid: ticket.id,
@@ -683,8 +704,11 @@ export default function App(): JSX.Element {
             ticketurl: ticket.url ?? '',
             priority: ticket.priority,
             project: ticket.project,
-            branch,
-            slot,
+            branch: finalBranch,
+            ...scmVars,
+            // The slot the chat was actually assigned (passed back from
+            // createWithSlot — the `chats` state hasn't updated yet here).
+            slot: slotId ?? '',
           });
           void window.popbot.agent.send({ chatId, text });
         },
@@ -1115,8 +1139,7 @@ export default function App(): JSX.Element {
               } else if (result.reason === 'no-free-slot') {
                 setNoSlotsOpen(true);
               } else if (result.reason === 'worktree-failed') {
-                setBusy({ message: t('app.busy.worktreeFailed'), detail: result.message });
-                setTimeout(() => setBusy(null), 2500);
+                setBusy({ message: t('app.busy.worktreeFailed'), detail: result.message, error: true });
               }
             }}
             onDelete={(id) => {
@@ -1301,6 +1324,7 @@ export default function App(): JSX.Element {
           subtitle={pendingCreate.subtitle}
           initial={pendingCreate.initialBase}
           askSubject={pendingCreate.askSubject}
+          initialBranch={pendingCreate.initialBranch}
           allowNoRepo={pendingCreate.allowNoRepo}
           allowRepoRoot={pendingCreate.allowRepoRoot}
           showAgentPicker={pendingCreate.showAgentPicker}
@@ -1336,7 +1360,14 @@ export default function App(): JSX.Element {
           onClose={() => setGateOpen(false)}
         />
       )}
-      {busy && <BusyOverlay message={busy.message} detail={busy.detail} />}
+      {busy && (
+        <BusyOverlay
+          message={busy.message}
+          detail={busy.detail}
+          error={busy.error}
+          onDismiss={busy.error ? () => setBusy(null) : undefined}
+        />
+      )}
       {toast && (
         <Toast
           message={toast.message}

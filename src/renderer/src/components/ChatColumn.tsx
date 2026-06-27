@@ -277,17 +277,65 @@ export function ChatColumn({
     await sendText(text, atts);
   };
 
+  // Tiny data-URL previews for image attachments, keyed by attachment id —
+  // shown in the composer chips before submit (attach + paste alike).
+  const [previews, setPreviews] = useState<Record<string, string>>({});
+  const fetchThumbs = useCallback((atts: PickedAttachment[]) => {
+    for (const a of atts) {
+      if (!a.isImage) continue;
+      void window.popbot.files.imageThumbnail(a.path).then((url) => {
+        if (url) setPreviews((p) => ({ ...p, [a.id]: url }));
+      });
+    }
+  }, []);
+
   const pickAttachment = async (kind: 'image' | 'any') => {
     try {
       const picked = await window.popbot.files.pickAttachment(kind);
-      if (picked && picked.length > 0) setAttachments((prev) => [...prev, ...picked]);
+      if (picked && picked.length > 0) {
+        setAttachments((prev) => [...prev, ...picked]);
+        fetchThumbs(picked);
+      }
     } catch (err) {
       console.error('files.pickAttachment failed', err);
     }
   };
 
+  // Paste an image straight from the clipboard (Windows especially) — save the
+  // bytes to a temp file and attach it, with a thumbnail, before submit.
+  const onPasteIntoInput = useCallback(
+    async (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+      const items = e.clipboardData?.items;
+      if (!items) return;
+      for (let i = 0; i < items.length; i += 1) {
+        const item = items[i];
+        if (!item.type.startsWith('image/')) continue;
+        e.preventDefault(); // don't also paste a junk filename / nothing
+        const file = item.getAsFile();
+        if (!file) continue;
+        try {
+          const buf = await file.arrayBuffer();
+          const ext = item.type.split('/')[1] || 'png';
+          const att = await window.popbot.files.saveClipboardImage(buf, ext);
+          if (att) {
+            setAttachments((prev) => [...prev, att]);
+            fetchThumbs([att]);
+          }
+        } catch (err) {
+          console.error('paste image failed', err);
+        }
+      }
+    },
+    [fetchThumbs],
+  );
+
   const removeAttachment = (id: string) => {
     setAttachments((prev) => prev.filter((a) => a.id !== id));
+    setPreviews((p) => {
+      const next = { ...p };
+      delete next[id];
+      return next;
+    });
   };
 
   const stop = async () => {
@@ -551,7 +599,11 @@ export function ChatColumn({
             <div className="attachment-chips">
               {attachments.map((a) => (
                 <span key={a.id} className="attachment-chip" title={a.path}>
-                  <i className={`fa-solid ${a.isImage ? 'fa-image' : 'fa-paperclip'}`} />
+                  {previews[a.id] ? (
+                    <img className="attachment-chip-thumb" src={previews[a.id]} alt={a.name} />
+                  ) : (
+                    <i className={`fa-solid ${a.isImage ? 'fa-image' : 'fa-paperclip'}`} />
+                  )}
                   <span className="attachment-chip-name">{a.name}</span>
                   <button
                     className="attachment-chip-x"
@@ -575,6 +627,7 @@ export function ChatColumn({
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
             onKeyDown={onTextareaKey}
+            onPaste={(e) => void onPasteIntoInput(e)}
             style={textareaStyle}
           />
           <div className="input-row">

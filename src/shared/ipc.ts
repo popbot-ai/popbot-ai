@@ -45,9 +45,11 @@ import type {
   CodexReasoningEffort,
   ChatAttachment,
   MessageRecord,
+  PerforceRepoConfig,
   RepoRecord,
   RepoWorktreeMode,
 } from './persistence';
+import type { SourceControlProviderId } from './sourceControl';
 
 export const IpcChannel = {
   AppGetVersion: 'pb:app:get-version',
@@ -129,6 +131,10 @@ export const IpcChannel = {
   /** Open a native file picker for the chat input attach buttons.
    *  Returns the selected file's absolute path + metadata. */
   FilesPickAttachment: 'pb:files:pick-attachment',
+  /** Save a pasted clipboard image to a temp file → attachment. */
+  FilesSaveClipboardImage: 'pb:files:save-clipboard-image',
+  /** Small data-URL thumbnail of an image file, for the composer chip. */
+  FilesImageThumbnail: 'pb:files:image-thumbnail',
   /** Open a retained chat attachment in the OS default app. */
   FilesOpenAttachment: 'pb:files:open-attachment',
   /** Open a file referenced in chat in the configured external editor.
@@ -156,6 +162,10 @@ export const IpcChannel = {
   GitCommit: 'pb:git:commit',
   /** Discard local changes for selected paths (delete if untracked). */
   GitRevert: 'pb:git:revert',
+  /** Perforce: shelve checked files / unshelve / delete shelves. */
+  GitShelve: 'pb:git:shelve',
+  GitUnshelve: 'pb:git:unshelve',
+  GitDeleteShelf: 'pb:git:delete-shelf',
   /** File list for an existing commit, used when browsing history. */
   GitFilesInCommit: 'pb:git:files-in-commit',
   /** Candidate PR base branches (develop + recent rc-1.*). */
@@ -265,6 +275,10 @@ export const IpcChannel = {
    *  Repository flow can infer the provider instead of asking. Null when
    *  undetected (UI falls back to a manual picker). */
   ReposDetectScm: 'pb:repos:detect-scm',
+  /** Pull the connection + depot mapping + synced changelist from the P4
+   *  client workspace rooted at a folder, so the Add-Repository flow can
+   *  auto-fill (read-only) instead of asking the user to retype. */
+  ReposDetectP4Workspace: 'pb:repos:detect-p4-workspace',
   /** Configure Slots flow — used by both the New Repo wizard's final
    *  step and the Edit Repo "Resize slots" button. The flow is
    *  per-slot so the renderer can render real progress; this set of
@@ -273,6 +287,21 @@ export const IpcChannel = {
   ReposInitializeOneSlot: 'pb:repos:initialize-one-slot',
   ReposDeleteOneSlot: 'pb:repos:delete-one-slot',
   ReposSetSlotCount: 'pb:repos:set-slot-count',
+  /** Grow a slot pool: create+mount the new shado clones in one elevated
+   *  batch (privileged), before the per-slot init loop. */
+  ReposPrepareGrow: 'pb:repos:prepare-grow',
+  /** Perforce base-build flow (Add Repository → Perforce). Preflight
+   *  measures the warm folder + drive free space and gates on a 5% margin;
+   *  build runs the elevated `shado create` (UAC) and captures the synced
+   *  changelist so slots can flush to it. */
+  ReposBasePreflight: 'pb:repos:base-preflight',
+  ReposBuildBase: 'pb:repos:build-base',
+  /** Main→renderer progress lines streamed during the (long) folder measure
+   *  and base build, so the wizard shows live, accurate progress. */
+  ReposBaseProgress: 'pb:repos:base-progress',
+  /** Main→renderer progress while opening a huge changed-file set into a
+   *  Perforce changelist (`p4 add/edit` over thousands of files). Empty = done. */
+  P4OpenProgress: 'pb:p4:open-progress',
 
   /** Notifications. Anywhere in the app can `notify(...)` to record
    *  a row + fan out a toast + bell-icon update. The renderer also
@@ -382,7 +411,63 @@ export interface CreateRepoInput {
   defaultBase: string;
   slotCount: number;
   mode: RepoWorktreeMode;
+  /** Detected source control. Defaults to 'git' when omitted. Perforce repos
+   *  are always slot-mode and carry a `p4` config built by the base flow. */
+  scm?: SourceControlProviderId;
+  /** Perforce connection + frozen-base config. Required when scm==='perforce'
+   *  (the create handler rejects a perforce repo without it). */
+  p4?: PerforceRepoConfig;
 }
+
+/** Result of the Perforce base disk preflight. All byte counts; the UI
+ *  formats + decides messaging. `ok===false` ⇒ block the build. */
+export interface BasePreflightInfo {
+  folderBytes: number;
+  fileCount: number;
+  freeBytes: number;
+  /** folderBytes × 1.05 — minimum free space to allow the build. */
+  neededBytes: number;
+  /** Suggested expandable-VHDX ceiling (`--size-gb`). */
+  sizeGb: number;
+  ok: boolean;
+}
+
+/** Connection + mapping discovered from the Perforce client workspace whose
+ *  Root is the picked folder — everything the Add-Repository connect step
+ *  would otherwise ask the user to retype. */
+export interface P4WorkspaceInfo {
+  client: string;
+  port: string;
+  user: string;
+  /** Depot root from the client's View (e.g. //depot/PopBotGame). */
+  depotPath: string;
+  /** The changelist the workspace is synced to (#have), 0 if unknown. */
+  baseChangelist: number;
+}
+
+/** Input to the elevated base build. `baseName` is the shado project name;
+ *  `depotPath` + connection let us capture the synced changelist. */
+export interface BuildBaseInput {
+  repoPath: string;
+  /** Repo short id — pins SHADO_HOME to workspaces/<id>/shado. */
+  repoId: string;
+  baseName: string;
+  sizeGb: number;
+  port: string;
+  user: string;
+  depotPath: string;
+  /** Changelist already discovered from the workspace (#have). Used as a
+   *  fallback when the server-side capture at build time can't resolve it. */
+  baseChangelist?: number;
+  /** Slot folder prefix + count. The base AND all slot clones are created in
+   *  the SAME elevated session (one UAC), so slot-init stays non-privileged. */
+  slotPrefix: string;
+  slotCount: number;
+}
+
+export type BuildBaseResult =
+  | { ok: true; baseChangelist: number; baseMb: number; log: string }
+  | { ok: false; error: string };
 
 /** Edit-existing-repo payload. `id` selects the row; `mode` is omitted
  *  by design (mode is creation-only). */
@@ -398,6 +483,7 @@ export interface UpdateRepoInput {
 export type RepoCreateResult =
   | { ok: true; repo: RepoRecord }
   | { ok: false; reason: 'duplicate-id' }
+  | { ok: false; reason: 'duplicate-path'; existingId: string }
   | { ok: false; reason: 'invalid'; message: string };
 
 export type RepoUpdateResult =
@@ -545,6 +631,12 @@ export interface PopBotApi {
      *  image extensions; `'any'` accepts anything. Resolves to null
      *  when the user cancels. Supports multi-select. */
     pickAttachment(kind: 'image' | 'any'): Promise<PickedAttachment[] | null>;
+    /** Save a pasted clipboard image (raw bytes) to a temp file and return it
+     *  as an attachment, same shape as pickAttachment. */
+    saveClipboardImage(bytes: ArrayBuffer, ext: string): Promise<PickedAttachment | null>;
+    /** A small data-URL thumbnail for an image attachment (composer preview).
+     *  Null when the file isn't a decodable raster image. */
+    imageThumbnail(path: string): Promise<string | null>;
     /** Open a retained chat attachment in the OS default app. */
     openAttachment(path: string): Promise<{ ok: true } | { ok: false; error: string }>;
     /** Open a file referenced in chat in the configured external editor
@@ -614,8 +706,10 @@ export interface PopBotApi {
      *  default-base / slot-count). `mode` and `id` are immutable. */
     update(input: UpdateRepoInput): Promise<RepoUpdateResult>;
     /** Delete. UI must show a type-the-name confirm + a chat-count
-     *  warning first; the helper itself is unconditional. */
-    delete(id: string): Promise<{ ok: true }>;
+     *  warning first. For slot repos this also tears down the shado base +
+     *  clones and removes the repo's workspaces folder; a teardown failure
+     *  returns `ok:false` (the row is kept) so the UI can show the error. */
+    delete(id: string): Promise<{ ok: true } | { ok: false; message: string }>;
     /** Count of non-deleted chats referencing this repo. Powers the
      *  delete-confirm warning. */
     countChats(id: string): Promise<number>;
@@ -623,16 +717,36 @@ export interface PopBotApi {
      *  'git' | 'perforce', or null when it's neither — the UI then shows an
      *  "invalid repo path" error and blocks continuing. */
     detectScm(folder: string): Promise<'git' | 'perforce' | null>;
+    /** Connection + depot + #have from the P4 client rooted at the folder,
+     *  or null when none maps it (the connect step falls back to manual). */
+    detectP4Workspace(folder: string): Promise<P4WorkspaceInfo | null>;
     /** Configure Slots flow building blocks. The renderer drives the
      *  loop one slot at a time so the user sees real progress. */
     listSlotOccupants(id: string): Promise<Array<{ slotId: number; chatName: string }>>;
     /** Idempotent — a slot already on disk reports `alreadyReady: true`. */
     initializeOneSlot(repoId: string, slotId: number): Promise<RepoSlotStepResult>;
+    /** Grow prep: create+mount the new shado clones (slots currentCount+1..
+     *  toCount) in ONE elevated batch, before the per-slot init loop. A grow
+     *  needs `shado clone create`, which is privileged. No-op for a shrink or
+     *  non-slot repo. */
+    prepareGrow(repoId: string, toCount: number): Promise<{ ok: true } | { ok: false; message: string }>;
     /** Tear down one slot's worktree + delete its parking branch.
      *  Refuses if the slot is currently occupied. */
     deleteOneSlot(repoId: string, slotId: number): Promise<RepoSlotStepResult>;
     /** Commit the new pool size after the per-slot work succeeds. */
     setSlotCount(id: string, n: number): Promise<{ ok: true } | { ok: false; reason: 'not-found' }>;
+    /** Perforce base-build preflight: measure the warm folder + the repo
+     *  drive's free space and decide if a build can proceed (5% margin). */
+    basePreflight(repoPath: string): Promise<BasePreflightInfo>;
+    /** Run the elevated `shado create` (UAC) to freeze a base off the warm
+     *  folder, then capture the synced changelist for slot flushes. */
+    buildBase(input: BuildBaseInput): Promise<BuildBaseResult>;
+    /** Subscribe to live progress lines from basePreflight()/buildBase().
+     *  Returns an unsubscribe fn. */
+    onBaseProgress(cb: (message: string) => void): () => void;
+    /** Subscribe to progress while opening a large changed-file set into a
+     *  Perforce changelist. Empty message = done. Returns an unsubscribe fn. */
+    onP4OpenProgress(cb: (message: string) => void): () => void;
   };
   sentry: {
     /** Verify a Sentry auth token + org slug. The renderer passes the
@@ -723,6 +837,13 @@ export interface PopBotApi {
     diff(input: GitDiffInput): Promise<GitDiffResultOrErr>;
     commit(input: GitCommitInput): Promise<GitCommitResult>;
     revert(input: GitRevertInput): Promise<GitRevertResult>;
+    /** Perforce: shelve the checked (depot-key) paths into a new shelf.
+     *  keepWorking = Copy to shelf (leave files opened); else Move to shelf. */
+    shelve(input: { chatId: string; paths: string[]; message?: string; keepWorking?: boolean }): Promise<{ ok: true; change: string } | { ok: false; error: string }>;
+    /** Perforce: unshelve (restore + remove) the checked shelved changelists. */
+    unshelve(input: { chatId: string; changes: string[] }): Promise<{ ok: true } | { ok: false; error: string }>;
+    /** Perforce: discard the checked shelved changelists. */
+    deleteShelf(input: { chatId: string; changes: string[] }): Promise<{ ok: true } | { ok: false; error: string }>;
     filesInCommit(input: GitFilesInCommitInput): Promise<GitFilesInCommitResult>;
     /** Resolve a cwd from either the chat (its worktree) or the repo
      *  (the source clone path), in that order, then list base branches.

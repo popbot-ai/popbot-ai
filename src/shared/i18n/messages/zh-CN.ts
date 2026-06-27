@@ -92,7 +92,7 @@ export const zhCN = {
   // ---------------------------------------------------------------------------
   // App shell (App.tsx).
   // ---------------------------------------------------------------------------
-  'app.busy.worktreeFailed': '工作树设置失败',
+  'app.busy.worktreeFailed': '工作区设置失败',
   'app.busy.settingUpWorkspace': '正在设置工作区…',
   'app.busy.checkingOutBranch': '正在检出 {branch}',
   'app.busy.branchingFrom': '正在从 {baseBranch} 创建分支 {branch}',
@@ -987,6 +987,15 @@ export const zhCN = {
   'prefs.repos.wizard.slotCount.title': '槽位数量',
   'prefs.repos.wizard.slotCount.desc': '此仓库支持的并发聊天数量。1–64。',
   'prefs.repos.wizard.adding': '正在添加…',
+  'prefs.repos.wizard.setUp': '设置仓库',
+  'prefs.repos.wizard.settingUp': '正在设置',
+  'prefs.repos.wizard.setup.slotsHead': 'slot',
+  'prefs.repos.wizard.setup.diskHead': '磁盘空间',
+  'prefs.repos.wizard.progress.building': '正在构建基础 + slot（请批准 admin 提示）…',
+  'prefs.repos.wizard.progress.creating': '正在创建仓库…',
+  'prefs.repos.wizard.progress.initing': '正在初始化第 {done} 个 slot，共 {total} 个…',
+  'prefs.repos.wizard.progress.done': '{id} 已就绪 — {count} 个 slot。',
+  'prefs.repos.wizard.progress.failHint': '设置已停止。返回以调整并重试 — 冻结的基础会保留在磁盘上并被重复使用。',
   'prefs.repos.error.duplicateId': 'id 为 "{id}" 的仓库已存在。',
   'prefs.repos.error.generic': '无法创建仓库。',
   'prefs.repos.error.notFound': '未找到仓库 — 它是否已被删除？',
@@ -1012,7 +1021,7 @@ export const zhCN = {
   'prefs.repos.delete.reversibleBody':
     '如果您稍后创建一个 id 为 {id} 的新仓库，所有分离的聊天将自动重新附加。',
   'prefs.repos.delete.noTouch':
-    '这不会触及 {path} 处的源克隆或其中的任何聊天分支。磁盘上的槽位工作树也保持不变 — 如果您想要一个干净的状态，可以手动修剪它们。',
+    '位于 {path} 的原始仓库绝不会被触及 — 只会移除 PopBot 的 slot 克隆／工作树。（磁盘上残留的任何内容都可以手动修剪，以获得干净的状态。）',
   'prefs.repos.delete.typeToConfirm': '输入 {id} 以确认：',
   'prefs.repos.delete.deleting': '正在删除…',
 
@@ -1024,4 +1033,65 @@ export const zhCN = {
     '选择 PopBot 界面使用的语言。大多数文本和菜单会立即更新；少量系统文本将在重启后完成更新。',
   'language.label': '显示语言',
   'language.systemNote': '新窗口和应用菜单也会使用此语言。',
+
+  // ---------------------------------------------------------------------------
+  // Add-repository wizard — detect / Perforce connect / preflight / build.
+  // ---------------------------------------------------------------------------
+  'prefs.repos.colorTaken': '已被另一个仓库使用',
+  'prefs.repos.wizard.step': '第 {step} 步',
+  'prefs.repos.wizard.buildingBase': '正在构建基础',
+  'prefs.repos.wizard.detect.detecting': '正在检测…',
+  'prefs.repos.wizard.detect.git': 'Git 仓库',
+  'prefs.repos.wizard.detect.perforce': 'Perforce 仓库',
+  'prefs.repos.wizard.detect.invalid': '不是 git 或 Perforce 仓库',
+  'prefs.repos.wizard.detect.alreadyAdded': '此文件夹已作为仓库添加',
+  'prefs.repos.wizard.detect.idTaken': '该短 id 已被占用 — 请另选一个',
+  'prefs.repos.wizard.connect.intro':
+    '连接到 Perforce 服务器。我们会记录你的文件夹同步到的 changelist，以便每个槽位都刷新到它（无需重新传输）。',
+  'prefs.repos.wizard.connect.port.title': 'P4PORT',
+  'prefs.repos.wizard.connect.port.desc': '服务器地址，例如 ssl:host:1666。',
+  'prefs.repos.wizard.connect.user.title': 'P4USER',
+  'prefs.repos.wizard.connect.user.desc': '你的 Perforce 用户。身份验证使用你现有的 p4 登录票据。',
+  'prefs.repos.wizard.connect.depot.title': '仓库路径',
+  'prefs.repos.wizard.connect.depot.desc': '此文件夹映射的仓库路径，例如 //depot/MyGame。',
+  'prefs.repos.wizard.connect.baseName.title': '基础名称',
+  'prefs.repos.wizard.connect.baseName.desc': '冻结的 shado 基础的名称。槽位从它克隆。',
+  'prefs.repos.wizard.connect.discovered':
+    '这些是将用于设置此仓库的值，从你的 Perforce 工作区（{client}）中读取。',
+  'prefs.repos.wizard.connect.changelist': '已同步的 changelist',
+  'prefs.repos.wizard.connect.base': '基础名称',
+  'prefs.repos.wizard.preflight.intro':
+    '正在检查磁盘空间。基础从你的文件夹构建（原地保留），因此它需要同一驱动器上大致相当于文件夹大小的可用空间。',
+  'prefs.repos.wizard.preflight.measuring': '正在测量文件夹…',
+  'prefs.repos.wizard.preflight.folder': '源文件夹',
+  'prefs.repos.wizard.preflight.free': '驱动器可用空间',
+  'prefs.repos.wizard.preflight.needs': '基础需要（≈ +5%）',
+  'prefs.repos.wizard.preflight.ok': '可用空间充足 — 准备好构建基础。',
+  'prefs.repos.wizard.preflight.block':
+    '可用空间不足：可用 {free}，基础需要 {need}。请释放空间（或选择一个空间更充裕的驱动器上的文件夹）后重试。',
+  'prefs.repos.wizard.build.intro':
+    '从你的文件夹构建冻结的基础（{gb}）。这会运行一个提权的 shado 操作 — 你会看到 Windows 管理员（UAC）提示。它可能需要几分钟；进度会实时显示。',
+  'prefs.repos.wizard.build.baseName': '基础',
+  'prefs.repos.wizard.build.start': '构建基础',
+  'prefs.repos.wizard.build.starting': '正在开始构建基础（请批准管理员提示）…',
+  'prefs.repos.wizard.build.done': '基础已构建。如果你现在取消，基础会保留在磁盘上并可重复使用。',
+  'prefs.repos.wizard.build.changelist': '基础 changelist',
+  'prefs.repos.wizard.build.changelistDesc':
+    '基础同步到的 changelist — 自动记录。仅在出错时覆盖。',
+
+  // ---------------------------------------------------------------------------
+  // Preferences — Perforce pane.
+  // ---------------------------------------------------------------------------
+  'prefs.perforce.p4Path.title': 'p4 可执行文件',
+  'prefs.perforce.p4Path.desc': 'p4 二进制文件的路径。留空以使用 PATH 中的 “p4”。',
+  'prefs.perforce.defaultPort.title': '默认 P4PORT',
+  'prefs.perforce.defaultPort.desc': '预填充“添加仓库 → Perforce 连接”步骤。',
+  'prefs.perforce.defaultUser.title': '默认 P4USER',
+  'prefs.perforce.defaultUser.desc': '预填充“添加仓库 → Perforce 连接”步骤。',
+  'prefs.perforce.parallelThreads.title': '并行传输线程',
+  'prefs.perforce.parallelThreads.desc': '用于 p4 并行同步/提交的线程数。设为 1 即关闭。',
+  'prefs.perforce.revertUnchanged.title': '还原未更改的文件',
+  'prefs.perforce.revertUnchanged.desc': '在提交前从 changelist 中剔除字节完全相同的文件。',
+  'prefs.perforce.revertUnchanged.toggle': '提交时还原字节完全相同的文件',
+  'prefs.repos.error.duplicatePath': '该文件夹已作为仓库 "{id}" 添加。',
 } satisfies PartialMessages;

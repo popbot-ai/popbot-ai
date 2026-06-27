@@ -14,10 +14,14 @@
  * file's contract dumb (just CRUD) and lets the UI evolve its
  * confirm-flow independently.
  */
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync, rmSync } from 'node:fs';
+import { join } from 'node:path';
 import { ipcMain } from 'electron';
 import {
   IpcChannel,
+  type BasePreflightInfo,
+  type BuildBaseInput,
+  type BuildBaseResult,
   type CreateRepoInput,
   type RepoCreateResult,
   type RepoSlotStepResult,
@@ -35,17 +39,54 @@ import {
 import { listSlotOccupantsForRepo } from '../persistence/chats';
 import { slotWorktreePathForRepo } from '../git/chatPaths';
 import { getSourceControlProvider } from '../scm';
-import { detectScm } from '../scm/detect';
+import { detectScm, p4WorkspaceInfo } from '../scm/detect';
+import { basePreflight, buildBase, baseDiskUsage, destroyBase, growSlotClones } from '../shado/base';
+import { popbotRootForRepo, shadoHomeForRepo } from '../shado/client';
+import { captureSyncedChangelist } from '../p4/workspace';
+import { dlog } from '../diagLog';
 
 const ID_PATTERN = /^[a-z0-9][a-z0-9-]*$/;
+
+/** True only if the shado registry still lists a project named `baseName`.
+ *  Lets repo-delete SKIP the elevated teardown when the base was already torn
+ *  down (a partially-completed prior delete), so it doesn't fail on
+ *  "No project <name>". Non-elevated (reads registry.json directly). */
+function shadoProjectExists(repoPath: string, repoId: string, baseName: string): boolean {
+  try {
+    const reg = JSON.parse(
+      readFileSync(join(shadoHomeForRepo(repoPath, repoId), 'registry.json'), 'utf8'),
+    ) as { projects?: Array<{ name?: string }> };
+    return Array.isArray(reg.projects) && reg.projects.some((p) => p?.name === baseName);
+  } catch {
+    return false; // no/unreadable registry → nothing to tear down
+  }
+}
+
+/** Normalize a repo path for equality: trim, unify separators, drop trailing
+ *  slash, lowercase (Windows paths are case-insensitive; on macOS/Linux a repo
+ *  added twice under different casing is still the same tree in practice). */
+function normRepoPath(p: string): string {
+  return p.trim().replace(/[\\/]+$/, '').replace(/\\/g, '/').toLowerCase();
+}
 
 function validateCreateInput(input: CreateRepoInput): string | null {
   if (!input.id || !ID_PATTERN.test(input.id)) {
     return 'Repo id must be lowercase alphanumeric with optional dashes (e.g. app, my-game-2).';
   }
   if (!input.repoPath?.trim()) return 'Repo path is required.';
-  if (!input.defaultBase?.trim()) return 'Default base branch is required.';
-  if (input.mode !== 'slots' && input.mode !== 'ephemeral') return 'Mode must be slots or ephemeral.';
+  const isP4 = input.scm === 'perforce';
+  // Perforce has no branch model — slots flush to the frozen base changelist,
+  // so a default base branch is git-only. Perforce is always slot mode and
+  // must carry the p4 config the base flow produced.
+  if (!isP4 && !input.defaultBase?.trim()) return 'Default base branch is required.';
+  if (isP4) {
+    if (input.mode !== 'slots') return 'Perforce repos are always slot mode.';
+    if (!input.p4) return 'Perforce repo requires a built base (connection + base changelist).';
+    if (!input.p4.depotPath?.trim()) return 'Perforce depot path is required.';
+    if (!input.p4.shadoBase?.trim()) return 'Perforce repo requires a frozen shado base.';
+  } else if (input.mode !== 'slots' && input.mode !== 'ephemeral') {
+    return 'Mode must be slots or ephemeral.';
+  }
   if (input.slotCount < 1 || input.slotCount > 64) return 'Slot count must be 1–64.';
   return null;
 }
@@ -57,6 +98,11 @@ export function registerReposHandlers(): void {
     const err = validateCreateInput(input);
     if (err) return { ok: false, reason: 'invalid', message: err };
     if (getRepo(input.id)) return { ok: false, reason: 'duplicate-id' };
+    // Reject a folder already backing another repo — two repos over one tree
+    // would collide on slots / the shado base.
+    const want = normRepoPath(input.repoPath);
+    const clash = listRepos().find((r) => normRepoPath(r.repoPath) === want);
+    if (clash) return { ok: false, reason: 'duplicate-path', existingId: clash.id };
     const repo = upsertRepo({
       id: input.id.trim(),
       repoPath: input.repoPath.trim(),
@@ -65,6 +111,8 @@ export function registerReposHandlers(): void {
       defaultBase: input.defaultBase.trim(),
       slotCount: Math.floor(input.slotCount),
       mode: input.mode,
+      scm: input.scm ?? 'git',
+      ...(input.p4 ? { p4: input.p4 } : {}),
     });
     return { ok: true, repo };
   });
@@ -83,18 +131,136 @@ export function registerReposHandlers(): void {
       defaultBase: input.defaultBase.trim() || existing.defaultBase,
       slotCount: Math.max(1, Math.floor(input.slotCount)),
       mode: existing.mode,
+      // Preserve scm + the Perforce connection config — neither is in the
+      // update input. Omitting p4 here would NULL p4_config on the UPDATE leg
+      // (excluded.p4_config) while scm stayed 'perforce' (scm is insert-only),
+      // leaving an unusable "perforce with no config" row.
+      scm: existing.scm,
+      ...(existing.p4 ? { p4: existing.p4 } : {}),
     });
     return { ok: true, repo };
   });
 
-  ipcMain.handle(IpcChannel.ReposDelete, (_e, id: string): { ok: true } => {
-    deleteRepo(id);
-    return { ok: true };
-  });
+  ipcMain.handle(
+    IpcChannel.ReposDelete,
+    async (_e, id: string): Promise<{ ok: true } | { ok: false; message: string }> => {
+      const repo = getRepo(id);
+      try {
+        // GENERAL slot teardown (git AND perforce — both shado-backed): the
+        // delete is mainly "remove the shado base + the workspaces/<id> folder".
+        // KEEP THE ROW until everything cleans up — if any step fails we return
+        // an error and leave the repo in the list so the user can RETRY (and
+        // re-creating with the same id reconnects existing chats). Retry is safe
+        // because each step is idempotent/partial-aware: the registry check
+        // skips an already-torn-down base ("No project" tolerated), and the
+        // folder remove retries. Removing the row on a partial failure would
+        // leave an un-deletable half-repo, so we don't. Only the perforce client
+        // cleanup switches on `repo.scm`.
+        if (repo && repo.mode === 'slots' && process.platform === 'win32') {
+          const baseName = repo.scm === 'perforce' ? repo.p4?.shadoBase : repo.id;
+          const wsDir = join(popbotRootForRepo(repo.repoPath), 'workspaces', repo.id);
+
+          // 1. Best-effort shado teardown: this mainly UNMOUNTS the clones so
+          //    the folder removal below can delete the (otherwise mounted/
+          //    locked) VHDX files. NOT fatal — removing the workspaces/<id>
+          //    folder is what actually gates the delete; if that succeeds we're
+          //    done regardless of how the shado teardown went. Skipped entirely
+          //    when the project is already gone from the registry.
+          if (baseName && shadoProjectExists(repo.repoPath, repo.id, baseName)) {
+            const res = await destroyBase({ repoPath: repo.repoPath, repoId: repo.id, baseName });
+            if (!res.ok) dlog('repos.delete.teardownFailed', { id, baseName, error: res.log });
+          }
+
+          // 2. scm-specific: drop the perforce slots' P4 client workspaces so
+          //    they don't linger in P4V. Best-effort — a dead connection /
+          //    expired ticket must not block the delete (clients are metadata).
+          if (repo.scm === 'perforce' && repo.p4) {
+            const scm = getSourceControlProvider(repo);
+            for (let i = 1; i <= Math.max(1, repo.slotCount); i += 1) {
+              try {
+                await scm.deleteBranch(repo.repoPath, scm.parkingBranch(repo.id, i));
+              } catch {
+                /* best-effort — an orphaned client is harmless */
+              }
+            }
+          }
+
+          // 3. Remove the co-located workspaces/<id> folder (incl. the shado
+          //    home). Retry transient locks; a persistent lock keeps the row so
+          //    the user can close the holder + retry.
+          try {
+            rmSync(wsDir, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
+          } catch (err) {
+            dlog('repos.delete.folderFailed', { id, wsDir, error: (err as Error).message });
+            return {
+              ok: false,
+              message:
+                `Couldn't remove ${wsDir}: ${(err as Error).message}. Close anything using ` +
+                `that folder (an editor, a running app) and try Delete again.`,
+            };
+          }
+        }
+        // Everything cleaned up — NOW it's safe to drop the row.
+        deleteRepo(id);
+        return { ok: true };
+      } catch (err) {
+        dlog('repos.delete.failed', { id, error: (err as Error).message });
+        return { ok: false, message: (err as Error).message };
+      }
+    },
+  );
 
   ipcMain.handle(IpcChannel.ReposCountChats, (_e, id: string): number => countChatsForRepo(id));
 
   ipcMain.handle(IpcChannel.ReposDetectScm, (_e, folder: string) => detectScm(folder));
+
+  ipcMain.handle(IpcChannel.ReposDetectP4Workspace, (_e, folder: string) => p4WorkspaceInfo(folder));
+
+  /* ---------------- Perforce base-build flow ---------------- */
+
+  ipcMain.handle(
+    IpcChannel.ReposBasePreflight,
+    (e, repoPath: string): Promise<BasePreflightInfo> =>
+      basePreflight(repoPath, (msg) => e.sender.send(IpcChannel.ReposBaseProgress, msg)),
+  );
+
+  ipcMain.handle(
+    IpcChannel.ReposBuildBase,
+    async (e, input: BuildBaseInput): Promise<BuildBaseResult> => {
+      const built = await buildBase(
+        {
+          repoPath: input.repoPath,
+          repoId: input.repoId,
+          baseName: input.baseName,
+          sizeGb: input.sizeGb,
+          slotPrefix: input.slotPrefix,
+          slotCount: input.slotCount,
+        },
+        (msg) => e.sender.send(IpcChannel.ReposBaseProgress, msg),
+      );
+      if (!built.ok) return { ok: false, error: built.log };
+      // The frozen base reflects the warm folder's synced state; capture the
+      // changelist so every slot can `p4 flush @baseChangelist` (0-byte). Fall
+      // back to the changelist the wizard already discovered from the
+      // workspace (#have) when the server-side capture can't resolve it.
+      let baseChangelist = 0;
+      if (input.depotPath) {
+        // Perforce only — git has no changelist to capture.
+        try {
+          baseChangelist = await captureSyncedChangelist(
+            { port: input.port, user: input.user },
+            input.repoPath,
+            input.depotPath,
+          );
+        } catch {
+          /* fall through to the discovered value */
+        }
+        if (baseChangelist <= 0) baseChangelist = input.baseChangelist ?? 0;
+      }
+      const du = await baseDiskUsage(input.repoPath, input.repoId, input.baseName);
+      return { ok: true, baseChangelist, baseMb: du.baseMb, log: built.log };
+    },
+  );
 
   /* ---------------- Configure Slots flow ---------------- */
 
@@ -110,13 +276,51 @@ export function registerReposHandlers(): void {
   );
 
   ipcMain.handle(
+    IpcChannel.ReposPrepareGrow,
+    async (_e, repoId: string, toCount: number): Promise<{ ok: true } | { ok: false; message: string }> => {
+      const repo = getRepo(repoId);
+      if (!repo) return { ok: false, message: 'Repo not found' };
+      // Only a grow on a slot repo needs new clones; shrink/no-op/non-Windows
+      // need no privileged step.
+      if (repo.mode !== 'slots' || process.platform !== 'win32' || toCount <= repo.slotCount) {
+        return { ok: true };
+      }
+      const baseName = repo.scm === 'perforce' ? repo.p4?.shadoBase : repo.id;
+      if (!baseName) return { ok: false, message: 'This repo has no shado base to grow from.' };
+      const res = await growSlotClones({
+        repoPath: repo.repoPath,
+        repoId: repo.id,
+        baseName,
+        slotPrefix: repo.slotPrefix,
+        fromCount: repo.slotCount,
+        toCount,
+      });
+      if (!res.ok) {
+        dlog('repos.prepareGrow.failed', { repoId, fromCount: repo.slotCount, toCount, error: res.log });
+        return { ok: false, message: res.log };
+      }
+      return { ok: true };
+    },
+  );
+
+  ipcMain.handle(
     IpcChannel.ReposInitializeOneSlot,
     async (_e, repoId: string, slotId: number): Promise<RepoSlotStepResult> => {
       const repo = getRepo(repoId);
       if (!repo) return { ok: false, reason: 'repo-not-found' };
       if (repo.mode !== 'slots') return { ok: false, reason: 'wrong-mode' };
       const path = slotWorktreePathForRepo(repo, slotId);
-      if (existsSync(path)) {
+      // A shado slot's FOLDER always exists (the mounted COW clone), so folder
+      // existence is NOT "set up". The real marker is the VCS workspace — the
+      // perforce .p4config (p4 client + flush) or the git checkout. Skip only
+      // when that's present, so re-running picks up slots that have a clone but
+      // no workspace (the missing P4V clients) and never disturbs an in-use
+      // chat's slot.
+      const setUp =
+        repo.scm === 'perforce'
+          ? existsSync(join(path, '.p4config'))
+          : existsSync(join(path, '.git'));
+      if (setUp) {
         return { ok: true, slotId, alreadyReady: true };
       }
       try {

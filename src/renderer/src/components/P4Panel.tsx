@@ -11,11 +11,60 @@
  * provider for a P4 repo. There is no reconcile: the slot file-watcher keeps
  * `p4 opened` honest, so this panel just renders provider output.
  */
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { GitFileChange, GitFileStatus } from '@shared/git';
 import { useGitStatus } from '../lib/useGitStatus';
 import { useTranslation } from '../lib/i18n';
+import { P4Glyph } from './P4Glyph';
 import type { SourceControlPanelProps } from './SourceControlPanel';
+
+function clamp(n: number, lo: number, hi: number): number {
+  return Math.max(lo, Math.min(hi, n));
+}
+
+type MenuItem =
+  | 'sep'
+  | { label: string; icon: string; disabled?: boolean; danger?: boolean; onClick: () => void };
+
+/** Section-header overflow ("hamburger") menu. Holds the actions that operate
+ *  on the checkbox-selected rows so the bar doesn't overflow with buttons. */
+function ActionMenu({ items, title, up }: { items: MenuItem[]; title: string; up?: boolean }): JSX.Element {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e: MouseEvent): void => {
+      if (!ref.current?.contains(e.target as Node)) setOpen(false);
+    };
+    window.addEventListener('mousedown', onDown);
+    return () => window.removeEventListener('mousedown', onDown);
+  }, [open]);
+  return (
+    <div className="p4-menu" ref={ref}>
+      <button className="git-mini-action" onClick={() => setOpen((o) => !o)} title={title} aria-haspopup="menu">
+        <i className="fa-solid fa-ellipsis" />
+      </button>
+      {open && (
+        <div className={`p4-menu-pop${up ? ' up' : ''}`} role="menu">
+          {items.map((it, i) =>
+            it === 'sep' ? (
+              <div key={i} className="p4-menu-sep" />
+            ) : (
+              <button
+                key={i}
+                className={`p4-menu-item${it.danger ? ' danger' : ''}`}
+                disabled={it.disabled}
+                onClick={() => { setOpen(false); it.onClick(); }}
+              >
+                <i className={`fa-solid ${it.icon}`} /> {it.label}
+              </button>
+            ),
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
 
 const STATUS_ICON: Record<GitFileStatus, { icon: string; color: string; abbr: string }> = {
   modified: { icon: 'fa-pen', color: 'var(--warn, #d8a657)', abbr: 'M' },
@@ -33,6 +82,43 @@ export function P4Panel({ chatId, chatName, diffPath, onOpenDiff }: SourceContro
   const [desc, setDesc] = useState('');
   const [busy, setBusy] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
+  // Live progress while a huge changed-file set is opened into the changelist.
+  const [openProgress, setOpenProgress] = useState('');
+  useEffect(() => window.popbot.repos.onP4OpenProgress(setOpenProgress), []);
+
+  // Splitter-driven heights for the top (commits) + bottom (shelf) sections;
+  // the middle "current changes" section flexes to fill the rest. flexBasis is
+  // written to the ref directly during drag (no per-pixel re-render).
+  const [commitsPx, setCommitsPx] = useState(120);
+  const [shelfPx, setShelfPx] = useState(100);
+  const [submitPx, setSubmitPx] = useState(110);
+  const commitsRef = useRef<HTMLDivElement | null>(null);
+  const shelfRef = useRef<HTMLDivElement | null>(null);
+  const submitRef = useRef<HTMLDivElement | null>(null);
+  // Checked shelves (by change number) + shift-range anchors for both lists.
+  const [shelfChecked, setShelfChecked] = useState<Set<string>>(new Set());
+  const fileAnchor = useRef<number | null>(null);
+  const shelfAnchor = useRef<number | null>(null);
+  const shiftRef = useRef(false); // last checkbox mousedown's shiftKey
+  const startVerticalDrag =
+    (current: number, setter: (n: number) => void, target: React.RefObject<HTMLDivElement>, direction: 'down' | 'up') =>
+    (e: React.MouseEvent): void => {
+      e.preventDefault();
+      const startY = e.clientY;
+      let last = current;
+      const move = (ev: MouseEvent): void => {
+        const dy = ev.clientY - startY;
+        last = clamp(current + (direction === 'down' ? dy : -dy), 40, 600);
+        if (target.current) target.current.style.flexBasis = `${last}px`;
+      };
+      const up = (): void => {
+        window.removeEventListener('mousemove', move);
+        window.removeEventListener('mouseup', up);
+        setter(last);
+      };
+      window.addEventListener('mousemove', move);
+      window.addEventListener('mouseup', up);
+    };
 
   const ok = data?.ok ? data : null;
   // Surface a failed status load explicitly rather than rendering as an empty
@@ -53,6 +139,102 @@ export function P4Panel({ chatId, chatName, diffPath, onOpenDiff }: SourceContro
       next.has(path) ? next.delete(path) : next.add(path);
       return next;
     });
+
+  // Shift-click checks the whole range between the previous click and this one.
+  const toggleFileAt = (idx: number, shift: boolean): void => {
+    if (shift && fileAnchor.current !== null) {
+      const lo = Math.min(fileAnchor.current, idx);
+      const hi = Math.max(fileAnchor.current, idx);
+      setChecked((prev) => {
+        const next = new Set(prev);
+        for (let i = lo; i <= hi; i += 1) if (files[i]) next.add(files[i].path);
+        return next;
+      });
+    } else {
+      toggle(files[idx].path);
+      fileAnchor.current = idx;
+    }
+  };
+
+  const toggleShelfAt = (idx: number, shift: boolean): void => {
+    const setAt = (lo: number, hi: number): void =>
+      setShelfChecked((prev) => {
+        const next = new Set(prev);
+        for (let i = lo; i <= hi; i += 1) if (shelves[i]) next.add(String(shelves[i].change));
+        return next;
+      });
+    if (shift && shelfAnchor.current !== null) {
+      setAt(Math.min(shelfAnchor.current, idx), Math.max(shelfAnchor.current, idx));
+    } else {
+      const change = String(shelves[idx].change);
+      setShelfChecked((prev) => {
+        const next = new Set(prev);
+        next.has(change) ? next.delete(change) : next.add(change);
+        return next;
+      });
+      shelfAnchor.current = idx;
+    }
+  };
+
+  const doShelve = async (keepWorking: boolean): Promise<void> => {
+    const paths = [...checked].filter((p) => files.some((f) => f.path === p));
+    if (!paths.length || busy) return;
+    setBusy(true);
+    setActionError(null);
+    const res = await window.popbot.git.shelve({ chatId, paths, message: desc.trim() || undefined, keepWorking });
+    setBusy(false);
+    if (res.ok) {
+      setChecked(new Set());
+      refresh();
+    } else {
+      setActionError(res.error || 'Shelve failed');
+    }
+  };
+
+  const deleteFromShelf = async (): Promise<void> => {
+    const changes = [...shelfChecked];
+    if (!changes.length || busy) return;
+    setBusy(true);
+    setActionError(null);
+    const res = await window.popbot.git.deleteShelf({ chatId, changes });
+    setBusy(false);
+    if (res.ok) {
+      setShelfChecked(new Set());
+      refresh();
+    } else {
+      setActionError(res.error || 'Delete failed');
+    }
+  };
+
+  const unshelve = async (): Promise<void> => {
+    const changes = [...shelfChecked];
+    if (!changes.length || busy) return;
+    setBusy(true);
+    setActionError(null);
+    const res = await window.popbot.git.unshelve({ chatId, changes });
+    setBusy(false);
+    if (res.ok) {
+      setShelfChecked(new Set());
+      refresh();
+    } else {
+      setActionError(res.error || 'Unshelve failed');
+    }
+  };
+
+  // Header select-all / none toggles (the indeterminate state is set on the
+  // DOM node via a ref callback since React has no `indeterminate` prop).
+  const allFilesChecked = files.length > 0 && files.every((f) => checked.has(f.path));
+  const someFilesChecked = files.some((f) => checked.has(f.path));
+  const toggleAllFiles = (): void => {
+    setChecked(allFilesChecked ? new Set() : new Set(files.map((f) => f.path)));
+    fileAnchor.current = null;
+  };
+  const allShelvesChecked = shelves.length > 0 && shelves.every((s) => shelfChecked.has(String(s.change)));
+  const someShelvesChecked = shelves.some((s) => shelfChecked.has(String(s.change)));
+  const toggleAllShelves = (): void => {
+    setShelfChecked(allShelvesChecked ? new Set() : new Set(shelves.map((s) => String(s.change))));
+    shelfAnchor.current = null;
+  };
 
   const submit = async (): Promise<void> => {
     const paths = [...checked].filter((p) => files.some((f) => f.path === p));
@@ -90,11 +272,30 @@ export function P4Panel({ chatId, chatName, diffPath, onOpenDiff }: SourceContro
 
   return (
     <div className="p4-panel">
+      {/* SCM tag + the chat's changelist name (its branch analog). */}
+      <div className="git-panel-head">
+        <div className="git-panel-title">
+          <span className="repo-card-scm scm-perforce" title={t('prefs.repos.scm.perforce')}>
+            <P4Glyph /> {t('prefs.repos.scm.perforce')}
+          </span>
+          <span className="git-branch" title={ok?.branch ?? ''}>{ok?.branch ?? '—'}</span>
+        </div>
+        {ok?.client && (
+          <div className="p4-workspace mono" title={t('p4.workspace.title', { client: ok.client })}>
+            <i className="fa-solid fa-desktop" />&nbsp;{ok.client}
+          </div>
+        )}
+      </div>
+      {openProgress && (
+        <div className="pref-progress" style={{ margin: '4px 10px' }}>
+          <i className="fa-solid fa-spinner fa-spin" /> {openProgress}
+        </div>
+      )}
       {(actionError || statusError) && (
         <div className="p4-error" role="alert">{actionError ?? statusError}</div>
       )}
       {/* top — recent submitted changes */}
-      <div className="p4-section p4-commits">
+      <div className="p4-section p4-commits" ref={commitsRef} style={{ flex: `0 0 ${commitsPx}px` }}>
         <div className="p4-section-head">{t('p4.commits.title')}</div>
         <div className="p4-section-body">
           {commits.length === 0 && <div className="git-empty-line">{t('p4.commits.empty')}</div>}
@@ -108,24 +309,42 @@ export function P4Panel({ chatId, chatName, diffPath, onOpenDiff }: SourceContro
         </div>
       </div>
 
+      <div
+        className="git-splitter"
+        onMouseDown={startVerticalDrag(commitsPx, setCommitsPx, commitsRef, 'down')}
+        title={t('common.dragToResize')}
+      />
       {/* middle — current changes (p4 opened) */}
       <div className="p4-section p4-changes">
         <div className="p4-section-head">
-          {t('p4.changes.title')}
+          <span className="p4-head-all">
+            {files.length > 0 && (
+              <input
+                type="checkbox"
+                className="git-row-check"
+                ref={(el) => { if (el) el.indeterminate = someFilesChecked && !allFilesChecked; }}
+                checked={allFilesChecked}
+                onChange={toggleAllFiles}
+                title={t('p4.selectAll')}
+              />
+            )}
+            {t('p4.changes.title')}
+          </span>
           {files.length > 0 && (
-            <button
-              className="git-mini-action danger"
-              disabled={checked.size === 0 || busy}
-              onClick={() => revert([...checked])}
-              title={t('p4.revert')}
-            >
-              <i className="fa-solid fa-rotate-left" /> {t('p4.revert')}
-            </button>
+            <ActionMenu
+              title={t('p4.menu.changesActions')}
+              items={[
+                { label: t('p4.menu.copyToShelf'), icon: 'fa-copy', disabled: checked.size === 0 || busy, onClick: () => void doShelve(true) },
+                { label: t('p4.menu.moveToShelf'), icon: 'fa-box-archive', disabled: checked.size === 0 || busy, onClick: () => void doShelve(false) },
+                'sep',
+                { label: t('p4.revert'), icon: 'fa-rotate-left', danger: true, disabled: checked.size === 0 || busy, onClick: () => revert([...checked]) },
+              ]}
+            />
           )}
         </div>
         <div className="p4-section-body">
           {files.length === 0 && <div className="git-empty-line">{t('p4.changes.empty')}</div>}
-          {files.map((f) => {
+          {files.map((f, idx) => {
             const meta = STATUS_ICON[f.status];
             return (
               <div
@@ -137,7 +356,8 @@ export function P4Panel({ chatId, chatName, diffPath, onOpenDiff }: SourceContro
                   type="checkbox"
                   className="git-row-check"
                   checked={checked.has(f.path)}
-                  onChange={() => toggle(f.path)}
+                  onMouseDown={(e) => { shiftRef.current = e.shiftKey; }}
+                  onChange={() => toggleFileAt(idx, shiftRef.current)}
                   onClick={(e) => e.stopPropagation()}
                 />
                 <i className={`fa-solid ${meta.icon} git-file-icon`} style={{ color: meta.color }} />
@@ -152,7 +372,17 @@ export function P4Panel({ chatId, chatName, diffPath, onOpenDiff }: SourceContro
             </div>
           )}
         </div>
-        <div className="p4-submit">
+        <div
+          className="git-splitter"
+          onMouseDown={startVerticalDrag(submitPx, setSubmitPx, submitRef, 'up')}
+          title={t('common.dragToResize')}
+        />
+        <div className="p4-submit" ref={submitRef} style={{ flex: `0 0 ${submitPx}px` }}>
+          {ok?.client && (
+            <div className="p4-workspace mono" title={t('p4.workspace.title', { client: ok.client })}>
+              <i className="fa-solid fa-desktop" />&nbsp;{ok.client}
+            </div>
+          )}
           <textarea
             className="p4-submit-msg"
             placeholder={t('p4.submitPlaceholder')}
@@ -170,13 +400,51 @@ export function P4Panel({ chatId, chatName, diffPath, onOpenDiff }: SourceContro
         </div>
       </div>
 
+      <div
+        className="git-splitter"
+        onMouseDown={startVerticalDrag(shelfPx, setShelfPx, shelfRef, 'up')}
+        title={t('common.dragToResize')}
+      />
       {/* bottom — shelf */}
-      <div className="p4-section p4-shelf">
-        <div className="p4-section-head">{t('p4.shelf.title')}</div>
+      <div className="p4-section p4-shelf" ref={shelfRef} style={{ flex: `0 0 ${shelfPx}px` }}>
+        <div className="p4-section-head">
+          <span className="p4-head-all">
+            {shelves.length > 0 && (
+              <input
+                type="checkbox"
+                className="git-row-check"
+                ref={(el) => { if (el) el.indeterminate = someShelvesChecked && !allShelvesChecked; }}
+                checked={allShelvesChecked}
+                onChange={toggleAllShelves}
+                title={t('p4.selectAll')}
+              />
+            )}
+            {t('p4.shelf.title')}
+          </span>
+          {shelves.length > 0 && (
+            <ActionMenu
+              title={t('p4.menu.shelfActions')}
+              up
+              items={[
+                { label: t('p4.menu.returnToChangelist'), icon: 'fa-box-open', disabled: shelfChecked.size === 0 || busy, onClick: () => void unshelve() },
+                'sep',
+                { label: t('p4.menu.deleteFromShelf'), icon: 'fa-trash-can', danger: true, disabled: shelfChecked.size === 0 || busy, onClick: () => void deleteFromShelf() },
+              ]}
+            />
+          )}
+        </div>
         <div className="p4-section-body">
           {shelves.length === 0 && <div className="git-empty-line">{t('p4.shelf.empty')}</div>}
-          {shelves.map((s) => (
+          {shelves.map((s, idx) => (
             <div key={s.change} className="p4-shelf-row" title={s.description}>
+              <input
+                type="checkbox"
+                className="git-row-check"
+                checked={shelfChecked.has(String(s.change))}
+                onMouseDown={(e) => { shiftRef.current = e.shiftKey; }}
+                onChange={() => toggleShelfAt(idx, shiftRef.current)}
+                onClick={(e) => e.stopPropagation()}
+              />
               <i className="fa-solid fa-box-archive git-file-icon" />
               <span className="p4-change">@{s.change}</span>
               <span className="p4-commit-subject">{s.description}</span>

@@ -8,12 +8,22 @@
  * the client is established with `flush` (0-byte have-list update) to the
  * base changelist, never a transfer — see the shado+P4 design.
  */
+import { spawn } from 'node:child_process';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import type { PerforceSettings } from '@shared/persistence';
+import { clampP4ParallelThreads, type PerforceSettings } from '@shared/persistence';
 import type { P4Shelf } from '@shared/perforce';
 import { getSetting } from '../persistence/settings';
-import { p4exec, parseZtag, writeP4Config, type P4Context, type P4ExecResult } from './exec';
+import { emitP4Progress } from './progress';
+import {
+  envFor,
+  p4bin,
+  p4exec,
+  parseZtag,
+  writeP4Config,
+  type P4Context,
+  type P4ExecResult,
+} from './exec';
 
 /**
  * Per-slot metadata the provider needs when it only has the slot path
@@ -23,6 +33,11 @@ import { p4exec, parseZtag, writeP4Config, type P4Context, type P4ExecResult } f
 export interface SlotMeta {
   depotPath: string;
   baseChangelist: number;
+  /** The chat's named pending changelist (the git-branch analog). The agent's
+   *  edits are opened into it; submit submits it. */
+  changelist?: number;
+  /** Its description — the chat's branch/changelist name. */
+  changelistName?: string;
 }
 
 const SLOT_META_FILE = '.popbot-p4.json';
@@ -49,6 +64,33 @@ export function readSlotMeta(wt: string): SlotMeta | null {
 /** Trim a trailing slash and any `/...` from a depot path → `//depot/X`. */
 function normDepot(depotPath: string): string {
   return depotPath.replace(/\/?\.\.\.$/, '').replace(/\/+$/, '');
+}
+
+/**
+ * The changelist the warm source folder is synced to — what the frozen base
+ * is built at, so every slot can `p4 flush @baseChangelist` (0-byte) against
+ * it. Prefer the folder's actual `#have` (run p4 in the folder so it resolves
+ * the existing workspace client); fall back to the depot head if the folder
+ * isn't a recognized workspace. Returns 0 only when neither is available.
+ */
+export async function captureSyncedChangelist(
+  ctx: P4Context,
+  warmFolder: string,
+  depotPath: string,
+): Promise<number> {
+  const have = await p4exec(ctx, ['-ztag', 'changes', '-m1', '...#have'], {
+    cwd: warmFolder,
+    tolerant: true,
+  }).catch(() => null);
+  const haveCl = have ? Number(parseZtag(have.stdout)[0]?.change ?? 0) : 0;
+  if (haveCl > 0) return haveCl;
+
+  const head = await p4exec(
+    ctx,
+    ['-ztag', 'changes', '-m1', '-s', 'submitted', `${normDepot(depotPath)}/...`],
+    { tolerant: true },
+  ).catch(() => null);
+  return head ? Number(parseZtag(head.stdout)[0]?.change ?? 0) : 0;
 }
 
 export interface EnsureClientOpts {
@@ -111,6 +153,57 @@ export async function flushTo(ctx: P4Context, depotPath: string, change: number)
   return p4exec(ctx, ['flush', `${dp}/...@${change}`], { tolerant: true });
 }
 
+/** Sync the slot to the latest submitted changelist. After flushing the
+ *  have-list to the frozen base, this transfers ONLY the base→head delta (the
+ *  warm-slot payoff), so a new chat starts from the latest depot state. */
+export function syncLatest(ctx: P4Context, wt: string, depotPath: string): Promise<P4ExecResult> {
+  const dp = normDepot(depotPath);
+  const threads = clampP4ParallelThreads(getSetting<PerforceSettings>('perforce')?.parallelThreads);
+  const args = ['sync', `${dp}/...`];
+  if (threads > 1) args.push(`--parallel=threads=${threads}`); // parallel transfer of the delta
+
+  // SCALE: the base→head delta can be large (a long-frozen base, or a busy
+  // depot) and slow — minutes on a real game tree. So we SPAWN rather than
+  // buffer, counting synced files from stdout (p4 prints one line per file)
+  // and streaming a live meter. The watcher's `p4 add` path reuses the same
+  // P4OpenProgress banner. We don't pre-count (a `sync -n` is itself a full
+  // round-trip); a running "N files" with a spinner is the honest meter here.
+  return new Promise<P4ExecResult>((resolve) => {
+    const child = spawn(p4bin(), args, { cwd: wt, env: envFor(ctx), windowsHide: true });
+    let synced = 0;
+    let pending = '';
+    let stderr = '';
+    let lastEmit = 0;
+    const flush = (force: boolean): void => {
+      const now = Date.now();
+      if (!force && now - lastEmit < 250) return; // throttle the IPC, not the work
+      lastEmit = now;
+      emitP4Progress(`Syncing to latest — ${synced.toLocaleString()} files…`);
+    };
+    child.stdout?.on('data', (d: Buffer) => {
+      pending += d.toString();
+      let nl: number;
+      while ((nl = pending.indexOf('\n')) >= 0) {
+        pending = pending.slice(nl + 1);
+        synced++;
+      }
+      flush(false);
+    });
+    child.stderr?.on('data', (d: Buffer) => {
+      stderr += d.toString();
+    });
+    const done = (code: number): void => {
+      emitP4Progress(''); // clear the banner
+      resolve({ stdout: '', stderr, code });
+    };
+    child.on('close', (code) => done(code ?? 0));
+    child.on('error', (e) => {
+      stderr += String(e);
+      done(1);
+    });
+  });
+}
+
 /** Revert every opened file in the slot — park to a clean base. */
 export async function revertAll(ctx: P4Context, wt: string): Promise<void> {
   if (!ctx.client) return;
@@ -146,6 +239,58 @@ export async function shelveWork(ctx: P4Context, wt: string, description: string
     return null;
   }
   return cl;
+}
+
+/**
+ * Shelve a SPECIFIC set of opened files (the "Shelve Checked Changes" action):
+ * reopen just those paths into a fresh changelist, shelve it, then revert the
+ * working copies — so the changes leave the working area but are preserved in
+ * the shelf (git-stash-like). `paths` are depot keys ("depot/X"). Returns the
+ * shelf changelist number, or null if nothing was shelved.
+ */
+export async function shelveFiles(
+  ctx: P4Context,
+  wt: string,
+  paths: string[],
+  description: string,
+  keepWorking = false,
+): Promise<string | null> {
+  if (!paths.length) return null;
+  const created = await p4exec(ctx, ['change', '-i'], {
+    cwd: wt,
+    tolerant: true,
+    input: `Change: new\nDescription:\n\t${(description.trim() || 'popbot shelf').replace(/\n/g, '\n\t')}\n`,
+  });
+  const cl = /Change (\d+) created/.exec(created.stdout)?.[1];
+  if (!cl) return null;
+  const files = paths.map((p) => `//${p}`);
+  const CHUNK = 4000;
+  const run = (args: string[], batch: string[]): Promise<P4ExecResult> =>
+    p4exec(ctx, ['-x', '-', ...args], {
+      cwd: wt,
+      input: batch.join('\n') + '\n',
+      tolerant: true,
+      maxBuffer: 64 * 1024 * 1024,
+    });
+  for (let i = 0; i < files.length; i += CHUNK) await run(['reopen', '-c', cl], files.slice(i, i + CHUNK));
+  const shelved = await p4exec(ctx, ['shelve', '-c', cl], { cwd: wt, tolerant: true });
+  if (!/shelved/i.test(shelved.stdout + shelved.stderr)) {
+    await p4exec(ctx, ['change', '-d', cl], { cwd: wt, tolerant: true }); // nothing shelved → drop empty CL
+    return null;
+  }
+  // "Move to shelf" drops the working copies (the shelf in CL `cl` keeps them);
+  // "Copy to shelf" (keepWorking) leaves them opened in the new CL.
+  if (!keepWorking) {
+    for (let i = 0; i < files.length; i += CHUNK) await run(['revert'], files.slice(i, i + CHUNK));
+  }
+  return cl;
+}
+
+/** Delete a shelved changelist's shelf (discard the shelved work) + the now-
+ *  empty pending changelist. Best-effort. */
+export async function deleteShelf(ctx: P4Context, wt: string, change: string): Promise<void> {
+  await p4exec(ctx, ['shelve', '-d', '-c', change], { cwd: wt, tolerant: true });
+  await p4exec(ctx, ['change', '-d', change], { cwd: wt, tolerant: true });
 }
 
 /** Shelved changelists owned by the user — the P4 panel's shelf section. */
@@ -197,18 +342,82 @@ export async function openChanges(
   ctx: P4Context,
   wt: string,
   changes: { path: string; kind: 'modify' | 'add' | 'delete' }[],
+  changelist?: number,
 ): Promise<void> {
   const present = changes.filter((c) => c.kind !== 'delete').map((c) => `//${c.path}`);
   const removed = changes.filter((c) => c.kind === 'delete').map((c) => `//${c.path}`);
-  const run = (action: string, files: string[]): Promise<unknown> =>
-    files.length
-      ? p4exec(ctx, ['-x', '-', action], { cwd: wt, input: files.join('\n') + '\n', tolerant: true })
-      : Promise.resolve();
-  if (present.length) {
-    await run('edit', present);
-    await run('add', present);
+  // Open into the chat's named changelist when there is one (else the default).
+  const clArgs = changelist ? ['-c', String(changelist)] : [];
+  const total = present.length + removed.length;
+  if (total === 0) return;
+
+  // SCALE: a game export can be tens of thousands of files. Chunk so no single
+  // `p4` call / stdin is unbounded, AND run the chunks as PARALLEL p4 processes
+  // (bounded pool) so the server-bound opens overlap. Progress is streamed so
+  // the panel isn't frozen.
+  const CHUNK = 4000;
+  const POOL = Math.max(2, Math.min(16, clampP4ParallelThreads(getSetting<PerforceSettings>('perforce')?.parallelThreads)));
+  const open1 = (action: string, batch: string[]): Promise<P4ExecResult> =>
+    p4exec(ctx, ['-x', '-', action, ...clArgs], {
+      cwd: wt,
+      input: batch.join('\n') + '\n',
+      tolerant: true,
+      maxBuffer: 64 * 1024 * 1024,
+    });
+
+  let done = 0;
+  const showProgress = total > CHUNK; // only worth it for big sets
+  const tick = (n: number): void => {
+    done += n;
+    if (showProgress) emitP4Progress(`Opening ${done.toLocaleString()} / ${total.toLocaleString()} files…`);
+  };
+  // Each task is one chunk. Present files run edit+add (p4 sorts depot vs new);
+  // removed run delete. Tasks are independent → safe to run concurrently.
+  const tasks: Array<() => Promise<void>> = [];
+  for (let i = 0; i < present.length; i += CHUNK) {
+    const batch = present.slice(i, i + CHUNK);
+    tasks.push(async () => {
+      await open1('edit', batch);
+      await open1('add', batch);
+      tick(batch.length);
+    });
   }
-  if (removed.length) await run('delete', removed);
+  for (let i = 0; i < removed.length; i += CHUNK) {
+    const batch = removed.slice(i, i + CHUNK);
+    tasks.push(async () => {
+      await open1('delete', batch);
+      tick(batch.length);
+    });
+  }
+
+  // Bounded-concurrency pool: POOL workers pull tasks until drained.
+  let next = 0;
+  try {
+    await Promise.all(
+      Array.from({ length: Math.min(POOL, tasks.length) }, async () => {
+        while (next < tasks.length) await tasks[next++]();
+      }),
+    );
+  } finally {
+    if (showProgress) emitP4Progress(''); // clear the panel banner
+  }
+}
+
+/** Create a named pending changelist (the chat's branch analog); returns its
+ *  number, or 0 on failure. */
+export async function createChangelist(ctx: P4Context, description: string): Promise<number> {
+  const desc = (description.trim() || 'popbot work').replace(/\n/g, '\n\t');
+  const res = await p4exec(ctx, ['change', '-i'], {
+    input: `Change: new\n\nDescription:\n\t${desc}\n`,
+    tolerant: true,
+  });
+  return Number(/Change (\d+) created/.exec(res.stdout)?.[1] ?? 0);
+}
+
+/** Delete an (empty) pending changelist — best-effort. */
+export async function deleteChangelist(ctx: P4Context, cl: number): Promise<void> {
+  if (!cl) return;
+  await p4exec(ctx, ['change', '-d', String(cl)], { tolerant: true });
 }
 
 /** Restore a shelved change into the slot, then drop the shelf + its

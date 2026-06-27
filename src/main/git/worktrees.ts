@@ -27,7 +27,12 @@ const execFileP = promisify(execFile);
 
 async function git(cwd: string, args: string[]): Promise<{ stdout: string; stderr: string }> {
   try {
-    const { stdout, stderr } = await execFileP('git', args, { cwd, maxBuffer: 4 * 1024 * 1024 });
+    // `safe.directory=*` (scoped to this invocation) trusts the dir regardless
+    // of owner — shado slot clones are created elevated and end up owned by the
+    // Administrators group, which would otherwise trip git's dubious-ownership
+    // guard. No-op for the user's own repos. Avoids recursive ACL rewrites that
+    // would be ruinously slow + COW-bloating on a real game tree.
+    const { stdout, stderr } = await execFileP('git', ['-c', 'safe.directory=*', ...args], { cwd, maxBuffer: 4 * 1024 * 1024 });
     return { stdout, stderr };
   } catch (err) {
     const e = err as { stderr?: string; message: string };

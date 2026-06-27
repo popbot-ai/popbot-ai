@@ -22,6 +22,8 @@ import { runShado, shadoHomeForRepo } from './client';
 export interface ShadoSlotRef {
   /** shado project (base) name for this repo. */
   baseName: string;
+  /** Repo short id — namespaces SHADO_HOME under `workspaces/<id>/.base`. */
+  repoId: string;
   /** Absolute source-repo path — the slot's drive and SHADO_HOME derive
    *  from it (same-drive invariant). */
   repoPath: string;
@@ -39,9 +41,9 @@ export function shadoSlotName(worktreePath: string): string {
   return basename(worktreePath);
 }
 
-/** Env that pins shado's base + per-slot diffs to the repo's drive. */
-function shadoEnv(repoPath: string): { SHADO_HOME: string } {
-  return { SHADO_HOME: shadoHomeForRepo(repoPath) };
+/** Env that pins shado's base + per-slot diffs to the repo's `.base` folder. */
+function shadoEnv(ref: Pick<ShadoSlotRef, 'repoPath' | 'repoId'>): { SHADO_HOME: string } {
+  return { SHADO_HOME: shadoHomeForRepo(ref.repoPath, ref.repoId) };
 }
 
 /** Assert the slot sits on the repo's drive (throws otherwise). */
@@ -60,7 +62,7 @@ export async function ensureSlot(ref: ShadoSlotRef): Promise<void> {
   const slot = shadoSlotName(ref.worktreePath);
   const r = await runShado(
     ['clone', 'create', '--name', ref.baseName, '--slot', slot, '--mount', ref.worktreePath],
-    { env: shadoEnv(ref.repoPath) },
+    { env: shadoEnv(ref) },
   );
   if (!r.ok) {
     // Tolerate failure ONLY if the mount already holds a populated slot (an
@@ -79,7 +81,7 @@ export async function ensureSlot(ref: ShadoSlotRef): Promise<void> {
 export async function resetSlot(ref: ShadoSlotRef): Promise<void> {
   const slot = shadoSlotName(ref.worktreePath);
   const r = await runShado(['clone', 'reset', '--name', ref.baseName, '--slot', slot], {
-    env: shadoEnv(ref.repoPath),
+    env: shadoEnv(ref),
   });
   if (!r.ok) throw new Error(`shado clone reset failed for slot ${slot}: ${r.stderr || r.stdout}`);
 }
@@ -88,7 +90,7 @@ export async function resetSlot(ref: ShadoSlotRef): Promise<void> {
 export async function removeSlot(ref: ShadoSlotRef): Promise<void> {
   const slot = shadoSlotName(ref.worktreePath);
   const r = await runShado(['clone', 'rm', '--name', ref.baseName, '--slot', slot, '--force'], {
-    env: shadoEnv(ref.repoPath),
+    env: shadoEnv(ref),
   });
   if (!r.ok) throw new Error(`shado clone rm failed for slot ${slot}: ${r.stderr || r.stdout}`);
 }

@@ -92,7 +92,7 @@ export const fr = {
   // ---------------------------------------------------------------------------
   // App shell (App.tsx).
   // ---------------------------------------------------------------------------
-  'app.busy.worktreeFailed': 'Échec de la configuration du worktree',
+  'app.busy.worktreeFailed': "Échec de la configuration de l'espace de travail",
   'app.busy.settingUpWorkspace': 'Configuration de l’espace de travail…',
   'app.busy.checkingOutBranch': 'Extraction de {branch}',
   'app.busy.branchingFrom': 'Création de {branch} à partir de {baseBranch}',
@@ -987,6 +987,16 @@ export const fr = {
   'prefs.repos.wizard.slotCount.title': 'Nombre d’emplacements',
   'prefs.repos.wizard.slotCount.desc': 'Combien de chats simultanés ce dépôt prend en charge. 1–64.',
   'prefs.repos.wizard.adding': 'Ajout…',
+  'prefs.repos.wizard.setUp': 'Configurer le dépôt',
+  'prefs.repos.wizard.settingUp': 'configuration en cours',
+  'prefs.repos.wizard.setup.slotsHead': 'Slots',
+  'prefs.repos.wizard.setup.diskHead': 'Espace disque',
+  'prefs.repos.wizard.progress.building': 'Construction de la base + des slots (approuvez l’invite d’administrateur)…',
+  'prefs.repos.wizard.progress.creating': 'Création du dépôt…',
+  'prefs.repos.wizard.progress.initing': 'Initialisation du slot {done} sur {total}…',
+  'prefs.repos.wizard.progress.done': '{id} est prêt — {count} slots.',
+  'prefs.repos.wizard.progress.failHint':
+    'Configuration interrompue. Revenez en arrière pour ajuster et réessayer — la base figée reste sur le disque et est réutilisée.',
   'prefs.repos.error.duplicateId': 'Un dépôt avec l’id « {id} » existe déjà.',
   'prefs.repos.error.generic': 'Impossible de créer le dépôt.',
   'prefs.repos.error.notFound': 'Dépôt introuvable — a-t-il été supprimé ?',
@@ -1012,9 +1022,69 @@ export const fr = {
   'prefs.repos.delete.reversibleBody':
     'si vous créez plus tard un nouveau dépôt avec l’id {id}, tous les chats détachés se rattacheront automatiquement.',
   'prefs.repos.delete.noTouch':
-    'Cela ne touchera pas au clone source à {path} ni à aucune branche de chat dedans. Les worktrees d’emplacement sur le disque sont également laissés tels quels — vous pouvez les élaguer à la main si vous voulez repartir à zéro.',
+    'Votre dépôt d’origine à {path} n’est jamais touché — seuls les clones de slot / worktrees de PopBot sont supprimés. (Ceux laissés sur le disque peuvent être élagués à la main pour repartir à zéro.)',
   'prefs.repos.delete.typeToConfirm': 'Saisissez {id} pour confirmer :',
   'prefs.repos.delete.deleting': 'Suppression…',
+
+  // Preferences — Repositories: color + add-repository wizard (new keys).
+  'prefs.repos.colorTaken': 'Déjà utilisée par un autre dépôt',
+  'prefs.repos.wizard.step': 'étape {step}',
+  'prefs.repos.wizard.buildingBase': 'construction de la base',
+  'prefs.repos.wizard.detect.detecting': 'Détection…',
+  'prefs.repos.wizard.detect.git': 'Dépôt Git',
+  'prefs.repos.wizard.detect.perforce': 'Dépôt Perforce',
+  'prefs.repos.wizard.detect.invalid': 'Ni un dépôt git ni un dépôt Perforce',
+  'prefs.repos.wizard.detect.alreadyAdded': 'Ce dossier est déjà ajouté comme dépôt',
+  'prefs.repos.wizard.detect.idTaken': 'Cet id court est déjà pris — choisissez-en un autre',
+  'prefs.repos.wizard.connect.intro':
+    'Connectez-vous au serveur Perforce. Nous capturerons la changelist sur laquelle votre dossier est synchronisé afin que chaque emplacement la reflète (aucun re-transfert).',
+  'prefs.repos.wizard.connect.port.title': 'P4PORT',
+  'prefs.repos.wizard.connect.port.desc': 'Adresse du serveur, ex. ssl:host:1666.',
+  'prefs.repos.wizard.connect.user.title': 'P4USER',
+  'prefs.repos.wizard.connect.user.desc':
+    'Votre utilisateur Perforce. L’authentification utilise votre ticket de connexion p4 existant.',
+  'prefs.repos.wizard.connect.depot.title': 'Chemin du depot',
+  'prefs.repos.wizard.connect.depot.desc':
+    'Le chemin du depot que ce dossier mappe, ex. //depot/MyGame.',
+  'prefs.repos.wizard.connect.baseName.title': 'Nom de la base',
+  'prefs.repos.wizard.connect.baseName.desc': 'Nom de la base shado figée. Les emplacements la clonent.',
+  'prefs.repos.wizard.connect.discovered':
+    'Voici les valeurs qui seront utilisées pour configurer ce dépôt, lues depuis votre espace de travail Perforce ({client}).',
+  'prefs.repos.wizard.connect.changelist': 'Changelist synchronisée',
+  'prefs.repos.wizard.connect.base': 'Nom de la base',
+  'prefs.repos.wizard.preflight.intro':
+    'Vérification de l’espace disque. La base est construite à partir de votre dossier (laissé en place), elle a donc besoin d’environ la taille du dossier en espace libre sur le même disque.',
+  'prefs.repos.wizard.preflight.measuring': 'Mesure du dossier…',
+  'prefs.repos.wizard.preflight.folder': 'Dossier source',
+  'prefs.repos.wizard.preflight.free': 'Libre sur le disque',
+  'prefs.repos.wizard.preflight.needs': 'La base nécessite (≈ +5 %)',
+  'prefs.repos.wizard.preflight.ok': 'Espace libre suffisant — prêt à construire la base.',
+  'prefs.repos.wizard.preflight.block':
+    'Espace libre insuffisant : {free} disponible, la base nécessite {need}. Libérez de l’espace (ou choisissez un dossier sur un disque plus spacieux) et réessayez.',
+  'prefs.repos.wizard.build.intro':
+    'Construisez la base figée ({gb}) à partir de votre dossier. Cela exécute une opération shado élevée — vous verrez une invite d’administrateur Windows (UAC). Cela peut prendre plusieurs minutes ; la progression est affichée en direct.',
+  'prefs.repos.wizard.build.baseName': 'Base',
+  'prefs.repos.wizard.build.start': 'Construire la base',
+  'prefs.repos.wizard.build.starting': 'Démarrage de la construction de la base (approuvez l’invite d’administrateur)…',
+  'prefs.repos.wizard.build.done':
+    'Base construite. Si vous annulez maintenant, la base reste sur le disque et peut être réutilisée.',
+  'prefs.repos.wizard.build.changelist': 'Changelist de la base',
+  'prefs.repos.wizard.build.changelistDesc':
+    'La changelist sur laquelle la base est synchronisée — capturée automatiquement. Ne la remplacez que si elle est incorrecte.',
+  'prefs.perforce.p4Path.title': 'Exécutable p4',
+  'prefs.perforce.p4Path.desc': 'Chemin vers le binaire p4. Laissez vide pour utiliser « p4 » depuis le PATH.',
+  'prefs.perforce.defaultPort.title': 'P4PORT par défaut',
+  'prefs.perforce.defaultPort.desc': 'Pré-remplit l’étape Ajouter un dépôt → connexion Perforce.',
+  'prefs.perforce.defaultUser.title': 'P4USER par défaut',
+  'prefs.perforce.defaultUser.desc': 'Pré-remplit l’étape Ajouter un dépôt → connexion Perforce.',
+  'prefs.perforce.parallelThreads.title': 'Threads de transfert parallèles',
+  'prefs.perforce.parallelThreads.desc':
+    'Threads pour la synchronisation/soumission parallèle p4. 1 le désactive.',
+  'prefs.perforce.revertUnchanged.title': 'Annuler les fichiers inchangés',
+  'prefs.perforce.revertUnchanged.desc':
+    'Retire les fichiers identiques octet pour octet d’une changelist avant la soumission.',
+  'prefs.perforce.revertUnchanged.toggle': 'Annuler les fichiers identiques octet pour octet à la soumission',
+  'prefs.repos.error.duplicatePath': 'Ce dossier est déjà ajouté comme dépôt « {id} ».',
 
   // ---------------------------------------------------------------------------
   // Language preference pane.

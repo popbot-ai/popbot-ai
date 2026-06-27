@@ -52,6 +52,7 @@ export async function listStatus(
   behind: number;
   files: GitFileChange[];
   recentCommits: GitCommitSummary[];
+  client?: string;
 }> {
   const [openedR, changesR] = await Promise.all([
     p4exec(ctx, ['-ztag', 'opened'], { cwd: wt, tolerant: true }),
@@ -81,8 +82,9 @@ export async function listStatus(
   }
 
   // Perforce has no branch/ahead/behind; surface the client name as the
-  // "branch" label for the panel header.
-  return { branch: ctx.client ?? null, ahead: 0, behind: 0, files, recentCommits };
+  // "branch" label for the panel header, and also as `client` so the panel can
+  // show the P4 workspace name explicitly.
+  return { branch: ctx.client ?? null, ahead: 0, behind: 0, files, recentCommits, client: ctx.client };
 }
 
 function readWorking(wt: string, path: string): Buffer | null {
@@ -158,6 +160,32 @@ export async function submitFiles(
   // p4 prints "Change N submitted." (possibly after renumber lines).
   const m = /Change (\d+) submitted/.exec(res.stdout);
   return { sha: m?.[1] ?? '' };
+}
+
+/** Submit the chat's named pending changelist (which already holds the
+ *  watcher-opened files), setting its description to `message` first so the
+ *  commit message wins over the working name. */
+export async function submitChangelist(
+  ctx: P4Context,
+  wt: string,
+  cl: number,
+  message: string,
+): Promise<{ sha: string }> {
+  if (!message.trim()) throw new Error('Submit description required');
+  // Read-modify-write the changelist spec to set the description.
+  const got = await p4exec(ctx, ['change', '-o', String(cl)], { cwd: wt, tolerant: true });
+  const desc = message.trim().replace(/\n/g, '\n\t');
+  const spec = got.stdout.replace(/^Description:\n(?:\t.*\n?)*/m, `Description:\n\t${desc}\n`);
+  await p4exec(ctx, ['change', '-i'], { input: spec, cwd: wt, tolerant: true });
+  const threads = clampP4ParallelThreads(getSetting<PerforceSettings>('perforce')?.parallelThreads);
+  const args = ['submit', '-c', String(cl)];
+  if (threads > 1) args.push(`--parallel=threads=${threads},batch=8,min=1`);
+  const res = await p4exec(ctx, args, { cwd: wt, tolerant: true });
+  if (/No files to submit/i.test(res.stdout + res.stderr)) return { sha: '' };
+  if (res.code !== 0) {
+    throw new Error(`p4 submit failed: ${res.stderr.trim() || res.stdout.trim()}`);
+  }
+  return { sha: /Change (\d+) submitted/.exec(res.stdout)?.[1] ?? '' };
 }
 
 /** Discard local changes for the given paths (revert opened files). */

@@ -92,7 +92,7 @@ export const ptBR = {
   // ---------------------------------------------------------------------------
   // App shell (App.tsx).
   // ---------------------------------------------------------------------------
-  'app.busy.worktreeFailed': 'Falha na configuração do worktree',
+  'app.busy.worktreeFailed': 'Falha na configuração do espaço de trabalho',
   'app.busy.settingUpWorkspace': 'Configurando o workspace…',
   'app.busy.checkingOutBranch': 'Fazendo checkout de {branch}',
   'app.busy.branchingFrom': 'Criando branch {branch} a partir de {baseBranch}',
@@ -987,6 +987,16 @@ export const ptBR = {
   'prefs.repos.wizard.slotCount.title': 'Quantidade de slots',
   'prefs.repos.wizard.slotCount.desc': 'Quantos chats simultâneos este repositório suporta. 1–64.',
   'prefs.repos.wizard.adding': 'Adicionando…',
+  'prefs.repos.wizard.setUp': 'Configurar repositório',
+  'prefs.repos.wizard.settingUp': 'configurando',
+  'prefs.repos.wizard.setup.slotsHead': 'Slots',
+  'prefs.repos.wizard.setup.diskHead': 'Espaço em disco',
+  'prefs.repos.wizard.progress.building': 'Construindo base + slots (aprove o prompt de administrador)…',
+  'prefs.repos.wizard.progress.creating': 'Criando repositório…',
+  'prefs.repos.wizard.progress.initing': 'Inicializando slot {done} de {total}…',
+  'prefs.repos.wizard.progress.done': '{id} está pronto — {count} slots.',
+  'prefs.repos.wizard.progress.failHint':
+    'A configuração foi interrompida. Volte para ajustar e tente novamente — a base congelada permanece no disco e é reutilizada.',
   'prefs.repos.error.duplicateId': 'Já existe um repositório com o id "{id}".',
   'prefs.repos.error.generic': 'Não foi possível criar o repositório.',
   'prefs.repos.error.notFound': 'Repositório não encontrado — foi excluído?',
@@ -1012,7 +1022,7 @@ export const ptBR = {
   'prefs.repos.delete.reversibleBody':
     'se mais tarde você criar um novo repositório com o id {id}, todos os chats desvinculados serão revinculados automaticamente.',
   'prefs.repos.delete.noTouch':
-    'Isto não tocará no clone de origem em {path} nem em nenhuma branch de chat dentro dele. Os worktrees de slot no disco também são deixados intactos — você pode removê-los manualmente se quiser começar do zero.',
+    'Seu repositório original em {path} nunca é tocado — apenas os clones de slot / worktrees do PopBot são removidos. (Os que sobrarem no disco podem ser removidos manualmente para começar do zero.)',
   'prefs.repos.delete.typeToConfirm': 'Digite {id} para confirmar:',
   'prefs.repos.delete.deleting': 'Excluindo…',
 
@@ -1024,4 +1034,62 @@ export const ptBR = {
     'Escolha o idioma que o PopBot usa na interface. A maioria dos textos e os menus são atualizados imediatamente; algumas mensagens do sistema terminam de atualizar após reiniciar.',
   'language.label': 'Idioma de exibição',
   'language.systemNote': 'Novas janelas e o menu do aplicativo também usam este idioma.',
+
+  // Preferences — Repositories: color + Add-Repository wizard (Perforce).
+  'prefs.repos.colorTaken': 'Já usada por outro repositório',
+  'prefs.repos.wizard.step': 'etapa {step}',
+  'prefs.repos.wizard.buildingBase': 'construindo a base',
+  'prefs.repos.wizard.detect.detecting': 'Detectando…',
+  'prefs.repos.wizard.detect.git': 'Repositório Git',
+  'prefs.repos.wizard.detect.perforce': 'Repositório Perforce',
+  'prefs.repos.wizard.detect.invalid': 'Não é um repositório git nem Perforce',
+  'prefs.repos.wizard.detect.alreadyAdded': 'Esta pasta já foi adicionada como repositório',
+  'prefs.repos.wizard.detect.idTaken': 'Esse id curto já está em uso — escolha outro',
+  'prefs.repos.wizard.connect.intro':
+    'Conecte-se ao servidor Perforce. Capturaremos o changelist com o qual sua pasta está sincronizada para que todos os slots façam flush nele (sem retransferência).',
+  'prefs.repos.wizard.connect.port.title': 'P4PORT',
+  'prefs.repos.wizard.connect.port.desc': 'Endereço do servidor, ex.: ssl:host:1666.',
+  'prefs.repos.wizard.connect.user.title': 'P4USER',
+  'prefs.repos.wizard.connect.user.desc':
+    'Seu usuário Perforce. A autenticação usa seu ticket de login p4 existente.',
+  'prefs.repos.wizard.connect.depot.title': 'Caminho do depot',
+  'prefs.repos.wizard.connect.depot.desc': 'O caminho do depot que esta pasta mapeia, ex.: //depot/MyGame.',
+  'prefs.repos.wizard.connect.baseName.title': 'Nome da base',
+  'prefs.repos.wizard.connect.baseName.desc': 'Nome da base congelada do shado. Os slots clonam a partir dela.',
+  'prefs.repos.wizard.connect.discovered':
+    'Estes são os valores que serão usados para configurar este repositório, lidos do seu workspace Perforce ({client}).',
+  'prefs.repos.wizard.connect.changelist': 'Changelist sincronizado',
+  'prefs.repos.wizard.connect.base': 'Nome da base',
+  'prefs.repos.wizard.preflight.intro':
+    'Verificando o espaço em disco. A base é construída a partir da sua pasta (deixada no lugar), então ela precisa de aproximadamente o tamanho da pasta em espaço livre no mesmo drive.',
+  'prefs.repos.wizard.preflight.measuring': 'Medindo a pasta…',
+  'prefs.repos.wizard.preflight.folder': 'Pasta de origem',
+  'prefs.repos.wizard.preflight.free': 'Livre no drive',
+  'prefs.repos.wizard.preflight.needs': 'A base precisa de (≈ +5%)',
+  'prefs.repos.wizard.preflight.ok': 'Espaço livre suficiente — pronto para construir a base.',
+  'prefs.repos.wizard.preflight.block':
+    'Espaço livre insuficiente: {free} disponíveis, a base precisa de {need}. Libere espaço (ou escolha uma pasta em um drive mais espaçoso) e tente novamente.',
+  'prefs.repos.wizard.build.intro':
+    'Construa a base congelada ({gb}) a partir da sua pasta. Isso executa uma operação shado elevada — você verá um prompt de administrador do Windows (UAC). Pode levar vários minutos; o progresso é mostrado ao vivo.',
+  'prefs.repos.wizard.build.baseName': 'Base',
+  'prefs.repos.wizard.build.start': 'Construir base',
+  'prefs.repos.wizard.build.starting': 'Iniciando a construção da base (aprove o prompt de administrador)…',
+  'prefs.repos.wizard.build.done':
+    'Base construída. Se você cancelar agora, a base permanece no disco e pode ser reutilizada.',
+  'prefs.repos.wizard.build.changelist': 'Changelist da base',
+  'prefs.repos.wizard.build.changelistDesc':
+    'O changelist com o qual a base está sincronizada — capturado automaticamente. Substitua apenas se estiver errado.',
+  'prefs.perforce.p4Path.title': 'Executável p4',
+  'prefs.perforce.p4Path.desc': 'Caminho para o binário p4. Deixe em branco para usar “p4” do PATH.',
+  'prefs.perforce.defaultPort.title': 'P4PORT padrão',
+  'prefs.perforce.defaultPort.desc': 'Pré-preenche a etapa Adicionar repositório → conexão Perforce.',
+  'prefs.perforce.defaultUser.title': 'P4USER padrão',
+  'prefs.perforce.defaultUser.desc': 'Pré-preenche a etapa Adicionar repositório → conexão Perforce.',
+  'prefs.perforce.parallelThreads.title': 'Threads de transferência paralela',
+  'prefs.perforce.parallelThreads.desc': 'Threads para sync/submit paralelo do p4. 1 desativa.',
+  'prefs.perforce.revertUnchanged.title': 'Reverter arquivos inalterados',
+  'prefs.perforce.revertUnchanged.desc':
+    'Descarta arquivos byte a byte idênticos de um changelist antes do submit.',
+  'prefs.perforce.revertUnchanged.toggle': 'Reverter arquivos byte a byte idênticos no submit',
+  'prefs.repos.error.duplicatePath': 'Essa pasta já foi adicionada como repositório "{id}".',
 } satisfies PartialMessages;

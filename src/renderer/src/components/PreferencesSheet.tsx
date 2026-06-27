@@ -22,9 +22,12 @@ import {
   type SourceControlSettings,
   type ClaudeReasoningEffort,
   type CodexReasoningEffort,
+  type PerforceSettings,
   type RepoRecord,
   type RepoWorktreeMode,
 } from '@shared/persistence';
+import type { SourceControlProviderId } from '@shared/sourceControl';
+import type { BasePreflightInfo } from '@shared/ipc';
 import { useSettings } from '../lib/useSettings';
 import { ConfigureSlotsPanel } from './ConfigureSlotsPanel';
 import { P4Glyph } from './P4Glyph';
@@ -138,6 +141,10 @@ export function PreferencesSheet({
     SECTIONS.some((s) => s.id === id) ? (id as string) : SECTIONS[0].id;
   const [section, setSection] = useState(() => known(initialSection));
   const { t } = useTranslation();
+  const [version, setVersion] = useState('');
+  useEffect(() => {
+    void window.popbot.app.getVersion().then(setVersion).catch(() => {});
+  }, []);
 
   return (
     <>
@@ -178,7 +185,9 @@ export function PreferencesSheet({
           </div>
         </div>
         <div className="prefs-foot">
-          <span className="prefs-foot-meta">{t('prefs.footMeta')}</span>
+          <span className="prefs-foot-meta">
+            {t('prefs.footMeta')}{version ? ` · v${version}` : ''}
+          </span>
           <span style={{ flex: 1 }} />
           <button className="btn primary" onClick={onClose}>{t('common.done')}</button>
         </div>
@@ -685,7 +694,8 @@ function PrefsGit(): JSX.Element {
   const [maxFiles, setMaxFiles] = useState<number>(
     clampMaxChangedFiles(scInitial.maxChangedFiles ?? MAX_CHANGED_FILES_DEFAULT),
   );
-  const [savedAt, setSavedAt] = useState<number | null>(null);
+  const [savedCap, setSavedCap] = useState(false);
+  const [savedGit, setSavedGit] = useState(false);
 
   // Same sync-on-load fix as PrefsApps / UnityConfig. Without this,
   // useState captures defaults while useSettings is still loading and
@@ -703,24 +713,9 @@ function PrefsGit(): JSX.Element {
       <p className="pref-section-desc">
         {t('prefs.git.desc', { reposLink: t('prefs.git.reposLabel') })}
       </p>
+
+      {/* Shared (git + perforce): the change-view file cap. */}
       <div className="pref-rows">
-        <div className="pref-row">
-          <div className="pref-label">
-            <div className="pref-label-title">{t('prefs.git.branchUsername.title')}</div>
-            <div className="pref-label-desc">
-              {t('prefs.git.branchUsername.desc', { pattern: '<username>/<ticket>-<slug>' })}
-            </div>
-          </div>
-          <div className="pref-control">
-            <input
-              className="pref-input mono"
-              placeholder={t('prefs.git.usernamePlaceholder')}
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              style={{ width: 160 }}
-            />
-          </div>
-        </div>
         <div className="pref-row">
           <div className="pref-label">
             <div className="pref-label-title">{t('prefs.git.maxChangedFiles.title')}</div>
@@ -731,7 +726,7 @@ function PrefsGit(): JSX.Element {
               })}
             </div>
           </div>
-          <div className="pref-control">
+          <div className="pref-control" style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
             <input
               type="number"
               className="pref-input mono"
@@ -748,42 +743,185 @@ function PrefsGit(): JSX.Element {
               }
               style={{ width: 100 }}
             />
-          </div>
-        </div>
-        <div className="pref-row">
-          <div className="pref-label" />
-          <div className="pref-control" style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
             <button
               className="btn primary sm"
               onClick={async () => {
-                // Merge so we only edit the username and preserve any
-                // legacy git fields still used as runtime fallbacks.
-                await set('git', { ...initial, username: username.trim() });
                 const max = clampMaxChangedFiles(maxFiles);
                 setMaxFiles(max);
-                await set('sourceControl', {
-                  ...scInitial,
-                  maxChangedFiles: max,
-                } satisfies SourceControlSettings);
-                setSavedAt(Date.now());
+                await set('sourceControl', { ...scInitial, maxChangedFiles: max } satisfies SourceControlSettings);
+                setSavedCap(true);
               }}
             >
               {t('common.save')}
             </button>
-            {savedAt && <span style={{ color: 'var(--fg-3)', fontSize: 11 }}>{t('common.saved')}</span>}
+            {savedCap && <span style={{ color: 'var(--fg-3)', fontSize: 11 }}>{t('common.saved')}</span>}
           </div>
         </div>
       </div>
 
-      <h3 style={{ marginTop: 28 }}>{t('prefs.git.actionTemplates.title')}</h3>
-      <TemplatesGroup
-        fields={GIT_ACTION_TEMPLATE_FIELDS}
-        intro={
-          <p className="pref-section-desc">
-            {t('prefs.git.actionTemplates.intro', { macro: '${name}' })}
-          </p>
-        }
-      />
+      {/* Git config sub-panel (icon + label header, like Integrations). */}
+      <div className="tracker-config" style={{ marginTop: 16 }}>
+        <div className="tracker-config-head">
+          <i className="fa-solid fa-code-branch" />
+          <span>{t('prefs.repos.scm.git')}</span>
+        </div>
+        <div className="tracker-config-body">
+          <div className="pref-rows">
+            <div className="pref-row">
+              <div className="pref-label">
+                <div className="pref-label-title">{t('prefs.git.branchUsername.title')}</div>
+                <div className="pref-label-desc">
+                  {t('prefs.git.branchUsername.desc', { pattern: '<username>/<ticket>-<slug>' })}
+                </div>
+              </div>
+              <div className="pref-control" style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                <input
+                  className="pref-input mono"
+                  placeholder={t('prefs.git.usernamePlaceholder')}
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  style={{ width: 160 }}
+                />
+                <button
+                  className="btn primary sm"
+                  onClick={async () => {
+                    await set('git', { ...initial, username: username.trim() });
+                    setSavedGit(true);
+                  }}
+                >
+                  {t('common.save')}
+                </button>
+                {savedGit && <span style={{ color: 'var(--fg-3)', fontSize: 11 }}>{t('common.saved')}</span>}
+              </div>
+            </div>
+          </div>
+          <h4 style={{ margin: '16px 0 6px', fontSize: 'var(--fs-sm)' }}>{t('prefs.git.actionTemplates.title')}</h4>
+          <TemplatesGroup
+            fields={GIT_ACTION_TEMPLATE_FIELDS}
+            intro={
+              <p className="pref-section-desc">
+                {t('prefs.git.actionTemplates.intro', { macro: '${name}' })}
+              </p>
+            }
+          />
+        </div>
+      </div>
+
+      {/* Perforce config sub-panel — always shown alongside Git. */}
+      <PerforceConfigPanel />
+    </div>
+  );
+}
+
+/** Perforce connection defaults + transfer/submit options. Always shown in
+ *  Source control beside the Git panel (no enable toggle): a repo's SCM is
+ *  detected per-folder, so both providers' settings are always relevant. The
+ *  defaults pre-fill the Add-Repository → Perforce connect step; the rest are
+ *  read by the p4 provider (parallel sync threads, revert-unchanged on submit). */
+function PerforceConfigPanel(): JSX.Element {
+  const { t } = useTranslation();
+  const { get, set, loading } = useSettings();
+  const initial = get<PerforceSettings>('perforce', {}) ?? {};
+  const [p4Path, setP4Path] = useState(initial.p4Path ?? '');
+  const [defaultPort, setDefaultPort] = useState(initial.defaultPort ?? '');
+  const [defaultUser, setDefaultUser] = useState(initial.defaultUser ?? '');
+  const [parallelThreads, setParallelThreads] = useState<number>(initial.parallelThreads ?? 4);
+  const [revertUnchanged, setRevertUnchanged] = useState<boolean>(initial.revertUnchanged !== false);
+  const [saved, setSaved] = useState(false);
+
+  useEffect(() => { setP4Path(initial.p4Path ?? ''); }, [initial.p4Path]);
+  useEffect(() => { setDefaultPort(initial.defaultPort ?? ''); }, [initial.defaultPort]);
+  useEffect(() => { setDefaultUser(initial.defaultUser ?? ''); }, [initial.defaultUser]);
+  useEffect(() => { setParallelThreads(initial.parallelThreads ?? 4); }, [initial.parallelThreads]);
+  useEffect(() => { setRevertUnchanged(initial.revertUnchanged !== false); }, [initial.revertUnchanged]);
+
+  if (loading) return <></>;
+
+  return (
+    <div className="tracker-config" style={{ marginTop: 16 }}>
+      <div className="tracker-config-head">
+        <P4Glyph style={{ color: 'var(--scm-perforce)' }} />
+        <span>{t('prefs.repos.scm.perforce')}</span>
+      </div>
+      <div className="tracker-config-body">
+        <div className="pref-rows">
+          <div className="pref-row">
+            <div className="pref-label">
+              <div className="pref-label-title">{t('prefs.perforce.p4Path.title')}</div>
+              <div className="pref-label-desc">{t('prefs.perforce.p4Path.desc')}</div>
+            </div>
+            <div className="pref-control">
+              <input className="pref-input mono" placeholder="p4" value={p4Path}
+                     onChange={(e) => setP4Path(e.target.value)} style={{ width: 240 }} />
+            </div>
+          </div>
+          <div className="pref-row">
+            <div className="pref-label">
+              <div className="pref-label-title">{t('prefs.perforce.defaultPort.title')}</div>
+              <div className="pref-label-desc">{t('prefs.perforce.defaultPort.desc')}</div>
+            </div>
+            <div className="pref-control">
+              <input className="pref-input mono" placeholder="ssl:host:1666" value={defaultPort}
+                     onChange={(e) => setDefaultPort(e.target.value)} style={{ width: 240 }} />
+            </div>
+          </div>
+          <div className="pref-row">
+            <div className="pref-label">
+              <div className="pref-label-title">{t('prefs.perforce.defaultUser.title')}</div>
+              <div className="pref-label-desc">{t('prefs.perforce.defaultUser.desc')}</div>
+            </div>
+            <div className="pref-control">
+              <input className="pref-input mono" placeholder="user" value={defaultUser}
+                     onChange={(e) => setDefaultUser(e.target.value)} style={{ width: 240 }} />
+            </div>
+          </div>
+          <div className="pref-row">
+            <div className="pref-label">
+              <div className="pref-label-title">{t('prefs.perforce.parallelThreads.title')}</div>
+              <div className="pref-label-desc">{t('prefs.perforce.parallelThreads.desc')}</div>
+            </div>
+            <div className="pref-control">
+              <input type="number" className="pref-input mono" min={1} max={64} value={parallelThreads}
+                     onChange={(e) => setParallelThreads(Math.max(1, Math.min(64, Number(e.target.value) || 1)))}
+                     style={{ width: 100 }} />
+            </div>
+          </div>
+          <div className="pref-row">
+            <div className="pref-label">
+              <div className="pref-label-title">{t('prefs.perforce.revertUnchanged.title')}</div>
+              <div className="pref-label-desc">{t('prefs.perforce.revertUnchanged.desc')}</div>
+            </div>
+            <div className="pref-control">
+              <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                <input type="checkbox" checked={revertUnchanged} onChange={(e) => setRevertUnchanged(e.target.checked)} />
+                <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--fg-2)' }}>{t('prefs.perforce.revertUnchanged.toggle')}</span>
+              </label>
+            </div>
+          </div>
+          <div className="pref-row">
+            <div className="pref-label" />
+            <div className="pref-control" style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              <button
+                className="btn primary sm"
+                onClick={async () => {
+                  await set('perforce', {
+                    ...initial,
+                    p4Path: p4Path.trim() || undefined,
+                    defaultPort: defaultPort.trim() || undefined,
+                    defaultUser: defaultUser.trim() || undefined,
+                    parallelThreads,
+                    revertUnchanged,
+                  } satisfies PerforceSettings);
+                  setSaved(true);
+                }}
+              >
+                {t('common.save')}
+              </button>
+              {saved && <span style={{ color: 'var(--fg-3)', fontSize: 11 }}>{t('common.saved')}</span>}
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
@@ -2587,6 +2725,19 @@ interface NewRepoDraft {
   slotPrefix: string;
   slotCount: number;
   mode: RepoWorktreeMode;
+  /** Detected source control of repoPath. null = not yet detected / invalid
+   *  folder (the repo step blocks Next until this is git or perforce). */
+  scm: SourceControlProviderId | null;
+  // Perforce connection. Auto-discovered from the workspace when possible
+  // (then shown read-only), else entered manually.
+  p4Port: string;
+  p4User: string;
+  p4Depot: string;
+  baseChangelist: number;
+  /** True once the connection was auto-filled from the folder's P4 client. */
+  p4Discovered: boolean;
+  /** The discovered client name (for the read-only summary). */
+  p4Client: string;
 }
 
 function emptyDraft(): NewRepoDraft {
@@ -2598,6 +2749,13 @@ function emptyDraft(): NewRepoDraft {
     slotPrefix: 'slot',
     slotCount: 4,
     mode: 'slots',
+    scm: null,
+    p4Port: '',
+    p4User: '',
+    p4Depot: '',
+    baseChangelist: 0,
+    p4Discovered: false,
+    p4Client: '',
   };
 }
 
@@ -2607,27 +2765,36 @@ function emptyDraft(): NewRepoDraft {
 function RepoColorSwatches({
   value,
   onChange,
+  usedColors = [],
 }: {
   value: string;
   onChange: (next: string) => void;
+  /** Colors taken by OTHER repos — marked with an × and unselectable so two
+   *  repos can't share an accent (the current selection is always allowed). */
+  usedColors?: string[];
 }): JSX.Element {
   const { t } = useTranslation();
+  const used = new Set(usedColors.map((c) => c.toLowerCase()));
   return (
     <div className="repo-swatches" role="radiogroup" aria-label={t('prefs.repos.colorAria')}>
       {POPBOT_PALETTE.map((c) => {
         const selected = value.toLowerCase() === c.value.toLowerCase();
+        const taken = !selected && used.has(c.value.toLowerCase());
         return (
           <button
             key={c.value}
             type="button"
             role="radio"
             aria-checked={selected}
-            aria-label={c.name}
-            title={c.name}
-            className={`repo-swatch ${selected ? 'selected' : ''}`}
+            aria-disabled={taken}
+            aria-label={taken ? `${c.name} — ${t('prefs.repos.colorTaken')}` : c.name}
+            title={taken ? t('prefs.repos.colorTaken') : c.name}
+            className={`repo-swatch ${selected ? 'selected' : ''} ${taken ? 'taken' : ''}`}
             style={{ background: c.value }}
-            onClick={() => onChange(c.value)}
-          />
+            onClick={() => { if (!taken) onChange(c.value); }}
+          >
+            {taken && <i className="fa-solid fa-xmark" />}
+          </button>
         );
       })}
     </div>
@@ -2675,7 +2842,7 @@ function PrefsRepos({ onReposChanged }: { onReposChanged?: () => void }): JSX.El
               <span className="repo-card-id mono">{r.id}</span>
               <span className={`repo-card-scm scm-${r.scm ?? 'git'}`}>
                 {(r.scm ?? 'git') === 'perforce' ? (
-                  <><P4Glyph style={{ color: '#4c00ff' }} /> {t('prefs.repos.scm.perforce')}</>
+                  <><P4Glyph /> {t('prefs.repos.scm.perforce')}</>
                 ) : (
                   <><i className="fa-solid fa-code-branch" /> {t('prefs.repos.scm.git')}</>
                 )}
@@ -2694,14 +2861,9 @@ function PrefsRepos({ onReposChanged }: { onReposChanged?: () => void }): JSX.El
                 <span className="repo-card-label">{t('prefs.repos.card.path')}</span>
                 <span className="mono">{r.repoPath}</span>
               </div>
-              {(r.scm ?? 'git') === 'perforce' ? (
-                // Perforce has no default branch — keep the row's height so
-                // the card doesn't resize.
-                <div className="repo-card-row" aria-hidden>
-                  <span className="repo-card-label">&nbsp;</span>
-                  <span className="mono">&nbsp;</span>
-                </div>
-              ) : (
+              {/* Perforce has no default branch — it just shows Path + Slot
+                  prefix, so its card matches the height of a 2-row git card. */}
+              {(r.scm ?? 'git') !== 'perforce' && (
                 <div className="repo-card-row">
                   <span className="repo-card-label">{t('prefs.repos.card.defaultBase')}</span>
                   <span className="mono">{r.defaultBase}</span>
@@ -2718,7 +2880,16 @@ function PrefsRepos({ onReposChanged }: { onReposChanged?: () => void }): JSX.El
         ))}
       </div>
       <div style={{ marginTop: 16 }}>
-        <button className="btn primary" onClick={() => setNewRepo(emptyDraft())}>
+        <button
+          className="btn primary"
+          onClick={() => {
+            // Open on the first color no other repo is using, so the default
+            // isn't a taken (and thus unselectable) swatch.
+            const used = new Set(repos.map((r) => r.color.toLowerCase()));
+            const free = POPBOT_PALETTE.find((c) => !used.has(c.value.toLowerCase()))?.value;
+            setNewRepo({ ...emptyDraft(), color: free ?? DEFAULT_REPO_COLOR });
+          }}
+        >
           <i className="fa-solid fa-plus" />&nbsp;{t('prefs.repos.addRepository')}
         </button>
       </div>
@@ -2727,6 +2898,9 @@ function PrefsRepos({ onReposChanged }: { onReposChanged?: () => void }): JSX.El
         <NewRepoWizard
           draft={newRepo}
           onChange={setNewRepo}
+          existingIds={repos.map((r) => r.id)}
+          existingPaths={repos.map((r) => r.repoPath)}
+          existingColors={repos.map((r) => r.color)}
           onCancel={() => setNewRepo(null)}
           onCreated={async () => {
             setNewRepo(null);
@@ -2737,6 +2911,7 @@ function PrefsRepos({ onReposChanged }: { onReposChanged?: () => void }): JSX.El
       {editing && (
         <EditRepoModal
           repo={editing}
+          usedColors={repos.filter((r) => r.id !== editing.id).map((r) => r.color)}
           onCancel={() => setEditing(null)}
           onSaved={async () => {
             setEditing(null);
@@ -2758,13 +2933,11 @@ function PrefsRepos({ onReposChanged }: { onReposChanged?: () => void }): JSX.El
   );
 }
 
-/** Linear, three-step wizard:
- *   1. Choose mode (with a clear explanation of the trade-off)
- *   2. Identity (id, path, color, default base)
- *   3. Slot config (slot prefix + count) — skipped for ephemeral mode
- *
- * Mode is set in step 1 and can't be revisited later because the rest
- * of the wizard depends on it (step 3 only renders for slots). */
+/** Add-Repository wizard. Folder FIRST: pick a folder, detect its SCM, then
+ *  branch. Git → choose slots/ephemeral → (slots) prefix+count → init. Perforce
+ *  is always slot mode → connect → disk preflight → build the frozen base →
+ *  prefix+count → init. The step list is computed from the draft, so the header
+ *  shows just "Step N". */
 /** Derive a sensible default repo id + slot prefix from a repo path —
  *  basename, lowercased, trailing `.git` stripped, non-alnum→dash.
  *  Handles both POSIX (`/`) and Windows (`\`) separators.
@@ -2776,82 +2949,366 @@ function deriveRepoId(path: string): string {
   return basename.toLowerCase().replace(/\.git$/, '').replace(/[^a-z0-9-]+/g, '-').replace(/^-+|-+$/g, '');
 }
 
+/** Perforce setup, orchestrated on ONE progress screen: build the base + all
+ *  slot clones (a single elevated UAC), create the repo record, then init each
+ *  slot's p4 client (the clones already exist, so this is unprivileged). Streams
+ *  live progress; on any failure it stops and offers a back-out. */
+function SlotSetupProgress({
+  draft,
+  sizeGb,
+  onDone,
+  onBack,
+}: {
+  draft: NewRepoDraft;
+  sizeGb: number;
+  onDone: () => void;
+  onBack: () => void;
+}): JSX.Element {
+  const { t } = useTranslation();
+  const isP4 = draft.scm === 'perforce';
+  const [phase, setPhase] = useState<'building' | 'creating' | 'initing' | 'done' | 'error'>('building');
+  const [progress, setProgress] = useState('');
+  const [slotDone, setSlotDone] = useState(0);
+  const [error, setError] = useState<string | null>(null);
+  const ran = useRef(false);
+
+  useEffect(() => window.popbot.repos.onBaseProgress((m) => setProgress(m)), []);
+
+  useEffect(() => {
+    if (ran.current) return; // run the orchestration exactly once
+    ran.current = true;
+    const id = draft.id.trim().toLowerCase();
+    void (async () => {
+      try {
+        // 1. Elevated: freeze the base + mount every slot clone (one UAC).
+        const built = await window.popbot.repos.buildBase({
+          repoPath: draft.repoPath.trim(),
+          repoId: id,
+          baseName: id,
+          sizeGb,
+          // p4 connection drives the changelist capture — empty for git.
+          port: isP4 ? draft.p4Port.trim() : '',
+          user: isP4 ? draft.p4User.trim() : '',
+          depotPath: isP4 ? draft.p4Depot.trim() : '',
+          baseChangelist: isP4 ? draft.baseChangelist : 0,
+          slotPrefix: draft.slotPrefix.trim(),
+          slotCount: draft.slotCount,
+        });
+        if (!built.ok) {
+          setError(built.error);
+          setPhase('error');
+          return;
+        }
+        // 2. Create the repo record (with the captured base changelist).
+        setProgress('');
+        setPhase('creating');
+        const created = await window.popbot.repos.create({
+          id,
+          repoPath: draft.repoPath.trim(),
+          color: draft.color,
+          slotPrefix: draft.slotPrefix.trim(),
+          defaultBase: isP4 ? '' : draft.defaultBase.trim(),
+          slotCount: draft.slotCount,
+          mode: 'slots',
+          scm: draft.scm ?? 'git',
+          p4: isP4
+            ? {
+                port: draft.p4Port.trim(),
+                user: draft.p4User.trim(),
+                depotPath: draft.p4Depot.trim(),
+                shadoBase: id,
+                baseChangelist: built.baseChangelist,
+              }
+            : undefined,
+        });
+        if (!created.ok) {
+          setError(
+            created.reason === 'duplicate-id'
+              ? t('prefs.repos.error.duplicateId', { id })
+              : created.reason === 'duplicate-path'
+                ? t('prefs.repos.error.duplicatePath', { id: created.existingId })
+                : created.reason === 'invalid' ? created.message : t('prefs.repos.error.generic'),
+          );
+          setPhase('error');
+          return;
+        }
+        // 3. Init each slot's p4 client (clones exist → unprivileged).
+        setPhase('initing');
+        for (let k = 1; k <= draft.slotCount; k += 1) {
+          const r = await window.popbot.repos.initializeOneSlot(id, k);
+          if (!('ok' in r) || !r.ok) {
+            setError('error' in r ? r.error : t('prefs.repos.error.generic'));
+            setPhase('error');
+            return;
+          }
+          setSlotDone(k);
+        }
+        setPhase('done');
+      } catch (err) {
+        setError((err as Error).message);
+        setPhase('error');
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  return (
+    <>
+      <div className="modal-body">
+        {phase === 'building' && (
+          <p className="pref-progress"><i className="fa-solid fa-spinner fa-spin" /> {progress || t('prefs.repos.wizard.progress.building')}</p>
+        )}
+        {phase === 'creating' && (
+          <p className="pref-progress"><i className="fa-solid fa-spinner fa-spin" /> {t('prefs.repos.wizard.progress.creating')}</p>
+        )}
+        {phase === 'initing' && (
+          <p className="pref-progress"><i className="fa-solid fa-spinner fa-spin" /> {t('prefs.repos.wizard.progress.initing', { done: slotDone, total: draft.slotCount })}</p>
+        )}
+        {phase === 'done' && (
+          <div className="pref-ok"><i className="fa-solid fa-circle-check" /> {t('prefs.repos.wizard.progress.done', { id: draft.id, count: draft.slotCount })}</div>
+        )}
+        {phase === 'error' && error && (
+          <>
+            <div className="pref-error">{error}</div>
+            <p className="pref-section-desc" style={{ marginTop: 10 }}>{t('prefs.repos.wizard.progress.failHint')}</p>
+          </>
+        )}
+      </div>
+      <div className="modal-foot">
+        <button className="btn" onClick={onBack} disabled={phase !== 'error'}>{t('common.back')}</button>
+        <span style={{ flex: 1 }} />
+        <button className="btn primary" onClick={onDone} disabled={phase !== 'done'}>{t('common.done')}</button>
+      </div>
+    </>
+  );
+}
+
+type WizardStep = 'repo' | 'mode' | 'setup' | 'progress' | 'slots' | 'init';
+
+/** Bytes → a compact "12.3 GB" / "812 MB" string for the disk preflight. */
+function fmtBytes(n: number): string {
+  if (n >= 1024 ** 3) return `${(n / 1024 ** 3).toFixed(1)} GB`;
+  if (n >= 1024 ** 2) return `${Math.round(n / 1024 ** 2)} MB`;
+  return `${Math.round(n / 1024)} KB`;
+}
+
 function NewRepoWizard({
   draft,
   onChange,
   onCancel,
   onCreated,
+  existingIds,
+  existingPaths,
+  existingColors,
 }: {
   draft: NewRepoDraft;
   onChange: (d: NewRepoDraft) => void;
   onCancel: () => void;
   onCreated: () => void;
+  existingIds: string[];
+  existingPaths: string[];
+  existingColors: string[];
 }): JSX.Element {
   const { t } = useTranslation();
-  // Steps: 1 mode → 2 identity → 3 slot config → 4 initialize slots.
-  // Step 3 + step 4 are skipped for ephemeral repos (no slots).
-  const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
+  const { get } = useSettings();
+  const [step, setStep] = useState<WizardStep>('repo');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  // Created repo record — populated when the user completes step 3
-  // (or step 2 for ephemeral). Drives step 4's ConfigureSlotsPanel.
+  // Created repo record — populated once create() succeeds. Drives the SHARED
+  // 'init' step (ConfigureSlotsPanel), used identically by git + perforce slots.
   const [createdRepo, setCreatedRepo] = useState<RepoRecord | null>(null);
-  // Track whether the user has explicitly typed in id / slot prefix
-  // so we only auto-fill them from the path when they're still
-  // untouched. Once edited, the user's choice wins permanently.
+  // Only auto-fill id / prefix / base name from the path while untouched.
   const [idTouched, setIdTouched] = useState(false);
   const [prefixTouched, setPrefixTouched] = useState(false);
+  // Folder SCM detection (repo step).
+  const [detecting, setDetecting] = useState(false);
+  const detectSeq = useRef(0);
+  // Perforce base-build sub-flow + live progress for the long operations.
+  const [preflight, setPreflight] = useState<BasePreflightInfo | null>(null);
+  const [preflighting, setPreflighting] = useState(false);
+  const [progress, setProgress] = useState<string>('');
+
+  const isP4 = draft.scm === 'perforce';
+  // Lock the modal-dismiss while a long, side-effecting op is mid-flight so a
+  // stray scrim click can't abandon a running measure.
+  const locked = busy || preflighting;
+
+  // Uniqueness guards (also enforced server-side on create). Surface them on
+  // the repo step so the user can't get all the way to submit before failing.
+  const normPath = (p: string): string =>
+    p.trim().replace(/[\\/]+$/, '').replace(/\\/g, '/').toLowerCase();
+  const alreadyAdded =
+    draft.repoPath.trim().length > 0 &&
+    existingPaths.some((p) => normPath(p) === normPath(draft.repoPath));
+  const idTaken =
+    draft.id.trim().length > 0 &&
+    existingIds.some((id) => id.toLowerCase() === draft.id.trim().toLowerCase());
+
+  // Live progress lines from the main process (measure + build).
+  useEffect(() => window.popbot.repos.onBaseProgress((m) => setProgress(m)), []);
+
+  // Slot mode (git OR perforce) is two screens: 'setup' (connection [p4] +
+  // slots + disk check) then 'progress' (build base+clones + create + slot
+  // init, with back-out). Git ephemeral stays the instant one-step create.
+  const sequence: WizardStep[] = isP4
+    ? ['repo', 'setup', 'progress']
+    : draft.mode === 'slots'
+      ? ['repo', 'mode', 'setup', 'progress']
+      : ['repo', 'mode'];
+  const stepNum = sequence.indexOf(step) + 1;
+  // The last config step — its primary button kicks off creation. The 'setup'
+  // step hands off to the orchestrated 'progress' screen; git ephemeral
+  // creates directly from 'mode'.
+  const lastConfig: WizardStep = !isP4 && draft.mode === 'ephemeral' ? 'mode' : 'setup';
 
   const onPathChange = (newPath: string): void => {
-    const next: NewRepoDraft = { ...draft, repoPath: newPath };
     const derived = deriveRepoId(newPath);
+    const next: NewRepoDraft = {
+      ...draft,
+      repoPath: newPath,
+      scm: null,
+      p4Discovered: false,
+      p4Client: '',
+    };
     if (derived) {
       if (!idTouched) next.id = derived;
-      // Default the slot prefix to the derived repo id so worktrees
-      // land at `<repoid>-N` (e.g. `ops-4`). Earlier this had a
-      // length-≤8 cutoff that silently fell back to literal `slot` for
-      // longer ids, which was confusing — the user can still shorten
-      // it manually in step 3 if they want.
       if (!prefixTouched) next.slotPrefix = derived;
     }
     onChange(next);
+    if (!newPath.trim()) {
+      setDetecting(false);
+      return;
+    }
+    const seq = ++detectSeq.current;
+    setDetecting(true);
+    void (async () => {
+      try {
+        const scm = await window.popbot.repos.detectScm(newPath.trim());
+        if (seq !== detectSeq.current) return; // a newer path won
+        let upd: NewRepoDraft = { ...next, scm };
+        if (scm === 'perforce') {
+          // Auto-fill the connection from the folder's P4 client workspace —
+          // we already know the port/user/depot/changelist, so don't ask.
+          const info = await window.popbot.repos.detectP4Workspace(newPath.trim());
+          if (seq !== detectSeq.current) return;
+          if (info) {
+            upd = {
+              ...upd,
+              p4Port: info.port,
+              p4User: info.user,
+              p4Depot: info.depotPath,
+              baseChangelist: info.baseChangelist,
+              p4Discovered: true,
+              p4Client: info.client,
+            };
+          } else {
+            // No mapping client — manual entry, prefilled from saved defaults.
+            const p4s = get<PerforceSettings>('perforce', {}) ?? {};
+            upd = {
+              ...upd,
+              p4Port: upd.p4Port || p4s.defaultPort || '',
+              p4User: upd.p4User || p4s.defaultUser || '',
+            };
+          }
+        }
+        onChange(upd);
+      } catch {
+        if (seq === detectSeq.current) onChange({ ...next, scm: null });
+      } finally {
+        if (seq === detectSeq.current) setDetecting(false);
+      }
+    })();
   };
 
-  const isEphemeral = draft.mode === 'ephemeral';
-  // Ephemeral repos don't have a slot-init step, so the wizard ends at
-  // step 2. Slot repos go all the way through step 4 (init progress).
-  const lastStep: 1 | 2 | 3 | 4 = isEphemeral ? 2 : 4;
+  // Run the disk preflight when the user reaches the setup step (re-runs on retry).
+  useEffect(() => {
+    if (step !== 'setup') return;
+    let cancelled = false;
+    setPreflight(null);
+    setPreflighting(true);
+    setProgress('');
+    setError(null);
+    void window.popbot.repos
+      .basePreflight(draft.repoPath.trim())
+      .then((pf) => {
+        if (!cancelled) setPreflight(pf);
+      })
+      .catch((err) => {
+        if (!cancelled) setError((err as Error).message);
+      })
+      .finally(() => {
+        if (!cancelled) setPreflighting(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step]);
+
   const canAdvance =
-    step === 1 ? !!draft.mode :
-    step === 2 ? draft.id.trim().length > 0 && draft.repoPath.trim().length > 0 && draft.defaultBase.trim().length > 0 :
-    /* step 3 */ draft.slotPrefix.trim().length > 0 && draft.slotCount >= 1;
+    step === 'repo'
+      ? !detecting &&
+        !alreadyAdded &&
+        !idTaken &&
+        draft.id.trim().length > 0 &&
+        draft.repoPath.trim().length > 0 &&
+        draft.scm != null &&
+        (isP4 || draft.defaultBase.trim().length > 0)
+      : step === 'mode'
+        ? !!draft.mode
+        : step === 'setup'
+          ? preflight?.ok === true &&
+            draft.slotPrefix.trim().length > 0 &&
+            draft.slotCount >= 1 &&
+            (!isP4 ||
+              draft.p4Discovered ||
+              (draft.p4Port.trim().length > 0 &&
+                draft.p4User.trim().length > 0 &&
+                draft.p4Depot.trim().length > 0))
+          : step === 'slots'
+            ? draft.slotPrefix.trim().length > 0 && draft.slotCount >= 1
+            : true;
 
   const submit = async (): Promise<void> => {
     setBusy(true);
     setError(null);
     try {
+      const ephemeral = !isP4 && draft.mode === 'ephemeral';
       const res = await window.popbot.repos.create({
         id: draft.id.trim().toLowerCase(),
         repoPath: draft.repoPath.trim(),
         color: draft.color,
-        slotPrefix: isEphemeral ? 'slot' : draft.slotPrefix.trim(),
-        defaultBase: draft.defaultBase.trim(),
-        slotCount: isEphemeral ? 1 : draft.slotCount,
-        mode: draft.mode,
+        slotPrefix: ephemeral ? 'slot' : draft.slotPrefix.trim(),
+        defaultBase: isP4 ? '' : draft.defaultBase.trim(),
+        slotCount: ephemeral ? 1 : draft.slotCount,
+        mode: isP4 ? 'slots' : draft.mode,
+        scm: draft.scm ?? 'git',
+        p4: isP4
+          ? {
+              port: draft.p4Port.trim(),
+              user: draft.p4User.trim(),
+              depotPath: draft.p4Depot.trim(),
+              shadoBase: draft.id.trim().toLowerCase(),
+              baseChangelist: draft.baseChangelist,
+            }
+          : undefined,
       });
       if (!res.ok) {
-        setError(res.reason === 'duplicate-id'
-          ? t('prefs.repos.error.duplicateId', { id: draft.id.trim() })
-          : res.reason === 'invalid' ? res.message : t('prefs.repos.error.generic'));
+        setError(
+          res.reason === 'duplicate-id'
+            ? t('prefs.repos.error.duplicateId', { id: draft.id.trim() })
+            : res.reason === 'duplicate-path'
+              ? t('prefs.repos.error.duplicatePath', { id: res.existingId })
+              : res.reason === 'invalid' ? res.message : t('prefs.repos.error.generic'),
+        );
         return;
       }
-      // Slot repo → advance to step 4 to run the slot init flow.
-      // Ephemeral repo → there's no slot init, so close the wizard.
-      if (isEphemeral) {
+      // Both git-slots and perforce run the shared slot-init step next.
+      if (ephemeral) {
         onCreated();
       } else {
         setCreatedRepo(res.repo);
-        setStep(4);
+        setStep('init');
       }
     } catch (err) {
       setError((err as Error).message);
@@ -2860,56 +3317,52 @@ function NewRepoWizard({
     }
   };
 
+  const goNext = (): void => {
+    if (step === lastConfig) {
+      if (step === 'setup') {
+        // Git-slots + perforce hand off to the orchestrated progress screen.
+        setError(null);
+        setStep('progress');
+        return;
+      }
+      void submit(); // git ephemeral creates directly from 'mode'
+      return;
+    }
+    const i = sequence.indexOf(step);
+    if (i >= 0 && i < sequence.length - 1) {
+      setError(null);
+      setStep(sequence[i + 1]);
+    }
+  };
+  const goBack = (): void => {
+    const i = sequence.indexOf(step);
+    if (i > 0) {
+      setError(null);
+      setStep(sequence[i - 1]);
+    }
+  };
+
   return (
-    <div className="modal-scrim" onClick={onCancel}>
-      <div className="modal" onClick={(e) => e.stopPropagation()} style={{ width: 540, maxWidth: "92vw" }}>
+    <div className="modal-scrim" onClick={locked ? undefined : onCancel}>
+      <div className="modal" onClick={(e) => e.stopPropagation()} style={{ width: 540, maxWidth: '92vw' }}>
         <div className="modal-head">
           <h3>
             {t('prefs.repos.wizard.title')}
             <span className="modal-step">
-              {step === 4
+              {step === 'init'
                 ? t('prefs.repos.wizard.initializingSlots')
-                : t('prefs.repos.wizard.stepOf', { step, total: lastStep })}
+                : step === 'progress'
+                  ? t('prefs.repos.wizard.settingUp')
+                  : t('prefs.repos.wizard.step', { step: stepNum })}
             </span>
           </h3>
-          <button className="iconbtn" onClick={onCancel} title={t('common.cancel')}>
+          <button className="iconbtn" onClick={onCancel} disabled={locked} title={t('common.cancel')}>
             <i className="fa-solid fa-xmark" />
           </button>
         </div>
 
-        {step === 1 && (
-          <div className="modal-body">
-            <p className="pref-section-desc">
-              {t('prefs.repos.wizard.modeIntro')}
-            </p>
-            <label className={`mode-card ${draft.mode === 'slots' ? 'selected' : ''}`}
-                   onClick={() => onChange({ ...draft, mode: 'slots' })}>
-              <div className="mode-card-head">
-                <i className="fa-solid fa-layer-group mode-card-icon slots" />
-                <strong>{t('prefs.repos.wizard.mode.slots.title')}</strong>
-                <span className="mode-card-pill">{t('prefs.repos.wizard.mode.slots.pill')}</span>
-              </div>
-              <p className="mode-card-lead">{t('prefs.repos.wizard.mode.slots.lead')}</p>
-              <p className="mode-card-desc">
-                {t('prefs.repos.wizard.mode.slots.desc')}
-              </p>
-            </label>
-            <label className={`mode-card ${draft.mode === 'ephemeral' ? 'selected' : ''}`}
-                   onClick={() => onChange({ ...draft, mode: 'ephemeral' })}>
-              <div className="mode-card-head">
-                <i className="fa-solid fa-wind mode-card-icon ephemeral" />
-                <strong>{t('prefs.repos.wizard.mode.ephemeral.title')}</strong>
-                <span className="mode-card-pill">{t('prefs.repos.wizard.mode.ephemeral.pill')}</span>
-              </div>
-              <p className="mode-card-lead">{t('prefs.repos.wizard.mode.ephemeral.lead')}</p>
-              <p className="mode-card-desc">
-                {t('prefs.repos.wizard.mode.ephemeral.desc')}
-              </p>
-            </label>
-          </div>
-        )}
-
-        {step === 2 && (
+        {/* Repository: folder → detect → identity (shared by git + perforce) */}
+        {step === 'repo' && (
           <div className="modal-body">
             <div className="pref-row">
               <div className="pref-label">
@@ -2935,10 +3388,30 @@ function NewRepoWizard({
                 </button>
               </div>
             </div>
+            {/* Reserved, fixed-height detection status under the folder box. */}
+            <div className="repo-detect">
+              {detecting ? (
+                <span className="repo-detect-busy"><i className="fa-solid fa-spinner fa-spin" /> {t('prefs.repos.wizard.detect.detecting')}</span>
+              ) : alreadyAdded ? (
+                <span className="repo-detect-bad"><i className="fa-solid fa-triangle-exclamation" /> {t('prefs.repos.wizard.detect.alreadyAdded')}</span>
+              ) : draft.scm === 'git' ? (
+                <span className="repo-detect-git"><i className="fa-solid fa-code-branch" /> {t('prefs.repos.wizard.detect.git')}</span>
+              ) : draft.scm === 'perforce' ? (
+                <span className="repo-detect-perforce"><P4Glyph /> {t('prefs.repos.wizard.detect.perforce')}</span>
+              ) : draft.repoPath.trim() ? (
+                <span className="repo-detect-bad"><i className="fa-solid fa-triangle-exclamation" /> {t('prefs.repos.wizard.detect.invalid')}</span>
+              ) : (
+                <span>&nbsp;</span>
+              )}
+            </div>
             <div className="pref-row">
               <div className="pref-label">
                 <div className="pref-label-title">{t('prefs.repos.wizard.shortId.title')}</div>
-                <div className="pref-label-desc">{t('prefs.repos.wizard.shortId.desc')}</div>
+                <div className="pref-label-desc">
+                  {idTaken
+                    ? <span className="repo-detect-bad">{t('prefs.repos.wizard.detect.idTaken')}</span>
+                    : t('prefs.repos.wizard.shortId.desc')}
+                </div>
               </div>
               <div className="pref-control">
                 <input className="pref-input mono narrow" placeholder={t('prefs.repos.wizard.shortId.placeholder')} value={draft.id}
@@ -2946,51 +3419,170 @@ function NewRepoWizard({
                        style={{ width: 200 }} />
               </div>
             </div>
-            <div className="pref-row">
-              <div className="pref-label">
-                <div className="pref-label-title">{t('prefs.repos.wizard.defaultBase.title')}</div>
-                <div className="pref-label-desc">{t('prefs.repos.wizard.defaultBase.desc')}</div>
+            {/* Default base is git-only — perforce has no branch model. */}
+            {draft.scm === 'git' && (
+              <div className="pref-row">
+                <div className="pref-label">
+                  <div className="pref-label-title">{t('prefs.repos.wizard.defaultBase.title')}</div>
+                  <div className="pref-label-desc">{t('prefs.repos.wizard.defaultBase.desc')}</div>
+                </div>
+                <div className="pref-control">
+                  <input className="pref-input mono narrow" value={draft.defaultBase}
+                         onChange={(e) => onChange({ ...draft, defaultBase: e.target.value })} style={{ width: 200 }} />
+                </div>
               </div>
-              <div className="pref-control">
-                <input className="pref-input mono narrow" value={draft.defaultBase}
-                       onChange={(e) => onChange({ ...draft, defaultBase: e.target.value })} style={{ width: 200 }} />
-              </div>
-            </div>
+            )}
             <div className="pref-row">
               <div className="pref-label">
                 <div className="pref-label-title">{t('prefs.repos.wizard.color.title')}</div>
                 <div className="pref-label-desc">{t('prefs.repos.wizard.color.desc')}</div>
               </div>
               <div className="pref-control">
-                <RepoColorSwatches
-                  value={draft.color}
-                  onChange={(next) => onChange({ ...draft, color: next })}
-                />
+                <RepoColorSwatches value={draft.color} usedColors={existingColors} onChange={(next) => onChange({ ...draft, color: next })} />
               </div>
             </div>
           </div>
         )}
 
-        {step === 4 && createdRepo && (
+        {/* Mode: git only (perforce is always slot mode → no mode step). */}
+        {step === 'mode' && (
           <div className="modal-body">
-            <p className="pref-section-desc" style={{ marginTop: 0 }}>
-              {t(
-                createdRepo.slotCount === 1
-                  ? 'prefs.repos.wizard.createdOne'
-                  : 'prefs.repos.wizard.created',
-                { id: createdRepo.id, count: createdRepo.slotCount },
-              )}
-            </p>
-            <ConfigureSlotsPanel
-              repo={createdRepo}
-              currentCount={0}
-              targetCount={createdRepo.slotCount}
-              onDone={onCreated}
-            />
+            <p className="pref-section-desc">{t('prefs.repos.wizard.modeIntro')}</p>
+            <label className={`mode-card ${draft.mode === 'slots' ? 'selected' : ''}`}
+                   onClick={() => onChange({ ...draft, mode: 'slots' })}>
+              <div className="mode-card-head">
+                <i className="fa-solid fa-layer-group mode-card-icon slots" />
+                <strong>{t('prefs.repos.wizard.mode.slots.title')}</strong>
+                <span className="mode-card-pill">{t('prefs.repos.wizard.mode.slots.pill')}</span>
+              </div>
+              <p className="mode-card-lead">{t('prefs.repos.wizard.mode.slots.lead')}</p>
+              <p className="mode-card-desc">{t('prefs.repos.wizard.mode.slots.desc')}</p>
+            </label>
+            <label className={`mode-card ${draft.mode === 'ephemeral' ? 'selected' : ''}`}
+                   onClick={() => onChange({ ...draft, mode: 'ephemeral' })}>
+              <div className="mode-card-head">
+                <i className="fa-solid fa-wind mode-card-icon ephemeral" />
+                <strong>{t('prefs.repos.wizard.mode.ephemeral.title')}</strong>
+                <span className="mode-card-pill">{t('prefs.repos.wizard.mode.ephemeral.pill')}</span>
+              </div>
+              <p className="mode-card-lead">{t('prefs.repos.wizard.mode.ephemeral.lead')}</p>
+              <p className="mode-card-desc">{t('prefs.repos.wizard.mode.ephemeral.desc')}</p>
+            </label>
           </div>
         )}
 
-        {step === 3 && !isEphemeral && (
+        {/* Perforce: connection + base name. */}
+        {/* Perforce: ONE setup screen — connection (read-only if discovered),
+            slot config, and the disk preflight together. */}
+        {step === 'setup' && (
+          <div className="modal-body">
+            {!isP4 ? (
+              <p className="pref-section-desc">{t('prefs.repos.wizard.setup.gitIntro')}</p>
+            ) : draft.p4Discovered ? (
+              <>
+                <p className="pref-section-desc">
+                  {t('prefs.repos.wizard.connect.discovered', { client: draft.p4Client })}
+                </p>
+                <div className="pref-rows" style={{ marginTop: 12 }}>
+                  <div className="repo-card-row"><span className="repo-card-label">{t('prefs.repos.wizard.connect.port.title')}</span><span className="mono">{draft.p4Port}</span></div>
+                  <div className="repo-card-row"><span className="repo-card-label">{t('prefs.repos.wizard.connect.user.title')}</span><span className="mono">{draft.p4User}</span></div>
+                  <div className="repo-card-row"><span className="repo-card-label">{t('prefs.repos.wizard.connect.depot.title')}</span><span className="mono">{draft.p4Depot}</span></div>
+                  <div className="repo-card-row"><span className="repo-card-label">{t('prefs.repos.wizard.connect.changelist')}</span><span className="mono">{draft.baseChangelist || '—'}</span></div>
+                </div>
+              </>
+            ) : (
+              <>
+                <p className="pref-section-desc">{t('prefs.repos.wizard.connect.intro')}</p>
+                <div className="pref-row">
+                  <div className="pref-label">
+                    <div className="pref-label-title">{t('prefs.repos.wizard.connect.port.title')}</div>
+                    <div className="pref-label-desc">{t('prefs.repos.wizard.connect.port.desc')}</div>
+                  </div>
+                  <div className="pref-control">
+                    <input className="pref-input mono narrow" placeholder="ssl:host:1666" value={draft.p4Port}
+                           onChange={(e) => onChange({ ...draft, p4Port: e.target.value })} style={{ width: 240 }} />
+                  </div>
+                </div>
+                <div className="pref-row">
+                  <div className="pref-label">
+                    <div className="pref-label-title">{t('prefs.repos.wizard.connect.user.title')}</div>
+                    <div className="pref-label-desc">{t('prefs.repos.wizard.connect.user.desc')}</div>
+                  </div>
+                  <div className="pref-control">
+                    <input className="pref-input mono narrow" placeholder="user" value={draft.p4User}
+                           onChange={(e) => onChange({ ...draft, p4User: e.target.value })} style={{ width: 240 }} />
+                  </div>
+                </div>
+                <div className="pref-row">
+                  <div className="pref-label">
+                    <div className="pref-label-title">{t('prefs.repos.wizard.connect.depot.title')}</div>
+                    <div className="pref-label-desc">{t('prefs.repos.wizard.connect.depot.desc')}</div>
+                  </div>
+                  <div className="pref-control">
+                    <input className="pref-input mono narrow" placeholder="//depot/MyGame" value={draft.p4Depot}
+                           onChange={(e) => onChange({ ...draft, p4Depot: e.target.value })} style={{ width: 240 }} />
+                  </div>
+                </div>
+              </>
+            )}
+
+            <h4 style={{ margin: '18px 0 6px', fontSize: 'var(--fs-sm)' }}>{t('prefs.repos.wizard.setup.slotsHead')}</h4>
+            <div className="pref-row">
+              <div className="pref-label">
+                <div className="pref-label-title">{t('prefs.repos.wizard.slotPrefix.title')}</div>
+                <div className="pref-label-desc">{t('prefs.repos.wizard.slotPrefix.desc', { prefix: `${draft.slotPrefix}-N` })}</div>
+              </div>
+              <div className="pref-control">
+                <input className="pref-input mono narrow" value={draft.slotPrefix}
+                       onChange={(e) => { setPrefixTouched(true); onChange({ ...draft, slotPrefix: e.target.value }); }}
+                       style={{ width: 160 }} />
+              </div>
+            </div>
+            <div className="pref-row">
+              <div className="pref-label">
+                <div className="pref-label-title">{t('prefs.repos.wizard.slotCount.title')}</div>
+                <div className="pref-label-desc">{t('prefs.repos.wizard.slotCount.desc')}</div>
+              </div>
+              <div className="pref-control">
+                <input className="pref-input mono narrow" type="number" min={1} max={64} value={draft.slotCount}
+                       onChange={(e) => onChange({ ...draft, slotCount: Math.max(1, Math.min(64, Number(e.target.value) || 1)) })}
+                       style={{ width: 80 }} />
+              </div>
+            </div>
+
+            <h4 style={{ margin: '18px 0 6px', fontSize: 'var(--fs-sm)' }}>{t('prefs.repos.wizard.setup.diskHead')}</h4>
+            {preflighting ? (
+              <p className="pref-progress"><i className="fa-solid fa-spinner fa-spin" /> {progress || t('prefs.repos.wizard.preflight.measuring')}</p>
+            ) : preflight ? (
+              <>
+                <div className="pref-rows">
+                  <div className="repo-card-row"><span className="repo-card-label">{t('prefs.repos.wizard.preflight.folder')}</span><span className="mono">{fmtBytes(preflight.folderBytes)} · {preflight.fileCount.toLocaleString()} files</span></div>
+                  <div className="repo-card-row"><span className="repo-card-label">{t('prefs.repos.wizard.preflight.free')}</span><span className="mono">{fmtBytes(preflight.freeBytes)}</span></div>
+                  <div className="repo-card-row"><span className="repo-card-label">{t('prefs.repos.wizard.preflight.needs')}</span><span className="mono">{fmtBytes(preflight.neededBytes)}</span></div>
+                </div>
+                {preflight.ok ? (
+                  <div className="pref-ok"><i className="fa-solid fa-circle-check" /> {t('prefs.repos.wizard.preflight.ok')}</div>
+                ) : (
+                  <div className="pref-error">{t('prefs.repos.wizard.preflight.block', { free: fmtBytes(preflight.freeBytes), need: fmtBytes(preflight.neededBytes) })}</div>
+                )}
+              </>
+            ) : null}
+          </div>
+        )}
+
+        {/* Perforce: ONE progress screen — build (elevated) + create + slot
+            init, with a back-out if anything fails. */}
+        {step === 'progress' && (
+          <SlotSetupProgress
+            draft={draft}
+            sizeGb={preflight?.sizeGb ?? 32}
+            onDone={onCreated}
+            onBack={() => setStep('setup')}
+          />
+        )}
+
+        {/* Slots: prefix + count — SHARED by git-slots and perforce. */}
+        {step === 'slots' && (
           <div className="modal-body">
             <div className="pref-row">
               <div className="pref-label">
@@ -3020,36 +3612,46 @@ function NewRepoWizard({
           </div>
         )}
 
+        {/* Init slots: the SHARED tail (provider dispatched per repo.scm). */}
+        {step === 'init' && createdRepo && (
+          <div className="modal-body">
+            <p className="pref-section-desc" style={{ marginTop: 0 }}>
+              {t(
+                createdRepo.slotCount === 1
+                  ? 'prefs.repos.wizard.createdOne'
+                  : 'prefs.repos.wizard.created',
+                { id: createdRepo.id, count: createdRepo.slotCount },
+              )}
+            </p>
+            <ConfigureSlotsPanel
+              repo={createdRepo}
+              currentCount={0}
+              targetCount={createdRepo.slotCount}
+              onDone={onCreated}
+            />
+          </div>
+        )}
+
         {error && <div className="pref-error" style={{ margin: '0 16px' }}>{error}</div>}
 
-        {/* Step 4 (slot init) embeds its own foot via ConfigureSlotsPanel
-            so the wizard chrome here is hidden. */}
-        {step !== 4 && (() => {
-          const lastInteractive: 1 | 2 | 3 = isEphemeral ? 2 : 3;
-          const onNext = (): void => {
-            if (step === lastInteractive) {
-              void submit();
-            } else {
-              setStep((s) => (s === 1 ? 2 : 3));
-            }
-          };
-          const onBack = (): void => setStep((s) => (s === 3 ? 2 : 1));
-          const submitting = busy;
-          return (
-            <div className="modal-foot">
-              <button className="btn" onClick={onCancel} disabled={submitting}>{t('common.cancel')}</button>
-              <span style={{ flex: 1 }} />
-              {step > 1 && (
-                <button className="btn" onClick={onBack} disabled={submitting}>{t('common.back')}</button>
-              )}
-              <button className="btn primary" disabled={!canAdvance || submitting} onClick={onNext}>
-                {step === lastInteractive
-                  ? (submitting ? t('prefs.repos.wizard.adding') : t('prefs.repos.addRepository'))
-                  : t('common.next')}
-              </button>
-            </div>
-          );
-        })()}
+        {/* 'init' (git) and 'progress' (perforce) embed their own footer.
+            Footer is locked while a measure runs so it can't be abandoned. */}
+        {step !== 'init' && step !== 'progress' && (
+          <div className="modal-foot">
+            <button className="btn" onClick={onCancel} disabled={locked}>{t('common.cancel')}</button>
+            <span style={{ flex: 1 }} />
+            {stepNum > 1 && (
+              <button className="btn" onClick={goBack} disabled={locked}>{t('common.back')}</button>
+            )}
+            <button className="btn primary" disabled={!canAdvance || locked} onClick={goNext}>
+              {step === lastConfig
+                ? isP4
+                  ? t('prefs.repos.wizard.setUp')
+                  : (busy ? t('prefs.repos.wizard.adding') : t('prefs.repos.addRepository'))
+                : t('common.next')}
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -3062,10 +3664,12 @@ function NewRepoWizard({
  *  Path / color / default base are safely editable. */
 function EditRepoModal({
   repo,
+  usedColors,
   onCancel,
   onSaved,
 }: {
   repo: RepoRecord;
+  usedColors: string[];
   onCancel: () => void;
   onSaved: () => void;
 }): JSX.Element {
@@ -3148,18 +3752,22 @@ function EditRepoModal({
               <span className="mono" style={{ color: 'var(--fg-2)' }}>{repo.repoPath}</span>
             </div>
           </div>
-          <div className="pref-row">
-            <div className="pref-label"><div className="pref-label-title">{t('prefs.repos.card.defaultBase')}</div></div>
-            <div className="pref-control">
-              <input className="pref-input mono narrow" value={draft.defaultBase}
-                     onChange={(e) => setDraft({ ...draft, defaultBase: e.target.value })} style={{ width: 200 }} />
+          {/* Perforce has no branch model — no default base to edit. */}
+          {(repo.scm ?? 'git') !== 'perforce' && (
+            <div className="pref-row">
+              <div className="pref-label"><div className="pref-label-title">{t('prefs.repos.card.defaultBase')}</div></div>
+              <div className="pref-control">
+                <input className="pref-input mono narrow" value={draft.defaultBase}
+                       onChange={(e) => setDraft({ ...draft, defaultBase: e.target.value })} style={{ width: 200 }} />
+              </div>
             </div>
-          </div>
+          )}
           <div className="pref-row">
             <div className="pref-label"><div className="pref-label-title">{t('prefs.repos.wizard.color.title')}</div></div>
             <div className="pref-control">
               <RepoColorSwatches
                 value={draft.color}
+                usedColors={usedColors}
                 onChange={(next) => setDraft({ ...draft, color: next })}
               />
             </div>
@@ -3219,8 +3827,12 @@ function ResizeSlotsModal({
   const [target, setTarget] = useState(repo.slotCount);
   const [confirmed, setConfirmed] = useState(false);
 
+  // Nested inside the Edit-repo modal's own scrim (z50) + modal (z51), this
+  // modal's box was painted UNDER the edit modal — only its scrim darkening
+  // showed. `modal-scrim-stacked` lifts it above (z60) so it actually appears.
+  // (Portaling to <body> instead sent it BEHIND the Preferences sheet.)
   return (
-    <div className="modal-scrim" onClick={onClose}>
+    <div className="modal-scrim modal-scrim-stacked" onClick={onClose}>
       <div className="modal" onClick={(e) => e.stopPropagation()} style={{ width: 540, maxWidth: "92vw" }}>
         <div className="modal-head">
           <h3>{t('prefs.repos.resize.title')} <span className="modal-step mono">{repo.id}</span></h3>
@@ -3298,8 +3910,16 @@ function DeleteRepoModal({
   const submit = async () => {
     if (!matches) return;
     setBusy(true);
+    setError(null);
     try {
-      await window.popbot.repos.delete(repo.id);
+      const res = await window.popbot.repos.delete(repo.id);
+      if (!res.ok) {
+        // Keep the modal open with the reason so the user can clear whatever's
+        // blocking cleanup (a locked folder, a running app — maybe reboot) and
+        // retry; the repo stays in the list, never half-deleted.
+        setError(res.message);
+        return;
+      }
       onDeleted();
     } catch (err) {
       setError((err as Error).message);
@@ -3338,7 +3958,8 @@ function DeleteRepoModal({
             <strong>{t('prefs.repos.delete.reversible')}</strong>{' '}
             {t('prefs.repos.delete.reversibleBody', { id: repo.id })}
           </p>
-          <p style={{ fontSize: 13, color: 'var(--fg-3)' }}>
+          <p style={{ fontSize: 13, color: 'var(--fg-2)' }}>
+            <i className="fa-solid fa-shield-halved" style={{ color: '#5fb98a' }} />&nbsp;
             {t('prefs.repos.delete.noTouch', { path: repo.repoPath })}
           </p>
           <div style={{ marginTop: 16 }}>

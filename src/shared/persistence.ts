@@ -316,6 +316,11 @@ export interface PerforceSettings {
   /** Revert files the agent opened but left byte-identical, before submit,
    *  so the watcher's auto-edits don't create no-op revisions. Default on. */
   revertUnchanged?: boolean;
+  /** P4CHARSET for the connection. ONLY set this for a unicode-enabled server
+   *  (e.g. 'utf8') — a non-unicode server REJECTS any charset. Blank/'none' =
+   *  unset (the correct value for a non-unicode server). When blank, P4CHARSET
+   *  is still inherited from the environment/P4CONFIG if present. */
+  charset?: string;
 }
 
 export interface MessageBodyTool {

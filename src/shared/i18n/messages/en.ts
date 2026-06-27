@@ -104,7 +104,9 @@ export const en = {
   // ---------------------------------------------------------------------------
   // App shell (App.tsx).
   // ---------------------------------------------------------------------------
-  'app.busy.worktreeFailed': 'Worktree setup failed',
+  'app.busy.worktreeFailed': 'Workspace setup failed',
+  'busy.dismiss': 'Dismiss',
+  'busy.copyError': 'Copy error',
   'app.busy.settingUpWorkspace': 'Setting up workspace…',
   'app.busy.checkingOutBranch': 'Checking out {branch}',
   'app.busy.branchingFrom': 'Branching {branch} from {baseBranch}',
@@ -326,6 +328,7 @@ export const en = {
   'slots.detail.willCreatePlural': 'Will create {count} new slots.',
   'slots.detail.willDelete': 'Will delete {count} slot.',
   'slots.detail.willDeletePlural': 'Will delete {count} slots.',
+  'slots.detail.recheck': 'Re-check {count} slots, setting up any missing workspaces.',
   'slots.checkingOccupancy': 'Checking slot occupancy…',
   'slots.blocked.wrongMode':
     'This repo is in ephemeral mode — there are no slots to configure.',
@@ -655,6 +658,7 @@ export const en = {
 
   // Perforce panel (nativeClientUi for scm: 'perforce').
   'p4.empty': 'No Perforce workspace focused.',
+  'p4.workspace.title': 'Perforce workspace (client): {client}',
   'p4.commits.title': 'Recent changes',
   'p4.commits.empty': 'No submitted changes yet.',
   'p4.changes.title': 'Current changes',
@@ -662,6 +666,17 @@ export const en = {
   'p4.submit': 'Submit {count}',
   'p4.submitPlaceholder': 'Changelist description…',
   'p4.revert': 'Revert',
+  'p4.selectAll': 'Select all / none',
+  'p4.shelve': 'Shelve',
+  'p4.shelveChecked': 'Shelve Checked Changes',
+  'p4.unshelve': 'Unshelve',
+  'p4.unshelveChecked': 'Unshelve Checked Changes',
+  'p4.menu.changesActions': 'Actions for checked changes',
+  'p4.menu.shelfActions': 'Actions for checked shelves',
+  'p4.menu.copyToShelf': 'Copy to Shelf',
+  'p4.menu.moveToShelf': 'Move to Shelf',
+  'p4.menu.returnToChangelist': 'Return to Changelist',
+  'p4.menu.deleteFromShelf': 'Delete From Shelf',
   'p4.shelf.title': 'Shelf',
   'p4.shelf.empty': 'No shelved changes.',
   'git.base.targetTitle': 'PR target / fork-point branch',
@@ -712,6 +727,9 @@ export const en = {
   'branch.dialog.rawChatDesc':
     'Creates a raw chat with no worktree, slot, branch, or base branch.',
   'branch.dialog.baseBranchLabel': 'Base branch',
+  'branch.dialog.branchName': 'Branch name',
+  'branch.dialog.changelistName': 'Changelist name',
+  'branch.dialog.perforceLatest': 'This Perforce slot syncs to the latest changelist — no base branch to pick.',
   'branch.dialog.loadBranchesError': 'Couldn’t load branches: {error}',
   'branch.dialog.freeChatDesc':
     'Runs in {repo} from the repo root — no slot, worktree, or branch.',
@@ -966,6 +984,7 @@ export const en = {
 
   // Preferences — Repositories pane.
   'prefs.repos.colorAria': 'Repo color',
+  'prefs.repos.colorTaken': 'Already used by another repo',
   'prefs.repos.title': 'Repositories',
   'prefs.repos.desc':
     'Each chat lives in a repository. A repo’s mode (slot pool vs. ephemeral worktrees) is set when it’s created and can’t be changed afterward — switching modes would orphan the worktrees of any chats already in flight.',
@@ -1017,7 +1036,70 @@ export const en = {
   'prefs.repos.wizard.slotCount.title': 'Slot count',
   'prefs.repos.wizard.slotCount.desc': 'How many concurrent chats this repo supports. 1–64.',
   'prefs.repos.wizard.adding': 'Adding…',
+  'prefs.repos.wizard.step': 'step {step}',
+  'prefs.repos.wizard.buildingBase': 'building base',
+  'prefs.repos.wizard.detect.detecting': 'Detecting…',
+  'prefs.repos.wizard.detect.git': 'Git repository',
+  'prefs.repos.wizard.detect.perforce': 'Perforce repository',
+  'prefs.repos.wizard.detect.invalid': 'Not a git or Perforce repository',
+  'prefs.repos.wizard.detect.alreadyAdded': 'This folder is already added as a repository',
+  'prefs.repos.wizard.detect.idTaken': 'That short id is already taken — pick another',
+  'prefs.repos.wizard.connect.intro':
+    'Connect to the Perforce server. We’ll capture the changelist your folder is synced to so every slot flushes to it (no re-transfer).',
+  'prefs.repos.wizard.connect.port.title': 'P4PORT',
+  'prefs.repos.wizard.connect.port.desc': 'Server address, e.g. ssl:host:1666.',
+  'prefs.repos.wizard.connect.user.title': 'P4USER',
+  'prefs.repos.wizard.connect.user.desc': 'Your Perforce user. Auth uses your existing p4 login ticket.',
+  'prefs.repos.wizard.connect.depot.title': 'Depot path',
+  'prefs.repos.wizard.connect.depot.desc': 'The depot path this folder maps, e.g. //depot/MyGame.',
+  'prefs.repos.wizard.connect.baseName.title': 'Base name',
+  'prefs.repos.wizard.connect.baseName.desc': 'Name of the frozen shado base. Slots clone from it.',
+  'prefs.repos.wizard.connect.discovered': 'These are the values that will be used to set up this repository, read from your Perforce workspace ({client}).',
+  'prefs.repos.wizard.connect.changelist': 'Synced changelist',
+  'prefs.repos.wizard.connect.base': 'Base name',
+  'prefs.repos.wizard.preflight.intro':
+    'Checking disk space. The base is built from your folder (left in place), so it needs roughly the folder’s size in free space on the same drive.',
+  'prefs.repos.wizard.preflight.measuring': 'Measuring folder…',
+  'prefs.repos.wizard.preflight.folder': 'Source folder',
+  'prefs.repos.wizard.preflight.free': 'Free on drive',
+  'prefs.repos.wizard.preflight.needs': 'Base needs (≈ +5%)',
+  'prefs.repos.wizard.preflight.ok': 'Enough free space — ready to build the base.',
+  'prefs.repos.wizard.preflight.block':
+    'Not enough free space: {free} available, the base needs {need}. Free up space (or pick a folder on a roomier drive) and try again.',
+  'prefs.repos.wizard.build.intro':
+    'Build the frozen base ({gb}) from your folder. This runs an elevated shado operation — you’ll see a Windows admin (UAC) prompt. It can take several minutes; progress is shown live.',
+  'prefs.repos.wizard.build.baseName': 'Base',
+  'prefs.repos.wizard.build.start': 'Build base',
+  'prefs.repos.wizard.build.starting': 'Starting base build (approve the admin prompt)…',
+  'prefs.repos.wizard.build.done': 'Base built. If you cancel now the base stays on disk and can be reused.',
+  'prefs.repos.wizard.build.changelist': 'Base changelist',
+  'prefs.repos.wizard.build.changelistDesc':
+    'The changelist the base is synced to — captured automatically. Override only if it’s wrong.',
+  'prefs.repos.wizard.setUp': 'Set up repository',
+  'prefs.repos.wizard.settingUp': 'setting up',
+  'prefs.repos.wizard.setup.gitIntro':
+    'Each slot is a copy-on-write clone of this repo, so build caches (node_modules, build output) stay warm across chats. We’ll freeze a base from the folder, then mount the slots.',
+  'prefs.repos.wizard.setup.slotsHead': 'Slots',
+  'prefs.repos.wizard.setup.diskHead': 'Disk space',
+  'prefs.repos.wizard.progress.building': 'Building base + slots (approve the admin prompt)…',
+  'prefs.repos.wizard.progress.creating': 'Creating repository…',
+  'prefs.repos.wizard.progress.initing': 'Initializing slot {done} of {total}…',
+  'prefs.repos.wizard.progress.done': '{id} is ready — {count} slots.',
+  'prefs.repos.wizard.progress.failHint':
+    'Setup stopped. Go back to adjust and try again — the frozen base stays on disk and is reused.',
+  'prefs.perforce.p4Path.title': 'p4 executable',
+  'prefs.perforce.p4Path.desc': 'Path to the p4 binary. Leave blank to use “p4” from PATH.',
+  'prefs.perforce.defaultPort.title': 'Default P4PORT',
+  'prefs.perforce.defaultPort.desc': 'Pre-fills the Add-Repository → Perforce connect step.',
+  'prefs.perforce.defaultUser.title': 'Default P4USER',
+  'prefs.perforce.defaultUser.desc': 'Pre-fills the Add-Repository → Perforce connect step.',
+  'prefs.perforce.parallelThreads.title': 'Parallel transfer threads',
+  'prefs.perforce.parallelThreads.desc': 'Threads for p4 parallel sync/submit. 1 turns it off.',
+  'prefs.perforce.revertUnchanged.title': 'Revert unchanged files',
+  'prefs.perforce.revertUnchanged.desc': 'Drop byte-identical files from a changelist before submit.',
+  'prefs.perforce.revertUnchanged.toggle': 'Revert byte-identical files on submit',
   'prefs.repos.error.duplicateId': 'A repo with id "{id}" already exists.',
+  'prefs.repos.error.duplicatePath': 'That folder is already added as repo "{id}".',
   'prefs.repos.error.generic': 'Could not create repo.',
   'prefs.repos.error.notFound': 'Repo not found — was it deleted?',
   'prefs.repos.edit.title': 'Edit {id}',
@@ -1042,7 +1124,7 @@ export const en = {
   'prefs.repos.delete.reversibleBody':
     'if you later create a new repo with the id {id}, all detached chats will reattach automatically.',
   'prefs.repos.delete.noTouch':
-    'This won’t touch the source clone at {path} or any chat branches in it. Slot worktrees on disk are left alone too — you can prune them by hand if you want a clean slate.',
+    'Your original repository at {path} is never touched — only PopBot’s slot clones / worktrees are removed. (Any left on disk can be pruned by hand for a clean slate.)',
   'prefs.repos.delete.typeToConfirm': 'Type {id} to confirm:',
   'prefs.repos.delete.deleting': 'Deleting…',
 
