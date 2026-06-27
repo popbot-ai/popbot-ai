@@ -131,30 +131,47 @@ jobs:
             npx electron-builder --mac --publish never -c.mac.notarize=false --config electron-builder.yml -c.publish.url="$FEED"
           fi
 
-      # Windows signing needs BOTH the cert and its password. Windows signing
-      # isn't configured yet, so an unsigned Windows build only triggers a
-      # SmartScreen warning (still installable, auto-update still works) — we
-      # warn loudly on a stable release but don't block it.
-      - name: Package + sign (Windows)
+      # Windows code signing via Azure Trusted Signing (Public Trust).
+      # electron-builder's azureSignOptions signs PopBot.exe + the NSIS
+      # installer; the bundled shado.exe (extraResources) is signed first with
+      # signtool + the Trusted Signing dlib, since electron-builder does NOT
+      # sign extraResources. Auth = a service principal with the "Artifact
+      # Signing Certificate Profile Signer" role (AZURE_* secrets), consumed by
+      # DefaultAzureCredential. Missing creds → a warned-but-unblocked unsigned
+      # build (SmartScreen will warn); a stable release without them is loud.
+      - name: Package + sign (Windows · Azure Trusted Signing)
         if: matrix.os == 'windows-2022'
         env:
-          CSC_LINK: ${{ secrets.WIN_CSC_LINK }}
-          CSC_KEY_PASSWORD: ${{ secrets.WIN_CSC_KEY_PASSWORD }}
+          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
           FEED: ${{ needs.version.outputs.feed }}
           CHANNEL: ${{ inputs.channel }}
-        shell: bash
+        shell: pwsh
         run: |
-          if [ -n "$CSC_LINK" ] && [ -n "$CSC_KEY_PASSWORD" ]; then
-            echo "Signing"
-          else
-            unset CSC_LINK CSC_KEY_PASSWORD
-            if [ "$CHANNEL" = "release" ]; then
-              echo "::warning::Windows cert not configured — publishing an UNSIGNED stable build (SmartScreen will warn)."
-            else
-              echo "Building unsigned (prerelease)"
-            fi
-          fi
-          npx electron-builder --win --publish never --config electron-builder.yml -c.publish.url="$FEED"
+          $signArgs = @()
+          if ($env:AZURE_TENANT_ID -and $env:AZURE_CLIENT_ID -and $env:AZURE_CLIENT_SECRET) {
+            Write-Host "Azure Trusted Signing enabled"
+            $ts = Join-Path $env:RUNNER_TEMP 'ts'; New-Item -ItemType Directory -Force $ts | Out-Null
+            Invoke-WebRequest 'https://www.nuget.org/api/v2/package/Microsoft.Trusted.Signing.Client' -OutFile "$ts\client.zip" -UseBasicParsing
+            Expand-Archive "$ts\client.zip" "$ts\client" -Force
+            $dlib = (Get-ChildItem "$ts\client" -Recurse -Filter Azure.CodeSigning.Dlib.dll | Where-Object { $_.FullName -match '\\x64\\' } | Select-Object -First 1).FullName
+            @{ Endpoint='https://eus.codesigning.azure.net/'; CodeSigningAccountName='popbotsigning'; CertificateProfileName='popbot-public' } | ConvertTo-Json | Set-Content "$ts\metadata.json"
+            $signtool = (Get-ChildItem 'C:\Program Files (x86)\Windows Kits\10\bin' -Recurse -Filter signtool.exe | Where-Object { $_.FullName -match '\\x64\\' } | Select-Object -First 1).FullName
+            Write-Host "Signing bundled shado.exe"
+            & $signtool sign /v /fd SHA256 /tr http://timestamp.acs.microsoft.com /td SHA256 /dlib $dlib /dmdf "$ts\metadata.json" 'native\shado\bin\win\shado.exe'
+            if ($LASTEXITCODE -ne 0) { throw "shado.exe signing failed (exit $LASTEXITCODE)" }
+            $signArgs = @(
+              '-c.win.azureSignOptions.endpoint=https://eus.codesigning.azure.net/',
+              '-c.win.azureSignOptions.codeSigningAccountName=popbotsigning',
+              '-c.win.azureSignOptions.certificateProfileName=popbot-public'
+            )
+          } elseif ($env:CHANNEL -eq 'release') {
+            Write-Host "::warning::Azure signing creds not set — publishing an UNSIGNED stable build (SmartScreen will warn)."
+          } else {
+            Write-Host "Building unsigned (prerelease)"
+          }
+          npx electron-builder --win --publish never --config electron-builder.yml "-c.publish.url=$env:FEED" @signArgs
 
       - name: Package (Linux)
         if: matrix.os == 'ubuntu-latest'
