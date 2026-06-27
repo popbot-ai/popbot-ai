@@ -8,13 +8,22 @@
  * the client is established with `flush` (0-byte have-list update) to the
  * base changelist, never a transfer — see the shado+P4 design.
  */
+import { spawn } from 'node:child_process';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { clampP4ParallelThreads, type PerforceSettings } from '@shared/persistence';
 import type { P4Shelf } from '@shared/perforce';
 import { getSetting } from '../persistence/settings';
 import { emitP4Progress } from './progress';
-import { p4exec, parseZtag, writeP4Config, type P4Context, type P4ExecResult } from './exec';
+import {
+  envFor,
+  p4bin,
+  p4exec,
+  parseZtag,
+  writeP4Config,
+  type P4Context,
+  type P4ExecResult,
+} from './exec';
 
 /**
  * Per-slot metadata the provider needs when it only has the slot path
@@ -147,12 +156,52 @@ export async function flushTo(ctx: P4Context, depotPath: string, change: number)
 /** Sync the slot to the latest submitted changelist. After flushing the
  *  have-list to the frozen base, this transfers ONLY the base→head delta (the
  *  warm-slot payoff), so a new chat starts from the latest depot state. */
-export async function syncLatest(ctx: P4Context, wt: string, depotPath: string): Promise<P4ExecResult> {
+export function syncLatest(ctx: P4Context, wt: string, depotPath: string): Promise<P4ExecResult> {
   const dp = normDepot(depotPath);
   const threads = clampP4ParallelThreads(getSetting<PerforceSettings>('perforce')?.parallelThreads);
   const args = ['sync', `${dp}/...`];
   if (threads > 1) args.push(`--parallel=threads=${threads}`); // parallel transfer of the delta
-  return p4exec(ctx, args, { cwd: wt, tolerant: true, maxBuffer: 64 * 1024 * 1024 });
+
+  // SCALE: the base→head delta can be large (a long-frozen base, or a busy
+  // depot) and slow — minutes on a real game tree. So we SPAWN rather than
+  // buffer, counting synced files from stdout (p4 prints one line per file)
+  // and streaming a live meter. The watcher's `p4 add` path reuses the same
+  // P4OpenProgress banner. We don't pre-count (a `sync -n` is itself a full
+  // round-trip); a running "N files" with a spinner is the honest meter here.
+  return new Promise<P4ExecResult>((resolve) => {
+    const child = spawn(p4bin(), args, { cwd: wt, env: envFor(ctx), windowsHide: true });
+    let synced = 0;
+    let pending = '';
+    let stderr = '';
+    let lastEmit = 0;
+    const flush = (force: boolean): void => {
+      const now = Date.now();
+      if (!force && now - lastEmit < 250) return; // throttle the IPC, not the work
+      lastEmit = now;
+      emitP4Progress(`Syncing to latest — ${synced.toLocaleString()} files…`);
+    };
+    child.stdout?.on('data', (d: Buffer) => {
+      pending += d.toString();
+      let nl: number;
+      while ((nl = pending.indexOf('\n')) >= 0) {
+        pending = pending.slice(nl + 1);
+        synced++;
+      }
+      flush(false);
+    });
+    child.stderr?.on('data', (d: Buffer) => {
+      stderr += d.toString();
+    });
+    const done = (code: number): void => {
+      emitP4Progress(''); // clear the banner
+      resolve({ stdout: '', stderr, code });
+    };
+    child.on('close', (code) => done(code ?? 0));
+    child.on('error', (e) => {
+      stderr += String(e);
+      done(1);
+    });
+  });
 }
 
 /** Revert every opened file in the slot — park to a clean base. */

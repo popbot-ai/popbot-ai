@@ -173,6 +173,16 @@ export default function App(): JSX.Element {
   /** Whole-window "please wait" overlay shown during slow main-side
    *  work (git worktree add, checkout, stash pop, …). */
   const [busy, setBusy] = useState<{ message: string; detail?: string } | null>(null);
+  // Stream Perforce sync/open progress into the busy overlay's detail while
+  // it's up — e.g. "Syncing to latest — N files…" during a new chat's slot
+  // prep. Only enhances an existing overlay; never pops one on its own.
+  useEffect(
+    () =>
+      window.popbot.repos.onP4OpenProgress((msg) => {
+        if (msg) setBusy((b) => (b ? { ...b, detail: msg } : b));
+      }),
+    [],
+  );
   /** Chat that's mid-close (showing the CloseChatPrompt). */
   const [closingChat, setClosingChat] = useState<ChatRecord | null>(null);
   /** True when a chat-create failed because the slot pool is full. */

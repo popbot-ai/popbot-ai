@@ -56,7 +56,7 @@ export interface P4ExecResult {
   code: number;
 }
 
-function envFor(ctx: P4Context): NodeJS.ProcessEnv {
+export function envFor(ctx: P4Context): NodeJS.ProcessEnv {
   const env: NodeJS.ProcessEnv = { ...process.env, P4PORT: ctx.port, P4USER: ctx.user };
   if (ctx.client) env.P4CLIENT = ctx.client;
   if (ctx.password) env.P4PASSWD = ctx.password;
