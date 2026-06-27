@@ -150,6 +150,9 @@ export function readP4Config(wt: string): P4Context | null {
 export function writeP4Config(wt: string, ctx: P4Context): void {
   const lines = [`P4PORT=${ctx.port}`, `P4USER=${ctx.user}`];
   if (ctx.client) lines.push(`P4CLIENT=${ctx.client}`);
+  // Make p4 honor the repo's `.p4ignore` authoritatively: `p4 add` then skips
+  // ignored files even if the watcher's coarse pre-filter let one through.
+  lines.push('P4IGNORE=.p4ignore');
   writeFileSync(join(wt, '.p4config'), lines.join('\n') + '\n');
 }
 

@@ -243,10 +243,20 @@ export async function openChanges(
   const removed = changes.filter((c) => c.kind === 'delete').map((c) => `//${c.path}`);
   // Open into the chat's named changelist when there is one (else the default).
   const clArgs = changelist ? ['-c', String(changelist)] : [];
-  const run = (action: string, files: string[]): Promise<unknown> =>
-    files.length
-      ? p4exec(ctx, ['-x', '-', action, ...clArgs], { cwd: wt, input: files.join('\n') + '\n', tolerant: true })
-      : Promise.resolve();
+  // Chunk so a huge game-export delta never becomes one unbounded `p4` call /
+  // multi-MB stdin. p4 `-x -` is still batched within each chunk.
+  const CHUNK = 5000;
+  const run = async (action: string, files: string[]): Promise<void> => {
+    for (let i = 0; i < files.length; i += CHUNK) {
+      const batch = files.slice(i, i + CHUNK);
+      await p4exec(ctx, ['-x', '-', action, ...clArgs], {
+        cwd: wt,
+        input: batch.join('\n') + '\n',
+        tolerant: true,
+        maxBuffer: 64 * 1024 * 1024,
+      });
+    }
+  };
   if (present.length) {
     await run('edit', present);
     await run('add', present);
