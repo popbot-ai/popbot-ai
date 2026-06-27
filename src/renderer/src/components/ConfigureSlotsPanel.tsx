@@ -57,19 +57,18 @@ export function ConfigureSlotsPanel({
   const [phase, setPhase] = useState<Phase>({ kind: 'preflight' });
   const [steps, setSteps] = useState<StepRecord[]>([]);
 
-  // Plan the work as a stable list of (kind, slotId) tuples. Wizard:
-  // initialize 1..targetCount. Resize-up: initialize current+1..target.
-  // Resize-down: delete current..target+1 (in descending order so the
-  // highest-numbered slot goes first).
+  const adds = Math.max(0, targetCount - currentCount);
+  const removes = Math.max(0, currentCount - targetCount);
+
+  // Plan: remove any slots beyond the new target (shrink, highest-first), then
+  // INIT every target slot. Init-all (not just newly-added) makes re-running a
+  // repair pass — a slot that has a clone but no workspace gets picked up,
+  // while already-set-up slots are skipped fast by the init handler. So
+  // "expand to 8 again" fills in whatever's missing.
   const plan: Array<{ slotId: number; kind: 'init' | 'delete' }> = (() => {
     const out: Array<{ slotId: number; kind: 'init' | 'delete' }> = [];
-    if (targetCount > currentCount) {
-      for (let i = currentCount + 1; i <= targetCount; i++) out.push({ slotId: i, kind: 'init' });
-    } else if (targetCount < currentCount) {
-      for (let i = currentCount; i > targetCount; i--) out.push({ slotId: i, kind: 'delete' });
-    }
-    // No-op resize: list is empty; we'll just commit the (unchanged)
-    // count and exit.
+    for (let i = currentCount; i > targetCount; i--) out.push({ slotId: i, kind: 'delete' });
+    for (let i = 1; i <= targetCount; i++) out.push({ slotId: i, kind: 'init' });
     return out;
   })();
 
@@ -144,17 +143,11 @@ export function ConfigureSlotsPanel({
       setSteps((prev) => [...prev, { slotId: step.slotId, kind: step.kind, ok, message }]);
       if (!ok) { allOk = false; break; }
     }
-    // Commit the count even on partial failure so the row reflects
-    // what's actually on disk. For init failures, the count reflects
-    // how many slots actually got created. For delete failures, leave
-    // the count unchanged — the slot still exists.
+    // Commit the new count only on full success. On a partial failure leave
+    // the count as-is — re-running is now an idempotent repair pass that picks
+    // up whatever's missing, so there's no need to half-commit.
     if (allOk) {
       await window.popbot.repos.setSlotCount(repo.id, targetCount);
-    } else if (plan[0]?.kind === 'init') {
-      const lastOkSlot = steps.filter((s) => s.kind === 'init' && s.ok).at(-1)?.slotId;
-      if (typeof lastOkSlot === 'number') {
-        await window.popbot.repos.setSlotCount(repo.id, lastOkSlot);
-      }
     }
     setPhase({ kind: 'done', ok: allOk });
   };
@@ -173,15 +166,15 @@ export function ConfigureSlotsPanel({
         <span className="mono">{repo.id}</span>
         <span className="configure-slots-arrow">{currentCount} → {targetCount}</span>
         <span className="configure-slots-detail">
-          {plan.length === 0
-            ? t('slots.detail.noChange')
-            : plan[0]?.kind === 'init'
-              ? (plan.length === 1
-                ? t('slots.detail.willCreate', { count: plan.length })
-                : t('slots.detail.willCreatePlural', { count: plan.length }))
-              : (plan.length === 1
-                ? t('slots.detail.willDelete', { count: plan.length })
-                : t('slots.detail.willDeletePlural', { count: plan.length }))}
+          {removes > 0
+            ? (removes === 1
+              ? t('slots.detail.willDelete', { count: removes })
+              : t('slots.detail.willDeletePlural', { count: removes }))
+            : adds > 0
+              ? (adds === 1
+                ? t('slots.detail.willCreate', { count: adds })
+                : t('slots.detail.willCreatePlural', { count: adds }))
+              : t('slots.detail.recheck', { count: targetCount })}
         </span>
       </div>
 

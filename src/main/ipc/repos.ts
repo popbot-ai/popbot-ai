@@ -265,7 +265,17 @@ export function registerReposHandlers(): void {
       if (!repo) return { ok: false, reason: 'repo-not-found' };
       if (repo.mode !== 'slots') return { ok: false, reason: 'wrong-mode' };
       const path = slotWorktreePathForRepo(repo, slotId);
-      if (existsSync(path)) {
+      // A shado slot's FOLDER always exists (the mounted COW clone), so folder
+      // existence is NOT "set up". The real marker is the VCS workspace — the
+      // perforce .p4config (p4 client + flush) or the git checkout. Skip only
+      // when that's present, so re-running picks up slots that have a clone but
+      // no workspace (the missing P4V clients) and never disturbs an in-use
+      // chat's slot.
+      const setUp =
+        repo.scm === 'perforce'
+          ? existsSync(join(path, '.p4config'))
+          : existsSync(join(path, '.git'));
+      if (setUp) {
         return { ok: true, slotId, alreadyReady: true };
       }
       try {

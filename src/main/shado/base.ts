@@ -396,9 +396,11 @@ export async function growSlotClones(
   for (let k = opts.fromCount + 1; k <= opts.toCount; k += 1) {
     const slot = `${opts.slotPrefix}-${k}`;
     const mount = join(worktreesDir, slot);
-    batBody +=
-      `"${shado}" clone create --name ${opts.baseName} --slot ${slot} --mount "${mount}" >> "${log}" 2>&1\r\n` +
-      'if errorlevel 1 exit /b %errorlevel%\r\n';
+    // No `exit /b` on error: a clone that already exists (re-running expand, or
+    // the wizard where the base build already mounted them) must NOT abort the
+    // batch. A genuinely-missing clone is caught later when its per-slot init
+    // tries to use it.
+    batBody += `"${shado}" clone create --name ${opts.baseName} --slot ${slot} --mount "${mount}" >> "${log}" 2>&1\r\n`;
   }
   batBody += 'exit /b 0\r\n';
   try {

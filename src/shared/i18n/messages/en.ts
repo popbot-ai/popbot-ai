@@ -328,6 +328,7 @@ export const en = {
   'slots.detail.willCreatePlural': 'Will create {count} new slots.',
   'slots.detail.willDelete': 'Will delete {count} slot.',
   'slots.detail.willDeletePlural': 'Will delete {count} slots.',
+  'slots.detail.recheck': 'Re-check {count} slots, setting up any missing workspaces.',
   'slots.checkingOccupancy': 'Checking slot occupancy…',
   'slots.blocked.wrongMode':
     'This repo is in ephemeral mode — there are no slots to configure.',
