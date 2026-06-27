@@ -50,9 +50,11 @@ win:
   extraResources:
     - from: native/shado/bin/win/shado.exe
       to: shado/shado.exe
-  # No code-signing wired up for Windows yet — builds are unsigned, so
-  # SmartScreen will warn on first launch. Set CSC_LINK / CSC_KEY_PASSWORD
-  # (a .pfx) at build time to sign.
+  # Windows code signing = Azure Trusted Signing (Public Trust), injected by
+  # the release workflow via -c.win.azureSignOptions.* (account popbotsigning,
+  # profile popbot-public) so local/dev builds stay unsigned. The bundled
+  # shado.exe (extraResources above) is signed separately in that workflow
+  # because electron-builder doesn't sign extraResources.
 nsis:
   oneClick: false
   perMachine: false
