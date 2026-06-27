@@ -14,7 +14,8 @@
  * file's contract dumb (just CRUD) and lets the UI evolve its
  * confirm-flow independently.
  */
-import { existsSync } from 'node:fs';
+import { existsSync, rmSync } from 'node:fs';
+import { join } from 'node:path';
 import { ipcMain } from 'electron';
 import {
   IpcChannel,
@@ -39,8 +40,10 @@ import { listSlotOccupantsForRepo } from '../persistence/chats';
 import { slotWorktreePathForRepo } from '../git/chatPaths';
 import { getSourceControlProvider } from '../scm';
 import { detectScm, p4WorkspaceInfo } from '../scm/detect';
-import { basePreflight, buildBase, baseDiskUsage } from '../shado/base';
+import { basePreflight, buildBase, baseDiskUsage, destroyBase } from '../shado/base';
+import { popbotRootForRepo, shadoHomeForRepo } from '../shado/client';
 import { captureSyncedChangelist } from '../p4/workspace';
+import { dlog } from '../diagLog';
 
 const ID_PATTERN = /^[a-z0-9][a-z0-9-]*$/;
 
@@ -123,10 +126,44 @@ export function registerReposHandlers(): void {
     return { ok: true, repo };
   });
 
-  ipcMain.handle(IpcChannel.ReposDelete, (_e, id: string): { ok: true } => {
-    deleteRepo(id);
-    return { ok: true };
-  });
+  ipcMain.handle(
+    IpcChannel.ReposDelete,
+    async (_e, id: string): Promise<{ ok: true } | { ok: false; message: string }> => {
+      const repo = getRepo(id);
+      try {
+        // Slot repos are shado-backed (git AND perforce): tear the shado base +
+        // clones down FIRST (reclaims the VHDX disk), THEN remove the repo's
+        // co-located workspaces/<id> folder, THEN the DB row. Any failure stops
+        // here with the row intact so nothing is half-deleted + the UI shows it.
+        if (repo && repo.mode === 'slots' && process.platform === 'win32') {
+          const baseName = repo.scm === 'perforce' ? repo.p4?.shadoBase : repo.id;
+          // Only run the elevated teardown if the shado project still exists.
+          if (baseName && existsSync(shadoHomeForRepo(repo.repoPath, repo.id))) {
+            const res = await destroyBase({ repoPath: repo.repoPath, repoId: repo.id, baseName });
+            if (!res.ok) {
+              dlog('repos.delete.teardownFailed', { id, baseName, error: res.log });
+              return { ok: false, message: res.log };
+            }
+          }
+          const wsDir = join(popbotRootForRepo(repo.repoPath), 'workspaces', repo.id);
+          try {
+            rmSync(wsDir, { recursive: true, force: true });
+          } catch (err) {
+            dlog('repos.delete.folderFailed', { id, wsDir, error: (err as Error).message });
+            return {
+              ok: false,
+              message: `Removed the shado base but could not delete ${wsDir}: ${(err as Error).message}`,
+            };
+          }
+        }
+        deleteRepo(id);
+        return { ok: true };
+      } catch (err) {
+        dlog('repos.delete.failed', { id, error: (err as Error).message });
+        return { ok: false, message: (err as Error).message };
+      }
+    },
+  );
 
   ipcMain.handle(IpcChannel.ReposCountChats, (_e, id: string): number => countChatsForRepo(id));
 

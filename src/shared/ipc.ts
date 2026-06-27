@@ -689,8 +689,10 @@ export interface PopBotApi {
      *  default-base / slot-count). `mode` and `id` are immutable. */
     update(input: UpdateRepoInput): Promise<RepoUpdateResult>;
     /** Delete. UI must show a type-the-name confirm + a chat-count
-     *  warning first; the helper itself is unconditional. */
-    delete(id: string): Promise<{ ok: true }>;
+     *  warning first. For slot repos this also tears down the shado base +
+     *  clones and removes the repo's workspaces folder; a teardown failure
+     *  returns `ok:false` (the row is kept) so the UI can show the error. */
+    delete(id: string): Promise<{ ok: true } | { ok: false; message: string }>;
     /** Count of non-deleted chats referencing this repo. Powers the
      *  delete-confirm warning. */
     countChats(id: string): Promise<number>;

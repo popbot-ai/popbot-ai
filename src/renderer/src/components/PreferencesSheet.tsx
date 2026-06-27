@@ -3906,8 +3906,13 @@ function DeleteRepoModal({
   const submit = async () => {
     if (!matches) return;
     setBusy(true);
+    setError(null);
     try {
-      await window.popbot.repos.delete(repo.id);
+      const res = await window.popbot.repos.delete(repo.id);
+      if (!res.ok) {
+        setError(res.message);
+        return;
+      }
       onDeleted();
     } catch (err) {
       setError((err as Error).message);

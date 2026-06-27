@@ -302,6 +302,68 @@ export async function remountSlots(
   return { ok: true, log: log_.trim() };
 }
 
+/**
+ * Tear down a repo's entire shado project — remove every clone, destroy the
+ * frozen base, clear the registry — to reclaim disk when the repo is deleted.
+ * `--no-export` so the original p4/git folder (left in place) isn't overwritten
+ * with stale base contents. Privileged, same UAC path as {@link buildBase}.
+ * Windows-only; never throws.
+ */
+export async function destroyBase(
+  opts: { repoPath: string; repoId: string; baseName: string },
+  onProgress?: ProgressFn,
+): Promise<BaseBuildResult> {
+  if (process.platform !== 'win32') {
+    return { ok: false, log: 'Base teardown is only supported on Windows.' };
+  }
+  const home = shadoHomeForRepo(opts.repoPath, opts.repoId);
+  const shado = shadoExePath();
+  const stamp = `${Date.now()}-${Math.floor(process.hrtime()[1] % 1e6)}`;
+  const log = join(tmpdir(), `shado-destroy-${stamp}.log`);
+  const bat = join(tmpdir(), `shado-destroy-${stamp}.bat`);
+  const batBody =
+    '@echo off\r\n' +
+    `set "SHADO_HOME=${home}"\r\n` +
+    `"${shado}" restore --name ${opts.baseName} --no-export --force > "${log}" 2>&1\r\n` +
+    'exit /b %errorlevel%\r\n';
+  try {
+    await writeFile(bat, batBody, 'utf8');
+  } catch (err) {
+    return { ok: false, log: `Could not stage teardown script: ${(err as Error).message}` };
+  }
+  const psCmd =
+    `$ErrorActionPreference='Stop'; ` +
+    `try { $p = Start-Process -FilePath '${bat}' -Verb RunAs -Wait -PassThru -WindowStyle Hidden; exit $p.ExitCode } ` +
+    `catch { Write-Error $_; exit 1223 }`; // 1223 = ERROR_CANCELLED (UAC declined)
+  onProgress?.('Removing workspace base + slots…');
+  const exitCode: number = await new Promise((resolvePromise) => {
+    execFile(
+      'powershell.exe',
+      ['-NoProfile', '-NonInteractive', '-Command', psCmd],
+      { windowsHide: true },
+      (err) => {
+        const code = (err as (NodeJS.ErrnoException & { code?: number }) | null)?.code;
+        resolvePromise(typeof code === 'number' ? code : err ? 1 : 0);
+      },
+    );
+  });
+  let log_ = '';
+  try {
+    log_ = await readFile(log, 'utf8');
+  } catch {
+    /* shado may have failed before writing */
+  }
+  void rm(bat, { force: true }).catch(() => {});
+  void rm(log, { force: true }).catch(() => {});
+  if (exitCode === 1223) {
+    return { ok: false, log: 'Elevation was cancelled (removing the base needs administrator rights).' };
+  }
+  if (exitCode !== 0) {
+    return { ok: false, log: log_.trim() || `shado restore failed (exit ${exitCode}).` };
+  }
+  return { ok: true, log: log_.trim() };
+}
+
 /** Post-build size report via `shado du --name <base>`. */
 export async function baseDiskUsage(repoPath: string, repoId: string, baseName: string): Promise<BaseDu> {
   const r = await runShado(['du', '--name', baseName], {
