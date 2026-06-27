@@ -110,6 +110,19 @@ export function ConfigureSlotsPanel({
     const total = plan.length;
     setSteps([]);
 
+    // GROW: the new slots' shado clones don't exist yet, and `shado clone
+    // create` is privileged — create + mount them in ONE elevated batch (one
+    // UAC) BEFORE the per-slot init loop, which then just attaches p4/git.
+    if (targetCount > currentCount) {
+      setPhase({ kind: 'running', step: 0, total, current: null });
+      const prep = await window.popbot.repos.prepareGrow(repo.id, targetCount);
+      if (!prep.ok) {
+        setSteps([{ slotId: currentCount + 1, kind: 'init', ok: false, message: prep.message }]);
+        setPhase({ kind: 'done', ok: false });
+        return;
+      }
+    }
+
     if (total === 0) {
       // Pure count update — nothing to do per-slot.
       await window.popbot.repos.setSlotCount(repo.id, targetCount);

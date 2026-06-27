@@ -102,6 +102,8 @@ const api: PopBotApi = {
     listSlotOccupants: (id: string) => ipcRenderer.invoke(IpcChannel.ReposListSlotOccupants, id),
     initializeOneSlot: (repoId: string, slotId: number) =>
       ipcRenderer.invoke(IpcChannel.ReposInitializeOneSlot, repoId, slotId),
+    prepareGrow: (repoId: string, toCount: number) =>
+      ipcRenderer.invoke(IpcChannel.ReposPrepareGrow, repoId, toCount),
     deleteOneSlot: (repoId: string, slotId: number) =>
       ipcRenderer.invoke(IpcChannel.ReposDeleteOneSlot, repoId, slotId),
     setSlotCount: (id: string, n: number) => ipcRenderer.invoke(IpcChannel.ReposSetSlotCount, id, n),

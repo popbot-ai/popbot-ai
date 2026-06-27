@@ -40,7 +40,7 @@ import { listSlotOccupantsForRepo } from '../persistence/chats';
 import { slotWorktreePathForRepo } from '../git/chatPaths';
 import { getSourceControlProvider } from '../scm';
 import { detectScm, p4WorkspaceInfo } from '../scm/detect';
-import { basePreflight, buildBase, baseDiskUsage, destroyBase } from '../shado/base';
+import { basePreflight, buildBase, baseDiskUsage, destroyBase, growSlotClones } from '../shado/base';
 import { popbotRootForRepo, shadoHomeForRepo } from '../shado/client';
 import { captureSyncedChangelist } from '../p4/workspace';
 import { dlog } from '../diagLog';
@@ -227,6 +227,34 @@ export function registerReposHandlers(): void {
         slotId,
         chatName: o.chatName,
       }));
+    },
+  );
+
+  ipcMain.handle(
+    IpcChannel.ReposPrepareGrow,
+    async (_e, repoId: string, toCount: number): Promise<{ ok: true } | { ok: false; message: string }> => {
+      const repo = getRepo(repoId);
+      if (!repo) return { ok: false, message: 'Repo not found' };
+      // Only a grow on a slot repo needs new clones; shrink/no-op/non-Windows
+      // need no privileged step.
+      if (repo.mode !== 'slots' || process.platform !== 'win32' || toCount <= repo.slotCount) {
+        return { ok: true };
+      }
+      const baseName = repo.scm === 'perforce' ? repo.p4?.shadoBase : repo.id;
+      if (!baseName) return { ok: false, message: 'This repo has no shado base to grow from.' };
+      const res = await growSlotClones({
+        repoPath: repo.repoPath,
+        repoId: repo.id,
+        baseName,
+        slotPrefix: repo.slotPrefix,
+        fromCount: repo.slotCount,
+        toCount,
+      });
+      if (!res.ok) {
+        dlog('repos.prepareGrow.failed', { repoId, fromCount: repo.slotCount, toCount, error: res.log });
+        return { ok: false, message: res.log };
+      }
+      return { ok: true };
     },
   );
 

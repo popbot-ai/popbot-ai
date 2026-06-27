@@ -364,6 +364,81 @@ export async function destroyBase(
   return { ok: true, log: log_.trim() };
 }
 
+/**
+ * Grow a repo's slot pool: create + mount the clones for slots
+ * `fromCount+1..toCount` off the frozen base, in ONE elevated batch (clone
+ * create is privileged — same UAC path as {@link buildBase}). The per-slot
+ * VCS init (p4 client / git checkout) runs unprivileged afterwards because the
+ * clones now exist. Windows-only; never throws. No-op when toCount<=fromCount.
+ */
+export async function growSlotClones(
+  opts: {
+    repoPath: string;
+    repoId: string;
+    baseName: string;
+    slotPrefix: string;
+    fromCount: number;
+    toCount: number;
+  },
+  onProgress?: ProgressFn,
+): Promise<BaseBuildResult> {
+  if (process.platform !== 'win32') {
+    return { ok: false, log: 'Slot resize is only supported on Windows.' };
+  }
+  if (opts.toCount <= opts.fromCount) return { ok: true, log: '' };
+  const home = shadoHomeForRepo(opts.repoPath, opts.repoId);
+  const worktreesDir = join(popbotRootForRepo(opts.repoPath), 'workspaces', opts.repoId);
+  const shado = shadoExePath();
+  const stamp = `${Date.now()}-${Math.floor(process.hrtime()[1] % 1e6)}`;
+  const log = join(tmpdir(), `shado-grow-${stamp}.log`);
+  const bat = join(tmpdir(), `shado-grow-${stamp}.bat`);
+  let batBody = '@echo off\r\n' + `set "SHADO_HOME=${home}"\r\n`;
+  for (let k = opts.fromCount + 1; k <= opts.toCount; k += 1) {
+    const slot = `${opts.slotPrefix}-${k}`;
+    const mount = join(worktreesDir, slot);
+    batBody +=
+      `"${shado}" clone create --name ${opts.baseName} --slot ${slot} --mount "${mount}" >> "${log}" 2>&1\r\n` +
+      'if errorlevel 1 exit /b %errorlevel%\r\n';
+  }
+  batBody += 'exit /b 0\r\n';
+  try {
+    await writeFile(bat, batBody, 'utf8');
+  } catch (err) {
+    return { ok: false, log: `Could not stage resize script: ${(err as Error).message}` };
+  }
+  const psCmd =
+    `$ErrorActionPreference='Stop'; ` +
+    `try { $p = Start-Process -FilePath '${bat}' -Verb RunAs -Wait -PassThru -WindowStyle Hidden; exit $p.ExitCode } ` +
+    `catch { Write-Error $_; exit 1223 }`; // 1223 = ERROR_CANCELLED (UAC declined)
+  onProgress?.(`Creating slots ${opts.fromCount + 1}–${opts.toCount}…`);
+  const exitCode: number = await new Promise((resolvePromise) => {
+    execFile(
+      'powershell.exe',
+      ['-NoProfile', '-NonInteractive', '-Command', psCmd],
+      { windowsHide: true },
+      (err) => {
+        const code = (err as (NodeJS.ErrnoException & { code?: number }) | null)?.code;
+        resolvePromise(typeof code === 'number' ? code : err ? 1 : 0);
+      },
+    );
+  });
+  let log_ = '';
+  try {
+    log_ = await readFile(log, 'utf8');
+  } catch {
+    /* shado may have failed before writing */
+  }
+  void rm(bat, { force: true }).catch(() => {});
+  void rm(log, { force: true }).catch(() => {});
+  if (exitCode === 1223) {
+    return { ok: false, log: 'Elevation was cancelled (adding slots needs administrator rights).' };
+  }
+  if (exitCode !== 0) {
+    return { ok: false, log: log_.trim() || `shado clone create failed (exit ${exitCode}).` };
+  }
+  return { ok: true, log: log_.trim() };
+}
+
 /** Post-build size report via `shado du --name <base>`. */
 export async function baseDiskUsage(repoPath: string, repoId: string, baseName: string): Promise<BaseDu> {
   const r = await runShado(['du', '--name', baseName], {

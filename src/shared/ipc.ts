@@ -279,6 +279,9 @@ export const IpcChannel = {
   ReposInitializeOneSlot: 'pb:repos:initialize-one-slot',
   ReposDeleteOneSlot: 'pb:repos:delete-one-slot',
   ReposSetSlotCount: 'pb:repos:set-slot-count',
+  /** Grow a slot pool: create+mount the new shado clones in one elevated
+   *  batch (privileged), before the per-slot init loop. */
+  ReposPrepareGrow: 'pb:repos:prepare-grow',
   /** Perforce base-build flow (Add Repository → Perforce). Preflight
    *  measures the warm folder + drive free space and gates on a 5% margin;
    *  build runs the elevated `shado create` (UAC) and captures the synced
@@ -708,6 +711,11 @@ export interface PopBotApi {
     listSlotOccupants(id: string): Promise<Array<{ slotId: number; chatName: string }>>;
     /** Idempotent — a slot already on disk reports `alreadyReady: true`. */
     initializeOneSlot(repoId: string, slotId: number): Promise<RepoSlotStepResult>;
+    /** Grow prep: create+mount the new shado clones (slots currentCount+1..
+     *  toCount) in ONE elevated batch, before the per-slot init loop. A grow
+     *  needs `shado clone create`, which is privileged. No-op for a shrink or
+     *  non-slot repo. */
+    prepareGrow(repoId: string, toCount: number): Promise<{ ok: true } | { ok: false; message: string }>;
     /** Tear down one slot's worktree + delete its parking branch.
      *  Refuses if the slot is currently occupied. */
     deleteOneSlot(repoId: string, slotId: number): Promise<RepoSlotStepResult>;
