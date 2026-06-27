@@ -683,6 +683,17 @@ export const en = {
   'p4.changes.empty': 'No open files.',
   'p4.submit': 'Submit {count}',
   'p4.submitPlaceholder': 'Changelist description…',
+  'p4.promptPreviewPlaceholder': 'Prompt preview',
+  // Footer action modes (P4Panel): full label on the big button, short label
+  // on the mode pill. "CR" drives a Helix Swarm review from the prompt.
+  'p4.mode.submit.label': 'SUBMIT',
+  'p4.mode.submit.short': 'Submit',
+  'p4.mode.cr.label': 'CODE REVIEW (AI)',
+  'p4.mode.cr.short': 'CR',
+  'p4.mode.tests.label': 'RUN TESTS (AI)',
+  'p4.mode.tests.short': 'Tests',
+  'p4.mode.reviewCommit.label': 'REVIEW & COMMIT (AI)',
+  'p4.mode.reviewCommit.short': 'Review',
   'p4.revert': 'Revert',
   'p4.selectAll': 'Select all / none',
   'p4.shelve': 'Shelve',
@@ -832,6 +843,9 @@ export const en = {
   'prefs.git.actionTemplates.title': 'Action templates',
   'prefs.git.actionTemplates.intro':
     'Prompts the git panel sends to the chat agent when you click the big action button (or change base branch). Use {macro} macros to inject context.',
+  'prefs.p4.actionTemplates.title': 'Perforce action templates',
+  'prefs.p4.actionTemplates.intro':
+    'Prompts the Perforce panel sends to the chat agent for CR (Helix Swarm review), Run Tests, and Review & Commit. Use {macro} macros to inject context.',
 
   // Preferences — External apps pane.
   'prefs.apps.title': 'External apps',
@@ -878,7 +892,12 @@ export const en = {
   'prefs.templates.git.makePrReady.label': 'MARK PR READY (AI)',
   'prefs.templates.git.addressCr.label': 'ADDRESS CR (AI)',
   'prefs.templates.git.rebaseBase.label': 'CHANGE BASE BRANCH (AI)',
+  'prefs.templates.p4.codeReview.label': 'CODE REVIEW (AI)',
+  'prefs.templates.p4.runTests.label': 'RUN TESTS (AI)',
+  'prefs.templates.p4.reviewCommit.label': 'REVIEW & COMMIT (AI)',
   'prefs.templates.resetDefaults': 'Reset to defaults',
+  'prefs.templates.resetThis': 'Reset this template to default',
+  'prefs.templates.modified': 'Customized — differs from the default',
   'prefs.templates.title': 'Prompt templates',
   'prefs.templates.intro':
     'These templates fire as the chat’s first user message when you spawn a chat from a Linear ticket or a PR. Use {macro} macros to inject context. Git-panel action templates live under {link}.',

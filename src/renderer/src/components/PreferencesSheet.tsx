@@ -49,8 +49,12 @@ import {
   DEFAULT_RE_REVIEW_TEMPLATE,
   DEFAULT_START_CODE_REVIEW_TEMPLATE,
   DEFAULT_START_TICKET_TEMPLATE,
+  DEFAULT_P4_CODE_REVIEW_TEMPLATE,
+  DEFAULT_RUN_TESTS_TEMPLATE,
+  DEFAULT_P4_REVIEW_COMMIT_TEMPLATE,
   GIT_ACTION_TEMPLATE_VARS,
   GIT_REBASE_TEMPLATE_VARS,
+  P4_ACTION_TEMPLATE_VARS,
   TICKET_TEMPLATE_VARS,
 } from '../lib/templates';
 
@@ -804,6 +808,15 @@ function PrefsGit(): JSX.Element {
               </p>
             }
           />
+          <h4 style={{ margin: '20px 0 6px', fontSize: 'var(--fs-sm)' }}>{t('prefs.p4.actionTemplates.title')}</h4>
+          <TemplatesGroup
+            fields={P4_ACTION_TEMPLATE_FIELDS}
+            intro={
+              <p className="pref-section-desc">
+                {t('prefs.p4.actionTemplates.intro', { macro: '${name}' })}
+              </p>
+            }
+          />
         </div>
       </div>
 
@@ -1272,6 +1285,10 @@ interface TemplatesSettings {
   makePrReady?: string;
   addressCr?: string;
   rebaseBase?: string;
+  // Perforce panel action templates.
+  p4CodeReview?: string;
+  runTests?: string;
+  p4ReviewCommit?: string;
 }
 
 interface TemplateField {
@@ -1353,6 +1370,32 @@ const GIT_ACTION_TEMPLATE_FIELDS: TemplateField[] = [
   },
 ];
 
+/** Triggered from the Perforce panel's action button. Lives under "Source
+ *  control" alongside the git ones. */
+const P4_ACTION_TEMPLATE_FIELDS: TemplateField[] = [
+  {
+    key: 'p4CodeReview',
+    labelKey: 'prefs.templates.p4.codeReview.label',
+    fallback: DEFAULT_P4_CODE_REVIEW_TEMPLATE,
+    vars: P4_ACTION_TEMPLATE_VARS,
+    rows: 10,
+  },
+  {
+    key: 'runTests',
+    labelKey: 'prefs.templates.p4.runTests.label',
+    fallback: DEFAULT_RUN_TESTS_TEMPLATE,
+    vars: P4_ACTION_TEMPLATE_VARS,
+    rows: 8,
+  },
+  {
+    key: 'p4ReviewCommit',
+    labelKey: 'prefs.templates.p4.reviewCommit.label',
+    fallback: DEFAULT_P4_REVIEW_COMMIT_TEMPLATE,
+    vars: P4_ACTION_TEMPLATE_VARS,
+    rows: 10,
+  },
+];
+
 /**
  * Reusable group of template editors. Each call manages its own
  * subset of the shared `templates` settings blob, save merges over
@@ -1374,12 +1417,20 @@ function TemplatesGroup({
     return out;
   });
   const [savedAt, setSavedAt] = useState<number | null>(null);
+  // Accordion: collapsed by default so a long list of templates stays compact.
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
 
   if (loading) return <div />;
 
   const dirty = fields.some((f) => values[f.key] !== (initial[f.key] ?? f.fallback));
   const setField = (key: string, v: string): void =>
     setValues((prev) => ({ ...prev, [key]: v }));
+  const toggle = (key: string): void =>
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      next.has(key) ? next.delete(key) : next.add(key);
+      return next;
+    });
   const resetAll = (): void => {
     const out: Record<string, string> = {};
     for (const f of fields) out[f.key] = f.fallback;
@@ -1395,25 +1446,54 @@ function TemplatesGroup({
   return (
     <>
       {intro}
-      {fields.map((f) => (
-        <div key={f.key} className="pref-template-block">
-          <h4 className="pref-subhead">{t(f.labelKey)}</h4>
-          <div className="pref-macro-row">
-            {f.vars.map((v) => (
-              <span key={v.name} className="pref-macro" title={v.desc}>
-                {`\${${v.name}}`}
-              </span>
-            ))}
+      {fields.map((f) => {
+        const open = expanded.has(f.key);
+        const modified = (values[f.key] ?? f.fallback) !== f.fallback;
+        return (
+          <div key={f.key} className={`pref-tmpl-acc ${open ? 'open' : ''}`}>
+            <button
+              type="button"
+              className="pref-tmpl-acc-head"
+              aria-expanded={open}
+              onClick={() => toggle(f.key)}
+            >
+              <i className={`fa-solid fa-chevron-${open ? 'down' : 'right'} pref-tmpl-acc-caret`} />
+              <span className="pref-tmpl-acc-label">{t(f.labelKey)}</span>
+              {modified && <span className="pref-tmpl-acc-dot" title={t('prefs.templates.modified')} />}
+              {open && (
+                <span
+                  className="pref-tmpl-acc-reset"
+                  role="button"
+                  tabIndex={0}
+                  title={t('prefs.templates.resetThis')}
+                  onClick={(e) => { e.stopPropagation(); setField(f.key, f.fallback); }}
+                  onKeyDown={(e) => { if (e.key === 'Enter') { e.stopPropagation(); setField(f.key, f.fallback); } }}
+                >
+                  <i className="fa-solid fa-rotate-left" />
+                </span>
+              )}
+            </button>
+            {open && (
+              <div className="pref-tmpl-acc-body">
+                <div className="pref-macro-row">
+                  {f.vars.map((v) => (
+                    <span key={v.name} className="pref-macro" title={v.desc}>
+                      {`\${${v.name}}`}
+                    </span>
+                  ))}
+                </div>
+                <textarea
+                  className="pref-template mono"
+                  value={values[f.key] ?? ''}
+                  onChange={(e) => setField(f.key, e.target.value)}
+                  spellCheck={false}
+                  rows={f.rows}
+                />
+              </div>
+            )}
           </div>
-          <textarea
-            className="pref-template mono"
-            value={values[f.key] ?? ''}
-            onChange={(e) => setField(f.key, e.target.value)}
-            spellCheck={false}
-            rows={f.rows}
-          />
-        </div>
-      ))}
+        );
+      })}
       <div className="pref-template-actions">
         <button className="btn ghost sm" onClick={resetAll}>{t('prefs.templates.resetDefaults')}</button>
         <span style={{ flex: 1 }} />

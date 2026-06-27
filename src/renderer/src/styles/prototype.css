@@ -4843,6 +4843,30 @@ input.input.mono, select.input.mono { font-family: var(--font-mono); font-size: 
 }
 .pref-template-block { margin-bottom: 18px; }
 
+/* Collapsible template accordion — one compact row per template; expand to
+   edit. Keeps a long list of action templates from becoming a wall of boxes. */
+.pref-tmpl-acc { border: 1px solid var(--line-2); border-radius: 5px; margin-bottom: 6px; }
+.pref-tmpl-acc.open { border-color: var(--line-1); }
+.pref-tmpl-acc-head {
+  display: flex; align-items: center; gap: 8px; width: 100%;
+  background: transparent; border: 0; cursor: pointer;
+  padding: 8px 10px; color: var(--fg-1); font-size: var(--fs-sm); font-weight: 600;
+  text-align: left;
+}
+.pref-tmpl-acc-head:hover { background: var(--bg-2); }
+.pref-tmpl-acc.open .pref-tmpl-acc-head { border-bottom: 1px solid var(--line-2); }
+.pref-tmpl-acc-caret { color: var(--fg-3); font-size: 10px; width: 10px; }
+.pref-tmpl-acc-label { flex: 1 1 auto; letter-spacing: 0.03em; }
+.pref-tmpl-acc-dot {
+  width: 7px; height: 7px; border-radius: 50%; background: var(--acc-hi); flex: 0 0 auto;
+}
+.pref-tmpl-acc-reset {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 22px; height: 22px; border-radius: 4px; color: var(--fg-3); cursor: pointer;
+}
+.pref-tmpl-acc-reset:hover { background: var(--bg-3); color: var(--fg-1); }
+.pref-tmpl-acc-body { padding: 8px 10px 10px; }
+
 /* In-app terminal (xterm.js wrapper). The xterm CSS handles the
    interior; we just need the host to fill its parent + a dark bg. */
 .term-host {
@@ -5331,6 +5355,10 @@ input.input.mono, select.input.mono { font-family: var(--font-mono); font-size: 
   resize: none; width: 100%; flex: 1 1 auto; min-height: 36px;
   background: var(--bg-3); color: var(--fg-0);
   border: 1px solid var(--line-2); border-radius: 4px; padding: 5px 7px; font-size: var(--fs-sm);
+}
+/* Read-only AI prompt preview (mode ≠ submit) — mono + dimmer, like git's. */
+.p4-submit-msg.preview {
+  font-family: var(--font-mono); font-size: 11px; color: var(--fg-2); background: var(--bg-1);
 }
 .p4-foot { padding: 4px 10px; color: var(--fg-2); font-size: var(--fs-xs); border-top: 1px solid var(--line-2); }
 

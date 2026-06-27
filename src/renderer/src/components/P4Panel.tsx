@@ -15,12 +15,50 @@ import { useEffect, useRef, useState } from 'react';
 import type { GitFileChange, GitFileStatus } from '@shared/git';
 import { useGitStatus } from '../lib/useGitStatus';
 import { useTranslation } from '../lib/i18n';
+import type { MessageKey } from '@shared/i18n';
+import {
+  expandTemplate,
+  DEFAULT_P4_CODE_REVIEW_TEMPLATE,
+  DEFAULT_RUN_TESTS_TEMPLATE,
+  DEFAULT_P4_REVIEW_COMMIT_TEMPLATE,
+} from '../lib/templates';
 import { P4Glyph } from './P4Glyph';
 import type { SourceControlPanelProps } from './SourceControlPanel';
 
 function clamp(n: number, lo: number, hi: number): number {
   return Math.max(lo, Math.min(hi, n));
 }
+
+/** Footer modes, mirroring the git panel: a manual `submit` plus AI actions
+ *  that send a templated prompt to the chat agent (which does the real
+ *  p4 / Helix Swarm work). */
+type P4Mode = 'submit' | 'cr' | 'tests' | 'reviewCommit';
+
+interface P4ModeMeta {
+  labelKey: MessageKey; // full label (big button)
+  shortKey: MessageKey; // compact label (mode pill)
+  icon: string;
+  isAi: boolean;
+}
+
+const P4_MODE_META: Record<P4Mode, P4ModeMeta> = {
+  submit:       { labelKey: 'p4.mode.submit.label',       shortKey: 'p4.mode.submit.short',       icon: 'fa-check',               isAi: false },
+  cr:           { labelKey: 'p4.mode.cr.label',           shortKey: 'p4.mode.cr.short',           icon: 'fa-code-pull-request',   isAi: true  },
+  tests:        { labelKey: 'p4.mode.tests.label',        shortKey: 'p4.mode.tests.short',        icon: 'fa-flask',               isAi: true  },
+  reviewCommit: { labelKey: 'p4.mode.reviewCommit.label', shortKey: 'p4.mode.reviewCommit.short', icon: 'fa-wand-magic-sparkles', isAi: true  },
+};
+
+interface P4TemplatesBlob {
+  p4CodeReview?: string;
+  runTests?: string;
+  p4ReviewCommit?: string;
+}
+
+const P4_TEMPLATE_FOR_MODE: Record<Exclude<P4Mode, 'submit'>, { key: keyof P4TemplatesBlob; fallback: string }> = {
+  cr:           { key: 'p4CodeReview',   fallback: DEFAULT_P4_CODE_REVIEW_TEMPLATE },
+  tests:        { key: 'runTests',       fallback: DEFAULT_RUN_TESTS_TEMPLATE },
+  reviewCommit: { key: 'p4ReviewCommit', fallback: DEFAULT_P4_REVIEW_COMMIT_TEMPLATE },
+};
 
 type MenuItem =
   | 'sep'
@@ -82,9 +120,36 @@ export function P4Panel({ chatId, chatName, diffPath, onOpenDiff }: SourceContro
   const [desc, setDesc] = useState('');
   const [busy, setBusy] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
+  // Footer mode (manual submit vs an AI action) + the live prompt preview.
+  const [mode, setMode] = useState<P4Mode>('submit');
+  const [previewText, setPreviewText] = useState('');
   // Live progress while a huge changed-file set is opened into the changelist.
   const [openProgress, setOpenProgress] = useState('');
   useEffect(() => window.popbot.repos.onP4OpenProgress(setOpenProgress), []);
+
+  /** Render the active AI mode's prompt against the user's templates (or the
+   *  bundled defaults). Returns null for the manual `submit` mode. */
+  const buildModePrompt = async (m: P4Mode): Promise<string | null> => {
+    if (m === 'submit') return null;
+    const cfg = P4_TEMPLATE_FOR_MODE[m];
+    const blob = await window.popbot.settings.get<P4TemplatesBlob>('templates');
+    const tmpl = (blob?.[cfg.key] ?? cfg.fallback).trim();
+    const st = data?.ok ? data : null;
+    return expandTemplate(tmpl, { changelist: st?.branch ?? '', client: st?.client ?? '' });
+  };
+
+  // Live-rendered prompt preview for the footer textarea (AI modes only).
+  const previewBranch = data?.ok ? data.branch : '';
+  const previewClient = data?.ok ? data.client : '';
+  useEffect(() => {
+    if (mode === 'submit') { setPreviewText(''); return; }
+    let cancelled = false;
+    void buildModePrompt(mode).then((tx) => { if (!cancelled && tx != null) setPreviewText(tx); });
+    return () => { cancelled = true; };
+    // buildModePrompt closes over the current vars; recompute when the inputs
+    // that actually change the output shift.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mode, chatId, previewBranch, previewClient]);
 
   // Splitter-driven heights for the top (commits) + bottom (shelf) sections;
   // the middle "current changes" section flexes to fill the rest. flexBasis is
@@ -236,8 +301,10 @@ export function P4Panel({ chatId, chatName, diffPath, onOpenDiff }: SourceContro
     shelfAnchor.current = null;
   };
 
+  // A Perforce submit submits the whole pending changelist, not a checkbox
+  // subset — so it operates on every open file regardless of what's checked.
   const submit = async (): Promise<void> => {
-    const paths = [...checked].filter((p) => files.some((f) => f.path === p));
+    const paths = files.map((f) => f.path);
     if (!paths.length || !desc.trim() || busy) return;
     setBusy(true);
     setActionError(null);
@@ -249,6 +316,23 @@ export function P4Panel({ chatId, chatName, diffPath, onOpenDiff }: SourceContro
       refresh();
     } else {
       setActionError(res.error || 'Submit failed');
+    }
+  };
+
+  /** Run the active footer mode: manual submit, or send the rendered AI
+   *  prompt to the chat agent as a user message. */
+  const runAction = async (): Promise<void> => {
+    if (mode === 'submit') { await submit(); return; }
+    const text = await buildModePrompt(mode);
+    if (!text) return;
+    setBusy(true);
+    setActionError(null);
+    try {
+      await window.popbot.agent.send({ chatId, text });
+    } catch (err) {
+      setActionError((err as Error).message);
+    } finally {
+      setBusy(false);
     }
   };
 
@@ -378,24 +462,45 @@ export function P4Panel({ chatId, chatName, diffPath, onOpenDiff }: SourceContro
           title={t('common.dragToResize')}
         />
         <div className="p4-submit" ref={submitRef} style={{ flex: `0 0 ${submitPx}px` }}>
-          {ok?.client && (
-            <div className="p4-workspace mono" title={t('p4.workspace.title', { client: ok.client })}>
-              <i className="fa-solid fa-desktop" />&nbsp;{ok.client}
-            </div>
-          )}
+          {/* Mode picker pills */}
+          <div className="git-mode-row">
+            {(Object.keys(P4_MODE_META) as P4Mode[]).map((m) => (
+              <button
+                key={m}
+                className={`git-mode-pill ${mode === m ? 'active' : ''}`}
+                onClick={() => setMode(m)}
+                title={t(P4_MODE_META[m].labelKey)}
+              >
+                {t(P4_MODE_META[m].shortKey)}
+              </button>
+            ))}
+          </div>
+
+          {/* Textarea: changelist description (submit) OR prompt preview (AI) */}
           <textarea
-            className="p4-submit-msg"
-            placeholder={t('p4.submitPlaceholder')}
-            value={desc}
-            onChange={(e) => setDesc(e.target.value)}
+            className={`p4-submit-msg ${mode === 'submit' ? '' : 'preview'}`}
+            placeholder={mode === 'submit' ? t('p4.submitPlaceholder') : t('p4.promptPreviewPlaceholder')}
+            value={mode === 'submit' ? desc : previewText}
+            onChange={(e) => mode === 'submit' && setDesc(e.target.value)}
+            readOnly={mode !== 'submit'}
             rows={2}
+            onKeyDown={(e) => {
+              if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') void runAction();
+            }}
           />
+
+          {/* Single action button — centered label, no file count (a submit
+              always takes the whole changelist). */}
           <button
-            className="btn primary sm"
-            disabled={checked.size === 0 || !desc.trim() || busy}
-            onClick={submit}
+            className="btn primary git-action-btn"
+            disabled={
+              mode === 'submit' ? files.length === 0 || !desc.trim() || busy : busy
+            }
+            onClick={() => void runAction()}
+            title={t(P4_MODE_META[mode].labelKey)}
           >
-            {t('p4.submit', { count: checked.size })}
+            <i className={`fa-solid ${P4_MODE_META[mode].icon}`} />
+            &nbsp;{t(P4_MODE_META[mode].labelKey)}
           </button>
         </div>
       </div>

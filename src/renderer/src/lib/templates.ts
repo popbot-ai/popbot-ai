@@ -196,3 +196,44 @@ Recommended approach:
 
 Do NOT merge — merging is always done manually via the PR web page.
 When done, confirm the final branch name.`;
+
+/* ===== Perforce-action templates (used by the P4Panel action button) =====
+ *
+ * The agent does the real p4/Helix-Swarm work from these prompts. Swarm's
+ * canonical CLI path: a shelved changelist whose description contains
+ * `#review` opens a new review; `#review-<id>` updates that review. */
+
+export const P4_ACTION_TEMPLATE_VARS = [
+  { name: 'changelist', desc: 'This chat’s changelist name (its branch analog)' },
+  { name: 'client',     desc: 'Perforce workspace (client) for this slot' },
+] as const;
+
+export const DEFAULT_P4_CODE_REVIEW_TEMPLATE = `Please put the current pending changelist up for a Helix Swarm code review.
+
+Steps:
+1. Review the pending changes first (\`p4 opened\`, \`p4 diff\`). Find the pending changelist number for this work (\`${'${changelist}'}\`).
+2. Make the changelist description clear (what changed and why). To open a NEW review, add \`#review\` to the description; to UPDATE an existing review, keep its \`#review-<id>\` keyword.
+3. Shelve the changelist so Swarm picks it up: \`p4 shelve -c <cl#>\` (re-shelve with \`-f\` when updating).
+4. If this project exposes a \`swarm\` CLI or REST endpoint, you may use that to create/update the review instead.
+
+Do NOT submit — review happens in Swarm first.
+When done, reply with the Swarm review URL or id.`;
+
+export const DEFAULT_RUN_TESTS_TEMPLATE = `Please run this project's test suite and report the results.
+
+Steps:
+1. Detect how tests run here (package.json scripts, Makefile, pytest, go test, gradle, etc.).
+2. Run the full suite — or, if a full run is impractical, the most relevant subset (say which you chose and why).
+3. Summarize: pass/fail counts, and for each failure the test name + the root cause.
+
+Do NOT submit or shelve anything — this is just a test run.`;
+
+export const DEFAULT_P4_REVIEW_COMMIT_TEMPLATE = `Please review the pending changelist (\`${'${changelist}'}\`), then submit it.
+
+Steps:
+1. Review the pending changes critically (\`p4 opened\`, \`p4 diff\`) — watch for bugs, debug leftovers, secrets, and anything that shouldn't ship.
+2. Fix any issues you find.
+3. Make the changelist description clearly state what changed and why.
+4. Submit the whole changelist: \`p4 submit -c <cl#>\` (this submits every open file in the changelist).
+
+If anything looks risky or ambiguous, stop and ask instead of submitting.`;
