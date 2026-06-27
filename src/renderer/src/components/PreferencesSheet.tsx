@@ -3376,7 +3376,6 @@ function NewRepoWizard({
                   <div className="repo-card-row"><span className="repo-card-label">{t('prefs.repos.wizard.connect.changelist')}</span><span className="mono">{draft.baseChangelist || '—'}</span></div>
                   <div className="repo-card-row"><span className="repo-card-label">{t('prefs.repos.wizard.connect.base')}</span><span className="mono">{draft.id || '—'}</span></div>
                 </div>
-                <p className="pref-section-desc" style={{ marginTop: 10 }}>{t('prefs.repos.wizard.connect.editIdHint')}</p>
               </>
             ) : (
               <>
