@@ -398,14 +398,19 @@ export const ko = {
   // Close-chat prompt (CloseChatPrompt.tsx).
   // ---------------------------------------------------------------------------
   'close.title': '브랜치 {branch}을(를) 닫는 중입니다.',
+  'close.title.perforce': '체인지리스트 {branch}을(를) 닫는 중입니다.',
   'close.parkSub': '슬롯 {slotId}이(가) popbot/slot-{slotId}(으)로 주차됩니다.',
   'close.checking': '워크트리 확인 중…',
   'close.noWorktree': '이 채팅에는 정리할 워크트리가 없습니다.',
   'close.clean': '워크트리가 깨끗합니다 — 스태시할 항목이 없습니다.',
+  'close.clean.perforce': '워크스페이스가 깨끗합니다 — 셸브할 항목이 없습니다.',
   'close.stashPrompt':
     '커밋되지 않은 모든 변경 사항을 스태시하시겠습니까? 이 채팅을 다시 열면 변경 사항이 언스태시됩니다.',
+  'close.stashPrompt.perforce':
+    '대기 중인 모든 변경 사항을 셸브하시겠습니까? 이 채팅을 다시 열면 변경 사항이 언셸브됩니다.',
   'close.discardClose': '버리고 닫기',
   'close.stashClose': '스태시하고 닫기',
+  'close.stashClose.perforce': '셸브하고 닫기',
   'close.closeChat': '채팅 닫기',
 
   // ---------------------------------------------------------------------------
@@ -438,6 +443,7 @@ export const ko = {
   'chat.slot.fallback': '슬롯 {slotId}',
   'chat.slot.worktreeTitle': '워크트리 · {worktreePath}',
   'chat.branch.title': '브랜치 · {branch}',
+  'chat.branch.title.perforce': '체인지리스트 · {branch}',
   'chat.type.lite': 'Lite',
   'chat.type.clientTest': '클라이언트 테스트',
   'chat.input.resizeTitle': '드래그하여 입력창 크기 조절',

@@ -398,14 +398,19 @@ export const de = {
   // Close-chat prompt (CloseChatPrompt.tsx).
   // ---------------------------------------------------------------------------
   'close.title': 'Sie schließen diesen Branch {branch}.',
+  'close.title.perforce': 'Sie schließen diese Changelist {branch}.',
   'close.parkSub': 'Slot {slotId} wird zurück auf popbot/slot-{slotId} geparkt.',
   'close.checking': 'Worktree wird geprüft…',
   'close.noWorktree': 'Dieser Chat hat keinen Worktree, der bereinigt werden muss.',
   'close.clean': 'Der Worktree ist sauber — nichts zu stashen.',
+  'close.clean.perforce': 'Der Arbeitsbereich ist sauber — nichts zurückzustellen.',
   'close.stashPrompt':
     'Möchten Sie alle nicht committeten Änderungen stashen? Diese Änderungen werden ge-unstasht, wenn Sie diesen Chat wieder öffnen.',
+  'close.stashPrompt.perforce':
+    'Möchten Sie alle ausstehenden Änderungen zurückstellen? Diese Änderungen werden zurückgeholt, wenn Sie diesen Chat wieder öffnen.',
   'close.discardClose': 'Verwerfen & schließen',
   'close.stashClose': 'Stashen & schließen',
+  'close.stashClose.perforce': 'Zurückstellen & schließen',
   'close.closeChat': 'Chat schließen',
 
   // ---------------------------------------------------------------------------
@@ -438,6 +443,7 @@ export const de = {
   'chat.slot.fallback': 'Slot {slotId}',
   'chat.slot.worktreeTitle': 'Worktree · {worktreePath}',
   'chat.branch.title': 'Branch · {branch}',
+  'chat.branch.title.perforce': 'Changelist · {branch}',
   'chat.type.lite': 'Lite',
   'chat.type.clientTest': 'Client-Test',
   'chat.input.resizeTitle': 'Ziehen, um die Eingabe zu vergrößern',

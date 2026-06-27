@@ -398,14 +398,19 @@ export const fr = {
   // Close-chat prompt (CloseChatPrompt.tsx).
   // ---------------------------------------------------------------------------
   'close.title': 'Vous fermez cette branche {branch}.',
+  'close.title.perforce': 'Vous fermez cette liste de modifications {branch}.',
   'close.parkSub': 'L’emplacement {slotId} sera parqué de nouveau vers popbot/slot-{slotId}.',
   'close.checking': 'Vérification du worktree…',
   'close.noWorktree': 'Ce chat n’a aucun worktree à nettoyer.',
   'close.clean': 'Le worktree est propre — rien à remiser.',
+  'close.clean.perforce': 'L’espace de travail est propre — rien à remiser.',
   'close.stashPrompt':
     'Voulez-vous remiser toutes les modifications non validées ? Ces modifications seront dé-remisées si vous rouvrez ce chat.',
+  'close.stashPrompt.perforce':
+    'Voulez-vous remiser toutes les modifications en attente ? Ces modifications seront dé-remisées si vous rouvrez ce chat.',
   'close.discardClose': 'Abandonner et fermer',
   'close.stashClose': 'Remiser et fermer',
+  'close.stashClose.perforce': 'Remiser et fermer',
   'close.closeChat': 'Fermer le chat',
 
   // ---------------------------------------------------------------------------
@@ -438,6 +443,7 @@ export const fr = {
   'chat.slot.fallback': 'Emplacement {slotId}',
   'chat.slot.worktreeTitle': 'Worktree · {worktreePath}',
   'chat.branch.title': 'Branche · {branch}',
+  'chat.branch.title.perforce': 'Liste de modifications · {branch}',
   'chat.type.lite': 'Lite',
   'chat.type.clientTest': 'Test client',
   'chat.input.resizeTitle': 'Glisser pour redimensionner la saisie',

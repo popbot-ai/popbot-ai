@@ -398,14 +398,19 @@ export const zhCN = {
   // Close-chat prompt (CloseChatPrompt.tsx).
   // ---------------------------------------------------------------------------
   'close.title': '您正在关闭此分支 {branch}。',
+  'close.title.perforce': '您正在关闭此更改列表 {branch}。',
   'close.parkSub': '槽位 {slotId} 将停放回 popbot/slot-{slotId}。',
   'close.checking': '正在检查工作树…',
   'close.noWorktree': '此聊天没有需要清理的工作树。',
   'close.clean': '工作树是干净的 — 无需暂存。',
+  'close.clean.perforce': '工作区是干净的 — 无需搁置。',
   'close.stashPrompt':
     '是否要暂存所有未提交的更改？如果您重新打开此聊天，这些更改将被取消暂存。',
+  'close.stashPrompt.perforce':
+    '是否要搁置所有未提交的更改？如果您重新打开此聊天，这些更改将被取消搁置。',
   'close.discardClose': '放弃并关闭',
   'close.stashClose': '暂存并关闭',
+  'close.stashClose.perforce': '搁置并关闭',
   'close.closeChat': '关闭聊天',
 
   // ---------------------------------------------------------------------------
@@ -438,6 +443,7 @@ export const zhCN = {
   'chat.slot.fallback': '槽位 {slotId}',
   'chat.slot.worktreeTitle': '工作树 · {worktreePath}',
   'chat.branch.title': '分支 · {branch}',
+  'chat.branch.title.perforce': '更改列表 · {branch}',
   'chat.type.lite': 'Lite',
   'chat.type.clientTest': '客户端测试',
   'chat.input.resizeTitle': '拖动以调整输入框大小',

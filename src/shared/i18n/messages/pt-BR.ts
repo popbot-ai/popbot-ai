@@ -398,14 +398,19 @@ export const ptBR = {
   // Close-chat prompt (CloseChatPrompt.tsx).
   // ---------------------------------------------------------------------------
   'close.title': 'Você está fechando esta branch {branch}.',
+  'close.title.perforce': 'Você está fechando este changelist {branch}.',
   'close.parkSub': 'O slot {slotId} será estacionado de volta em popbot/slot-{slotId}.',
   'close.checking': 'Verificando worktree…',
   'close.noWorktree': 'Este chat não tem worktree para limpar.',
   'close.clean': 'O worktree está limpo — nada para fazer stash.',
+  'close.clean.perforce': 'O workspace está limpo — nada para fazer shelve.',
   'close.stashPrompt':
     'Deseja fazer stash de todas as alterações não confirmadas? Essas alterações serão restauradas se você reabrir este chat.',
+  'close.stashPrompt.perforce':
+    'Deseja fazer shelve de todas as alterações pendentes? Essas alterações serão restauradas se você reabrir este chat.',
   'close.discardClose': 'Descartar e fechar',
   'close.stashClose': 'Stash e fechar',
+  'close.stashClose.perforce': 'Shelve e fechar',
   'close.closeChat': 'Fechar chat',
 
   // ---------------------------------------------------------------------------
@@ -438,6 +443,7 @@ export const ptBR = {
   'chat.slot.fallback': 'Slot {slotId}',
   'chat.slot.worktreeTitle': 'Worktree · {worktreePath}',
   'chat.branch.title': 'Branch · {branch}',
+  'chat.branch.title.perforce': 'Changelist · {branch}',
   'chat.type.lite': 'Lite',
   'chat.type.clientTest': 'Teste de cliente',
   'chat.input.resizeTitle': 'Arraste para redimensionar a entrada',

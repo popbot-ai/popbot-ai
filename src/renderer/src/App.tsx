@@ -1483,6 +1483,7 @@ export default function App(): JSX.Element {
           chatId={closingChat.id}
           branch={closingChat.branch}
           slotId={closingChat.slotId}
+          scm={closingChat.repoScm}
           onCancel={() => setClosingChat(null)}
           onClose={(opts) => void doClose(closingChat.id, opts)}
         />

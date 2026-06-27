@@ -376,14 +376,22 @@ export const en = {
   // Close-chat prompt (CloseChatPrompt.tsx).
   // ---------------------------------------------------------------------------
   'close.title': 'You are closing this branch {branch}.',
+  // Perforce variants: branch→changelist, stash→shelve. Selected by scm in
+  // CloseChatPrompt; the base keys stay git's wording (also the default for
+  // any other provider).
+  'close.title.perforce': 'You are closing this changelist {branch}.',
   'close.parkSub': 'Slot {slotId} will be parked back to popbot/slot-{slotId}.',
   'close.checking': 'Checking worktree…',
   'close.noWorktree': 'This chat has no worktree to clean up.',
   'close.clean': 'The worktree is clean — nothing to stash.',
+  'close.clean.perforce': 'The workspace is clean — nothing to shelve.',
   'close.stashPrompt':
     'Do you want to stash all uncommitted changes? These changes will be unstashed if you reopen this chat.',
+  'close.stashPrompt.perforce':
+    'Do you want to shelve all pending changes? These changes will be unshelved if you reopen this chat.',
   'close.discardClose': 'Discard & close',
   'close.stashClose': 'Stash & close',
+  'close.stashClose.perforce': 'Shelve & close',
   'close.closeChat': 'Close chat',
 
   // ---------------------------------------------------------------------------
@@ -416,6 +424,7 @@ export const en = {
   'chat.slot.fallback': 'Slot {slotId}',
   'chat.slot.worktreeTitle': 'Worktree · {worktreePath}',
   'chat.branch.title': 'Branch · {branch}',
+  'chat.branch.title.perforce': 'Changelist · {branch}',
   'chat.type.lite': 'Lite',
   'chat.type.clientTest': 'Client Test',
   'chat.input.resizeTitle': 'Drag to resize the input',

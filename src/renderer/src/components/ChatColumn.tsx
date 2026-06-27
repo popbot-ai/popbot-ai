@@ -568,7 +568,13 @@ export function ChatColumn({
             </span>
           )}
           {chat.branch && (
-            <span className="col-branch" title={t('chat.branch.title', { branch: chat.branch })}>
+            <span
+              className="col-branch"
+              title={t(
+                chat.repoScm === 'perforce' ? 'chat.branch.title.perforce' : 'chat.branch.title',
+                { branch: chat.branch },
+              )}
+            >
               <i className="fa-solid fa-code-branch col-branch-icon" />
               <span className="col-branch-name mono">{chat.branch}</span>
             </span>

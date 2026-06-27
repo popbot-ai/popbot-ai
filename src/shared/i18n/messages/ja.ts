@@ -398,14 +398,19 @@ export const ja = {
   // Close-chat prompt (CloseChatPrompt.tsx).
   // ---------------------------------------------------------------------------
   'close.title': 'ブランチ {branch} を閉じようとしています。',
+  'close.title.perforce': 'チェンジリスト {branch} を閉じようとしています。',
   'close.parkSub': 'スロット {slotId} は popbot/slot-{slotId} に parking されます。',
   'close.checking': 'worktree を確認中…',
   'close.noWorktree': 'このチャットにはクリーンアップする worktree がありません。',
   'close.clean': 'worktree はクリーンです — stash するものはありません。',
+  'close.clean.perforce': 'ワークスペースはクリーンです — シェルブするものはありません。',
   'close.stashPrompt':
     'コミットされていないすべての変更を stash しますか? これらの変更は、このチャットを再度開くと unstash されます。',
+  'close.stashPrompt.perforce':
+    'ペンディング中のすべての変更をシェルブしますか? これらの変更は、このチャットを再度開くとアンシェルブされます。',
   'close.discardClose': '破棄して閉じる',
   'close.stashClose': 'stash して閉じる',
+  'close.stashClose.perforce': 'シェルブして閉じる',
   'close.closeChat': 'チャットを閉じる',
 
   // ---------------------------------------------------------------------------
@@ -438,6 +443,7 @@ export const ja = {
   'chat.slot.fallback': 'スロット {slotId}',
   'chat.slot.worktreeTitle': 'worktree · {worktreePath}',
   'chat.branch.title': 'ブランチ · {branch}',
+  'chat.branch.title.perforce': 'チェンジリスト · {branch}',
   'chat.type.lite': 'Lite',
   'chat.type.clientTest': 'クライアントテスト',
   'chat.input.resizeTitle': 'ドラッグして入力欄のサイズを変更',
