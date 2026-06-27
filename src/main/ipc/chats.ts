@@ -38,7 +38,31 @@ import { GitWorktreeError, getSourceControlProvider } from '../scm';
 import type { SourceControlProvider } from '../scm';
 import { getRepo } from '../persistence/repos';
 import { slotWorktreePathForRepo, worktreesDirForRepo } from '../git/chatPaths';
+import { remountSlots } from '../shado/base';
 import type { RepoRecord } from '@shared/persistence';
+
+/** After a reboot, Windows drops the VHDX slot mounts and the slot folders go
+ *  empty. Detect that signature (a slot folder that exists but is empty) and
+ *  re-attach ALL of the repo's shado clones via one elevated `shado remount`
+ *  before allocating — otherwise the next slot op fails on an empty mount.
+ *  No-op for non-slot repos, off-Windows, or when the slots are already up. */
+async function ensureSlotsMounted(repo: RepoRecord): Promise<void> {
+  if (repo.mode !== 'slots' || process.platform !== 'win32') return;
+  const baseName = repo.scm === 'perforce' ? repo.p4?.shadoBase : repo.id;
+  if (!baseName) return;
+  let unmounted = false;
+  for (let i = 1; i <= repo.slotCount; i += 1) {
+    const p = slotWorktreePathForRepo(repo, i);
+    if (existsSync(p) && readdirSync(p).length === 0) {
+      unmounted = true;
+      break;
+    }
+  }
+  if (!unmounted) return;
+  dlog('chat.create.remountSlots', { repoId: repo.id, scm: repo.scm ?? 'git', baseName });
+  const res = await remountSlots({ repoPath: repo.repoPath, repoId: repo.id, baseName });
+  if (!res.ok) throw new Error(res.log);
+}
 
 interface SlotsSettings { maxCount?: number }
 interface GitSettings {
@@ -330,6 +354,9 @@ export function registerChatHandlers(): void {
     const worktreePath = slotWorktreePathForRepo(repo, slotId);
 
     try {
+      // Re-attach VHDX slot mounts if a reboot dropped them (one elevated
+      // `shado remount`), before any slot op touches an empty mount.
+      await ensureSlotsMounted(repo);
       await scm.ensureSlotWorktree({
         repoPath: repo.repoPath || gitCfg?.repoPath || '',
         worktreePath,
@@ -477,6 +504,7 @@ export function registerChatHandlers(): void {
     const branch = chat.branch?.trim() || `popbot/chat-${chat.id}`;
     const baseBranch = repo.defaultBase || gitCfg.defaultBase;
     try {
+      await ensureSlotsMounted(repo);
       await scm.ensureSlotWorktree({
         repoPath: repo.repoPath || gitCfg.repoPath,
         worktreePath,
