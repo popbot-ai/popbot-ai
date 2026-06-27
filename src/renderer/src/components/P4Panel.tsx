@@ -51,6 +51,11 @@ export function P4Panel({ chatId, chatName, diffPath, onOpenDiff }: SourceContro
   const commitsRef = useRef<HTMLDivElement | null>(null);
   const shelfRef = useRef<HTMLDivElement | null>(null);
   const submitRef = useRef<HTMLDivElement | null>(null);
+  // Checked shelves (by change number) + shift-range anchors for both lists.
+  const [shelfChecked, setShelfChecked] = useState<Set<string>>(new Set());
+  const fileAnchor = useRef<number | null>(null);
+  const shelfAnchor = useRef<number | null>(null);
+  const shiftRef = useRef(false); // last checkbox mousedown's shiftKey
   const startVerticalDrag =
     (current: number, setter: (n: number) => void, target: React.RefObject<HTMLDivElement>, direction: 'down' | 'up') =>
     (e: React.MouseEvent): void => {
@@ -90,6 +95,72 @@ export function P4Panel({ chatId, chatName, diffPath, onOpenDiff }: SourceContro
       next.has(path) ? next.delete(path) : next.add(path);
       return next;
     });
+
+  // Shift-click checks the whole range between the previous click and this one.
+  const toggleFileAt = (idx: number, shift: boolean): void => {
+    if (shift && fileAnchor.current !== null) {
+      const lo = Math.min(fileAnchor.current, idx);
+      const hi = Math.max(fileAnchor.current, idx);
+      setChecked((prev) => {
+        const next = new Set(prev);
+        for (let i = lo; i <= hi; i += 1) if (files[i]) next.add(files[i].path);
+        return next;
+      });
+    } else {
+      toggle(files[idx].path);
+      fileAnchor.current = idx;
+    }
+  };
+
+  const toggleShelfAt = (idx: number, shift: boolean): void => {
+    const setAt = (lo: number, hi: number): void =>
+      setShelfChecked((prev) => {
+        const next = new Set(prev);
+        for (let i = lo; i <= hi; i += 1) if (shelves[i]) next.add(String(shelves[i].change));
+        return next;
+      });
+    if (shift && shelfAnchor.current !== null) {
+      setAt(Math.min(shelfAnchor.current, idx), Math.max(shelfAnchor.current, idx));
+    } else {
+      const change = String(shelves[idx].change);
+      setShelfChecked((prev) => {
+        const next = new Set(prev);
+        next.has(change) ? next.delete(change) : next.add(change);
+        return next;
+      });
+      shelfAnchor.current = idx;
+    }
+  };
+
+  const shelve = async (): Promise<void> => {
+    const paths = [...checked].filter((p) => files.some((f) => f.path === p));
+    if (!paths.length || busy) return;
+    setBusy(true);
+    setActionError(null);
+    const res = await window.popbot.git.shelve({ chatId, paths, message: desc.trim() || undefined });
+    setBusy(false);
+    if (res.ok) {
+      setChecked(new Set());
+      refresh();
+    } else {
+      setActionError(res.error || 'Shelve failed');
+    }
+  };
+
+  const unshelve = async (): Promise<void> => {
+    const changes = [...shelfChecked];
+    if (!changes.length || busy) return;
+    setBusy(true);
+    setActionError(null);
+    const res = await window.popbot.git.unshelve({ chatId, changes });
+    setBusy(false);
+    if (res.ok) {
+      setShelfChecked(new Set());
+      refresh();
+    } else {
+      setActionError(res.error || 'Unshelve failed');
+    }
+  };
 
   const submit = async (): Promise<void> => {
     const paths = [...checked].filter((p) => files.some((f) => f.path === p));
@@ -174,19 +245,29 @@ export function P4Panel({ chatId, chatName, diffPath, onOpenDiff }: SourceContro
         <div className="p4-section-head">
           {t('p4.changes.title')}
           {files.length > 0 && (
-            <button
-              className="git-mini-action danger"
-              disabled={checked.size === 0 || busy}
-              onClick={() => revert([...checked])}
-              title={t('p4.revert')}
-            >
-              <i className="fa-solid fa-rotate-left" /> {t('p4.revert')}
-            </button>
+            <span className="p4-head-actions">
+              <button
+                className="git-mini-action"
+                disabled={checked.size === 0 || busy}
+                onClick={() => void shelve()}
+                title={t('p4.shelveChecked')}
+              >
+                <i className="fa-solid fa-box-archive" /> {t('p4.shelve')}
+              </button>
+              <button
+                className="git-mini-action danger"
+                disabled={checked.size === 0 || busy}
+                onClick={() => revert([...checked])}
+                title={t('p4.revert')}
+              >
+                <i className="fa-solid fa-rotate-left" /> {t('p4.revert')}
+              </button>
+            </span>
           )}
         </div>
         <div className="p4-section-body">
           {files.length === 0 && <div className="git-empty-line">{t('p4.changes.empty')}</div>}
-          {files.map((f) => {
+          {files.map((f, idx) => {
             const meta = STATUS_ICON[f.status];
             return (
               <div
@@ -198,7 +279,8 @@ export function P4Panel({ chatId, chatName, diffPath, onOpenDiff }: SourceContro
                   type="checkbox"
                   className="git-row-check"
                   checked={checked.has(f.path)}
-                  onChange={() => toggle(f.path)}
+                  onMouseDown={(e) => { shiftRef.current = e.shiftKey; }}
+                  onChange={() => toggleFileAt(idx, shiftRef.current)}
                   onClick={(e) => e.stopPropagation()}
                 />
                 <i className={`fa-solid ${meta.icon} git-file-icon`} style={{ color: meta.color }} />
@@ -248,11 +330,33 @@ export function P4Panel({ chatId, chatName, diffPath, onOpenDiff }: SourceContro
       />
       {/* bottom — shelf */}
       <div className="p4-section p4-shelf" ref={shelfRef} style={{ flex: `0 0 ${shelfPx}px` }}>
-        <div className="p4-section-head">{t('p4.shelf.title')}</div>
+        <div className="p4-section-head">
+          {t('p4.shelf.title')}
+          {shelves.length > 0 && (
+            <span className="p4-head-actions">
+              <button
+                className="git-mini-action"
+                disabled={shelfChecked.size === 0 || busy}
+                onClick={() => void unshelve()}
+                title={t('p4.unshelveChecked')}
+              >
+                <i className="fa-solid fa-box-open" /> {t('p4.unshelve')}
+              </button>
+            </span>
+          )}
+        </div>
         <div className="p4-section-body">
           {shelves.length === 0 && <div className="git-empty-line">{t('p4.shelf.empty')}</div>}
-          {shelves.map((s) => (
+          {shelves.map((s, idx) => (
             <div key={s.change} className="p4-shelf-row" title={s.description}>
+              <input
+                type="checkbox"
+                className="git-row-check"
+                checked={shelfChecked.has(String(s.change))}
+                onMouseDown={(e) => { shiftRef.current = e.shiftKey; }}
+                onChange={() => toggleShelfAt(idx, shiftRef.current)}
+                onClick={(e) => e.stopPropagation()}
+              />
               <i className="fa-solid fa-box-archive git-file-icon" />
               <span className="p4-change">@{s.change}</span>
               <span className="p4-commit-subject">{s.description}</span>

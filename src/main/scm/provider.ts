@@ -104,6 +104,16 @@ export abstract class SourceControlProvider {
   abstract commitFiles(wt: string, message: string, paths: string[]): Promise<{ sha: string }>;
   /** Discard local changes for the given paths. */
   abstract revertFiles(wt: string, paths: string[]): Promise<void>;
+  /** Shelve the given (depot-key) paths into a recoverable shelf — the P4
+   *  panel's "Shelve Checked Changes" action. Perforce-only; default throws. */
+  shelveFiles(_wt: string, _paths: string[], _message: string): Promise<{ change: string }> {
+    return Promise.reject(new Error('Shelving is not supported by this source control.'));
+  }
+  /** Restore the given shelved changelists — "Unshelve Checked Changes".
+   *  Perforce-only; default throws. */
+  unshelve(_wt: string, _changes: string[]): Promise<void> {
+    return Promise.reject(new Error('Unshelving is not supported by this source control.'));
+  }
   /** Files touched by a commit/change. */
   abstract listFilesInCommit(wt: string, sha: string): Promise<GitFileChange[]>;
   /** Candidate base refs to fork a chat from. Gated by

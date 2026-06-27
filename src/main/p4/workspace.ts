@@ -241,6 +241,47 @@ export async function shelveWork(ctx: P4Context, wt: string, description: string
   return cl;
 }
 
+/**
+ * Shelve a SPECIFIC set of opened files (the "Shelve Checked Changes" action):
+ * reopen just those paths into a fresh changelist, shelve it, then revert the
+ * working copies — so the changes leave the working area but are preserved in
+ * the shelf (git-stash-like). `paths` are depot keys ("depot/X"). Returns the
+ * shelf changelist number, or null if nothing was shelved.
+ */
+export async function shelveFiles(
+  ctx: P4Context,
+  wt: string,
+  paths: string[],
+  description: string,
+): Promise<string | null> {
+  if (!paths.length) return null;
+  const created = await p4exec(ctx, ['change', '-i'], {
+    cwd: wt,
+    tolerant: true,
+    input: `Change: new\nDescription:\n\t${(description.trim() || 'popbot shelf').replace(/\n/g, '\n\t')}\n`,
+  });
+  const cl = /Change (\d+) created/.exec(created.stdout)?.[1];
+  if (!cl) return null;
+  const files = paths.map((p) => `//${p}`);
+  const CHUNK = 4000;
+  const run = (args: string[], batch: string[]): Promise<P4ExecResult> =>
+    p4exec(ctx, ['-x', '-', ...args], {
+      cwd: wt,
+      input: batch.join('\n') + '\n',
+      tolerant: true,
+      maxBuffer: 64 * 1024 * 1024,
+    });
+  for (let i = 0; i < files.length; i += CHUNK) await run(['reopen', '-c', cl], files.slice(i, i + CHUNK));
+  const shelved = await p4exec(ctx, ['shelve', '-c', cl], { cwd: wt, tolerant: true });
+  if (!/shelved/i.test(shelved.stdout + shelved.stderr)) {
+    await p4exec(ctx, ['change', '-d', cl], { cwd: wt, tolerant: true }); // nothing shelved → drop empty CL
+    return null;
+  }
+  // Drop the working copies — the shelf (in CL `cl`) keeps them.
+  for (let i = 0; i < files.length; i += CHUNK) await run(['revert'], files.slice(i, i + CHUNK));
+  return cl;
+}
+
 /** Shelved changelists owned by the user — the P4 panel's shelf section. */
 export async function listShelves(ctx: P4Context, max = 50): Promise<P4Shelf[]> {
   const { stdout } = await p4exec(

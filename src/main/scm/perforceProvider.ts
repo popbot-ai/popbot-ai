@@ -49,6 +49,7 @@ import {
   openChanges,
   readSlotMeta,
   revertAll,
+  shelveFiles,
   shelveWork,
   syncLatest,
   unshelvePop,
@@ -155,6 +156,21 @@ export class PerforceProvider extends SourceControlProvider {
   }
   revertFiles(wt: string, paths: string[]): Promise<void> {
     return p4RevertFiles(this.ctx(wt), wt, paths);
+  }
+  /** Shelve the checked files into a new shelf (then revert their working
+   *  copies). Opens watched edits first so checked files are really opened. */
+  async shelveFiles(wt: string, paths: string[], message: string): Promise<{ change: string }> {
+    const ctx = this.ctx(wt);
+    await this.syncWatched(ctx, wt);
+    const change = await shelveFiles(ctx, wt, paths, message);
+    return { change: change ?? '' };
+  }
+  /** Restore (and remove) the checked shelved changelists. */
+  async unshelve(wt: string, changes: string[]): Promise<void> {
+    const ctx = this.ctx(wt);
+    for (const c of changes) {
+      await unshelvePop(ctx, wt, c);
+    }
   }
   listFilesInCommit(wt: string, sha: string): Promise<GitFileChange[]> {
     return p4FilesInChange(this.ctx(wt), wt, sha);
