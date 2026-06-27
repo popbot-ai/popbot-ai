@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import { hotkey } from '../lib/hotkeys';
 import { useTranslation } from '../lib/i18n';
 import { LOCALES, type Locale, type MessageKey } from '@shared/i18n';
@@ -3827,7 +3828,10 @@ function ResizeSlotsModal({
   const [target, setTarget] = useState(repo.slotCount);
   const [confirmed, setConfirmed] = useState(false);
 
-  return (
+  // Portal to <body>: nested inside the Edit-repo modal's own scrim, this
+  // modal's box was hidden behind it (stacking-context trap) — only the scrim
+  // darkening showed. A portal makes it a clean top-level overlay.
+  return createPortal(
     <div className="modal-scrim" onClick={onClose}>
       <div className="modal" onClick={(e) => e.stopPropagation()} style={{ width: 540, maxWidth: "92vw" }}>
         <div className="modal-head">
@@ -3873,7 +3877,8 @@ function ResizeSlotsModal({
           </div>
         )}
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 
