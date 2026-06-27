@@ -160,6 +160,32 @@ export async function submitFiles(
   return { sha: m?.[1] ?? '' };
 }
 
+/** Submit the chat's named pending changelist (which already holds the
+ *  watcher-opened files), setting its description to `message` first so the
+ *  commit message wins over the working name. */
+export async function submitChangelist(
+  ctx: P4Context,
+  wt: string,
+  cl: number,
+  message: string,
+): Promise<{ sha: string }> {
+  if (!message.trim()) throw new Error('Submit description required');
+  // Read-modify-write the changelist spec to set the description.
+  const got = await p4exec(ctx, ['change', '-o', String(cl)], { cwd: wt, tolerant: true });
+  const desc = message.trim().replace(/\n/g, '\n\t');
+  const spec = got.stdout.replace(/^Description:\n(?:\t.*\n?)*/m, `Description:\n\t${desc}\n`);
+  await p4exec(ctx, ['change', '-i'], { input: spec, cwd: wt, tolerant: true });
+  const threads = clampP4ParallelThreads(getSetting<PerforceSettings>('perforce')?.parallelThreads);
+  const args = ['submit', '-c', String(cl)];
+  if (threads > 1) args.push(`--parallel=threads=${threads},batch=8,min=1`);
+  const res = await p4exec(ctx, args, { cwd: wt, tolerant: true });
+  if (/No files to submit/i.test(res.stdout + res.stderr)) return { sha: '' };
+  if (res.code !== 0) {
+    throw new Error(`p4 submit failed: ${res.stderr.trim() || res.stdout.trim()}`);
+  }
+  return { sha: /Change (\d+) submitted/.exec(res.stdout)?.[1] ?? '' };
+}
+
 /** Discard local changes for the given paths (revert opened files). */
 export async function revertFiles(ctx: P4Context, wt: string, paths: string[]): Promise<void> {
   if (paths.length === 0) return;

@@ -23,6 +23,11 @@ import { p4exec, parseZtag, writeP4Config, type P4Context, type P4ExecResult } f
 export interface SlotMeta {
   depotPath: string;
   baseChangelist: number;
+  /** The chat's named pending changelist (the git-branch analog). The agent's
+   *  edits are opened into it; submit submits it. */
+  changelist?: number;
+  /** Its description — the chat's branch/changelist name. */
+  changelistName?: string;
 }
 
 const SLOT_META_FILE = '.popbot-p4.json';
@@ -232,18 +237,38 @@ export async function openChanges(
   ctx: P4Context,
   wt: string,
   changes: { path: string; kind: 'modify' | 'add' | 'delete' }[],
+  changelist?: number,
 ): Promise<void> {
   const present = changes.filter((c) => c.kind !== 'delete').map((c) => `//${c.path}`);
   const removed = changes.filter((c) => c.kind === 'delete').map((c) => `//${c.path}`);
+  // Open into the chat's named changelist when there is one (else the default).
+  const clArgs = changelist ? ['-c', String(changelist)] : [];
   const run = (action: string, files: string[]): Promise<unknown> =>
     files.length
-      ? p4exec(ctx, ['-x', '-', action], { cwd: wt, input: files.join('\n') + '\n', tolerant: true })
+      ? p4exec(ctx, ['-x', '-', action, ...clArgs], { cwd: wt, input: files.join('\n') + '\n', tolerant: true })
       : Promise.resolve();
   if (present.length) {
     await run('edit', present);
     await run('add', present);
   }
   if (removed.length) await run('delete', removed);
+}
+
+/** Create a named pending changelist (the chat's branch analog); returns its
+ *  number, or 0 on failure. */
+export async function createChangelist(ctx: P4Context, description: string): Promise<number> {
+  const desc = (description.trim() || 'popbot work').replace(/\n/g, '\n\t');
+  const res = await p4exec(ctx, ['change', '-i'], {
+    input: `Change: new\n\nDescription:\n\t${desc}\n`,
+    tolerant: true,
+  });
+  return Number(/Change (\d+) created/.exec(res.stdout)?.[1] ?? 0);
+}
+
+/** Delete an (empty) pending changelist — best-effort. */
+export async function deleteChangelist(ctx: P4Context, cl: number): Promise<void> {
+  if (!cl) return;
+  await p4exec(ctx, ['change', '-d', String(cl)], { tolerant: true });
 }
 
 /** Restore a shelved change into the slot, then drop the shelf + its

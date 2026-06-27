@@ -15,6 +15,7 @@ import { useState } from 'react';
 import type { GitFileChange, GitFileStatus } from '@shared/git';
 import { useGitStatus } from '../lib/useGitStatus';
 import { useTranslation } from '../lib/i18n';
+import { P4Glyph } from './P4Glyph';
 import type { SourceControlPanelProps } from './SourceControlPanel';
 
 const STATUS_ICON: Record<GitFileStatus, { icon: string; color: string; abbr: string }> = {
@@ -90,6 +91,15 @@ export function P4Panel({ chatId, chatName, diffPath, onOpenDiff }: SourceContro
 
   return (
     <div className="p4-panel">
+      {/* SCM tag + the chat's changelist name (its branch analog). */}
+      <div className="git-panel-head">
+        <div className="git-panel-title">
+          <span className="repo-card-scm scm-perforce" title={t('prefs.repos.scm.perforce')}>
+            <P4Glyph /> {t('prefs.repos.scm.perforce')}
+          </span>
+          <span className="git-branch" title={ok?.branch ?? ''}>{ok?.branch ?? '—'}</span>
+        </div>
+      </div>
       {(actionError || statusError) && (
         <div className="p4-error" role="alert">{actionError ?? statusError}</div>
       )}

@@ -36,9 +36,12 @@ import {
   listStatus as p4ListStatus,
   revertFiles as p4RevertFiles,
   submitFiles as p4SubmitFiles,
+  submitChangelist,
 } from '../p4/files';
 import {
   deleteClient,
+  createChangelist,
+  deleteChangelist,
   ensureClient,
   findLatestShelf,
   flushTo,
@@ -100,7 +103,8 @@ export class PerforceProvider extends SourceControlProvider {
     startSlotWatch(wt); // idempotent
     const changes = getSlotChanges(wt);
     if (changes.length) {
-      await openChanges(ctx, wt, changes);
+      // Open the watcher's changes into the chat's named changelist.
+      await openChanges(ctx, wt, changes, readSlotMeta(wt)?.changelist);
       clearSlotChanges(wt);
     }
   }
@@ -129,7 +133,9 @@ export class PerforceProvider extends SourceControlProvider {
     await this.syncWatched(ctx, wt);
     const status = await p4ListStatus(ctx, wt);
     const shelves = await listShelves(ctx).catch(() => []);
-    return { ...status, shelves };
+    // Surface the chat's changelist name (its branch analog) as the branch.
+    const name = readSlotMeta(wt)?.changelistName;
+    return { ...status, branch: name ?? status.branch, shelves };
   }
   fileDiff(wt: string, scope: GitScope, path: string): Promise<ScmFileDiff> {
     return p4FileDiff(this.ctx(wt), wt, scope, path);
@@ -137,6 +143,14 @@ export class PerforceProvider extends SourceControlProvider {
   async commitFiles(wt: string, message: string, paths: string[]): Promise<{ sha: string }> {
     const ctx = this.ctx(wt);
     await this.syncWatched(ctx, wt);
+    const meta = readSlotMeta(wt);
+    if (meta?.changelist) {
+      const res = await submitChangelist(ctx, wt, meta.changelist, message);
+      // Keep the chat going in a fresh changelist with the same name.
+      const cl = await createChangelist(ctx, meta.changelistName ?? message);
+      writeSlotMeta(wt, { ...meta, changelist: cl || undefined });
+      return res;
+    }
     return p4SubmitFiles(ctx, wt, message, paths);
   }
   revertFiles(wt: string, paths: string[]): Promise<void> {
@@ -199,12 +213,24 @@ export class PerforceProvider extends SourceControlProvider {
     const ctx = this.ctx(opts.worktreePath);
     const meta = readSlotMeta(opts.worktreePath);
     await revertAll(ctx, opts.worktreePath);
+    // Drop the prior chat's (now reverted / empty) changelist.
+    if (meta?.changelist) await deleteChangelist(ctx, meta.changelist);
     if (meta) {
       await flushTo(ctx, meta.depotPath, meta.baseChangelist);
       // A new chat starts from the LATEST changelist — flushing re-anchors the
       // have-list at the warm frozen base, then sync transfers only the
       // base→head delta (the warm-slot payoff).
       await syncLatest(ctx, opts.worktreePath, meta.depotPath);
+    }
+    // The chat's named pending changelist (its git-branch analog) — the slot
+    // watcher opens edits into it; commit submits it.
+    const cl = await createChangelist(ctx, opts.branch);
+    if (meta) {
+      writeSlotMeta(opts.worktreePath, {
+        ...meta,
+        changelist: cl || undefined,
+        changelistName: opts.branch,
+      });
     }
     // Fresh slot for a new chat — forget any prior watched edits, watch anew.
     clearSlotChanges(opts.worktreePath);
