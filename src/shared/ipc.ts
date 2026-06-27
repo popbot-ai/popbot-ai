@@ -131,6 +131,10 @@ export const IpcChannel = {
   /** Open a native file picker for the chat input attach buttons.
    *  Returns the selected file's absolute path + metadata. */
   FilesPickAttachment: 'pb:files:pick-attachment',
+  /** Save a pasted clipboard image to a temp file → attachment. */
+  FilesSaveClipboardImage: 'pb:files:save-clipboard-image',
+  /** Small data-URL thumbnail of an image file, for the composer chip. */
+  FilesImageThumbnail: 'pb:files:image-thumbnail',
   /** Open a retained chat attachment in the OS default app. */
   FilesOpenAttachment: 'pb:files:open-attachment',
   /** Open a file referenced in chat in the configured external editor.
@@ -623,6 +627,12 @@ export interface PopBotApi {
      *  image extensions; `'any'` accepts anything. Resolves to null
      *  when the user cancels. Supports multi-select. */
     pickAttachment(kind: 'image' | 'any'): Promise<PickedAttachment[] | null>;
+    /** Save a pasted clipboard image (raw bytes) to a temp file and return it
+     *  as an attachment, same shape as pickAttachment. */
+    saveClipboardImage(bytes: ArrayBuffer, ext: string): Promise<PickedAttachment | null>;
+    /** A small data-URL thumbnail for an image attachment (composer preview).
+     *  Null when the file isn't a decodable raster image. */
+    imageThumbnail(path: string): Promise<string | null>;
     /** Open a retained chat attachment in the OS default app. */
     openAttachment(path: string): Promise<{ ok: true } | { ok: false; error: string }>;
     /** Open a file referenced in chat in the configured external editor

@@ -70,6 +70,10 @@ const api: PopBotApi = {
       ipcRenderer.invoke(IpcChannel.FilesLineOfText, path, needle),
     pickAttachment: (kind: 'image' | 'any') =>
       ipcRenderer.invoke(IpcChannel.FilesPickAttachment, kind),
+    saveClipboardImage: (bytes: ArrayBuffer, ext: string) =>
+      ipcRenderer.invoke(IpcChannel.FilesSaveClipboardImage, bytes, ext),
+    imageThumbnail: (path: string) =>
+      ipcRenderer.invoke(IpcChannel.FilesImageThumbnail, path),
     openAttachment: (path: string) =>
       ipcRenderer.invoke(IpcChannel.FilesOpenAttachment, path),
     openInEditor: (chatId: string | null, path: string, line?: number) =>
