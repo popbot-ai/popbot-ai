@@ -3744,13 +3744,16 @@ function EditRepoModal({
               <span className="mono" style={{ color: 'var(--fg-2)' }}>{repo.repoPath}</span>
             </div>
           </div>
-          <div className="pref-row">
-            <div className="pref-label"><div className="pref-label-title">{t('prefs.repos.card.defaultBase')}</div></div>
-            <div className="pref-control">
-              <input className="pref-input mono narrow" value={draft.defaultBase}
-                     onChange={(e) => setDraft({ ...draft, defaultBase: e.target.value })} style={{ width: 200 }} />
+          {/* Perforce has no branch model — no default base to edit. */}
+          {(repo.scm ?? 'git') !== 'perforce' && (
+            <div className="pref-row">
+              <div className="pref-label"><div className="pref-label-title">{t('prefs.repos.card.defaultBase')}</div></div>
+              <div className="pref-control">
+                <input className="pref-input mono narrow" value={draft.defaultBase}
+                       onChange={(e) => setDraft({ ...draft, defaultBase: e.target.value })} style={{ width: 200 }} />
+              </div>
             </div>
-          </div>
+          )}
           <div className="pref-row">
             <div className="pref-label"><div className="pref-label-title">{t('prefs.repos.wizard.color.title')}</div></div>
             <div className="pref-control">
