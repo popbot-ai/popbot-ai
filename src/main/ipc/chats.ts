@@ -32,6 +32,7 @@ import {
 import { listMessages } from '../persistence/messages';
 import { getSetting, setSetting } from '../persistence/settings';
 import { AgentHost } from '../agents/AgentHost';
+import { dlog } from '../diagLog';
 import { dispose as disposePty } from '../term/ptyManager';
 import { GitWorktreeError, getSourceControlProvider } from '../scm';
 import type { SourceControlProvider } from '../scm';
@@ -339,6 +340,16 @@ export function registerChatHandlers(): void {
       await scm.checkoutBranch({ worktreePath, branch, baseBranch });
     } catch (err) {
       const msg = err instanceof GitWorktreeError ? err.message : (err as Error).message;
+      dlog('chat.create.worktreeFailed', {
+        repoId: repo.id,
+        scm: repo.scm ?? 'git',
+        slotId,
+        worktreePath,
+        branch,
+        baseBranch,
+        error: msg,
+        stack: (err as Error).stack,
+      });
       return { ok: false, reason: 'worktree-failed', message: msg };
     }
 

@@ -172,7 +172,7 @@ export default function App(): JSX.Element {
   const [slotConfigVersion, setSlotConfigVersion] = useState(0);
   /** Whole-window "please wait" overlay shown during slow main-side
    *  work (git worktree add, checkout, stash pop, …). */
-  const [busy, setBusy] = useState<{ message: string; detail?: string } | null>(null);
+  const [busy, setBusy] = useState<{ message: string; detail?: string; error?: boolean } | null>(null);
   // Stream Perforce sync/open progress into the busy overlay's detail while
   // it's up — e.g. "Syncing to latest — N files…" during a new chat's slot
   // prep. Only enhances an existing overlay; never pops one on its own.
@@ -551,8 +551,7 @@ export default function App(): JSX.Element {
       } else if (result.reason === 'worktree-failed') {
         // eslint-disable-next-line no-console
         console.error('worktree setup failed:', result.message);
-        setBusy({ message: t('app.busy.worktreeFailed'), detail: result.message });
-        setTimeout(() => setBusy(null), 2500);
+        setBusy({ message: t('app.busy.worktreeFailed'), detail: result.message, error: true });
       }
       return;
     }
@@ -607,8 +606,7 @@ export default function App(): JSX.Element {
       if (!result.ok) {
         if (result.reason === 'no-free-slot') setNoSlotsOpen(true);
         else if (result.reason === 'worktree-failed') {
-          setBusy({ message: t('app.busy.worktreeFailed'), detail: result.message });
-          setTimeout(() => setBusy(null), 2500);
+          setBusy({ message: t('app.busy.worktreeFailed'), detail: result.message, error: true });
         }
         return;
       }
@@ -629,8 +627,7 @@ export default function App(): JSX.Element {
         else if (result.reason === 'no-free-slot') setNoSlotsOpen(true);
         else if (result.reason === 'git-not-configured') openPrefsAt('git');
         else if (result.reason === 'worktree-failed') {
-          setBusy({ message: t('app.busy.worktreeFailed'), detail: result.message });
-          setTimeout(() => setBusy(null), 2500);
+          setBusy({ message: t('app.busy.worktreeFailed'), detail: result.message, error: true });
         }
       }
     }
@@ -1125,8 +1122,7 @@ export default function App(): JSX.Element {
               } else if (result.reason === 'no-free-slot') {
                 setNoSlotsOpen(true);
               } else if (result.reason === 'worktree-failed') {
-                setBusy({ message: t('app.busy.worktreeFailed'), detail: result.message });
-                setTimeout(() => setBusy(null), 2500);
+                setBusy({ message: t('app.busy.worktreeFailed'), detail: result.message, error: true });
               }
             }}
             onDelete={(id) => {
@@ -1346,7 +1342,14 @@ export default function App(): JSX.Element {
           onClose={() => setGateOpen(false)}
         />
       )}
-      {busy && <BusyOverlay message={busy.message} detail={busy.detail} />}
+      {busy && (
+        <BusyOverlay
+          message={busy.message}
+          detail={busy.detail}
+          error={busy.error}
+          onDismiss={busy.error ? () => setBusy(null) : undefined}
+        />
+      )}
       {toast && (
         <Toast
           message={toast.message}
