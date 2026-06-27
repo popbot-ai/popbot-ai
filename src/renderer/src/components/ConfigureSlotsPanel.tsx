@@ -80,11 +80,23 @@ export function ConfigureSlotsPanel({
         setPhase({ kind: 'blocked', reason: 'wrong-mode', occupants: [] });
         return;
       }
-      const occupants = await window.popbot.repos.listSlotOccupants(repo.id);
-      // Any occupant blocks the resize — slot membership is what we're
-      // mutating, so racing a live chat could yank its workspace.
-      if (occupants.length > 0) {
-        setPhase({ kind: 'blocked', reason: 'occupied', occupants });
+      let occupants: Array<{ slotId: number; chatName: string }> = [];
+      try {
+        occupants = await window.popbot.repos.listSlotOccupants(repo.id);
+      } catch {
+        // Don't leave the panel stuck on "checking…" with no button if the
+        // occupancy probe fails — proceed (the per-slot ops re-check anyway).
+        setPhase({ kind: 'ready' });
+        return;
+      }
+      // Only slots we're about to DELETE matter — a grow adds new slots above
+      // the current range and never touches a live chat's workspace, so it
+      // must not be blocked by open chats. A shrink is blocked only if one of
+      // the slots being removed is currently held.
+      const deleting = new Set(plan.filter((p) => p.kind === 'delete').map((p) => p.slotId));
+      const blocking = occupants.filter((o) => deleting.has(o.slotId));
+      if (blocking.length > 0) {
+        setPhase({ kind: 'blocked', reason: 'occupied', occupants: blocking });
         return;
       }
       setPhase({ kind: 'ready' });
