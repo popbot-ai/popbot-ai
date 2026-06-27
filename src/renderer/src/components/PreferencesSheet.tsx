@@ -3914,12 +3914,12 @@ function DeleteRepoModal({
     try {
       const res = await window.popbot.repos.delete(repo.id);
       if (!res.ok) {
+        // Keep the modal open with the reason so the user can clear whatever's
+        // blocking cleanup (a locked folder, a running app — maybe reboot) and
+        // retry; the repo stays in the list, never half-deleted.
         setError(res.message);
         return;
       }
-      // The repo was removed (base reclaimed); a non-fatal leftover-folder
-      // warning is surfaced but doesn't block completion.
-      if (res.warning) window.alert(res.warning);
       onDeleted();
     } catch (err) {
       setError((err as Error).message);

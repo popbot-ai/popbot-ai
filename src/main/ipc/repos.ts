@@ -143,38 +143,37 @@ export function registerReposHandlers(): void {
 
   ipcMain.handle(
     IpcChannel.ReposDelete,
-    async (_e, id: string): Promise<{ ok: true; warning?: string } | { ok: false; message: string }> => {
+    async (_e, id: string): Promise<{ ok: true } | { ok: false; message: string }> => {
       const repo = getRepo(id);
       try {
-        let warning: string | undefined;
-        // GENERAL slot teardown (git AND perforce — both are shado-backed): the
+        // GENERAL slot teardown (git AND perforce — both shado-backed): the
         // delete is mainly "remove the shado base + the workspaces/<id> folder".
-        // It is FULLY RESILIENT: delete + re-create is the main way to recover a
-        // corrupt/broken repo (chats survive by repo id), so NOTHING here may
-        // block removing the row. Failures only produce a leftover-disk warning.
-        // Only genuinely scm-specific bits (perforce client cleanup) switch on
-        // `repo.scm`.
+        // KEEP THE ROW until everything cleans up — if any step fails we return
+        // an error and leave the repo in the list so the user can RETRY (and
+        // re-creating with the same id reconnects existing chats). Retry is safe
+        // because each step is idempotent/partial-aware: the registry check
+        // skips an already-torn-down base ("No project" tolerated), and the
+        // folder remove retries. Removing the row on a partial failure would
+        // leave an un-deletable half-repo, so we don't. Only the perforce client
+        // cleanup switches on `repo.scm`.
         if (repo && repo.mode === 'slots' && process.platform === 'win32') {
           const baseName = repo.scm === 'perforce' ? repo.p4?.shadoBase : repo.id;
           const wsDir = join(popbotRootForRepo(repo.repoPath), 'workspaces', repo.id);
-          const leftoverWarning = (): string =>
-            `The repo was removed (you can re-create it), but its shado base / workspace ` +
-            `folder couldn't be fully cleaned at ${wsDir} — something may still be holding ` +
-            `files open. Delete that folder manually to reclaim the disk.`;
 
-          // Tear down the shado base (reclaims the VHDX disk). Only when the
-          // project is STILL in the registry — a prior partial delete may have
-          // removed it (then `shado restore` would just fail "No project").
+          // 1. Tear down the shado base (reclaims the VHDX disk) — only when the
+          //    project is STILL in the registry (a prior partial delete may have
+          //    removed it; then `shado restore` would just fail "No project").
           if (baseName && shadoProjectExists(repo.repoPath, repo.id, baseName)) {
             const res = await destroyBase({ repoPath: repo.repoPath, repoId: repo.id, baseName });
             if (!res.ok) {
               dlog('repos.delete.teardownFailed', { id, baseName, error: res.log });
-              warning = leftoverWarning();
+              return { ok: false, message: res.log };
             }
           }
 
-          // scm-specific: drop the perforce slots' P4 client workspaces so they
-          // don't linger in P4V. Best-effort — a dead connection must not block.
+          // 2. scm-specific: drop the perforce slots' P4 client workspaces so
+          //    they don't linger in P4V. Best-effort — a dead connection /
+          //    expired ticket must not block the delete (clients are metadata).
           if (repo.scm === 'perforce' && repo.p4) {
             const scm = getSourceControlProvider(repo);
             for (let i = 1; i <= Math.max(1, repo.slotCount); i += 1) {
@@ -186,19 +185,24 @@ export function registerReposHandlers(): void {
             }
           }
 
-          // Remove the co-located workspaces/<id> folder (incl. the shado home).
-          // Retry transient locks; non-fatal.
+          // 3. Remove the co-located workspaces/<id> folder (incl. the shado
+          //    home). Retry transient locks; a persistent lock keeps the row so
+          //    the user can close the holder + retry.
           try {
             rmSync(wsDir, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
           } catch (err) {
             dlog('repos.delete.folderFailed', { id, wsDir, error: (err as Error).message });
-            warning = leftoverWarning();
+            return {
+              ok: false,
+              message:
+                `Couldn't remove ${wsDir}: ${(err as Error).message}. Close anything using ` +
+                `that folder (an editor, a running app) and try Delete again.`,
+            };
           }
         }
-        // Always drop the row — this is the recovery path; never leave a repo
-        // un-deletable.
+        // Everything cleaned up — NOW it's safe to drop the row.
         deleteRepo(id);
-        return warning ? { ok: true, warning } : { ok: true };
+        return { ok: true };
       } catch (err) {
         dlog('repos.delete.failed', { id, error: (err as Error).message });
         return { ok: false, message: (err as Error).message };
