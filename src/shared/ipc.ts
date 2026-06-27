@@ -45,9 +45,11 @@ import type {
   CodexReasoningEffort,
   ChatAttachment,
   MessageRecord,
+  PerforceRepoConfig,
   RepoRecord,
   RepoWorktreeMode,
 } from './persistence';
+import type { SourceControlProviderId } from './sourceControl';
 
 export const IpcChannel = {
   AppGetVersion: 'pb:app:get-version',
@@ -273,6 +275,12 @@ export const IpcChannel = {
   ReposInitializeOneSlot: 'pb:repos:initialize-one-slot',
   ReposDeleteOneSlot: 'pb:repos:delete-one-slot',
   ReposSetSlotCount: 'pb:repos:set-slot-count',
+  /** Perforce base-build flow (Add Repository → Perforce). Preflight
+   *  measures the warm folder + drive free space and gates on a 5% margin;
+   *  build runs the elevated `shado create` (UAC) and captures the synced
+   *  changelist so slots can flush to it. */
+  ReposBasePreflight: 'pb:repos:base-preflight',
+  ReposBuildBase: 'pb:repos:build-base',
 
   /** Notifications. Anywhere in the app can `notify(...)` to record
    *  a row + fan out a toast + bell-icon update. The renderer also
@@ -382,7 +390,41 @@ export interface CreateRepoInput {
   defaultBase: string;
   slotCount: number;
   mode: RepoWorktreeMode;
+  /** Detected source control. Defaults to 'git' when omitted. Perforce repos
+   *  are always slot-mode and carry a `p4` config built by the base flow. */
+  scm?: SourceControlProviderId;
+  /** Perforce connection + frozen-base config. Required when scm==='perforce'
+   *  (the create handler rejects a perforce repo without it). */
+  p4?: PerforceRepoConfig;
 }
+
+/** Result of the Perforce base disk preflight. All byte counts; the UI
+ *  formats + decides messaging. `ok===false` ⇒ block the build. */
+export interface BasePreflightInfo {
+  folderBytes: number;
+  fileCount: number;
+  freeBytes: number;
+  /** folderBytes × 1.05 — minimum free space to allow the build. */
+  neededBytes: number;
+  /** Suggested expandable-VHDX ceiling (`--size-gb`). */
+  sizeGb: number;
+  ok: boolean;
+}
+
+/** Input to the elevated base build. `baseName` is the shado project name;
+ *  `depotPath` + connection let us capture the synced changelist. */
+export interface BuildBaseInput {
+  repoPath: string;
+  baseName: string;
+  sizeGb: number;
+  port: string;
+  user: string;
+  depotPath: string;
+}
+
+export type BuildBaseResult =
+  | { ok: true; baseChangelist: number; baseMb: number; log: string }
+  | { ok: false; error: string };
 
 /** Edit-existing-repo payload. `id` selects the row; `mode` is omitted
  *  by design (mode is creation-only). */
@@ -633,6 +675,12 @@ export interface PopBotApi {
     deleteOneSlot(repoId: string, slotId: number): Promise<RepoSlotStepResult>;
     /** Commit the new pool size after the per-slot work succeeds. */
     setSlotCount(id: string, n: number): Promise<{ ok: true } | { ok: false; reason: 'not-found' }>;
+    /** Perforce base-build preflight: measure the warm folder + the repo
+     *  drive's free space and decide if a build can proceed (5% margin). */
+    basePreflight(repoPath: string): Promise<BasePreflightInfo>;
+    /** Run the elevated `shado create` (UAC) to freeze a base off the warm
+     *  folder, then capture the synced changelist for slot flushes. */
+    buildBase(input: BuildBaseInput): Promise<BuildBaseResult>;
   };
   sentry: {
     /** Verify a Sentry auth token + org slug. The renderer passes the

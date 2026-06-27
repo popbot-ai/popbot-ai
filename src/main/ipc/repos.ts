@@ -18,6 +18,9 @@ import { existsSync } from 'node:fs';
 import { ipcMain } from 'electron';
 import {
   IpcChannel,
+  type BasePreflightInfo,
+  type BuildBaseInput,
+  type BuildBaseResult,
   type CreateRepoInput,
   type RepoCreateResult,
   type RepoSlotStepResult,
@@ -36,6 +39,8 @@ import { listSlotOccupantsForRepo } from '../persistence/chats';
 import { slotWorktreePathForRepo } from '../git/chatPaths';
 import { getSourceControlProvider } from '../scm';
 import { detectScm } from '../scm/detect';
+import { basePreflight, buildBase, baseDiskUsage } from '../shado/base';
+import { captureSyncedChangelist } from '../p4/workspace';
 
 const ID_PATTERN = /^[a-z0-9][a-z0-9-]*$/;
 
@@ -44,8 +49,19 @@ function validateCreateInput(input: CreateRepoInput): string | null {
     return 'Repo id must be lowercase alphanumeric with optional dashes (e.g. app, my-game-2).';
   }
   if (!input.repoPath?.trim()) return 'Repo path is required.';
-  if (!input.defaultBase?.trim()) return 'Default base branch is required.';
-  if (input.mode !== 'slots' && input.mode !== 'ephemeral') return 'Mode must be slots or ephemeral.';
+  const isP4 = input.scm === 'perforce';
+  // Perforce has no branch model — slots flush to the frozen base changelist,
+  // so a default base branch is git-only. Perforce is always slot mode and
+  // must carry the p4 config the base flow produced.
+  if (!isP4 && !input.defaultBase?.trim()) return 'Default base branch is required.';
+  if (isP4) {
+    if (input.mode !== 'slots') return 'Perforce repos are always slot mode.';
+    if (!input.p4) return 'Perforce repo requires a built base (connection + base changelist).';
+    if (!input.p4.depotPath?.trim()) return 'Perforce depot path is required.';
+    if (!input.p4.shadoBase?.trim()) return 'Perforce repo requires a frozen shado base.';
+  } else if (input.mode !== 'slots' && input.mode !== 'ephemeral') {
+    return 'Mode must be slots or ephemeral.';
+  }
   if (input.slotCount < 1 || input.slotCount > 64) return 'Slot count must be 1–64.';
   return null;
 }
@@ -65,6 +81,8 @@ export function registerReposHandlers(): void {
       defaultBase: input.defaultBase.trim(),
       slotCount: Math.floor(input.slotCount),
       mode: input.mode,
+      scm: input.scm ?? 'git',
+      ...(input.p4 ? { p4: input.p4 } : {}),
     });
     return { ok: true, repo };
   });
@@ -95,6 +113,39 @@ export function registerReposHandlers(): void {
   ipcMain.handle(IpcChannel.ReposCountChats, (_e, id: string): number => countChatsForRepo(id));
 
   ipcMain.handle(IpcChannel.ReposDetectScm, (_e, folder: string) => detectScm(folder));
+
+  /* ---------------- Perforce base-build flow ---------------- */
+
+  ipcMain.handle(
+    IpcChannel.ReposBasePreflight,
+    (_e, repoPath: string): Promise<BasePreflightInfo> => basePreflight(repoPath),
+  );
+
+  ipcMain.handle(
+    IpcChannel.ReposBuildBase,
+    async (_e, input: BuildBaseInput): Promise<BuildBaseResult> => {
+      const built = await buildBase({
+        repoPath: input.repoPath,
+        baseName: input.baseName,
+        sizeGb: input.sizeGb,
+      });
+      if (!built.ok) return { ok: false, error: built.log };
+      // The frozen base reflects the warm folder's synced state; capture the
+      // changelist so every slot can `p4 flush @baseChangelist` (0-byte).
+      let baseChangelist = 0;
+      try {
+        baseChangelist = await captureSyncedChangelist(
+          { port: input.port, user: input.user },
+          input.repoPath,
+          input.depotPath,
+        );
+      } catch {
+        /* leave 0 — the wizard surfaces it and lets the user enter it */
+      }
+      const du = await baseDiskUsage(input.repoPath, input.baseName);
+      return { ok: true, baseChangelist, baseMb: du.baseMb, log: built.log };
+    },
+  );
 
   /* ---------------- Configure Slots flow ---------------- */
 

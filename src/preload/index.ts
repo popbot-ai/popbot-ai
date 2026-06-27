@@ -11,6 +11,7 @@ import type {
 import {
   IpcChannel,
   type ApprovePermissionInput,
+  type BuildBaseInput,
   type CloseChatOptions,
   type ConfigureAgentInput,
   type CreateChatInput,
@@ -103,6 +104,8 @@ const api: PopBotApi = {
     deleteOneSlot: (repoId: string, slotId: number) =>
       ipcRenderer.invoke(IpcChannel.ReposDeleteOneSlot, repoId, slotId),
     setSlotCount: (id: string, n: number) => ipcRenderer.invoke(IpcChannel.ReposSetSlotCount, id, n),
+    basePreflight: (repoPath: string) => ipcRenderer.invoke(IpcChannel.ReposBasePreflight, repoPath),
+    buildBase: (input: BuildBaseInput) => ipcRenderer.invoke(IpcChannel.ReposBuildBase, input),
   },
   sentry: {
     test: (input: { token: string; orgSlug: string }) =>

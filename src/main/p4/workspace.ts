@@ -51,6 +51,33 @@ function normDepot(depotPath: string): string {
   return depotPath.replace(/\/?\.\.\.$/, '').replace(/\/+$/, '');
 }
 
+/**
+ * The changelist the warm source folder is synced to — what the frozen base
+ * is built at, so every slot can `p4 flush @baseChangelist` (0-byte) against
+ * it. Prefer the folder's actual `#have` (run p4 in the folder so it resolves
+ * the existing workspace client); fall back to the depot head if the folder
+ * isn't a recognized workspace. Returns 0 only when neither is available.
+ */
+export async function captureSyncedChangelist(
+  ctx: P4Context,
+  warmFolder: string,
+  depotPath: string,
+): Promise<number> {
+  const have = await p4exec(ctx, ['-ztag', 'changes', '-m1', '...#have'], {
+    cwd: warmFolder,
+    tolerant: true,
+  }).catch(() => null);
+  const haveCl = have ? Number(parseZtag(have.stdout)[0]?.change ?? 0) : 0;
+  if (haveCl > 0) return haveCl;
+
+  const head = await p4exec(
+    ctx,
+    ['-ztag', 'changes', '-m1', '-s', 'submitted', `${normDepot(depotPath)}/...`],
+    { tolerant: true },
+  ).catch(() => null);
+  return head ? Number(parseZtag(head.stdout)[0]?.change ?? 0) : 0;
+}
+
 export interface EnsureClientOpts {
   /** Connection (port/user) with `client` = the slot client name. */
   ctx: P4Context;
