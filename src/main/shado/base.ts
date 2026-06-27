@@ -359,6 +359,8 @@ export async function destroyBase(
     return { ok: false, log: 'Elevation was cancelled (removing the base needs administrator rights).' };
   }
   if (exitCode !== 0) {
+    // Already gone (a prior partial delete) → nothing to tear down, treat as ok.
+    if (/no project/i.test(log_)) return { ok: true, log: log_.trim() };
     return { ok: false, log: log_.trim() || `shado restore failed (exit ${exitCode}).` };
   }
   return { ok: true, log: log_.trim() };

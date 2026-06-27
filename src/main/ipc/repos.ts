@@ -14,7 +14,7 @@
  * file's contract dumb (just CRUD) and lets the UI evolve its
  * confirm-flow independently.
  */
-import { existsSync, rmSync } from 'node:fs';
+import { existsSync, readFileSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { ipcMain } from 'electron';
 import {
@@ -46,6 +46,21 @@ import { captureSyncedChangelist } from '../p4/workspace';
 import { dlog } from '../diagLog';
 
 const ID_PATTERN = /^[a-z0-9][a-z0-9-]*$/;
+
+/** True only if the shado registry still lists a project named `baseName`.
+ *  Lets repo-delete SKIP the elevated teardown when the base was already torn
+ *  down (a partially-completed prior delete), so it doesn't fail on
+ *  "No project <name>". Non-elevated (reads registry.json directly). */
+function shadoProjectExists(repoPath: string, repoId: string, baseName: string): boolean {
+  try {
+    const reg = JSON.parse(
+      readFileSync(join(shadoHomeForRepo(repoPath, repoId), 'registry.json'), 'utf8'),
+    ) as { projects?: Array<{ name?: string }> };
+    return Array.isArray(reg.projects) && reg.projects.some((p) => p?.name === baseName);
+  } catch {
+    return false; // no/unreadable registry → nothing to tear down
+  }
+}
 
 /** Normalize a repo path for equality: trim, unify separators, drop trailing
  *  slash, lowercase (Windows paths are case-insensitive; on macOS/Linux a repo
@@ -140,8 +155,11 @@ export function registerReposHandlers(): void {
         // must NOT block removing the repo — the base is already gone.
         if (repo && repo.mode === 'slots' && process.platform === 'win32') {
           const baseName = repo.scm === 'perforce' ? repo.p4?.shadoBase : repo.id;
-          // Only run the elevated teardown if the shado project still exists.
-          if (baseName && existsSync(shadoHomeForRepo(repo.repoPath, repo.id))) {
+          // Only run the elevated teardown if the shado project is STILL in the
+          // registry — a prior partial delete may have already removed the base
+          // (then `shado restore` would just fail "No project"). Resilient to
+          // partially-removed projects: skip straight to the folder cleanup.
+          if (baseName && shadoProjectExists(repo.repoPath, repo.id, baseName)) {
             const res = await destroyBase({ repoPath: repo.repoPath, repoId: repo.id, baseName });
             if (!res.ok) {
               dlog('repos.delete.teardownFailed', { id, baseName, error: res.log });
