@@ -215,14 +215,13 @@ input, textarea { font: inherit; color: inherit; background: none; border: 0; ou
 }
 /* Reboot disconnected the VHDX slot mounts → user-clicked reconnect banner. */
 .slot-reconnect-banner {
-  flex: 0 0 auto; display: flex; align-items: center; gap: 10px;
+  flex: 0 0 auto; display: flex; align-items: center; justify-content: center; gap: 10px;
   padding: 7px 14px;
   background: var(--st-wait-bg, rgba(216,166,87,0.14));
   border-bottom: 1px solid var(--st-wait, #d8a657);
-  color: var(--fg-0); font-size: var(--fs-sm);
+  color: var(--fg-0); font-size: var(--fs-sm); text-align: center;
 }
 .slot-reconnect-banner > i { color: var(--st-wait, #d8a657); font-size: 13px; }
-.slot-reconnect-banner > span { flex: 1 1 auto; }
 .workspace {
   flex: 1 1 auto; min-height: 0;
   display: grid;
