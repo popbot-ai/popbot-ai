@@ -113,6 +113,12 @@ export function registerReposHandlers(): void {
       defaultBase: input.defaultBase.trim() || existing.defaultBase,
       slotCount: Math.max(1, Math.floor(input.slotCount)),
       mode: existing.mode,
+      // Preserve scm + the Perforce connection config — neither is in the
+      // update input. Omitting p4 here would NULL p4_config on the UPDATE leg
+      // (excluded.p4_config) while scm stayed 'perforce' (scm is insert-only),
+      // leaving an unusable "perforce with no config" row.
+      scm: existing.scm,
+      ...(existing.p4 ? { p4: existing.p4 } : {}),
     });
     return { ok: true, repo };
   });
