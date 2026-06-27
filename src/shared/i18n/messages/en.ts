@@ -712,6 +712,9 @@ export const en = {
   'branch.dialog.rawChatDesc':
     'Creates a raw chat with no worktree, slot, branch, or base branch.',
   'branch.dialog.baseBranchLabel': 'Base branch',
+  'branch.dialog.branchName': 'Branch name',
+  'branch.dialog.changelistName': 'Changelist name',
+  'branch.dialog.perforceLatest': 'This Perforce slot syncs to the latest changelist — no base branch to pick.',
   'branch.dialog.loadBranchesError': 'Couldn’t load branches: {error}',
   'branch.dialog.freeChatDesc':
     'Runs in {repo} from the repo root — no slot, worktree, or branch.',

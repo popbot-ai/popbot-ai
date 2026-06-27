@@ -138,6 +138,14 @@ export async function flushTo(ctx: P4Context, depotPath: string, change: number)
   return p4exec(ctx, ['flush', `${dp}/...@${change}`], { tolerant: true });
 }
 
+/** Sync the slot to the latest submitted changelist. After flushing the
+ *  have-list to the frozen base, this transfers ONLY the base→head delta (the
+ *  warm-slot payoff), so a new chat starts from the latest depot state. */
+export async function syncLatest(ctx: P4Context, wt: string, depotPath: string): Promise<P4ExecResult> {
+  const dp = normDepot(depotPath);
+  return p4exec(ctx, ['sync', `${dp}/...`], { cwd: wt, tolerant: true, maxBuffer: 64 * 1024 * 1024 });
+}
+
 /** Revert every opened file in the slot — park to a clean base. */
 export async function revertAll(ctx: P4Context, wt: string): Promise<void> {
   if (!ctx.client) return;

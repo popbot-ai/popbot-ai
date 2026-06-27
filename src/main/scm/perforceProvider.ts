@@ -47,6 +47,7 @@ import {
   readSlotMeta,
   revertAll,
   shelveWork,
+  syncLatest,
   unshelvePop,
   writeSlotMeta,
 } from '../p4/workspace';
@@ -198,7 +199,13 @@ export class PerforceProvider extends SourceControlProvider {
     const ctx = this.ctx(opts.worktreePath);
     const meta = readSlotMeta(opts.worktreePath);
     await revertAll(ctx, opts.worktreePath);
-    if (meta) await flushTo(ctx, meta.depotPath, meta.baseChangelist);
+    if (meta) {
+      await flushTo(ctx, meta.depotPath, meta.baseChangelist);
+      // A new chat starts from the LATEST changelist — flushing re-anchors the
+      // have-list at the warm frozen base, then sync transfers only the
+      // base→head delta (the warm-slot payoff).
+      await syncLatest(ctx, opts.worktreePath, meta.depotPath);
+    }
     // Fresh slot for a new chat — forget any prior watched edits, watch anew.
     clearSlotChanges(opts.worktreePath);
     startSlotWatch(opts.worktreePath);
