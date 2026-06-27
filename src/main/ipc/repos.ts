@@ -160,15 +160,15 @@ export function registerReposHandlers(): void {
           const baseName = repo.scm === 'perforce' ? repo.p4?.shadoBase : repo.id;
           const wsDir = join(popbotRootForRepo(repo.repoPath), 'workspaces', repo.id);
 
-          // 1. Tear down the shado base (reclaims the VHDX disk) — only when the
-          //    project is STILL in the registry (a prior partial delete may have
-          //    removed it; then `shado restore` would just fail "No project").
+          // 1. Best-effort shado teardown: this mainly UNMOUNTS the clones so
+          //    the folder removal below can delete the (otherwise mounted/
+          //    locked) VHDX files. NOT fatal — removing the workspaces/<id>
+          //    folder is what actually gates the delete; if that succeeds we're
+          //    done regardless of how the shado teardown went. Skipped entirely
+          //    when the project is already gone from the registry.
           if (baseName && shadoProjectExists(repo.repoPath, repo.id, baseName)) {
             const res = await destroyBase({ repoPath: repo.repoPath, repoId: repo.id, baseName });
-            if (!res.ok) {
-              dlog('repos.delete.teardownFailed', { id, baseName, error: res.log });
-              return { ok: false, message: res.log };
-            }
+            if (!res.ok) dlog('repos.delete.teardownFailed', { id, baseName, error: res.log });
           }
 
           // 2. scm-specific: drop the perforce slots' P4 client workspaces so
