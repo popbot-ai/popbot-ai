@@ -2953,7 +2953,7 @@ function deriveRepoId(path: string): string {
  *  slot clones (a single elevated UAC), create the repo record, then init each
  *  slot's p4 client (the clones already exist, so this is unprivileged). Streams
  *  live progress; on any failure it stops and offers a back-out. */
-function PerforceSetupProgress({
+function SlotSetupProgress({
   draft,
   sizeGb,
   onDone,
@@ -2965,6 +2965,7 @@ function PerforceSetupProgress({
   onBack: () => void;
 }): JSX.Element {
   const { t } = useTranslation();
+  const isP4 = draft.scm === 'perforce';
   const [phase, setPhase] = useState<'building' | 'creating' | 'initing' | 'done' | 'error'>('building');
   const [progress, setProgress] = useState('');
   const [slotDone, setSlotDone] = useState(0);
@@ -2985,10 +2986,11 @@ function PerforceSetupProgress({
           repoId: id,
           baseName: id,
           sizeGb,
-          port: draft.p4Port.trim(),
-          user: draft.p4User.trim(),
-          depotPath: draft.p4Depot.trim(),
-          baseChangelist: draft.baseChangelist,
+          // p4 connection drives the changelist capture — empty for git.
+          port: isP4 ? draft.p4Port.trim() : '',
+          user: isP4 ? draft.p4User.trim() : '',
+          depotPath: isP4 ? draft.p4Depot.trim() : '',
+          baseChangelist: isP4 ? draft.baseChangelist : 0,
           slotPrefix: draft.slotPrefix.trim(),
           slotCount: draft.slotCount,
         });
@@ -3005,17 +3007,19 @@ function PerforceSetupProgress({
           repoPath: draft.repoPath.trim(),
           color: draft.color,
           slotPrefix: draft.slotPrefix.trim(),
-          defaultBase: '',
+          defaultBase: isP4 ? '' : draft.defaultBase.trim(),
           slotCount: draft.slotCount,
           mode: 'slots',
-          scm: 'perforce',
-          p4: {
-            port: draft.p4Port.trim(),
-            user: draft.p4User.trim(),
-            depotPath: draft.p4Depot.trim(),
-            shadoBase: id,
-            baseChangelist: built.baseChangelist,
-          },
+          scm: draft.scm ?? 'git',
+          p4: isP4
+            ? {
+                port: draft.p4Port.trim(),
+                user: draft.p4User.trim(),
+                depotPath: draft.p4Depot.trim(),
+                shadoBase: id,
+                baseChangelist: built.baseChangelist,
+              }
+            : undefined,
         });
         if (!created.ok) {
           setError(
@@ -3143,18 +3147,19 @@ function NewRepoWizard({
   // Live progress lines from the main process (measure + build).
   useEffect(() => window.popbot.repos.onBaseProgress((m) => setProgress(m)), []);
 
-  // Perforce collapses to two screens: one 'setup' (connection + slots + disk
-  // check) then one 'progress' (build + create + slot init, with back-out).
-  // Git keeps its mode → slots → init flow.
+  // Slot mode (git OR perforce) is two screens: 'setup' (connection [p4] +
+  // slots + disk check) then 'progress' (build base+clones + create + slot
+  // init, with back-out). Git ephemeral stays the instant one-step create.
   const sequence: WizardStep[] = isP4
     ? ['repo', 'setup', 'progress']
     : draft.mode === 'slots'
-      ? ['repo', 'mode', 'slots', 'init']
+      ? ['repo', 'mode', 'setup', 'progress']
       : ['repo', 'mode'];
   const stepNum = sequence.indexOf(step) + 1;
-  // The last config step — its primary button kicks off creation. For git
-  // that's a direct create() (→ init); for perforce it hands off to 'progress'.
-  const lastConfig: WizardStep = isP4 ? 'setup' : draft.mode === 'slots' ? 'slots' : 'mode';
+  // The last config step — its primary button kicks off creation. The 'setup'
+  // step hands off to the orchestrated 'progress' screen; git ephemeral
+  // creates directly from 'mode'.
+  const lastConfig: WizardStep = !isP4 && draft.mode === 'ephemeral' ? 'mode' : 'setup';
 
   const onPathChange = (newPath: string): void => {
     const derived = deriveRepoId(newPath);
@@ -3255,7 +3260,8 @@ function NewRepoWizard({
           ? preflight?.ok === true &&
             draft.slotPrefix.trim().length > 0 &&
             draft.slotCount >= 1 &&
-            (draft.p4Discovered ||
+            (!isP4 ||
+              draft.p4Discovered ||
               (draft.p4Port.trim().length > 0 &&
                 draft.p4User.trim().length > 0 &&
                 draft.p4Depot.trim().length > 0))
@@ -3313,13 +3319,13 @@ function NewRepoWizard({
 
   const goNext = (): void => {
     if (step === lastConfig) {
-      // Perforce hands off to the orchestrated progress screen; git creates now.
-      if (isP4) {
+      if (step === 'setup') {
+        // Git-slots + perforce hand off to the orchestrated progress screen.
         setError(null);
         setStep('progress');
         return;
       }
-      void submit();
+      void submit(); // git ephemeral creates directly from 'mode'
       return;
     }
     const i = sequence.indexOf(step);
@@ -3470,7 +3476,9 @@ function NewRepoWizard({
             slot config, and the disk preflight together. */}
         {step === 'setup' && (
           <div className="modal-body">
-            {draft.p4Discovered ? (
+            {!isP4 ? (
+              <p className="pref-section-desc">{t('prefs.repos.wizard.setup.gitIntro')}</p>
+            ) : draft.p4Discovered ? (
               <>
                 <p className="pref-section-desc">
                   {t('prefs.repos.wizard.connect.discovered', { client: draft.p4Client })}
@@ -3565,7 +3573,7 @@ function NewRepoWizard({
         {/* Perforce: ONE progress screen — build (elevated) + create + slot
             init, with a back-out if anything fails. */}
         {step === 'progress' && (
-          <PerforceSetupProgress
+          <SlotSetupProgress
             draft={draft}
             sizeGb={preflight?.sizeGb ?? 32}
             onDone={onCreated}

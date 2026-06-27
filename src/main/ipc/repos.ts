@@ -156,16 +156,19 @@ export function registerReposHandlers(): void {
       // back to the changelist the wizard already discovered from the
       // workspace (#have) when the server-side capture can't resolve it.
       let baseChangelist = 0;
-      try {
-        baseChangelist = await captureSyncedChangelist(
-          { port: input.port, user: input.user },
-          input.repoPath,
-          input.depotPath,
-        );
-      } catch {
-        /* fall through to the discovered value */
+      if (input.depotPath) {
+        // Perforce only — git has no changelist to capture.
+        try {
+          baseChangelist = await captureSyncedChangelist(
+            { port: input.port, user: input.user },
+            input.repoPath,
+            input.depotPath,
+          );
+        } catch {
+          /* fall through to the discovered value */
+        }
+        if (baseChangelist <= 0) baseChangelist = input.baseChangelist ?? 0;
       }
-      if (baseChangelist <= 0) baseChangelist = input.baseChangelist ?? 0;
       const du = await baseDiskUsage(input.repoPath, input.repoId, input.baseName);
       return { ok: true, baseChangelist, baseMb: du.baseMb, log: built.log };
     },

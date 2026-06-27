@@ -1059,6 +1059,8 @@ export const en = {
     'The changelist the base is synced to — captured automatically. Override only if it’s wrong.',
   'prefs.repos.wizard.setUp': 'Set up repository',
   'prefs.repos.wizard.settingUp': 'setting up',
+  'prefs.repos.wizard.setup.gitIntro':
+    'Each slot is a copy-on-write clone of this repo, so build caches (node_modules, build output) stay warm across chats. We’ll freeze a base from the folder, then mount the slots.',
   'prefs.repos.wizard.setup.slotsHead': 'Slots',
   'prefs.repos.wizard.setup.diskHead': 'Disk space',
   'prefs.repos.wizard.progress.building': 'Building base + slots (approve the admin prompt)…',
