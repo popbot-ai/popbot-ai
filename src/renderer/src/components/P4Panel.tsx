@@ -11,7 +11,7 @@
  * provider for a P4 repo. There is no reconcile: the slot file-watcher keeps
  * `p4 opened` honest, so this panel just renders provider output.
  */
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { GitFileChange, GitFileStatus } from '@shared/git';
 import { useGitStatus } from '../lib/useGitStatus';
 import { useTranslation } from '../lib/i18n';
@@ -34,6 +34,9 @@ export function P4Panel({ chatId, chatName, diffPath, onOpenDiff }: SourceContro
   const [desc, setDesc] = useState('');
   const [busy, setBusy] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
+  // Live progress while a huge changed-file set is opened into the changelist.
+  const [openProgress, setOpenProgress] = useState('');
+  useEffect(() => window.popbot.repos.onP4OpenProgress(setOpenProgress), []);
 
   const ok = data?.ok ? data : null;
   // Surface a failed status load explicitly rather than rendering as an empty
@@ -100,6 +103,11 @@ export function P4Panel({ chatId, chatName, diffPath, onOpenDiff }: SourceContro
           <span className="git-branch" title={ok?.branch ?? ''}>{ok?.branch ?? '—'}</span>
         </div>
       </div>
+      {openProgress && (
+        <div className="pref-progress" style={{ margin: '4px 10px' }}>
+          <i className="fa-solid fa-spinner fa-spin" /> {openProgress}
+        </div>
+      )}
       {(actionError || statusError) && (
         <div className="p4-error" role="alert">{actionError ?? statusError}</div>
       )}

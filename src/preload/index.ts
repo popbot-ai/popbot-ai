@@ -112,6 +112,11 @@ const api: PopBotApi = {
       ipcRenderer.on(IpcChannel.ReposBaseProgress, listener);
       return () => ipcRenderer.removeListener(IpcChannel.ReposBaseProgress, listener);
     },
+    onP4OpenProgress: (cb: (message: string) => void) => {
+      const listener = (_e: IpcRendererEvent, message: string) => cb(message);
+      ipcRenderer.on(IpcChannel.P4OpenProgress, listener);
+      return () => ipcRenderer.removeListener(IpcChannel.P4OpenProgress, listener);
+    },
   },
   sentry: {
     test: (input: { token: string; orgSlug: string }) =>

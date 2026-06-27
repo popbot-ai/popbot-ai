@@ -288,6 +288,9 @@ export const IpcChannel = {
   /** Main→renderer progress lines streamed during the (long) folder measure
    *  and base build, so the wizard shows live, accurate progress. */
   ReposBaseProgress: 'pb:repos:base-progress',
+  /** Main→renderer progress while opening a huge changed-file set into a
+   *  Perforce changelist (`p4 add/edit` over thousands of files). Empty = done. */
+  P4OpenProgress: 'pb:p4:open-progress',
 
   /** Notifications. Anywhere in the app can `notify(...)` to record
    *  a row + fan out a toast + bell-icon update. The renderer also
@@ -717,6 +720,9 @@ export interface PopBotApi {
     /** Subscribe to live progress lines from basePreflight()/buildBase().
      *  Returns an unsubscribe fn. */
     onBaseProgress(cb: (message: string) => void): () => void;
+    /** Subscribe to progress while opening a large changed-file set into a
+     *  Perforce changelist. Empty message = done. Returns an unsubscribe fn. */
+    onP4OpenProgress(cb: (message: string) => void): () => void;
   };
   sentry: {
     /** Verify a Sentry auth token + org slug. The renderer passes the

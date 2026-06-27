@@ -10,9 +10,10 @@
  */
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import type { PerforceSettings } from '@shared/persistence';
+import { clampP4ParallelThreads, type PerforceSettings } from '@shared/persistence';
 import type { P4Shelf } from '@shared/perforce';
 import { getSetting } from '../persistence/settings';
+import { emitP4Progress } from './progress';
 import { p4exec, parseZtag, writeP4Config, type P4Context, type P4ExecResult } from './exec';
 
 /**
@@ -148,7 +149,10 @@ export async function flushTo(ctx: P4Context, depotPath: string, change: number)
  *  warm-slot payoff), so a new chat starts from the latest depot state. */
 export async function syncLatest(ctx: P4Context, wt: string, depotPath: string): Promise<P4ExecResult> {
   const dp = normDepot(depotPath);
-  return p4exec(ctx, ['sync', `${dp}/...`], { cwd: wt, tolerant: true, maxBuffer: 64 * 1024 * 1024 });
+  const threads = clampP4ParallelThreads(getSetting<PerforceSettings>('perforce')?.parallelThreads);
+  const args = ['sync', `${dp}/...`];
+  if (threads > 1) args.push(`--parallel=threads=${threads}`); // parallel transfer of the delta
+  return p4exec(ctx, args, { cwd: wt, tolerant: true, maxBuffer: 64 * 1024 * 1024 });
 }
 
 /** Revert every opened file in the slot — park to a clean base. */
@@ -243,25 +247,59 @@ export async function openChanges(
   const removed = changes.filter((c) => c.kind === 'delete').map((c) => `//${c.path}`);
   // Open into the chat's named changelist when there is one (else the default).
   const clArgs = changelist ? ['-c', String(changelist)] : [];
-  // Chunk so a huge game-export delta never becomes one unbounded `p4` call /
-  // multi-MB stdin. p4 `-x -` is still batched within each chunk.
-  const CHUNK = 5000;
-  const run = async (action: string, files: string[]): Promise<void> => {
-    for (let i = 0; i < files.length; i += CHUNK) {
-      const batch = files.slice(i, i + CHUNK);
-      await p4exec(ctx, ['-x', '-', action, ...clArgs], {
-        cwd: wt,
-        input: batch.join('\n') + '\n',
-        tolerant: true,
-        maxBuffer: 64 * 1024 * 1024,
-      });
-    }
+  const total = present.length + removed.length;
+  if (total === 0) return;
+
+  // SCALE: a game export can be tens of thousands of files. Chunk so no single
+  // `p4` call / stdin is unbounded, AND run the chunks as PARALLEL p4 processes
+  // (bounded pool) so the server-bound opens overlap. Progress is streamed so
+  // the panel isn't frozen.
+  const CHUNK = 4000;
+  const POOL = Math.max(2, Math.min(16, clampP4ParallelThreads(getSetting<PerforceSettings>('perforce')?.parallelThreads)));
+  const open1 = (action: string, batch: string[]): Promise<P4ExecResult> =>
+    p4exec(ctx, ['-x', '-', action, ...clArgs], {
+      cwd: wt,
+      input: batch.join('\n') + '\n',
+      tolerant: true,
+      maxBuffer: 64 * 1024 * 1024,
+    });
+
+  let done = 0;
+  const showProgress = total > CHUNK; // only worth it for big sets
+  const tick = (n: number): void => {
+    done += n;
+    if (showProgress) emitP4Progress(`Opening ${done.toLocaleString()} / ${total.toLocaleString()} files…`);
   };
-  if (present.length) {
-    await run('edit', present);
-    await run('add', present);
+  // Each task is one chunk. Present files run edit+add (p4 sorts depot vs new);
+  // removed run delete. Tasks are independent → safe to run concurrently.
+  const tasks: Array<() => Promise<void>> = [];
+  for (let i = 0; i < present.length; i += CHUNK) {
+    const batch = present.slice(i, i + CHUNK);
+    tasks.push(async () => {
+      await open1('edit', batch);
+      await open1('add', batch);
+      tick(batch.length);
+    });
   }
-  if (removed.length) await run('delete', removed);
+  for (let i = 0; i < removed.length; i += CHUNK) {
+    const batch = removed.slice(i, i + CHUNK);
+    tasks.push(async () => {
+      await open1('delete', batch);
+      tick(batch.length);
+    });
+  }
+
+  // Bounded-concurrency pool: POOL workers pull tasks until drained.
+  let next = 0;
+  try {
+    await Promise.all(
+      Array.from({ length: Math.min(POOL, tasks.length) }, async () => {
+        while (next < tasks.length) await tasks[next++]();
+      }),
+    );
+  } finally {
+    if (showProgress) emitP4Progress(''); // clear the panel banner
+  }
 }
 
 /** Create a named pending changelist (the chat's branch analog); returns its
