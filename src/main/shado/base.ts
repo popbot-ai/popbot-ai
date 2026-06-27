@@ -443,6 +443,62 @@ export async function growSlotClones(
   return { ok: true, log: log_.trim() };
 }
 
+/**
+ * Re-mount the clones of MANY repos in ONE elevated batch (one UAC) — the
+ * startup reconcile after a reboot dropped the VHDX mounts. Each repo gets its
+ * own SHADO_HOME + `shado remount`. Idempotent (no-op for already-mounted
+ * clones). Windows-only; never throws.
+ */
+export async function remountReposElevated(
+  repos: Array<{ repoPath: string; repoId: string; baseName: string }>,
+  onProgress?: ProgressFn,
+): Promise<BaseBuildResult> {
+  if (process.platform !== 'win32' || repos.length === 0) return { ok: true, log: '' };
+  const shado = shadoExePath();
+  const stamp = `${Date.now()}-${Math.floor(process.hrtime()[1] % 1e6)}`;
+  const log = join(tmpdir(), `shado-remount-all-${stamp}.log`);
+  const bat = join(tmpdir(), `shado-remount-all-${stamp}.bat`);
+  let batBody = '@echo off\r\n';
+  for (const r of repos) {
+    const home = shadoHomeForRepo(r.repoPath, r.repoId);
+    batBody += `set "SHADO_HOME=${home}"\r\n`;
+    batBody += `"${shado}" remount --name ${r.baseName} >> "${log}" 2>&1\r\n`;
+  }
+  batBody += 'exit /b 0\r\n';
+  try {
+    await writeFile(bat, batBody, 'utf8');
+  } catch (err) {
+    return { ok: false, log: `Could not stage remount script: ${(err as Error).message}` };
+  }
+  const psCmd =
+    `$ErrorActionPreference='Stop'; ` +
+    `try { $p = Start-Process -FilePath '${bat}' -Verb RunAs -Wait -PassThru -WindowStyle Hidden; exit $p.ExitCode } ` +
+    `catch { Write-Error $_; exit 1223 }`;
+  onProgress?.('Restoring workspace slots…');
+  const exitCode: number = await new Promise((resolvePromise) => {
+    execFile(
+      'powershell.exe',
+      ['-NoProfile', '-NonInteractive', '-Command', psCmd],
+      { windowsHide: true },
+      (err) => {
+        const code = (err as (NodeJS.ErrnoException & { code?: number }) | null)?.code;
+        resolvePromise(typeof code === 'number' ? code : err ? 1 : 0);
+      },
+    );
+  });
+  let log_ = '';
+  try {
+    log_ = await readFile(log, 'utf8');
+  } catch {
+    /* nothing written */
+  }
+  void rm(bat, { force: true }).catch(() => {});
+  void rm(log, { force: true }).catch(() => {});
+  if (exitCode === 1223) return { ok: false, log: 'Elevation was cancelled (restoring slots needs administrator rights).' };
+  if (exitCode !== 0) return { ok: false, log: log_.trim() || `shado remount failed (exit ${exitCode}).` };
+  return { ok: true, log: log_.trim() };
+}
+
 /** Post-build size report via `shado du --name <base>`. */
 export async function baseDiskUsage(repoPath: string, repoId: string, baseName: string): Promise<BaseDu> {
   const r = await runShado(['du', '--name', baseName], {

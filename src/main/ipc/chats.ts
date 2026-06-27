@@ -36,9 +36,9 @@ import { dlog } from '../diagLog';
 import { dispose as disposePty } from '../term/ptyManager';
 import { GitWorktreeError, getSourceControlProvider } from '../scm';
 import type { SourceControlProvider } from '../scm';
-import { getRepo } from '../persistence/repos';
+import { getRepo, listRepos } from '../persistence/repos';
 import { slotWorktreePathForRepo, worktreesDirForRepo } from '../git/chatPaths';
-import { remountSlots } from '../shado/base';
+import { remountSlots, remountReposElevated } from '../shado/base';
 import type { RepoRecord } from '@shared/persistence';
 
 /** After a reboot, Windows drops the VHDX slot mounts. A dropped mount leaves
@@ -53,20 +53,54 @@ async function ensureSlotsMounted(repo: RepoRecord): Promise<void> {
   let unmounted = false;
   for (let i = 1; i <= repo.slotCount; i += 1) {
     const p = slotWorktreePathForRepo(repo, i);
+    let populated = false;
     try {
-      // A mounted slot lists the base's files; an unmounted one is empty.
-      if (readdirSync(p).length === 0) { unmounted = true; break; }
-    } catch (err) {
-      // ENOENT = never created (let ensureSlot handle it). Anything else (a
-      // broken mount-point folder whose VHDX detached → device error) means it
-      // needs remounting.
-      if ((err as NodeJS.ErrnoException).code !== 'ENOENT') { unmounted = true; break; }
+      // A mounted slot lists the base's files. NOTE: a BROKEN mount-point
+      // folder (its VHDX detached on reboot) throws "could not find a part of
+      // the path" (ENOENT) — same code as a never-created slot — so we can't
+      // special-case ENOENT. Any non-populated slot (empty, missing, or broken)
+      // is treated as needing remount; `shado remount` no-ops registry clones
+      // that are already up and ignores ones that don't exist.
+      populated = readdirSync(p).length > 0;
+    } catch {
+      populated = false;
     }
+    if (!populated) { unmounted = true; break; }
   }
   if (!unmounted) return;
   dlog('chat.create.remountSlots', { repoId: repo.id, scm: repo.scm ?? 'git', baseName });
   const res = await remountSlots({ repoPath: repo.repoPath, repoId: repo.id, baseName });
   if (!res.ok) throw new Error(res.log);
+}
+
+/** STARTUP reconcile: a reboot drops every VHDX slot mount, leaving recovered
+ *  chats pointed at dead/broken slot folders. On launch, detect any slot repo
+ *  with a disconnected clone (a slot folder that's empty OR errors on read) and
+ *  re-mount them ALL in ONE elevated batch — ideally before chats recover, so
+ *  their terminals open on live mounts. No-op (no UAC) when everything's up. */
+export async function remountDisconnectedSlots(): Promise<void> {
+  if (process.platform !== 'win32') return;
+  const need: Array<{ repoPath: string; repoId: string; baseName: string }> = [];
+  for (const repo of listRepos()) {
+    if (repo.mode !== 'slots') continue;
+    const baseName = repo.scm === 'perforce' ? repo.p4?.shadoBase : repo.id;
+    if (!baseName) continue;
+    let disconnected = false;
+    for (let i = 1; i <= repo.slotCount; i += 1) {
+      let populated = false;
+      try {
+        populated = readdirSync(slotWorktreePathForRepo(repo, i)).length > 0;
+      } catch {
+        populated = false; // missing or broken mount-point folder
+      }
+      if (!populated) { disconnected = true; break; }
+    }
+    if (disconnected) need.push({ repoPath: repo.repoPath, repoId: repo.id, baseName });
+  }
+  if (!need.length) return;
+  dlog('startup.remountSlots', { repos: need.map((r) => r.repoId) });
+  const res = await remountReposElevated(need);
+  if (!res.ok) dlog('startup.remountSlots.failed', { error: res.log });
 }
 
 interface SlotsSettings { maxCount?: number }

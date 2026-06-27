@@ -10,6 +10,7 @@ import { importExistingJsonlsIfNeeded } from './agents/sqliteSessionStoreImport'
 import { backfillAllChats } from './persistence/chatBackfill';
 import { migrateSdkProjectDirs } from './agents/sdkProjectDirMigrate';
 import { recoverChatSessions } from './agents/chatRecover';
+import { remountDisconnectedSlots } from './ipc/chats';
 import { seedDefaultRepoFromSettings } from './persistence/repoSeed';
 
 // Patch PATH from the user's login shell so packaged builds can find
@@ -441,6 +442,15 @@ void app.whenReady().then(async () => {
     seedDefaultRepoFromSettings();
   } catch (err) {
     console.error('[boot] repo seed failed', err);
+  }
+  // A reboot drops every VHDX slot mount, leaving recovered chats pointed at
+  // dead/broken slot folders. Re-attach any disconnected slot repo's clones in
+  // one elevated batch (one UAC) BEFORE chats recover, so their terminals open
+  // on live mounts. No-op (no UAC) when everything's already mounted.
+  try {
+    await remountDisconnectedSlots();
+  } catch (err) {
+    console.error('[boot] slot remount failed', err);
   }
   // Boot-time chat-session recovery — restores chat→session links
   // that the legacy JSONL-based pin repair (now retired) wrongly
