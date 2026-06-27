@@ -5282,8 +5282,14 @@ input.input.mono, select.input.mono { font-family: var(--font-mono); font-size: 
 .repo-detect-ok { display: inline-flex; align-items: center; gap: 6px; color: #5fb98a; }
 .repo-detect-bad { display: inline-flex; align-items: center; gap: 6px; color: #e58a8a; }
 .repo-detect-busy { display: inline-flex; align-items: center; gap: 6px; color: var(--fg-3); }
+/* "Detected" lines wear the SCM brand color — icon + text inherit the same
+   currentColor (the P4 glyph fills with currentColor too), and bright enough
+   to read on the near-black modal. */
+.repo-detect-git { display: inline-flex; align-items: center; gap: 6px; color: #f1936f; }
+.repo-detect-perforce { display: inline-flex; align-items: center; gap: 6px; color: #a78bff; }
 .repo-detect-ok svg, .repo-detect-ok i,
-.repo-detect-bad i, .repo-detect-busy i { font-size: 0.95em; line-height: 1; }
+.repo-detect-bad i, .repo-detect-busy i,
+.repo-detect-git i, .repo-detect-perforce svg { font-size: 0.95em; line-height: 1; }
 
 /* Wizard long-op progress + success lines (disk preflight, base build). */
 .pref-progress {

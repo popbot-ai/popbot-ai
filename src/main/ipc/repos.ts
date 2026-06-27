@@ -38,7 +38,7 @@ import {
 import { listSlotOccupantsForRepo } from '../persistence/chats';
 import { slotWorktreePathForRepo } from '../git/chatPaths';
 import { getSourceControlProvider } from '../scm';
-import { detectScm } from '../scm/detect';
+import { detectScm, p4WorkspaceInfo } from '../scm/detect';
 import { basePreflight, buildBase, baseDiskUsage } from '../shado/base';
 import { captureSyncedChangelist } from '../p4/workspace';
 
@@ -126,6 +126,8 @@ export function registerReposHandlers(): void {
 
   ipcMain.handle(IpcChannel.ReposDetectScm, (_e, folder: string) => detectScm(folder));
 
+  ipcMain.handle(IpcChannel.ReposDetectP4Workspace, (_e, folder: string) => p4WorkspaceInfo(folder));
+
   /* ---------------- Perforce base-build flow ---------------- */
 
   ipcMain.handle(
@@ -143,7 +145,9 @@ export function registerReposHandlers(): void {
       );
       if (!built.ok) return { ok: false, error: built.log };
       // The frozen base reflects the warm folder's synced state; capture the
-      // changelist so every slot can `p4 flush @baseChangelist` (0-byte).
+      // changelist so every slot can `p4 flush @baseChangelist` (0-byte). Fall
+      // back to the changelist the wizard already discovered from the
+      // workspace (#have) when the server-side capture can't resolve it.
       let baseChangelist = 0;
       try {
         baseChangelist = await captureSyncedChangelist(
@@ -152,8 +156,9 @@ export function registerReposHandlers(): void {
           input.depotPath,
         );
       } catch {
-        /* leave 0 — the wizard surfaces it and lets the user enter it */
+        /* fall through to the discovered value */
       }
+      if (baseChangelist <= 0) baseChangelist = input.baseChangelist ?? 0;
       const du = await baseDiskUsage(input.repoPath, input.repoId, input.baseName);
       return { ok: true, baseChangelist, baseMb: du.baseMb, log: built.log };
     },

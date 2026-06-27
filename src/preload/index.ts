@@ -98,6 +98,7 @@ const api: PopBotApi = {
     delete: (id: string) => ipcRenderer.invoke(IpcChannel.ReposDelete, id),
     countChats: (id: string) => ipcRenderer.invoke(IpcChannel.ReposCountChats, id),
     detectScm: (folder: string) => ipcRenderer.invoke(IpcChannel.ReposDetectScm, folder),
+    detectP4Workspace: (folder: string) => ipcRenderer.invoke(IpcChannel.ReposDetectP4Workspace, folder),
     listSlotOccupants: (id: string) => ipcRenderer.invoke(IpcChannel.ReposListSlotOccupants, id),
     initializeOneSlot: (repoId: string, slotId: number) =>
       ipcRenderer.invoke(IpcChannel.ReposInitializeOneSlot, repoId, slotId),
@@ -106,6 +107,11 @@ const api: PopBotApi = {
     setSlotCount: (id: string, n: number) => ipcRenderer.invoke(IpcChannel.ReposSetSlotCount, id, n),
     basePreflight: (repoPath: string) => ipcRenderer.invoke(IpcChannel.ReposBasePreflight, repoPath),
     buildBase: (input: BuildBaseInput) => ipcRenderer.invoke(IpcChannel.ReposBuildBase, input),
+    onBaseProgress: (cb: (message: string) => void) => {
+      const listener = (_e: IpcRendererEvent, message: string) => cb(message);
+      ipcRenderer.on(IpcChannel.ReposBaseProgress, listener);
+      return () => ipcRenderer.removeListener(IpcChannel.ReposBaseProgress, listener);
+    },
   },
   sentry: {
     test: (input: { token: string; orgSlug: string }) =>

@@ -834,7 +834,7 @@ function PerforceConfigPanel(): JSX.Element {
   return (
     <div className="tracker-config" style={{ marginTop: 16 }}>
       <div className="tracker-config-head">
-        <P4Glyph style={{ color: '#4c00ff' }} />
+        <P4Glyph style={{ color: '#a78bff' }} />
         <span>{t('prefs.repos.scm.perforce')}</span>
       </div>
       <div className="tracker-config-body">
@@ -2722,13 +2722,16 @@ interface NewRepoDraft {
   /** Detected source control of repoPath. null = not yet detected / invalid
    *  folder (the repo step blocks Next until this is git or perforce). */
   scm: SourceControlProviderId | null;
-  // Perforce connection (collected on the connect step).
+  // Perforce connection. Auto-discovered from the workspace when possible
+  // (then shown read-only), else entered manually.
   p4Port: string;
   p4User: string;
   p4Depot: string;
-  // Produced by the base-build step; baked into the p4 config on create.
-  shadoBase: string;
   baseChangelist: number;
+  /** True once the connection was auto-filled from the folder's P4 client. */
+  p4Discovered: boolean;
+  /** The discovered client name (for the read-only summary). */
+  p4Client: string;
 }
 
 function emptyDraft(): NewRepoDraft {
@@ -2744,8 +2747,9 @@ function emptyDraft(): NewRepoDraft {
     p4Port: '',
     p4User: '',
     p4Depot: '',
-    shadoBase: '',
     baseChangelist: 0,
+    p4Discovered: false,
+    p4Client: '',
   };
 }
 
@@ -3024,11 +3028,16 @@ function NewRepoWizard({
 
   const onPathChange = (newPath: string): void => {
     const derived = deriveRepoId(newPath);
-    const next: NewRepoDraft = { ...draft, repoPath: newPath, scm: null };
+    const next: NewRepoDraft = {
+      ...draft,
+      repoPath: newPath,
+      scm: null,
+      p4Discovered: false,
+      p4Client: '',
+    };
     if (derived) {
       if (!idTouched) next.id = derived;
       if (!prefixTouched) next.slotPrefix = derived;
-      if (!draft.shadoBase) next.shadoBase = derived;
     }
     onChange(next);
     if (!newPath.trim()) {
@@ -3037,25 +3046,43 @@ function NewRepoWizard({
     }
     const seq = ++detectSeq.current;
     setDetecting(true);
-    void window.popbot.repos
-      .detectScm(newPath.trim())
-      .then((scm) => {
+    void (async () => {
+      try {
+        const scm = await window.popbot.repos.detectScm(newPath.trim());
         if (seq !== detectSeq.current) return; // a newer path won
-        const upd: NewRepoDraft = { ...next, scm };
+        let upd: NewRepoDraft = { ...next, scm };
         if (scm === 'perforce') {
-          const p4s = get<PerforceSettings>('perforce', {}) ?? {};
-          if (!upd.p4Port && p4s.defaultPort) upd.p4Port = p4s.defaultPort;
-          if (!upd.p4User && p4s.defaultUser) upd.p4User = p4s.defaultUser;
-          if (!upd.shadoBase) upd.shadoBase = derived || upd.id;
+          // Auto-fill the connection from the folder's P4 client workspace —
+          // we already know the port/user/depot/changelist, so don't ask.
+          const info = await window.popbot.repos.detectP4Workspace(newPath.trim());
+          if (seq !== detectSeq.current) return;
+          if (info) {
+            upd = {
+              ...upd,
+              p4Port: info.port,
+              p4User: info.user,
+              p4Depot: info.depotPath,
+              baseChangelist: info.baseChangelist,
+              p4Discovered: true,
+              p4Client: info.client,
+            };
+          } else {
+            // No mapping client — manual entry, prefilled from saved defaults.
+            const p4s = get<PerforceSettings>('perforce', {}) ?? {};
+            upd = {
+              ...upd,
+              p4Port: upd.p4Port || p4s.defaultPort || '',
+              p4User: upd.p4User || p4s.defaultUser || '',
+            };
+          }
         }
         onChange(upd);
-      })
-      .catch(() => {
+      } catch {
         if (seq === detectSeq.current) onChange({ ...next, scm: null });
-      })
-      .finally(() => {
+      } finally {
         if (seq === detectSeq.current) setDetecting(false);
-      });
+      }
+    })();
   };
 
   // Run the disk preflight when the user reaches that step (re-runs on retry).
@@ -3095,10 +3122,10 @@ function NewRepoWizard({
       : step === 'mode'
         ? !!draft.mode
         : step === 'connect'
-          ? draft.p4Port.trim().length > 0 &&
-            draft.p4User.trim().length > 0 &&
-            draft.p4Depot.trim().length > 0 &&
-            draft.shadoBase.trim().length > 0
+          ? draft.p4Discovered ||
+            (draft.p4Port.trim().length > 0 &&
+              draft.p4User.trim().length > 0 &&
+              draft.p4Depot.trim().length > 0)
           : step === 'preflight'
             ? preflight?.ok === true
             : step === 'build'
@@ -3115,11 +3142,12 @@ function NewRepoWizard({
       const res = await window.popbot.repos.buildBase({
         repoPath: draft.repoPath.trim(),
         repoId: draft.id.trim().toLowerCase(),
-        baseName: draft.shadoBase.trim(),
+        baseName: draft.id.trim().toLowerCase(),
         sizeGb: preflight?.sizeGb ?? 32,
         port: draft.p4Port.trim(),
         user: draft.p4User.trim(),
         depotPath: draft.p4Depot.trim(),
+        baseChangelist: draft.baseChangelist,
       });
       if (!res.ok) {
         setError(res.error);
@@ -3154,7 +3182,7 @@ function NewRepoWizard({
               port: draft.p4Port.trim(),
               user: draft.p4User.trim(),
               depotPath: draft.p4Depot.trim(),
-              shadoBase: draft.shadoBase.trim(),
+              shadoBase: draft.id.trim().toLowerCase(),
               baseChangelist: draft.baseChangelist,
             }
           : undefined,
@@ -3255,9 +3283,9 @@ function NewRepoWizard({
               ) : alreadyAdded ? (
                 <span className="repo-detect-bad"><i className="fa-solid fa-triangle-exclamation" /> {t('prefs.repos.wizard.detect.alreadyAdded')}</span>
               ) : draft.scm === 'git' ? (
-                <span className="repo-detect-ok"><i className="fa-solid fa-code-branch" /> {t('prefs.repos.wizard.detect.git')}</span>
+                <span className="repo-detect-git"><i className="fa-solid fa-code-branch" /> {t('prefs.repos.wizard.detect.git')}</span>
               ) : draft.scm === 'perforce' ? (
-                <span className="repo-detect-ok"><P4Glyph style={{ color: '#4c00ff' }} /> {t('prefs.repos.wizard.detect.perforce')}</span>
+                <span className="repo-detect-perforce"><P4Glyph /> {t('prefs.repos.wizard.detect.perforce')}</span>
               ) : draft.repoPath.trim() ? (
                 <span className="repo-detect-bad"><i className="fa-solid fa-triangle-exclamation" /> {t('prefs.repos.wizard.detect.invalid')}</span>
               ) : (
@@ -3334,47 +3362,57 @@ function NewRepoWizard({
         {/* Perforce: connection + base name. */}
         {step === 'connect' && (
           <div className="modal-body">
-            <p className="pref-section-desc">{t('prefs.repos.wizard.connect.intro')}</p>
-            <div className="pref-row">
-              <div className="pref-label">
-                <div className="pref-label-title">{t('prefs.repos.wizard.connect.port.title')}</div>
-                <div className="pref-label-desc">{t('prefs.repos.wizard.connect.port.desc')}</div>
-              </div>
-              <div className="pref-control">
-                <input className="pref-input mono narrow" placeholder="ssl:host:1666" value={draft.p4Port}
-                       onChange={(e) => onChange({ ...draft, p4Port: e.target.value })} style={{ width: 240 }} />
-              </div>
-            </div>
-            <div className="pref-row">
-              <div className="pref-label">
-                <div className="pref-label-title">{t('prefs.repos.wizard.connect.user.title')}</div>
-                <div className="pref-label-desc">{t('prefs.repos.wizard.connect.user.desc')}</div>
-              </div>
-              <div className="pref-control">
-                <input className="pref-input mono narrow" placeholder="user" value={draft.p4User}
-                       onChange={(e) => onChange({ ...draft, p4User: e.target.value })} style={{ width: 240 }} />
-              </div>
-            </div>
-            <div className="pref-row">
-              <div className="pref-label">
-                <div className="pref-label-title">{t('prefs.repos.wizard.connect.depot.title')}</div>
-                <div className="pref-label-desc">{t('prefs.repos.wizard.connect.depot.desc')}</div>
-              </div>
-              <div className="pref-control">
-                <input className="pref-input mono narrow" placeholder="//depot/MyGame" value={draft.p4Depot}
-                       onChange={(e) => onChange({ ...draft, p4Depot: e.target.value })} style={{ width: 240 }} />
-              </div>
-            </div>
-            <div className="pref-row">
-              <div className="pref-label">
-                <div className="pref-label-title">{t('prefs.repos.wizard.connect.baseName.title')}</div>
-                <div className="pref-label-desc">{t('prefs.repos.wizard.connect.baseName.desc')}</div>
-              </div>
-              <div className="pref-control">
-                <input className="pref-input mono narrow" placeholder="mygame" value={draft.shadoBase}
-                       onChange={(e) => onChange({ ...draft, shadoBase: e.target.value })} style={{ width: 240 }} />
-              </div>
-            </div>
+            {draft.p4Discovered ? (
+              // We pulled everything from the folder's P4 client — show it
+              // read-only; the only editable field is the short id (step 1).
+              <>
+                <p className="pref-section-desc">
+                  {t('prefs.repos.wizard.connect.discovered', { client: draft.p4Client })}
+                </p>
+                <div className="pref-rows">
+                  <div className="repo-card-row"><span className="repo-card-label">{t('prefs.repos.wizard.connect.port.title')}</span><span className="mono">{draft.p4Port}</span></div>
+                  <div className="repo-card-row"><span className="repo-card-label">{t('prefs.repos.wizard.connect.user.title')}</span><span className="mono">{draft.p4User}</span></div>
+                  <div className="repo-card-row"><span className="repo-card-label">{t('prefs.repos.wizard.connect.depot.title')}</span><span className="mono">{draft.p4Depot}</span></div>
+                  <div className="repo-card-row"><span className="repo-card-label">{t('prefs.repos.wizard.connect.changelist')}</span><span className="mono">{draft.baseChangelist || '—'}</span></div>
+                  <div className="repo-card-row"><span className="repo-card-label">{t('prefs.repos.wizard.connect.base')}</span><span className="mono">{draft.id || '—'}</span></div>
+                </div>
+                <p className="pref-section-desc" style={{ marginTop: 10 }}>{t('prefs.repos.wizard.connect.editIdHint')}</p>
+              </>
+            ) : (
+              <>
+                <p className="pref-section-desc">{t('prefs.repos.wizard.connect.intro')}</p>
+                <div className="pref-row">
+                  <div className="pref-label">
+                    <div className="pref-label-title">{t('prefs.repos.wizard.connect.port.title')}</div>
+                    <div className="pref-label-desc">{t('prefs.repos.wizard.connect.port.desc')}</div>
+                  </div>
+                  <div className="pref-control">
+                    <input className="pref-input mono narrow" placeholder="ssl:host:1666" value={draft.p4Port}
+                           onChange={(e) => onChange({ ...draft, p4Port: e.target.value })} style={{ width: 240 }} />
+                  </div>
+                </div>
+                <div className="pref-row">
+                  <div className="pref-label">
+                    <div className="pref-label-title">{t('prefs.repos.wizard.connect.user.title')}</div>
+                    <div className="pref-label-desc">{t('prefs.repos.wizard.connect.user.desc')}</div>
+                  </div>
+                  <div className="pref-control">
+                    <input className="pref-input mono narrow" placeholder="user" value={draft.p4User}
+                           onChange={(e) => onChange({ ...draft, p4User: e.target.value })} style={{ width: 240 }} />
+                  </div>
+                </div>
+                <div className="pref-row">
+                  <div className="pref-label">
+                    <div className="pref-label-title">{t('prefs.repos.wizard.connect.depot.title')}</div>
+                    <div className="pref-label-desc">{t('prefs.repos.wizard.connect.depot.desc')}</div>
+                  </div>
+                  <div className="pref-control">
+                    <input className="pref-input mono narrow" placeholder="//depot/MyGame" value={draft.p4Depot}
+                           onChange={(e) => onChange({ ...draft, p4Depot: e.target.value })} style={{ width: 240 }} />
+                  </div>
+                </div>
+              </>
+            )}
           </div>
         )}
 
@@ -3405,7 +3443,7 @@ function NewRepoWizard({
         {step === 'build' && (
           <div className="modal-body">
             <p className="pref-section-desc">{t('prefs.repos.wizard.build.intro', { gb: preflight ? fmtBytes(preflight.folderBytes) : '' })}</p>
-            <div className="repo-card-row"><span className="repo-card-label">{t('prefs.repos.wizard.build.baseName')}</span><span className="mono">{draft.shadoBase}</span></div>
+            <div className="repo-card-row"><span className="repo-card-label">{t('prefs.repos.wizard.build.baseName')}</span><span className="mono">{draft.id}</span></div>
             {!buildDone ? (
               building ? (
                 <p className="pref-progress"><i className="fa-solid fa-spinner fa-spin" /> {progress || t('prefs.repos.wizard.build.starting')}</p>

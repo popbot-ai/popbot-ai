@@ -267,6 +267,10 @@ export const IpcChannel = {
    *  Repository flow can infer the provider instead of asking. Null when
    *  undetected (UI falls back to a manual picker). */
   ReposDetectScm: 'pb:repos:detect-scm',
+  /** Pull the connection + depot mapping + synced changelist from the P4
+   *  client workspace rooted at a folder, so the Add-Repository flow can
+   *  auto-fill (read-only) instead of asking the user to retype. */
+  ReposDetectP4Workspace: 'pb:repos:detect-p4-workspace',
   /** Configure Slots flow — used by both the New Repo wizard's final
    *  step and the Edit Repo "Resize slots" button. The flow is
    *  per-slot so the renderer can render real progress; this set of
@@ -414,6 +418,19 @@ export interface BasePreflightInfo {
   ok: boolean;
 }
 
+/** Connection + mapping discovered from the Perforce client workspace whose
+ *  Root is the picked folder — everything the Add-Repository connect step
+ *  would otherwise ask the user to retype. */
+export interface P4WorkspaceInfo {
+  client: string;
+  port: string;
+  user: string;
+  /** Depot root from the client's View (e.g. //depot/PopBotGame). */
+  depotPath: string;
+  /** The changelist the workspace is synced to (#have), 0 if unknown. */
+  baseChangelist: number;
+}
+
 /** Input to the elevated base build. `baseName` is the shado project name;
  *  `depotPath` + connection let us capture the synced changelist. */
 export interface BuildBaseInput {
@@ -425,6 +442,9 @@ export interface BuildBaseInput {
   port: string;
   user: string;
   depotPath: string;
+  /** Changelist already discovered from the workspace (#have). Used as a
+   *  fallback when the server-side capture at build time can't resolve it. */
+  baseChangelist?: number;
 }
 
 export type BuildBaseResult =
@@ -671,6 +691,9 @@ export interface PopBotApi {
      *  'git' | 'perforce', or null when it's neither — the UI then shows an
      *  "invalid repo path" error and blocks continuing. */
     detectScm(folder: string): Promise<'git' | 'perforce' | null>;
+    /** Connection + depot + #have from the P4 client rooted at the folder,
+     *  or null when none maps it (the connect step falls back to manual). */
+    detectP4Workspace(folder: string): Promise<P4WorkspaceInfo | null>;
     /** Configure Slots flow building blocks. The renderer drives the
      *  loop one slot at a time so the user sees real progress. */
     listSlotOccupants(id: string): Promise<Array<{ slotId: number; chatName: string }>>;

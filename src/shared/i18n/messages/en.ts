@@ -1036,6 +1036,10 @@ export const en = {
   'prefs.repos.wizard.connect.depot.desc': 'The depot path this folder maps, e.g. //depot/MyGame.',
   'prefs.repos.wizard.connect.baseName.title': 'Base name',
   'prefs.repos.wizard.connect.baseName.desc': 'Name of the frozen shado base. Slots clone from it.',
+  'prefs.repos.wizard.connect.discovered': 'Read from your Perforce workspace ({client}). Edit the short id on the previous step if you want a different name.',
+  'prefs.repos.wizard.connect.changelist': 'Synced changelist',
+  'prefs.repos.wizard.connect.base': 'Base name',
+  'prefs.repos.wizard.connect.editIdHint': 'Everything here comes from the workspace — only the short id is yours to set.',
   'prefs.repos.wizard.preflight.intro':
     'Checking disk space. The base is built from your folder (left in place), so it needs roughly the folder’s size in free space on the same drive.',
   'prefs.repos.wizard.preflight.measuring': 'Measuring folder…',
