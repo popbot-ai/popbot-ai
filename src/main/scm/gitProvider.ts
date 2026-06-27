@@ -73,7 +73,11 @@ export class GitProvider extends SourceControlProvider {
   }
 
   private async gitInSlot(cwd: string, args: string[]): Promise<void> {
-    await execFileP('git', args, { cwd, maxBuffer: 8 * 1024 * 1024, windowsHide: true });
+    // shado slot clones are created in the elevated (UAC) context, so their
+    // files are owned by the Administrators group while PopBot runs as the
+    // normal user — git then refuses with "detected dubious ownership". Trust
+    // the dir for this invocation (scoped `-c`, not a global config change).
+    await execFileP('git', ['-c', 'safe.directory=*', ...args], { cwd, maxBuffer: 8 * 1024 * 1024, windowsHide: true });
   }
 
   /* ---------- review / working-tree ---------- */
