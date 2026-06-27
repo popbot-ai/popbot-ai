@@ -3369,7 +3369,7 @@ function NewRepoWizard({
                 <p className="pref-section-desc">
                   {t('prefs.repos.wizard.connect.discovered', { client: draft.p4Client })}
                 </p>
-                <div className="pref-rows">
+                <div className="pref-rows" style={{ marginTop: 14 }}>
                   <div className="repo-card-row"><span className="repo-card-label">{t('prefs.repos.wizard.connect.port.title')}</span><span className="mono">{draft.p4Port}</span></div>
                   <div className="repo-card-row"><span className="repo-card-label">{t('prefs.repos.wizard.connect.user.title')}</span><span className="mono">{draft.p4User}</span></div>
                   <div className="repo-card-row"><span className="repo-card-label">{t('prefs.repos.wizard.connect.depot.title')}</span><span className="mono">{draft.p4Depot}</span></div>
