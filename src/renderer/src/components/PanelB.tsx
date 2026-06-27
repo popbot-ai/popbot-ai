@@ -16,7 +16,7 @@ function ScmGlyph({ scm }: { scm?: SourceControlProviderId | null }): JSX.Elemen
   if (scm === 'perforce') {
     return <P4Glyph />;
   }
-  return <i className="fa-solid fa-code-branch" />;
+  return <i className="fa-solid fa-code-branch scm-mark-git" />;
 }
 
 /** Tiny kind chip — at-a-glance "what kind of chat is this?" Goes

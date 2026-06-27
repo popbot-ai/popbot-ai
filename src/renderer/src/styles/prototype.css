@@ -532,6 +532,11 @@ input, textarea { font: inherit; color: inherit; background: none; border: 0; ou
   width: 16px; height: 16px; flex-basis: 16px;
   margin-top: 2px;
 }
+/* The git branch mark sits slightly high/left in its glyph box — nudge it
+   down + right to optically center it in the disc. */
+.chat-row .status-glyph.scm-glyph .scm-mark-git {
+  transform: translate(0.75px, 0.75px);
+}
 .chat-row .name {
   font-size: var(--fs-sm); color: var(--fg-0); font-weight: 500;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
