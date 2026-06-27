@@ -41,11 +41,11 @@ import { slotWorktreePathForRepo, worktreesDirForRepo } from '../git/chatPaths';
 import { remountSlots } from '../shado/base';
 import type { RepoRecord } from '@shared/persistence';
 
-/** After a reboot, Windows drops the VHDX slot mounts and the slot folders go
- *  empty. Detect that signature (a slot folder that exists but is empty) and
- *  re-attach ALL of the repo's shado clones via one elevated `shado remount`
- *  before allocating — otherwise the next slot op fails on an empty mount.
- *  No-op for non-slot repos, off-Windows, or when the slots are already up. */
+/** After a reboot, Windows drops the VHDX slot mounts. A dropped mount leaves
+ *  the slot folder either EMPTY or as a BROKEN mount point (reading it errors).
+ *  Detect either and re-attach ALL of the repo's shado clones via one elevated
+ *  `shado remount` before allocating — otherwise the next slot op fails on the
+ *  dead mount. No-op for non-slot repos, off-Windows, or slots already up. */
 async function ensureSlotsMounted(repo: RepoRecord): Promise<void> {
   if (repo.mode !== 'slots' || process.platform !== 'win32') return;
   const baseName = repo.scm === 'perforce' ? repo.p4?.shadoBase : repo.id;
@@ -53,9 +53,14 @@ async function ensureSlotsMounted(repo: RepoRecord): Promise<void> {
   let unmounted = false;
   for (let i = 1; i <= repo.slotCount; i += 1) {
     const p = slotWorktreePathForRepo(repo, i);
-    if (existsSync(p) && readdirSync(p).length === 0) {
-      unmounted = true;
-      break;
+    try {
+      // A mounted slot lists the base's files; an unmounted one is empty.
+      if (readdirSync(p).length === 0) { unmounted = true; break; }
+    } catch (err) {
+      // ENOENT = never created (let ensureSlot handle it). Anything else (a
+      // broken mount-point folder whose VHDX detached → device error) means it
+      // needs remounting.
+      if ((err as NodeJS.ErrnoException).code !== 'ENOENT') { unmounted = true; break; }
     }
   }
   if (!unmounted) return;

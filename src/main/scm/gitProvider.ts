@@ -128,8 +128,12 @@ export class GitProvider extends SourceControlProvider {
       repoPath: opts.repoPath,
       worktreePath: opts.worktreePath,
     });
-    // Park the freshly-cloned slot on its parking branch off the base.
-    await this.gitInSlot(opts.worktreePath, ['checkout', '-B', opts.parkBranch, opts.baseBranch]);
+    // Park the freshly-cloned slot on its parking branch off the base. FORCE
+    // the checkout: a clone inherits whatever uncommitted state the base had
+    // (e.g. a modified package-lock.json), which would otherwise abort with
+    // "local changes would be overwritten". A slot is meant to start pristine,
+    // so we discard that inherited dirt and land cleanly on the parking branch.
+    await this.gitInSlot(opts.worktreePath, ['checkout', '-f', '-B', opts.parkBranch, opts.baseBranch]);
   }
   checkoutBranch(opts: CheckoutBranchOpts): Promise<void> {
     return checkoutBranch(opts);
