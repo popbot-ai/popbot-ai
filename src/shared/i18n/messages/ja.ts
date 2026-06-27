@@ -51,6 +51,15 @@ export const ja = {
   'p4.menu.deleteFromShelf': 'シェルフから削除',
   'p4.shelf.title': 'シェルフ',
   'p4.shelf.empty': 'シェルブされた変更はありません。',
+  'p4.promptPreviewPlaceholder': 'プロンプトプレビュー',
+  'p4.mode.submit.label': 'SUBMIT',
+  'p4.mode.submit.short': 'Submit',
+  'p4.mode.cr.label': 'CODE REVIEW (AI)',
+  'p4.mode.cr.short': 'CR',
+  'p4.mode.tests.label': 'RUN TESTS (AI)',
+  'p4.mode.tests.short': 'Tests',
+  'p4.mode.reviewCommit.label': 'REVIEW & COMMIT (AI)',
+  'p4.mode.reviewCommit.short': 'Review',
   'branch.dialog.branchName': 'ブランチ名',
   'branch.dialog.changelistName': 'チェンジリスト名',
   'branch.dialog.perforceLatest': 'この Perforce スロットは最新のチェンジリストに同期されるため、選択するベースブランチはありません。',
@@ -820,6 +829,9 @@ export const ja = {
   'prefs.git.actionTemplates.title': 'アクションテンプレート',
   'prefs.git.actionTemplates.intro':
     '大きなアクションボタンをクリックしたとき (またはベースブランチを変更したとき) に git パネルがチャットエージェントに送信するプロンプトです。{macro} マクロを使ってコンテキストを挿入できます。',
+  'prefs.p4.actionTemplates.title': 'Perforce アクションテンプレート',
+  'prefs.p4.actionTemplates.intro':
+    'CR (Helix Swarm レビュー)、テスト実行、レビュー & コミット のために Perforce パネルがチャットエージェントに送信するプロンプトです。{macro} マクロを使ってコンテキストを挿入できます。',
 
   // Preferences — External apps pane.
   'prefs.apps.title': '外部アプリ',
@@ -866,6 +878,11 @@ export const ja = {
   'prefs.templates.git.makePrReady.label': 'MARK PR READY (AI)',
   'prefs.templates.git.addressCr.label': 'ADDRESS CR (AI)',
   'prefs.templates.git.rebaseBase.label': 'CHANGE BASE BRANCH (AI)',
+  'prefs.templates.p4.codeReview.label': 'CODE REVIEW (AI)',
+  'prefs.templates.p4.runTests.label': 'RUN TESTS (AI)',
+  'prefs.templates.p4.reviewCommit.label': 'REVIEW & COMMIT (AI)',
+  'prefs.templates.resetThis': 'このテンプレートをデフォルトにリセット',
+  'prefs.templates.modified': 'カスタマイズ済み — デフォルトと異なります',
   'prefs.templates.resetDefaults': 'デフォルトにリセット',
   'prefs.templates.title': 'プロンプトテンプレート',
   'prefs.templates.intro':

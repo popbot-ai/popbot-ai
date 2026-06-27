@@ -51,6 +51,15 @@ export const ptBR = {
   'p4.menu.deleteFromShelf': 'Excluir do shelf',
   'p4.shelf.title': 'Shelf',
   'p4.shelf.empty': 'Nenhuma alteração arquivada.',
+  'p4.promptPreviewPlaceholder': 'Prévia do prompt',
+  'p4.mode.submit.label': 'SUBMIT',
+  'p4.mode.submit.short': 'Submit',
+  'p4.mode.cr.label': 'CODE REVIEW (AI)',
+  'p4.mode.cr.short': 'CR',
+  'p4.mode.tests.label': 'RUN TESTS (AI)',
+  'p4.mode.tests.short': 'Tests',
+  'p4.mode.reviewCommit.label': 'REVIEW & COMMIT (AI)',
+  'p4.mode.reviewCommit.short': 'Review',
   'branch.dialog.branchName': 'Nome da branch',
   'branch.dialog.changelistName': 'Nome do changelist',
   'branch.dialog.perforceLatest': 'Este slot do Perforce sincroniza com o changelist mais recente — não há branch base para escolher.',
@@ -820,6 +829,9 @@ export const ptBR = {
   'prefs.git.actionTemplates.title': 'Modelos de ação',
   'prefs.git.actionTemplates.intro':
     'Prompts que o painel do git envia ao agente do chat quando você clica no botão de ação grande (ou altera a branch base). Use macros {macro} para injetar contexto.',
+  'prefs.p4.actionTemplates.title': 'Modelos de ação do Perforce',
+  'prefs.p4.actionTemplates.intro':
+    'Prompts que o painel do Perforce envia ao agente do chat para CR (revisão no Helix Swarm), Executar Testes e Revisar e Submeter. Use macros {macro} para injetar contexto.',
 
   // Preferences — External apps pane.
   'prefs.apps.title': 'Aplicativos externos',
@@ -866,6 +878,11 @@ export const ptBR = {
   'prefs.templates.git.makePrReady.label': 'MARK PR READY (AI)',
   'prefs.templates.git.addressCr.label': 'ADDRESS CR (AI)',
   'prefs.templates.git.rebaseBase.label': 'CHANGE BASE BRANCH (AI)',
+  'prefs.templates.p4.codeReview.label': 'CODE REVIEW (AI)',
+  'prefs.templates.p4.runTests.label': 'RUN TESTS (AI)',
+  'prefs.templates.p4.reviewCommit.label': 'REVIEW & COMMIT (AI)',
+  'prefs.templates.resetThis': 'Restaurar este modelo para o padrão',
+  'prefs.templates.modified': 'Personalizado — difere do padrão',
   'prefs.templates.resetDefaults': 'Restaurar padrões',
   'prefs.templates.title': 'Modelos de prompt',
   'prefs.templates.intro':

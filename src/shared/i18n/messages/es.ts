@@ -51,6 +51,15 @@ export const es = {
   'p4.menu.deleteFromShelf': 'Eliminar del archivador',
   'p4.shelf.title': 'Archivador',
   'p4.shelf.empty': 'No hay cambios archivados.',
+  'p4.promptPreviewPlaceholder': 'Vista previa del prompt',
+  'p4.mode.submit.label': 'SUBMIT',
+  'p4.mode.submit.short': 'Submit',
+  'p4.mode.cr.label': 'CODE REVIEW (AI)',
+  'p4.mode.cr.short': 'CR',
+  'p4.mode.tests.label': 'RUN TESTS (AI)',
+  'p4.mode.tests.short': 'Tests',
+  'p4.mode.reviewCommit.label': 'REVIEW & COMMIT (AI)',
+  'p4.mode.reviewCommit.short': 'Review',
   'branch.dialog.branchName': 'Nombre de la rama',
   'branch.dialog.changelistName': 'Nombre del changelist',
   'branch.dialog.perforceLatest': 'Este slot de Perforce se sincroniza con el changelist más reciente — no hay rama base que elegir.',
@@ -820,6 +829,9 @@ export const es = {
   'prefs.git.actionTemplates.title': 'Plantillas de acción',
   'prefs.git.actionTemplates.intro':
     'Prompts que el panel de git envía al agente del chat cuando haces clic en el botón de acción grande (o cambias la rama base). Usa macros {macro} para inyectar contexto.',
+  'prefs.p4.actionTemplates.title': 'Plantillas de acción de Perforce',
+  'prefs.p4.actionTemplates.intro':
+    'Prompts que el panel de Perforce envía al agente del chat para CR (revisión de Helix Swarm), Ejecutar pruebas y Revisar y enviar. Usa macros {macro} para inyectar contexto.',
 
   // Preferences — External apps pane.
   'prefs.apps.title': 'Aplicaciones externas',
@@ -866,6 +878,11 @@ export const es = {
   'prefs.templates.git.makePrReady.label': 'MARK PR READY (AI)',
   'prefs.templates.git.addressCr.label': 'ADDRESS CR (AI)',
   'prefs.templates.git.rebaseBase.label': 'CHANGE BASE BRANCH (AI)',
+  'prefs.templates.p4.codeReview.label': 'CODE REVIEW (AI)',
+  'prefs.templates.p4.runTests.label': 'RUN TESTS (AI)',
+  'prefs.templates.p4.reviewCommit.label': 'REVIEW & COMMIT (AI)',
+  'prefs.templates.resetThis': 'Restablecer esta plantilla al valor predeterminado',
+  'prefs.templates.modified': 'Personalizada — difiere del valor predeterminado',
   'prefs.templates.resetDefaults': 'Restablecer a los valores predeterminados',
   'prefs.templates.title': 'Plantillas de prompt',
   'prefs.templates.intro':

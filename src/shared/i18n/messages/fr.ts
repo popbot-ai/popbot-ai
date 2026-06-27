@@ -51,6 +51,15 @@ export const fr = {
   'p4.menu.deleteFromShelf': 'Supprimer de la remise',
   'p4.shelf.title': 'Remise',
   'p4.shelf.empty': 'Aucune modification remisée.',
+  'p4.promptPreviewPlaceholder': 'Aperçu du prompt',
+  'p4.mode.submit.label': 'SUBMIT',
+  'p4.mode.submit.short': 'Submit',
+  'p4.mode.cr.label': 'CODE REVIEW (AI)',
+  'p4.mode.cr.short': 'CR',
+  'p4.mode.tests.label': 'RUN TESTS (AI)',
+  'p4.mode.tests.short': 'Tests',
+  'p4.mode.reviewCommit.label': 'REVIEW & COMMIT (AI)',
+  'p4.mode.reviewCommit.short': 'Review',
   'branch.dialog.branchName': 'Nom de la branche',
   'branch.dialog.changelistName': 'Nom de la liste de modifications',
   'branch.dialog.perforceLatest': 'Cet emplacement Perforce se synchronise sur la dernière liste de modifications — aucune branche de base à choisir.',
@@ -820,6 +829,9 @@ export const fr = {
   'prefs.git.actionTemplates.title': 'Modèles d’action',
   'prefs.git.actionTemplates.intro':
     'Prompts que le panneau git envoie à l’agent du chat lorsque vous cliquez sur le grand bouton d’action (ou changez la branche de base). Utilisez les macros {macro} pour injecter du contexte.',
+  'prefs.p4.actionTemplates.title': 'Modèles d’action Perforce',
+  'prefs.p4.actionTemplates.intro':
+    'Prompts que le panneau Perforce envoie à l’agent du chat pour CR (revue Helix Swarm), Lancer les tests et Revue et soumission. Utilisez les macros {macro} pour injecter du contexte.',
 
   // Preferences — External apps pane.
   'prefs.apps.title': 'Applications externes',
@@ -866,6 +878,11 @@ export const fr = {
   'prefs.templates.git.makePrReady.label': 'MARK PR READY (AI)',
   'prefs.templates.git.addressCr.label': 'ADDRESS CR (AI)',
   'prefs.templates.git.rebaseBase.label': 'CHANGE BASE BRANCH (AI)',
+  'prefs.templates.p4.codeReview.label': 'CODE REVIEW (AI)',
+  'prefs.templates.p4.runTests.label': 'RUN TESTS (AI)',
+  'prefs.templates.p4.reviewCommit.label': 'REVIEW & COMMIT (AI)',
+  'prefs.templates.resetThis': 'Réinitialiser ce modèle à la valeur par défaut',
+  'prefs.templates.modified': 'Personnalisé — diffère de la valeur par défaut',
   'prefs.templates.resetDefaults': 'Réinitialiser aux valeurs par défaut',
   'prefs.templates.title': 'Modèles de prompt',
   'prefs.templates.intro':

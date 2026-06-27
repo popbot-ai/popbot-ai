@@ -51,6 +51,15 @@ export const ko = {
   'p4.menu.deleteFromShelf': '셸브에서 삭제',
   'p4.shelf.title': '셸브',
   'p4.shelf.empty': '셸브된 변경 사항이 없습니다.',
+  'p4.promptPreviewPlaceholder': '프롬프트 미리보기',
+  'p4.mode.submit.label': 'SUBMIT',
+  'p4.mode.submit.short': 'Submit',
+  'p4.mode.cr.label': 'CODE REVIEW (AI)',
+  'p4.mode.cr.short': 'CR',
+  'p4.mode.tests.label': 'RUN TESTS (AI)',
+  'p4.mode.tests.short': 'Tests',
+  'p4.mode.reviewCommit.label': 'REVIEW & COMMIT (AI)',
+  'p4.mode.reviewCommit.short': 'Review',
   'branch.dialog.branchName': '브랜치 이름',
   'branch.dialog.changelistName': '체인지리스트 이름',
   'branch.dialog.perforceLatest': '이 Perforce 슬롯은 최신 체인지리스트로 동기화됩니다 — 선택할 기준 브랜치가 없습니다.',
@@ -820,6 +829,9 @@ export const ko = {
   'prefs.git.actionTemplates.title': '동작 템플릿',
   'prefs.git.actionTemplates.intro':
     '큰 동작 버튼을 클릭하거나 기준 브랜치를 변경할 때 git 패널이 채팅 에이전트에 보내는 프롬프트입니다. {macro} 매크로를 사용하여 컨텍스트를 삽입하세요.',
+  'prefs.p4.actionTemplates.title': 'Perforce 동작 템플릿',
+  'prefs.p4.actionTemplates.intro':
+    'Perforce 패널이 CR (Helix Swarm 리뷰), 테스트 실행, 리뷰 및 커밋에 대해 채팅 에이전트에 보내는 프롬프트입니다. {macro} 매크로를 사용하여 컨텍스트를 삽입하세요.',
 
   // Preferences — External apps pane.
   'prefs.apps.title': '외부 앱',
@@ -866,6 +878,11 @@ export const ko = {
   'prefs.templates.git.makePrReady.label': 'MARK PR READY (AI)',
   'prefs.templates.git.addressCr.label': 'ADDRESS CR (AI)',
   'prefs.templates.git.rebaseBase.label': 'CHANGE BASE BRANCH (AI)',
+  'prefs.templates.p4.codeReview.label': 'CODE REVIEW (AI)',
+  'prefs.templates.p4.runTests.label': 'RUN TESTS (AI)',
+  'prefs.templates.p4.reviewCommit.label': 'REVIEW & COMMIT (AI)',
+  'prefs.templates.resetThis': '이 템플릿을 기본값으로 재설정',
+  'prefs.templates.modified': '사용자 지정됨 — 기본값과 다름',
   'prefs.templates.resetDefaults': '기본값으로 재설정',
   'prefs.templates.title': '프롬프트 템플릿',
   'prefs.templates.intro':

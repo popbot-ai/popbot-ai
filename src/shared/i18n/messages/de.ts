@@ -51,6 +51,15 @@ export const de = {
   'p4.menu.deleteFromShelf': 'Aus Zurückstellung löschen',
   'p4.shelf.title': 'Zurückstellung',
   'p4.shelf.empty': 'Keine zurückgestellten Änderungen.',
+  'p4.promptPreviewPlaceholder': 'Prompt-Vorschau',
+  'p4.mode.submit.label': 'SUBMIT',
+  'p4.mode.submit.short': 'Submit',
+  'p4.mode.cr.label': 'CODE REVIEW (AI)',
+  'p4.mode.cr.short': 'CR',
+  'p4.mode.tests.label': 'RUN TESTS (AI)',
+  'p4.mode.tests.short': 'Tests',
+  'p4.mode.reviewCommit.label': 'REVIEW & COMMIT (AI)',
+  'p4.mode.reviewCommit.short': 'Review',
   'branch.dialog.branchName': 'Branch-Name',
   'branch.dialog.changelistName': 'Changelist-Name',
   'branch.dialog.perforceLatest': 'Dieser Perforce-Slot synchronisiert mit der neuesten Changelist — kein Basis-Branch zur Auswahl.',
@@ -820,6 +829,9 @@ export const de = {
   'prefs.git.actionTemplates.title': 'Aktionsvorlagen',
   'prefs.git.actionTemplates.intro':
     'Prompts, die das Git-Panel an den Chat-Agenten sendet, wenn Sie auf die große Aktionsschaltfläche klicken (oder den Basis-Branch ändern). Verwenden Sie {macro}-Makros, um Kontext einzufügen.',
+  'prefs.p4.actionTemplates.title': 'Perforce-Aktionsvorlagen',
+  'prefs.p4.actionTemplates.intro':
+    'Prompts, die das Perforce-Panel an den Chat-Agenten sendet für CR (Helix Swarm-Review), Tests ausführen und Prüfen & Einreichen. Verwenden Sie {macro}-Makros, um Kontext einzufügen.',
 
   // Preferences — External apps pane.
   'prefs.apps.title': 'Externe Apps',
@@ -866,6 +878,11 @@ export const de = {
   'prefs.templates.git.makePrReady.label': 'MARK PR READY (AI)',
   'prefs.templates.git.addressCr.label': 'ADDRESS CR (AI)',
   'prefs.templates.git.rebaseBase.label': 'CHANGE BASE BRANCH (AI)',
+  'prefs.templates.p4.codeReview.label': 'CODE REVIEW (AI)',
+  'prefs.templates.p4.runTests.label': 'RUN TESTS (AI)',
+  'prefs.templates.p4.reviewCommit.label': 'REVIEW & COMMIT (AI)',
+  'prefs.templates.resetThis': 'Diese Vorlage auf Standard zurücksetzen',
+  'prefs.templates.modified': 'Angepasst — weicht vom Standard ab',
   'prefs.templates.resetDefaults': 'Auf Standard zurücksetzen',
   'prefs.templates.title': 'Prompt-Vorlagen',
   'prefs.templates.intro':

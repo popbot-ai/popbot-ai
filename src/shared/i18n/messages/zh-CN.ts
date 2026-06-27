@@ -51,6 +51,15 @@ export const zhCN = {
   'p4.menu.deleteFromShelf': '从搁置区删除',
   'p4.shelf.title': '搁置区',
   'p4.shelf.empty': '没有搁置的更改。',
+  'p4.promptPreviewPlaceholder': '提示词预览',
+  'p4.mode.submit.label': 'SUBMIT',
+  'p4.mode.submit.short': 'Submit',
+  'p4.mode.cr.label': 'CODE REVIEW (AI)',
+  'p4.mode.cr.short': 'CR',
+  'p4.mode.tests.label': 'RUN TESTS (AI)',
+  'p4.mode.tests.short': 'Tests',
+  'p4.mode.reviewCommit.label': 'REVIEW & COMMIT (AI)',
+  'p4.mode.reviewCommit.short': 'Review',
   'branch.dialog.branchName': '分支名称',
   'branch.dialog.changelistName': '更改列表名称',
   'branch.dialog.perforceLatest': '此 Perforce 槽位同步到最新的更改列表 — 无需选择基础分支。',
@@ -820,6 +829,9 @@ export const zhCN = {
   'prefs.git.actionTemplates.title': '操作模板',
   'prefs.git.actionTemplates.intro':
     '当您点击大操作按钮（或更改基础分支）时，git 面板发送给聊天代理的提示词。使用 {macro} 宏来注入上下文。',
+  'prefs.p4.actionTemplates.title': 'Perforce 操作模板',
+  'prefs.p4.actionTemplates.intro':
+    'Perforce 面板针对 CR（Helix Swarm 审查）、运行测试以及审查并提交发送给聊天代理的提示词。使用 {macro} 宏来注入上下文。',
 
   // Preferences — External apps pane.
   'prefs.apps.title': '外部应用',
@@ -866,6 +878,11 @@ export const zhCN = {
   'prefs.templates.git.makePrReady.label': 'MARK PR READY (AI)',
   'prefs.templates.git.addressCr.label': 'ADDRESS CR (AI)',
   'prefs.templates.git.rebaseBase.label': 'CHANGE BASE BRANCH (AI)',
+  'prefs.templates.p4.codeReview.label': 'CODE REVIEW (AI)',
+  'prefs.templates.p4.runTests.label': 'RUN TESTS (AI)',
+  'prefs.templates.p4.reviewCommit.label': 'REVIEW & COMMIT (AI)',
+  'prefs.templates.resetThis': '将此模板重置为默认值',
+  'prefs.templates.modified': '已自定义 — 与默认值不同',
   'prefs.templates.resetDefaults': '重置为默认值',
   'prefs.templates.title': '提示词模板',
   'prefs.templates.intro':
