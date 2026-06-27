@@ -24,7 +24,9 @@ export const TICKET_TEMPLATE_VARS = [
   { name: 'ticketurl',   desc: 'Direct link to the issue' },
   { name: 'priority',    desc: 'urgent / high / med / low' },
   { name: 'project',     desc: 'Linear project name' },
-  { name: 'branch',      desc: 'Branch checked out in this slot' },
+  { name: 'branch',      desc: 'Branch (git) / changelist name (Perforce) for this slot' },
+  { name: 'scmref',      desc: '"Branch" for git, "Changelist" for Perforce' },
+  { name: 'commitverb',  desc: '"commit" for git, "submit the changelist" for Perforce' },
   { name: 'slot',        desc: 'Workspace slot number' },
 ] as const;
 
@@ -42,13 +44,13 @@ export const DEFAULT_START_TICKET_TEMPLATE = `Please review and, if possible, di
 \${markdown}
 
 ## Workspace
-- Branch: \`\${branch}\`
+- \${scmref}: \`\${branch}\`
 - Slot: \${slot}
 - Linear: \${ticketurl}
 
 ## How to proceed
 1. Read whatever files you need to understand the scope.
-2. If you can fix the issue, go ahead — make the changes, run the relevant tests, and commit.
+2. If you can fix the issue, go ahead — make the changes, run the relevant tests, and \${commitverb}.
 3. If you can't (ambiguous spec, missing context, risky tradeoff), ask your questions here. The engineer will be notified and respond.
 4. When the fix is complete, notify the engineer that it's ready to test and describe the full fix — what changed, why, and how to verify.`;
 

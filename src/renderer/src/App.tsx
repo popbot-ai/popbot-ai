@@ -534,7 +534,10 @@ export default function App(): JSX.Element {
    *  the count. Shows a busy overlay during the slow git work. */
   const createWithSlot = async (
     input: CreateChatInput,
-    opts?: { busy?: { message: string; detail?: string }; onCreated?: (chatId: string) => void },
+    opts?: {
+      busy?: { message: string; detail?: string };
+      onCreated?: (chatId: string, slotId: number | null) => void;
+    },
   ) => {
     if (opts?.busy) setBusy(opts.busy);
     let result;
@@ -558,7 +561,7 @@ export default function App(): JSX.Element {
       }
       return;
     }
-    opts?.onCreated?.(result.chat.id);
+    opts?.onCreated?.(result.chat.id, result.chat.slotId ?? null);
     scrollToChat(result.chat.id);
   };
 
@@ -664,7 +667,7 @@ export default function App(): JSX.Element {
       },
       {
         busy: { message: t('app.busy.settingUpWorkspace'), detail: t('app.busy.branchingFrom', { branch: finalBranch, baseBranch }) },
-        onCreated: (chatId) => {
+        onCreated: async (chatId, slotId) => {
           // Auto-promote the ticket to "In Progress" when we open a
           // chat for it. Idempotent + scoped on the main side: only
           // upstream states (backlog/triage/unstarted) get touched;
@@ -680,10 +683,9 @@ export default function App(): JSX.Element {
             ?? DEFAULT_START_TICKET_TEMPLATE
           ).trim();
           if (!tmpl) return;
-          // Look up the slot the chat just got assigned (post-create
-          // state may not have hit React yet, so query by ticket).
-          const justCreated = chats.find((c) => c.id === chatId);
-          const slot = justCreated?.slotId ?? '';
+          // SCM-aware wording: Perforce has changelists, not branches/commits.
+          const isP4 =
+            (await window.popbot.repos.list()).find((r) => r.id === repoId)?.scm === 'perforce';
           const description = ticket.description ?? '';
           const text = expandTemplate(tmpl, {
             ticketid: ticket.id,
@@ -697,7 +699,11 @@ export default function App(): JSX.Element {
             priority: ticket.priority,
             project: ticket.project,
             branch: finalBranch,
-            slot,
+            scmref: isP4 ? 'Changelist' : 'Branch',
+            commitverb: isP4 ? 'submit the changelist' : 'commit',
+            // The slot the chat was actually assigned (passed back from
+            // createWithSlot — the `chats` state hasn't updated yet here).
+            slot: slotId ?? '',
           });
           void window.popbot.agent.send({ chatId, text });
         },
