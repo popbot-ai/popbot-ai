@@ -20,6 +20,7 @@ import { basename, join } from 'node:path';
 import type { ChatRecord, RepoRecord } from '@shared/persistence';
 import { getSetting } from '../persistence/settings';
 import { getRepo } from '../persistence/repos';
+import { popbotRootForRepo } from '../shado/client';
 
 interface GitSettingsView {
   repoPath?: string;
@@ -106,7 +107,7 @@ export function worktreePathForSlot(slotId: number): string | null {
  *  `settings.git.worktreesDir` override if present so already-allocated
  *  slot worktrees aren't stranded by the multi-repo migration. New
  *  repos go straight to the home convention with no override knob. */
-export function worktreesDirForRepo(repo: Pick<RepoRecord, 'id'>): string {
+export function worktreesDirForRepo(repo: Pick<RepoRecord, 'id' | 'repoPath'>): string {
   const s = getSetting<GitSettingsView>('git');
   if (s?.worktreesDir && s.worktreesDir.trim().length > 0) {
     // Legacy single-repo install: settings.git.worktreesDir was the
@@ -117,13 +118,18 @@ export function worktreesDirForRepo(repo: Pick<RepoRecord, 'id'>): string {
       || 'app');
     if (repo.id === legacyName) return s.worktreesDir;
   }
-  return join(homedir(), 'popbot', 'workspaces', repo.id);
+  // Slots MUST live on the source repo's drive — the shado differencing-VHDX
+  // same-drive invariant, and the user's rule. popbotRootForRepo mirrors
+  // ~/popbot onto the repo's drive, so a C: repo is unchanged and a D: repo's
+  // slots land under D:\…\popbot\workspaces (alongside the base under
+  // D:\…\popbot\shado), keeping mount + base co-driven.
+  return join(popbotRootForRepo(repo.repoPath), 'workspaces', repo.id);
 }
 
 /** Slot worktree path for a specific repo + slot id. The
  *  parent-directory layout is `<worktreesDirForRepo>/<repo.slotPrefix>-N`. */
 export function slotWorktreePathForRepo(
-  repo: Pick<RepoRecord, 'id' | 'slotPrefix'>,
+  repo: Pick<RepoRecord, 'id' | 'slotPrefix' | 'repoPath'>,
   slotId: number,
 ): string {
   return join(worktreesDirForRepo(repo), `${repo.slotPrefix}-${slotId}`);
