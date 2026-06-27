@@ -32,6 +32,11 @@ interface BaseBranchDialogProps {
    *  source either from. The derived `subject` and `branch` come back
    *  in `onConfirm`. */
   askSubject?: boolean;
+  /** Pre-derived branch / changelist name for flows that DON'T ask for a
+   *  subject (ticket/PR), e.g. `bcooley/eng-204-…`. Shown — editable — so the
+   *  user always sees the branch (git) or changelist (Perforce) name that will
+   *  be created, and the (possibly edited) value comes back in `onConfirm`. */
+  initialBranch?: string;
   /** Show a "No repo" option that creates a raw chat with no slot,
    *  worktree, branch, or base branch. Only used by generic new-chat
    *  creation; ticket/PR flows still require a real repo. */
@@ -239,6 +244,7 @@ export function BaseBranchDialog({
   initial,
   lockedRepoId,
   askSubject,
+  initialBranch,
   allowNoRepo,
   allowRepoRoot,
   showAgentPicker,
@@ -289,9 +295,12 @@ export function BaseBranchDialog({
   const effectiveSubject = subject.trim() || defaultSubject;
   const derivedSlug = slugifySubject(effectiveSubject);
   const derivedBranch = derivedSlug ? `${username}/${derivedSlug}` : '';
+  // The name seed: derived-from-subject when we ask for one (generic flow),
+  // else the caller's pre-derived ticket/PR branch.
+  const seedBranch = askSubject ? derivedBranch : (initialBranch ?? '');
   // The branch / changelist name actually used: the user's edit if they typed
-  // one, else the derived `user/slug`.
-  const effectiveBranch = branchEdit && branchEdit.trim() ? branchEdit.trim() : derivedBranch;
+  // one, else the seed.
+  const effectiveBranch = branchEdit && branchEdit.trim() ? branchEdit.trim() : seedBranch;
   const isRawChat = pickedRepoId === null && allowNoRepo === true;
   // "Free Chat (no slot)" radio is selected → run from the repo root with
   // no slot/worktree/branch (same as a CR chat).
@@ -386,12 +395,10 @@ export function BaseBranchDialog({
       // Perforce slots sync to latest — there's no base branch to fork from.
       baseBranch: isFreeChat ? null : isPerforce ? 'latest' : picked,
       workspaceMode: isFreeChat ? 'repo-root' : 'slot',
-      ...(askSubject
-        ? {
-            subject: effectiveSubject,
-            ...(isFreeChat ? {} : { branch: effectiveBranch }),
-          }
-        : {}),
+      ...(askSubject ? { subject: effectiveSubject } : {}),
+      // Return the (possibly edited) branch/changelist name for any slot chat,
+      // so a ticket/PR flow uses what the user saw + tweaked, not its own.
+      ...(!isFreeChat && effectiveBranch ? { branch: effectiveBranch } : {}),
       ...(chosenAgent ? { agentConfig: chosenAgent } : {}),
     });
   };
@@ -457,19 +464,22 @@ export function BaseBranchDialog({
                 style={{ width: '100%' }}
                 autoFocus
               />
-              {!isFreeChat && (
-                <div style={{ marginTop: 8 }}>
-                  <div style={{ fontSize: 11, color: 'var(--fg-3)', marginBottom: 4 }}>
-                    {isPerforce ? t('branch.dialog.changelistName') : t('branch.dialog.branchName')}
-                  </div>
-                  <input
-                    className="pref-input mono narrow"
-                    value={effectiveBranch}
-                    onChange={(e) => setBranchEdit(e.target.value)}
-                    style={{ width: '100%' }}
-                  />
-                </div>
-              )}
+            </div>
+          )}
+          {/* Always show the branch (git) / changelist (Perforce) name that
+              will be created — derived from the subject above, or the ticket/PR
+              branch — and let the user edit it. */}
+          {!isRawChat && !isFreeChat && (askSubject || initialBranch) && (
+            <div style={{ marginBottom: 12 }}>
+              <div style={{ fontSize: 11, color: 'var(--fg-3)', marginBottom: 4 }}>
+                {isPerforce ? t('branch.dialog.changelistName') : t('branch.dialog.branchName')}
+              </div>
+              <input
+                className="pref-input mono narrow"
+                value={effectiveBranch}
+                onChange={(e) => setBranchEdit(e.target.value)}
+                style={{ width: '100%' }}
+              />
             </div>
           )}
           {!repos && <div>{t('branch.dialog.loadingRepos')}</div>}

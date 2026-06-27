@@ -241,6 +241,9 @@ export default function App(): JSX.Element {
      *  (and derives the branch name from it). Used by the generic
      *  "+" / Cmd-K new-chat flow where there's no ticket/PR. */
     askSubject?: boolean;
+    /** Pre-derived branch/changelist name (ticket/PR flows) — shown editable
+     *  so the user always sees it; the edited value comes back in run(). */
+    initialBranch?: string;
     /** Generic new-chat flow can intentionally skip repo selection. */
     allowNoRepo?: boolean;
     /** Generic lite chats can run from repo root without a slot. */
@@ -643,13 +646,16 @@ export default function App(): JSX.Element {
     setPendingCreate({
       subtitle: `${ticket.id} · ${ticket.title.slice(0, 60)}`,
       showAgentPicker: true,
-      run: async ({ repoId, baseBranch, agentConfig }) => {
+      initialBranch: branch,
+      run: async ({ repoId, baseBranch, branch: editedBranch, agentConfig }) => {
         if (!repoId || !baseBranch) return;
+        // The user may have tweaked the branch/changelist name in the dialog.
+        const finalBranch = editedBranch?.trim() || branch;
         await createWithSlot(
       {
         name: `${ticket.id} · ${ticket.title.slice(0, 60)}`,
         ticket: ticket.id,
-        branch,
+        branch: finalBranch,
         baseBranch,
         type: 'lite',
         allocateSlot: true,
@@ -657,7 +663,7 @@ export default function App(): JSX.Element {
         ...agentConfig,
       },
       {
-        busy: { message: t('app.busy.settingUpWorkspace'), detail: t('app.busy.branchingFrom', { branch, baseBranch }) },
+        busy: { message: t('app.busy.settingUpWorkspace'), detail: t('app.busy.branchingFrom', { branch: finalBranch, baseBranch }) },
         onCreated: (chatId) => {
           // Auto-promote the ticket to "In Progress" when we open a
           // chat for it. Idempotent + scoped on the main side: only
@@ -690,7 +696,7 @@ export default function App(): JSX.Element {
             ticketurl: ticket.url ?? '',
             priority: ticket.priority,
             project: ticket.project,
-            branch,
+            branch: finalBranch,
             slot,
           });
           void window.popbot.agent.send({ chatId, text });
@@ -1307,6 +1313,7 @@ export default function App(): JSX.Element {
           subtitle={pendingCreate.subtitle}
           initial={pendingCreate.initialBase}
           askSubject={pendingCreate.askSubject}
+          initialBranch={pendingCreate.initialBranch}
           allowNoRepo={pendingCreate.allowNoRepo}
           allowRepoRoot={pendingCreate.allowRepoRoot}
           showAgentPicker={pendingCreate.showAgentPicker}
