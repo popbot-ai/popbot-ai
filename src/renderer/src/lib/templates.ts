@@ -25,7 +25,8 @@ export const TICKET_TEMPLATE_VARS = [
   { name: 'priority',    desc: 'urgent / high / med / low' },
   { name: 'project',     desc: 'Linear project name' },
   { name: 'branch',      desc: 'Branch (git) / changelist name (Perforce) for this slot' },
-  { name: 'scmref',      desc: '"Branch" for git, "Changelist" for Perforce' },
+  { name: 'scm',         desc: 'Version control system — "Git" or "Perforce"' },
+  { name: 'scmnoun',     desc: '"branch" for git, "changelist" for Perforce' },
   { name: 'commitverb',  desc: '"commit" for git, "submit the changelist" for Perforce' },
   { name: 'slot',        desc: 'Workspace slot number' },
 ] as const;
@@ -44,7 +45,7 @@ export const DEFAULT_START_TICKET_TEMPLATE = `Please review and, if possible, di
 \${markdown}
 
 ## Workspace
-- \${scmref}: \`\${branch}\`
+- The \${scm} \${scmnoun} is \`\${branch}\`.
 - Slot: \${slot}
 - Linear: \${ticketurl}
 

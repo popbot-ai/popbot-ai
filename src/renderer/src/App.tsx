@@ -22,6 +22,7 @@ import {
   type AgentEffortDefaultsSettings,
 } from './components/AgentCreateControls';
 import { DEFAULT_RE_REVIEW_TEMPLATE, DEFAULT_START_CODE_REVIEW_TEMPLATE, DEFAULT_START_TICKET_TEMPLATE, expandTemplate } from './lib/templates';
+import { DEFAULT_SOURCE_CONTROL, SOURCE_CONTROL_PROVIDERS } from '@shared/sourceControl';
 import type { ReviewItem } from '@shared/reviews';
 import type { LinearIssueDto } from '@shared/linear';
 import { useLinearIssues } from './lib/useLinearIssues';
@@ -683,9 +684,13 @@ export default function App(): JSX.Element {
             ?? DEFAULT_START_TICKET_TEMPLATE
           ).trim();
           if (!tmpl) return;
-          // SCM-aware wording: Perforce has changelists, not branches/commits.
-          const isP4 =
-            (await window.popbot.repos.list()).find((r) => r.id === repoId)?.scm === 'perforce';
+          // SCM-aware wording comes from the repo's source-control provider
+          // (scm name, "branch"/"changelist", commit verb, …) — a key/value
+          // map per VCS, so this scales past git/perforce with no branching.
+          const scm =
+            (await window.popbot.repos.list()).find((r) => r.id === repoId)?.scm
+            ?? DEFAULT_SOURCE_CONTROL;
+          const scmVars = (SOURCE_CONTROL_PROVIDERS[scm] ?? SOURCE_CONTROL_PROVIDERS[DEFAULT_SOURCE_CONTROL]).promptVars;
           const description = ticket.description ?? '';
           const text = expandTemplate(tmpl, {
             ticketid: ticket.id,
@@ -699,8 +704,7 @@ export default function App(): JSX.Element {
             priority: ticket.priority,
             project: ticket.project,
             branch: finalBranch,
-            scmref: isP4 ? 'Changelist' : 'Branch',
-            commitverb: isP4 ? 'submit the changelist' : 'commit',
+            ...scmVars,
             // The slot the chat was actually assigned (passed back from
             // createWithSlot — the `chats` state hasn't updated yet here).
             slot: slotId ?? '',
