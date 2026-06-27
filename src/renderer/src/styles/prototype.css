@@ -2591,6 +2591,10 @@ input.input.mono, select.input.mono { font-family: var(--font-mono); font-size: 
   z-index: 50;
   animation: fadein 0.15s ease-out;
 }
+/* A modal opened from WITHIN another modal (e.g. Resize Slots from Edit Repo):
+   lift its scrim above the parent modal (z51) so its box isn't painted under
+   the parent — otherwise only the scrim darkening shows. */
+.modal-scrim.modal-scrim-stacked { z-index: 60; }
 
 /* Repo list (Preferences → Repositories) */
 .repo-list { display: flex; flex-direction: column; gap: 10px; margin-top: 12px; }
