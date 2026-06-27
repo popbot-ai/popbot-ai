@@ -15,10 +15,14 @@ export const ko = {
   'common.loading': '불러오는 중…',
   'common.retry': '다시 시도',
   'common.reconnect': '재연결',
+  'app.reconnect.title': '워크스페이스 드라이브 연결 끊김',
   'app.reconnect.message':
     '{repos}의 워크스페이스 드라이브가 재시작으로 인해 연결이 끊어졌습니다. 슬롯과 채팅을 사용하려면 다시 연결하세요.',
   'app.reconnect.button': '재연결',
+  'app.reconnect.later': '나중에',
   'app.reconnect.busy': '다시 연결 중…',
+  'app.reconnect.working':
+    '관리자 확인을 승인하면 워크스페이스 드라이브가 다시 연결됩니다. 1분 정도 걸릴 수 있습니다…',
   'app.reconnect.failed': '재연결 실패',
   // --- Source-control panel, slots, repo wizard (session additions) ---
   'slots.detail.recheck': '슬롯 {count}개를 다시 확인하여 누락된 워크스페이스를 설정합니다.',

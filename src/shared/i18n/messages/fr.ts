@@ -15,10 +15,14 @@ export const fr = {
   'common.loading': 'Chargement…',
   'common.retry': 'Réessayer',
   'common.reconnect': 'Reconnecter',
+  'app.reconnect.title': 'Disques d’espace de travail déconnectés',
   'app.reconnect.message':
     'Les disques d’espace de travail de {repos} ont été déconnectés par un redémarrage. Reconnectez-vous pour utiliser leurs slots et discussions.',
   'app.reconnect.button': 'Reconnecter',
+  'app.reconnect.later': 'Plus tard',
   'app.reconnect.busy': 'Reconnexion…',
+  'app.reconnect.working':
+    'Approuvez l’invite d’administrateur, puis vos disques d’espace de travail se reconnectent. Cela peut prendre une minute…',
   'app.reconnect.failed': 'Échec de la reconnexion',
   // --- Source-control panel, slots, repo wizard (session additions) ---
   'slots.detail.recheck': 'Revérifier {count} emplacements, en configurant les espaces de travail manquants.',

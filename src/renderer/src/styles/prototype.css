@@ -214,14 +214,28 @@ input, textarea { font: inherit; color: inherit; background: none; border: 0; ou
   height: 100vh; width: 100vw;
 }
 /* Reboot disconnected the VHDX slot mounts → user-clicked reconnect banner. */
-.slot-reconnect-banner {
-  flex: 0 0 auto; display: flex; align-items: center; justify-content: center; gap: 10px;
-  padding: 7px 14px;
-  background: var(--st-wait-bg, rgba(216,166,87,0.14));
-  border-bottom: 1px solid var(--st-wait, #d8a657);
-  color: var(--fg-0); font-size: var(--fs-sm); text-align: center;
+/* Post-reboot slot reconnect — a center modal (see ReconnectModal.tsx).
+   Replaced the old top banner, which the Windows title-bar overlay obscured. */
+.reconnect-modal { max-width: 440px; }
+.reconnect-modal .reconnect-body {
+  font-size: var(--fs-sm); color: var(--fg-2); max-width: 380px; line-height: 1.45;
 }
-.slot-reconnect-banner > i { color: var(--st-wait, #d8a657); font-size: 13px; }
+.reconnect-actions {
+  margin-top: 14px; display: flex; gap: 8px; justify-content: center; flex-wrap: wrap;
+}
+/* Indeterminate "washing machine" bar — sweeps back and forth while the opaque
+   elevated remount runs (no real percentage to report). */
+.washer-track {
+  position: relative; width: 320px; max-width: 70vw; height: 6px;
+  margin-top: 4px; border-radius: 3px; overflow: hidden;
+  background: var(--bg-4, rgba(255,255,255,0.08));
+}
+.washer-fill {
+  position: absolute; top: 0; height: 100%; width: 35%;
+  border-radius: 3px; background: var(--acc-hi);
+  animation: washer 1.4s ease-in-out infinite alternate;
+}
+@keyframes washer { from { left: -2%; } to { left: 67%; } }
 .workspace {
   flex: 1 1 auto; min-height: 0;
   display: grid;

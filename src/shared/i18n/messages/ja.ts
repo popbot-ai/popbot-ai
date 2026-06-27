@@ -15,10 +15,14 @@ export const ja = {
   'common.loading': '読み込み中…',
   'common.retry': '再試行',
   'common.reconnect': '再接続',
+  'app.reconnect.title': 'ワークスペースドライブが切断されました',
   'app.reconnect.message':
     '{repos} のワークスペースドライブが再起動により切断されました。スロットとチャットを使用するには再接続してください。',
   'app.reconnect.button': '再接続',
+  'app.reconnect.later': '後で',
   'app.reconnect.busy': '再接続中…',
+  'app.reconnect.working':
+    '管理者の確認を承認すると、ワークスペースドライブが再接続されます。1 分ほどかかる場合があります…',
   'app.reconnect.failed': '再接続に失敗しました',
   // --- Source-control panel, slots, repo wizard (session additions) ---
   'slots.detail.recheck': '{count} 個のスロットを再チェックし、不足しているワークスペースをセットアップします。',

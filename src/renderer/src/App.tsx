@@ -15,6 +15,7 @@ import { Modal } from './components/Modal';
 import { PreferencesSheet } from './components/PreferencesSheet';
 import { CloseChatPrompt } from './components/CloseChatPrompt';
 import { BusyOverlay } from './components/BusyOverlay';
+import { ReconnectModal } from './components/ReconnectModal';
 import {
   AGENT_EFFORT_DEFAULTS_SETTING,
   agentCreateConfigWithEffortDefaults,
@@ -1070,21 +1071,33 @@ export default function App(): JSX.Element {
   }, []);
 
   // Slot repos whose VHDX clones a reboot disconnected. Rather than auto-elevate
-  // on boot, surface a "Reconnect" banner the user clicks — so the one UAC is
-  // clearly their action, over the already-visible window.
+  // on boot, surface a center modal the user clicks Reconnect in — so the one
+  // UAC is clearly their action. (Windows-only: disconnectedSlots() returns []
+  // on mac/linux, where slots are plain folders that survive reboots.)
   const [disconnectedSlots, setDisconnectedSlots] = useState<string[]>([]);
   const [reconnectingSlots, setReconnectingSlots] = useState(false);
+  const [reconnectError, setReconnectError] = useState<string | null>(null);
+  const [reconnectDismissed, setReconnectDismissed] = useState(false);
   useEffect(() => {
+    if (window.popbot.platform !== 'win32') return; // no VHDX slots off Windows
     void window.popbot.repos.disconnectedSlots().then(setDisconnectedSlots).catch(() => {});
   }, []);
   const reconnectSlots = useCallback(async () => {
+    setReconnectError(null);
     setReconnectingSlots(true);
     const res = await window.popbot.repos.reconnectSlots();
     setReconnectingSlots(false);
     void window.popbot.repos.disconnectedSlots().then(setDisconnectedSlots).catch(() => {});
     if (res.ok) refresh();
-    else setBusy({ message: t('app.reconnect.failed'), detail: res.error, error: true });
+    else setReconnectError(res.error || t('app.reconnect.failed'));
   }, [refresh, t]);
+  // Modal state: working while the elevated remount runs, error if it failed,
+  // otherwise the prompt. Hidden once nothing's disconnected or the user defers.
+  const reconnectStatus: 'working' | 'error' | 'prompt' = reconnectingSlots
+    ? 'working'
+    : reconnectError
+      ? 'error'
+      : 'prompt';
 
   const workspaceStyle: ColumnLayoutVars = {
     '--col-left': colWidth + 'px',
@@ -1098,18 +1111,18 @@ export default function App(): JSX.Element {
       className={`app${window.popbot.platform === 'win32' ? ' platform-win' : window.popbot.platform === 'linux' ? ' platform-linux' : ''}`}
       data-screen-label="PopBot · Main"
     >
-      {disconnectedSlots.length > 0 && (
-        <div className="slot-reconnect-banner" data-screen-label="Slot reconnect">
-          <i className="fa-solid fa-plug-circle-exclamation" />
-          <span>{t('app.reconnect.message', { repos: disconnectedSlots.join(', ') })}</span>
-          <button
-            className="btn primary sm"
-            disabled={reconnectingSlots}
-            onClick={() => void reconnectSlots()}
-          >
-            {reconnectingSlots ? t('app.reconnect.busy') : t('app.reconnect.button')}
-          </button>
-        </div>
+      {disconnectedSlots.length > 0 && (!reconnectDismissed || reconnectStatus !== 'prompt') && (
+        <ReconnectModal
+          repos={disconnectedSlots}
+          status={reconnectStatus}
+          error={reconnectError ?? undefined}
+          onReconnect={() => void reconnectSlots()}
+          onLater={() => setReconnectDismissed(true)}
+          onDismiss={() => {
+            setReconnectError(null);
+            setReconnectDismissed(true);
+          }}
+        />
       )}
       <Titlebar
         onOpenModal={setModal}

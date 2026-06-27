@@ -15,10 +15,14 @@ export const ptBR = {
   'common.loading': 'Carregando…',
   'common.retry': 'Tentar novamente',
   'common.reconnect': 'Reconectar',
+  'app.reconnect.title': 'Unidades do espaço de trabalho desconectadas',
   'app.reconnect.message':
     'As unidades do espaço de trabalho de {repos} foram desconectadas por uma reinicialização. Reconecte para usar seus slots e chats.',
   'app.reconnect.button': 'Reconectar',
+  'app.reconnect.later': 'Mais tarde',
   'app.reconnect.busy': 'Reconectando…',
+  'app.reconnect.working':
+    'Aprove o aviso de administrador e suas unidades do espaço de trabalho serão reconectadas. Isso pode levar um minuto…',
   'app.reconnect.failed': 'Falha ao reconectar',
   // --- Source-control panel, slots, repo wizard (session additions) ---
   'slots.detail.recheck': 'Reverificar {count} slots, configurando os workspaces ausentes.',

@@ -15,10 +15,14 @@ export const de = {
   'common.loading': 'Wird geladen…',
   'common.retry': 'Wiederholen',
   'common.reconnect': 'Neu verbinden',
+  'app.reconnect.title': 'Workspace-Laufwerke getrennt',
   'app.reconnect.message':
     'Die Workspace-Laufwerke für {repos} wurden durch einen Neustart getrennt. Verbinde neu, um ihre Slots und Chats zu nutzen.',
   'app.reconnect.button': 'Neu verbinden',
+  'app.reconnect.later': 'Später',
   'app.reconnect.busy': 'Wird neu verbunden…',
+  'app.reconnect.working':
+    'Bestätige die Administrator-Abfrage, dann werden deine Workspace-Laufwerke neu verbunden. Das kann eine Minute dauern…',
   'app.reconnect.failed': 'Neuverbindung fehlgeschlagen',
   // --- Source-control panel, slots, repo wizard (session additions) ---
   'slots.detail.recheck': '{count} Slots erneut prüfen und fehlende Arbeitsbereiche einrichten.',

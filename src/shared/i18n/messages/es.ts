@@ -15,10 +15,14 @@ export const es = {
   'common.loading': 'Cargando…',
   'common.retry': 'Reintentar',
   'common.reconnect': 'Reconectar',
+  'app.reconnect.title': 'Unidades del espacio de trabajo desconectadas',
   'app.reconnect.message':
     'Las unidades del espacio de trabajo de {repos} se desconectaron por un reinicio. Reconecta para usar sus slots y chats.',
   'app.reconnect.button': 'Reconectar',
+  'app.reconnect.later': 'Más tarde',
   'app.reconnect.busy': 'Reconectando…',
+  'app.reconnect.working':
+    'Aprueba el aviso de administrador y tus unidades del espacio de trabajo se reconectarán. Esto puede tardar un minuto…',
   'app.reconnect.failed': 'Error al reconectar',
   // --- Source-control panel, slots, repo wizard (session additions) ---
   'slots.detail.recheck': 'Volver a comprobar {count} slots y configurar los espacios de trabajo que falten.',

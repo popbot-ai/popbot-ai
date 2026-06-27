@@ -15,10 +15,14 @@ export const zhCN = {
   'common.loading': '正在加载…',
   'common.retry': '重试',
   'common.reconnect': '重新连接',
+  'app.reconnect.title': '工作区驱动器已断开连接',
   'app.reconnect.message':
     '{repos} 的工作区驱动器因重启而断开连接。重新连接以使用其插槽和聊天。',
   'app.reconnect.button': '重新连接',
+  'app.reconnect.later': '稍后',
   'app.reconnect.busy': '正在重新连接…',
+  'app.reconnect.working':
+    '批准管理员提示，然后工作区驱动器将重新连接。这可能需要一分钟…',
   'app.reconnect.failed': '重新连接失败',
   // --- Source-control panel, slots, repo wizard (session additions) ---
   'slots.detail.recheck': '重新检查 {count} 个槽位，设置任何缺失的工作区。',
