@@ -709,7 +709,7 @@ export interface PopBotApi {
      *  warning first. For slot repos this also tears down the shado base +
      *  clones and removes the repo's workspaces folder; a teardown failure
      *  returns `ok:false` (the row is kept) so the UI can show the error. */
-    delete(id: string): Promise<{ ok: true } | { ok: false; message: string }>;
+    delete(id: string): Promise<{ ok: true; warning?: string } | { ok: false; message: string }>;
     /** Count of non-deleted chats referencing this repo. Powers the
      *  delete-confirm warning. */
     countChats(id: string): Promise<number>;

@@ -128,13 +128,16 @@ export function registerReposHandlers(): void {
 
   ipcMain.handle(
     IpcChannel.ReposDelete,
-    async (_e, id: string): Promise<{ ok: true } | { ok: false; message: string }> => {
+    async (_e, id: string): Promise<{ ok: true; warning?: string } | { ok: false; message: string }> => {
       const repo = getRepo(id);
       try {
+        let warning: string | undefined;
         // Slot repos are shado-backed (git AND perforce): tear the shado base +
-        // clones down FIRST (reclaims the VHDX disk), THEN remove the repo's
-        // co-located workspaces/<id> folder, THEN the DB row. Any failure stops
-        // here with the row intact so nothing is half-deleted + the UI shows it.
+        // clones down FIRST (reclaims the VHDX disk — the disk-heavy part), THEN
+        // remove the repo's co-located workspaces/<id> folder. A FAILED base
+        // teardown is fatal (stop, keep the row). But a leftover file in the
+        // workspace folder (a locked node_modules, a handle an app still holds)
+        // must NOT block removing the repo — the base is already gone.
         if (repo && repo.mode === 'slots' && process.platform === 'win32') {
           const baseName = repo.scm === 'perforce' ? repo.p4?.shadoBase : repo.id;
           // Only run the elevated teardown if the shado project still exists.
@@ -147,17 +150,18 @@ export function registerReposHandlers(): void {
           }
           const wsDir = join(popbotRootForRepo(repo.repoPath), 'workspaces', repo.id);
           try {
-            rmSync(wsDir, { recursive: true, force: true });
+            // Retry transient locks (ENOTEMPTY/EBUSY/EPERM on Windows deep trees).
+            rmSync(wsDir, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
           } catch (err) {
             dlog('repos.delete.folderFailed', { id, wsDir, error: (err as Error).message });
-            return {
-              ok: false,
-              message: `Removed the shado base but could not delete ${wsDir}: ${(err as Error).message}`,
-            };
+            warning =
+              `The repo was removed and its shado base reclaimed, but some leftover files in ` +
+              `${wsDir} couldn't be deleted (a file may be in use). You can delete that folder ` +
+              `manually once nothing is holding it open.`;
           }
         }
         deleteRepo(id);
-        return { ok: true };
+        return warning ? { ok: true, warning } : { ok: true };
       } catch (err) {
         dlog('repos.delete.failed', { id, error: (err as Error).message });
         return { ok: false, message: (err as Error).message };

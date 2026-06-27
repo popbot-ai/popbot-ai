@@ -3917,6 +3917,9 @@ function DeleteRepoModal({
         setError(res.message);
         return;
       }
+      // The repo was removed (base reclaimed); a non-fatal leftover-folder
+      // warning is surfaced but doesn't block completion.
+      if (res.warning) window.alert(res.warning);
       onDeleted();
     } catch (err) {
       setError((err as Error).message);
