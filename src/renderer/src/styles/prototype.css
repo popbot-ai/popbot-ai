@@ -5259,3 +5259,25 @@ input.input.mono, select.input.mono { font-family: var(--font-mono); font-size: 
   background: rgba(208,86,86,0.12); border: 1px solid rgba(208,86,86,0.4);
   color: #e58a8a; font-size: var(--fs-xs);
 }
+
+/* New-repo wizard: reserved, fixed-height SCM-detection status under the
+   folder box (so the layout never jumps as detection resolves). */
+.repo-detect {
+  min-height: 22px; display: flex; align-items: center;
+  margin: 2px 0 6px; font-size: var(--fs-xs);
+}
+.repo-detect-ok { display: inline-flex; align-items: center; gap: 6px; color: #5fb98a; }
+.repo-detect-bad { display: inline-flex; align-items: center; gap: 6px; color: #e58a8a; }
+.repo-detect-busy { display: inline-flex; align-items: center; gap: 6px; color: var(--fg-3); }
+.repo-detect-ok svg, .repo-detect-ok i,
+.repo-detect-bad i, .repo-detect-busy i { font-size: 0.95em; line-height: 1; }
+
+/* Wizard long-op progress + success lines (disk preflight, base build). */
+.pref-progress {
+  display: flex; align-items: center; gap: 8px; margin: 10px 0;
+  font-size: var(--fs-xs); color: var(--fg-2); font-family: var(--mono, monospace);
+}
+.pref-ok {
+  margin: 10px 0; display: flex; align-items: center; gap: 8px;
+  font-size: var(--fs-xs); color: #5fb98a;
+}
