@@ -524,6 +524,14 @@ input, textarea { font: inherit; color: inherit; background: none; border: 0; ou
   color: var(--col-accent-fg, #fff);
   flex: 0 0 12px;
 }
+/* VCS-icon variant: keep the filled accent disc (the per-repo color cue) but
+   show the source-control symbol inside it, in the same contrasting fg the
+   status character used. Slightly larger so the icon reads. */
+.chat-row .status-glyph.scm-glyph {
+  font-size: 9px;
+  width: 16px; height: 16px; flex-basis: 16px;
+  margin-top: 2px;
+}
 .chat-row .name {
   font-size: var(--fs-sm); color: var(--fg-0); font-weight: 500;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;

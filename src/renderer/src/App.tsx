@@ -78,6 +78,7 @@ function chatRecordToFixture(c: ChatRecord, t: Translator): ChatFixture {
     slotId: c.slotId,
     worktreePath: c.worktreePath,
     repoColor: c.repoColor,
+    scm: c.repoScm,
   };
 }
 
