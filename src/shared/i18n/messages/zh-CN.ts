@@ -140,6 +140,8 @@ export const zhCN = {
   'app.busy.settingUpWorkspace': '正在设置工作区…',
   'app.busy.checkingOutBranch': '正在检出 {branch}',
   'app.busy.branchingFrom': '正在从 {baseBranch} 创建分支 {branch}',
+  'app.busy.perforce.creating': '正在创建更改列表 {branch}',
+  'app.busy.other.settingUp': '正在设置 {branch}',
   'app.create.newClientTestChat': '新建客户端测试聊天',
   'app.chat.reviewName': '[CR] PR #{number} · {title}',
   'app.update.available': '有可用更新 — {name}',

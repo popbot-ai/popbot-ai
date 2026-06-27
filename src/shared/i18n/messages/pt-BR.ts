@@ -140,6 +140,8 @@ export const ptBR = {
   'app.busy.settingUpWorkspace': 'Configurando o workspace…',
   'app.busy.checkingOutBranch': 'Fazendo checkout de {branch}',
   'app.busy.branchingFrom': 'Criando branch {branch} a partir de {baseBranch}',
+  'app.busy.perforce.creating': 'Criando changelist {branch}',
+  'app.busy.other.settingUp': 'Configurando {branch}',
   'app.create.newClientTestChat': 'Novo chat de teste de cliente',
   'app.chat.reviewName': '[CR] PR #{number} · {title}',
   'app.update.available': 'Atualização disponível — {name}',

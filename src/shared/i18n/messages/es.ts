@@ -140,6 +140,8 @@ export const es = {
   'app.busy.settingUpWorkspace': 'Configurando el espacio de trabajo…',
   'app.busy.checkingOutBranch': 'Cambiando a {branch}',
   'app.busy.branchingFrom': 'Creando la rama {branch} desde {baseBranch}',
+  'app.busy.perforce.creating': 'Creando changelist {branch}',
+  'app.busy.other.settingUp': 'Configurando {branch}',
   'app.create.newClientTestChat': 'Nuevo chat de prueba de cliente',
   'app.chat.reviewName': '[CR] PR #{number} · {title}',
   'app.update.available': 'Actualización disponible — {name}',

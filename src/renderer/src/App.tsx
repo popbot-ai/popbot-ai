@@ -24,6 +24,7 @@ import {
 } from './components/AgentCreateControls';
 import { DEFAULT_RE_REVIEW_TEMPLATE, DEFAULT_START_CODE_REVIEW_TEMPLATE, DEFAULT_START_TICKET_TEMPLATE, expandTemplate } from './lib/templates';
 import { DEFAULT_SOURCE_CONTROL, SOURCE_CONTROL_PROVIDERS } from '@shared/sourceControl';
+import type { SourceControlProviderId } from '@shared/sourceControl';
 import type { ReviewItem } from '@shared/reviews';
 import type { LinearIssueDto } from '@shared/linear';
 import { useLinearIssues } from './lib/useLinearIssues';
@@ -604,6 +605,23 @@ export default function App(): JSX.Element {
     return `${username}/${idSlug}-${slugifyTitle(t.title)}`;
   };
 
+  /** SCM-aware detail under "Setting up workspace…". Git branches off a base
+   *  (or checks a branch out when re-attaching); Perforce creates the per-slot
+   *  workspace; any other provider gets a neutral line. Keyed by provider so a
+   *  new SCM only needs its strings — no call-site changes. */
+  const workspaceSetupDetail = (
+    scm: SourceControlProviderId | null | undefined,
+    branch: string,
+    baseBranch?: string,
+  ): string => {
+    if (scm === 'perforce') return t('app.busy.perforce.creating', { branch });
+    if (scm && scm !== 'git') return t('app.busy.other.settingUp', { branch });
+    // git, or a legacy repo with no scm recorded (defaults to git)
+    return baseBranch
+      ? t('app.busy.branchingFrom', { branch, baseBranch })
+      : t('app.busy.checkingOutBranch', { branch });
+  };
+
   /** Focus an existing chat — and if it doesn't yet have a slot, kick
    *  off the attach-slot flow so it ends up with a real workspace. */
   const focusOrAttach = async (existing: ChatRecord) => {
@@ -624,7 +642,10 @@ export default function App(): JSX.Element {
     if (!target) return;
     scrollToChat(target.id);
     if (target.slotId == null && target.branch) {
-      setBusy({ message: t('app.busy.settingUpWorkspace'), detail: t('app.busy.checkingOutBranch', { branch: target.branch }) });
+      setBusy({
+        message: t('app.busy.settingUpWorkspace'),
+        detail: workspaceSetupDetail(target.repoScm, target.branch),
+      });
       let result;
       try {
         result = await attachSlot(target.id);
@@ -657,6 +678,11 @@ export default function App(): JSX.Element {
         if (!repoId || !baseBranch) return;
         // The user may have tweaked the branch/changelist name in the dialog.
         const finalBranch = editedBranch?.trim() || branch;
+        // Resolve the repo's SCM once — drives both the "setting up" wording
+        // and the SCM-aware template vars below.
+        const scm =
+          (await window.popbot.repos.list()).find((r) => r.id === repoId)?.scm
+          ?? DEFAULT_SOURCE_CONTROL;
         await createWithSlot(
       {
         name: `${ticket.id} · ${ticket.title.slice(0, 60)}`,
@@ -669,7 +695,10 @@ export default function App(): JSX.Element {
         ...agentConfig,
       },
       {
-        busy: { message: t('app.busy.settingUpWorkspace'), detail: t('app.busy.branchingFrom', { branch: finalBranch, baseBranch }) },
+        busy: {
+          message: t('app.busy.settingUpWorkspace'),
+          detail: workspaceSetupDetail(scm, finalBranch, baseBranch),
+        },
         onCreated: async (chatId, slotId) => {
           // Auto-promote the ticket to "In Progress" when we open a
           // chat for it. Idempotent + scoped on the main side: only
@@ -689,9 +718,7 @@ export default function App(): JSX.Element {
           // SCM-aware wording comes from the repo's source-control provider
           // (scm name, "branch"/"changelist", commit verb, …) — a key/value
           // map per VCS, so this scales past git/perforce with no branching.
-          const scm =
-            (await window.popbot.repos.list()).find((r) => r.id === repoId)?.scm
-            ?? DEFAULT_SOURCE_CONTROL;
+          // `scm` was resolved once at the top of `run`.
           const scmVars = (SOURCE_CONTROL_PROVIDERS[scm] ?? SOURCE_CONTROL_PROVIDERS[DEFAULT_SOURCE_CONTROL]).promptVars;
           const description = ticket.description ?? '';
           const text = expandTemplate(tmpl, {
