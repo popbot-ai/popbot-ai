@@ -212,6 +212,11 @@ export function P4Panel({ chatId, chatName, diffPath, onOpenDiff }: SourceContro
           )}
         </div>
         <div className="p4-submit">
+          {ok?.client && (
+            <div className="p4-workspace mono" title={t('p4.workspace.title', { client: ok.client })}>
+              <i className="fa-solid fa-desktop" />&nbsp;{ok.client}
+            </div>
+          )}
           <textarea
             className="p4-submit-msg"
             placeholder={t('p4.submitPlaceholder')}
