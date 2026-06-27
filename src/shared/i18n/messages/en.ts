@@ -1057,6 +1057,16 @@ export const en = {
   'prefs.repos.wizard.build.changelist': 'Base changelist',
   'prefs.repos.wizard.build.changelistDesc':
     'The changelist the base is synced to — captured automatically. Override only if it’s wrong.',
+  'prefs.repos.wizard.setUp': 'Set up repository',
+  'prefs.repos.wizard.settingUp': 'setting up',
+  'prefs.repos.wizard.setup.slotsHead': 'Slots',
+  'prefs.repos.wizard.setup.diskHead': 'Disk space',
+  'prefs.repos.wizard.progress.building': 'Building base + slots (approve the admin prompt)…',
+  'prefs.repos.wizard.progress.creating': 'Creating repository…',
+  'prefs.repos.wizard.progress.initing': 'Initializing slot {done} of {total}…',
+  'prefs.repos.wizard.progress.done': '{id} is ready — {count} slots.',
+  'prefs.repos.wizard.progress.failHint':
+    'Setup stopped. Go back to adjust and try again — the frozen base stays on disk and is reused.',
   'prefs.perforce.p4Path.title': 'p4 executable',
   'prefs.perforce.p4Path.desc': 'Path to the p4 binary. Leave blank to use “p4” from PATH.',
   'prefs.perforce.defaultPort.title': 'Default P4PORT',
@@ -1094,7 +1104,7 @@ export const en = {
   'prefs.repos.delete.reversibleBody':
     'if you later create a new repo with the id {id}, all detached chats will reattach automatically.',
   'prefs.repos.delete.noTouch':
-    'This won’t touch the source clone at {path} or any chat branches in it. Slot worktrees on disk are left alone too — you can prune them by hand if you want a clean slate.',
+    'Your original repository at {path} is never touched — only PopBot’s slot clones / worktrees are removed. (Any left on disk can be pruned by hand for a clean slate.)',
   'prefs.repos.delete.typeToConfirm': 'Type {id} to confirm:',
   'prefs.repos.delete.deleting': 'Deleting…',
 

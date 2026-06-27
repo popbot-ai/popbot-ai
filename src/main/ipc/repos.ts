@@ -140,7 +140,14 @@ export function registerReposHandlers(): void {
     IpcChannel.ReposBuildBase,
     async (e, input: BuildBaseInput): Promise<BuildBaseResult> => {
       const built = await buildBase(
-        { repoPath: input.repoPath, repoId: input.repoId, baseName: input.baseName, sizeGb: input.sizeGb },
+        {
+          repoPath: input.repoPath,
+          repoId: input.repoId,
+          baseName: input.baseName,
+          sizeGb: input.sizeGb,
+          slotPrefix: input.slotPrefix,
+          slotCount: input.slotCount,
+        },
         (msg) => e.sender.send(IpcChannel.ReposBaseProgress, msg),
       );
       if (!built.ok) return { ok: false, error: built.log };

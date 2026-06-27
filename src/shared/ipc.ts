@@ -445,6 +445,10 @@ export interface BuildBaseInput {
   /** Changelist already discovered from the workspace (#have). Used as a
    *  fallback when the server-side capture at build time can't resolve it. */
   baseChangelist?: number;
+  /** Slot folder prefix + count. The base AND all slot clones are created in
+   *  the SAME elevated session (one UAC), so slot-init stays non-privileged. */
+  slotPrefix: string;
+  slotCount: number;
 }
 
 export type BuildBaseResult =

@@ -2948,7 +2948,137 @@ function deriveRepoId(path: string): string {
   return basename.toLowerCase().replace(/\.git$/, '').replace(/[^a-z0-9-]+/g, '-').replace(/^-+|-+$/g, '');
 }
 
-type WizardStep = 'repo' | 'mode' | 'connect' | 'preflight' | 'build' | 'slots' | 'init';
+/** Perforce setup, orchestrated on ONE progress screen: build the base + all
+ *  slot clones (a single elevated UAC), create the repo record, then init each
+ *  slot's p4 client (the clones already exist, so this is unprivileged). Streams
+ *  live progress; on any failure it stops and offers a back-out. */
+function PerforceSetupProgress({
+  draft,
+  sizeGb,
+  onDone,
+  onBack,
+}: {
+  draft: NewRepoDraft;
+  sizeGb: number;
+  onDone: () => void;
+  onBack: () => void;
+}): JSX.Element {
+  const { t } = useTranslation();
+  const [phase, setPhase] = useState<'building' | 'creating' | 'initing' | 'done' | 'error'>('building');
+  const [progress, setProgress] = useState('');
+  const [slotDone, setSlotDone] = useState(0);
+  const [error, setError] = useState<string | null>(null);
+  const ran = useRef(false);
+
+  useEffect(() => window.popbot.repos.onBaseProgress((m) => setProgress(m)), []);
+
+  useEffect(() => {
+    if (ran.current) return; // run the orchestration exactly once
+    ran.current = true;
+    const id = draft.id.trim().toLowerCase();
+    void (async () => {
+      try {
+        // 1. Elevated: freeze the base + mount every slot clone (one UAC).
+        const built = await window.popbot.repos.buildBase({
+          repoPath: draft.repoPath.trim(),
+          repoId: id,
+          baseName: id,
+          sizeGb,
+          port: draft.p4Port.trim(),
+          user: draft.p4User.trim(),
+          depotPath: draft.p4Depot.trim(),
+          baseChangelist: draft.baseChangelist,
+          slotPrefix: draft.slotPrefix.trim(),
+          slotCount: draft.slotCount,
+        });
+        if (!built.ok) {
+          setError(built.error);
+          setPhase('error');
+          return;
+        }
+        // 2. Create the repo record (with the captured base changelist).
+        setProgress('');
+        setPhase('creating');
+        const created = await window.popbot.repos.create({
+          id,
+          repoPath: draft.repoPath.trim(),
+          color: draft.color,
+          slotPrefix: draft.slotPrefix.trim(),
+          defaultBase: '',
+          slotCount: draft.slotCount,
+          mode: 'slots',
+          scm: 'perforce',
+          p4: {
+            port: draft.p4Port.trim(),
+            user: draft.p4User.trim(),
+            depotPath: draft.p4Depot.trim(),
+            shadoBase: id,
+            baseChangelist: built.baseChangelist,
+          },
+        });
+        if (!created.ok) {
+          setError(
+            created.reason === 'duplicate-id'
+              ? t('prefs.repos.error.duplicateId', { id })
+              : created.reason === 'duplicate-path'
+                ? t('prefs.repos.error.duplicatePath', { id: created.existingId })
+                : created.reason === 'invalid' ? created.message : t('prefs.repos.error.generic'),
+          );
+          setPhase('error');
+          return;
+        }
+        // 3. Init each slot's p4 client (clones exist → unprivileged).
+        setPhase('initing');
+        for (let k = 1; k <= draft.slotCount; k += 1) {
+          const r = await window.popbot.repos.initializeOneSlot(id, k);
+          if (!('ok' in r) || !r.ok) {
+            setError('error' in r ? r.error : t('prefs.repos.error.generic'));
+            setPhase('error');
+            return;
+          }
+          setSlotDone(k);
+        }
+        setPhase('done');
+      } catch (err) {
+        setError((err as Error).message);
+        setPhase('error');
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  return (
+    <>
+      <div className="modal-body">
+        {phase === 'building' && (
+          <p className="pref-progress"><i className="fa-solid fa-spinner fa-spin" /> {progress || t('prefs.repos.wizard.progress.building')}</p>
+        )}
+        {phase === 'creating' && (
+          <p className="pref-progress"><i className="fa-solid fa-spinner fa-spin" /> {t('prefs.repos.wizard.progress.creating')}</p>
+        )}
+        {phase === 'initing' && (
+          <p className="pref-progress"><i className="fa-solid fa-spinner fa-spin" /> {t('prefs.repos.wizard.progress.initing', { done: slotDone, total: draft.slotCount })}</p>
+        )}
+        {phase === 'done' && (
+          <div className="pref-ok"><i className="fa-solid fa-circle-check" /> {t('prefs.repos.wizard.progress.done', { id: draft.id, count: draft.slotCount })}</div>
+        )}
+        {phase === 'error' && error && (
+          <>
+            <div className="pref-error">{error}</div>
+            <p className="pref-section-desc" style={{ marginTop: 10 }}>{t('prefs.repos.wizard.progress.failHint')}</p>
+          </>
+        )}
+      </div>
+      <div className="modal-foot">
+        <button className="btn" onClick={onBack} disabled={phase !== 'error'}>{t('common.back')}</button>
+        <span style={{ flex: 1 }} />
+        <button className="btn primary" onClick={onDone} disabled={phase !== 'done'}>{t('common.done')}</button>
+      </div>
+    </>
+  );
+}
+
+type WizardStep = 'repo' | 'mode' | 'setup' | 'progress' | 'slots' | 'init';
 
 /** Bytes → a compact "12.3 GB" / "812 MB" string for the disk preflight. */
 function fmtBytes(n: number): string {
@@ -2991,14 +3121,12 @@ function NewRepoWizard({
   // Perforce base-build sub-flow + live progress for the long operations.
   const [preflight, setPreflight] = useState<BasePreflightInfo | null>(null);
   const [preflighting, setPreflighting] = useState(false);
-  const [building, setBuilding] = useState(false);
-  const [buildDone, setBuildDone] = useState(false);
   const [progress, setProgress] = useState<string>('');
 
   const isP4 = draft.scm === 'perforce';
   // Lock the modal-dismiss while a long, side-effecting op is mid-flight so a
-  // stray scrim click can't abandon a running measure/build.
-  const locked = busy || building || preflighting;
+  // stray scrim click can't abandon a running measure.
+  const locked = busy || preflighting;
 
   // Uniqueness guards (also enforced server-side on create). Surface them on
   // the repo step so the user can't get all the way to submit before failing.
@@ -3014,17 +3142,18 @@ function NewRepoWizard({
   // Live progress lines from the main process (measure + build).
   useEffect(() => window.popbot.repos.onBaseProgress((m) => setProgress(m)), []);
 
-  // Git + perforce share the SAME slot-init tail (slots → init); they differ
-  // only in setup: git picks a mode, perforce connects + builds a frozen base.
+  // Perforce collapses to two screens: one 'setup' (connection + slots + disk
+  // check) then one 'progress' (build + create + slot init, with back-out).
+  // Git keeps its mode → slots → init flow.
   const sequence: WizardStep[] = isP4
-    ? ['repo', 'connect', 'preflight', 'build', 'slots', 'init']
+    ? ['repo', 'setup', 'progress']
     : draft.mode === 'slots'
       ? ['repo', 'mode', 'slots', 'init']
       : ['repo', 'mode'];
   const stepNum = sequence.indexOf(step) + 1;
-  // The step whose Next submits create(): just before 'init', or the final
-  // step when there's no init (git ephemeral ends at 'mode').
-  const submitStep: WizardStep = sequence.includes('init') ? 'slots' : 'mode';
+  // The last config step — its primary button kicks off creation. For git
+  // that's a direct create() (→ init); for perforce it hands off to 'progress'.
+  const lastConfig: WizardStep = isP4 ? 'setup' : draft.mode === 'slots' ? 'slots' : 'mode';
 
   const onPathChange = (newPath: string): void => {
     const derived = deriveRepoId(newPath);
@@ -3085,9 +3214,9 @@ function NewRepoWizard({
     })();
   };
 
-  // Run the disk preflight when the user reaches that step (re-runs on retry).
+  // Run the disk preflight when the user reaches the setup step (re-runs on retry).
   useEffect(() => {
-    if (step !== 'preflight') return;
+    if (step !== 'setup') return;
     let cancelled = false;
     setPreflight(null);
     setPreflighting(true);
@@ -3121,47 +3250,17 @@ function NewRepoWizard({
         (isP4 || draft.defaultBase.trim().length > 0)
       : step === 'mode'
         ? !!draft.mode
-        : step === 'connect'
-          ? draft.p4Discovered ||
-            (draft.p4Port.trim().length > 0 &&
-              draft.p4User.trim().length > 0 &&
-              draft.p4Depot.trim().length > 0)
-          : step === 'preflight'
-            ? preflight?.ok === true
-            : step === 'build'
-              ? buildDone && draft.baseChangelist > 0
-              : step === 'slots'
-                ? draft.slotPrefix.trim().length > 0 && draft.slotCount >= 1
-                : true;
-
-  const runBuild = async (): Promise<void> => {
-    setBuilding(true);
-    setError(null);
-    setProgress('');
-    try {
-      const res = await window.popbot.repos.buildBase({
-        repoPath: draft.repoPath.trim(),
-        repoId: draft.id.trim().toLowerCase(),
-        baseName: draft.id.trim().toLowerCase(),
-        sizeGb: preflight?.sizeGb ?? 32,
-        port: draft.p4Port.trim(),
-        user: draft.p4User.trim(),
-        depotPath: draft.p4Depot.trim(),
-        baseChangelist: draft.baseChangelist,
-      });
-      if (!res.ok) {
-        setError(res.error);
-        return;
-      }
-      onChange({ ...draft, baseChangelist: res.baseChangelist });
-      setBuildDone(true);
-      setProgress('');
-    } catch (err) {
-      setError((err as Error).message);
-    } finally {
-      setBuilding(false);
-    }
-  };
+        : step === 'setup'
+          ? preflight?.ok === true &&
+            draft.slotPrefix.trim().length > 0 &&
+            draft.slotCount >= 1 &&
+            (draft.p4Discovered ||
+              (draft.p4Port.trim().length > 0 &&
+                draft.p4User.trim().length > 0 &&
+                draft.p4Depot.trim().length > 0))
+          : step === 'slots'
+            ? draft.slotPrefix.trim().length > 0 && draft.slotCount >= 1
+            : true;
 
   const submit = async (): Promise<void> => {
     setBusy(true);
@@ -3212,7 +3311,13 @@ function NewRepoWizard({
   };
 
   const goNext = (): void => {
-    if (step === submitStep) {
+    if (step === lastConfig) {
+      // Perforce hands off to the orchestrated progress screen; git creates now.
+      if (isP4) {
+        setError(null);
+        setStep('progress');
+        return;
+      }
       void submit();
       return;
     }
@@ -3239,8 +3344,8 @@ function NewRepoWizard({
             <span className="modal-step">
               {step === 'init'
                 ? t('prefs.repos.wizard.initializingSlots')
-                : step === 'build'
-                  ? t('prefs.repos.wizard.buildingBase')
+                : step === 'progress'
+                  ? t('prefs.repos.wizard.settingUp')
                   : t('prefs.repos.wizard.step', { step: stepNum })}
             </span>
           </h3>
@@ -3360,21 +3465,20 @@ function NewRepoWizard({
         )}
 
         {/* Perforce: connection + base name. */}
-        {step === 'connect' && (
+        {/* Perforce: ONE setup screen — connection (read-only if discovered),
+            slot config, and the disk preflight together. */}
+        {step === 'setup' && (
           <div className="modal-body">
             {draft.p4Discovered ? (
-              // We pulled everything from the folder's P4 client — show it
-              // read-only; the only editable field is the short id (step 1).
               <>
                 <p className="pref-section-desc">
                   {t('prefs.repos.wizard.connect.discovered', { client: draft.p4Client })}
                 </p>
-                <div className="pref-rows" style={{ marginTop: 14 }}>
+                <div className="pref-rows" style={{ marginTop: 12 }}>
                   <div className="repo-card-row"><span className="repo-card-label">{t('prefs.repos.wizard.connect.port.title')}</span><span className="mono">{draft.p4Port}</span></div>
                   <div className="repo-card-row"><span className="repo-card-label">{t('prefs.repos.wizard.connect.user.title')}</span><span className="mono">{draft.p4User}</span></div>
                   <div className="repo-card-row"><span className="repo-card-label">{t('prefs.repos.wizard.connect.depot.title')}</span><span className="mono">{draft.p4Depot}</span></div>
                   <div className="repo-card-row"><span className="repo-card-label">{t('prefs.repos.wizard.connect.changelist')}</span><span className="mono">{draft.baseChangelist || '—'}</span></div>
-                  <div className="repo-card-row"><span className="repo-card-label">{t('prefs.repos.wizard.connect.base')}</span><span className="mono">{draft.id || '—'}</span></div>
                 </div>
               </>
             ) : (
@@ -3412,13 +3516,32 @@ function NewRepoWizard({
                 </div>
               </>
             )}
-          </div>
-        )}
 
-        {/* Perforce: disk preflight — blocks when space is insufficient. */}
-        {step === 'preflight' && (
-          <div className="modal-body">
-            <p className="pref-section-desc">{t('prefs.repos.wizard.preflight.intro')}</p>
+            <h4 style={{ margin: '18px 0 6px', fontSize: 'var(--fs-sm)' }}>{t('prefs.repos.wizard.setup.slotsHead')}</h4>
+            <div className="pref-row">
+              <div className="pref-label">
+                <div className="pref-label-title">{t('prefs.repos.wizard.slotPrefix.title')}</div>
+                <div className="pref-label-desc">{t('prefs.repos.wizard.slotPrefix.desc', { prefix: `${draft.slotPrefix}-N` })}</div>
+              </div>
+              <div className="pref-control">
+                <input className="pref-input mono narrow" value={draft.slotPrefix}
+                       onChange={(e) => { setPrefixTouched(true); onChange({ ...draft, slotPrefix: e.target.value }); }}
+                       style={{ width: 160 }} />
+              </div>
+            </div>
+            <div className="pref-row">
+              <div className="pref-label">
+                <div className="pref-label-title">{t('prefs.repos.wizard.slotCount.title')}</div>
+                <div className="pref-label-desc">{t('prefs.repos.wizard.slotCount.desc')}</div>
+              </div>
+              <div className="pref-control">
+                <input className="pref-input mono narrow" type="number" min={1} max={64} value={draft.slotCount}
+                       onChange={(e) => onChange({ ...draft, slotCount: Math.max(1, Math.min(64, Number(e.target.value) || 1)) })}
+                       style={{ width: 80 }} />
+              </div>
+            </div>
+
+            <h4 style={{ margin: '18px 0 6px', fontSize: 'var(--fs-sm)' }}>{t('prefs.repos.wizard.setup.diskHead')}</h4>
             {preflighting ? (
               <p className="pref-progress"><i className="fa-solid fa-spinner fa-spin" /> {progress || t('prefs.repos.wizard.preflight.measuring')}</p>
             ) : preflight ? (
@@ -3438,38 +3561,15 @@ function NewRepoWizard({
           </div>
         )}
 
-        {/* Perforce: build the frozen base (elevated, long → live progress). */}
-        {step === 'build' && (
-          <div className="modal-body">
-            <p className="pref-section-desc">{t('prefs.repos.wizard.build.intro', { gb: preflight ? fmtBytes(preflight.folderBytes) : '' })}</p>
-            <div className="repo-card-row"><span className="repo-card-label">{t('prefs.repos.wizard.build.baseName')}</span><span className="mono">{draft.id}</span></div>
-            {!buildDone ? (
-              building ? (
-                <p className="pref-progress"><i className="fa-solid fa-spinner fa-spin" /> {progress || t('prefs.repos.wizard.build.starting')}</p>
-              ) : (
-                <p style={{ marginTop: 12 }}>
-                  <button className="btn primary" onClick={() => void runBuild()}>
-                    <i className="fa-solid fa-hammer" />&nbsp;{t('prefs.repos.wizard.build.start')}
-                  </button>
-                </p>
-              )
-            ) : (
-              <>
-                <div className="pref-ok"><i className="fa-solid fa-circle-check" /> {t('prefs.repos.wizard.build.done')}</div>
-                <div className="pref-row">
-                  <div className="pref-label">
-                    <div className="pref-label-title">{t('prefs.repos.wizard.build.changelist')}</div>
-                    <div className="pref-label-desc">{t('prefs.repos.wizard.build.changelistDesc')}</div>
-                  </div>
-                  <div className="pref-control">
-                    <input type="number" className="pref-input mono narrow" min={0} value={draft.baseChangelist}
-                           onChange={(e) => onChange({ ...draft, baseChangelist: Math.max(0, Number(e.target.value) || 0) })}
-                           style={{ width: 140 }} />
-                  </div>
-                </div>
-              </>
-            )}
-          </div>
+        {/* Perforce: ONE progress screen — build (elevated) + create + slot
+            init, with a back-out if anything fails. */}
+        {step === 'progress' && (
+          <PerforceSetupProgress
+            draft={draft}
+            sizeGb={preflight?.sizeGb ?? 32}
+            onDone={onCreated}
+            onBack={() => setStep('setup')}
+          />
         )}
 
         {/* Slots: prefix + count — SHARED by git-slots and perforce. */}
@@ -3525,10 +3625,9 @@ function NewRepoWizard({
 
         {error && <div className="pref-error" style={{ margin: '0 16px' }}>{error}</div>}
 
-        {/* 'init' embeds its own foot via ConfigureSlotsPanel; the build action
-            lives in the body, then Next advances. Footer is locked while a
-            long, side-effecting op runs so the flow can't be abandoned mid-run. */}
-        {step !== 'init' && (
+        {/* 'init' (git) and 'progress' (perforce) embed their own footer.
+            Footer is locked while a measure runs so it can't be abandoned. */}
+        {step !== 'init' && step !== 'progress' && (
           <div className="modal-foot">
             <button className="btn" onClick={onCancel} disabled={locked}>{t('common.cancel')}</button>
             <span style={{ flex: 1 }} />
@@ -3536,8 +3635,10 @@ function NewRepoWizard({
               <button className="btn" onClick={goBack} disabled={locked}>{t('common.back')}</button>
             )}
             <button className="btn primary" disabled={!canAdvance || locked} onClick={goNext}>
-              {step === submitStep
-                ? (busy ? t('prefs.repos.wizard.adding') : t('prefs.repos.addRepository'))
+              {step === lastConfig
+                ? isP4
+                  ? t('prefs.repos.wizard.setUp')
+                  : (busy ? t('prefs.repos.wizard.adding') : t('prefs.repos.addRepository'))
                 : t('common.next')}
             </button>
           </div>
@@ -3833,7 +3934,8 @@ function DeleteRepoModal({
             <strong>{t('prefs.repos.delete.reversible')}</strong>{' '}
             {t('prefs.repos.delete.reversibleBody', { id: repo.id })}
           </p>
-          <p style={{ fontSize: 13, color: 'var(--fg-3)' }}>
+          <p style={{ fontSize: 13, color: 'var(--fg-2)' }}>
+            <i className="fa-solid fa-shield-halved" style={{ color: '#5fb98a' }} />&nbsp;
             {t('prefs.repos.delete.noTouch', { path: repo.repoPath })}
           </p>
           <div style={{ marginTop: 16 }}>

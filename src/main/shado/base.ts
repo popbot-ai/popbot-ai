@@ -19,7 +19,7 @@ import { execFile } from 'node:child_process';
 import { readdir, stat, statfs, writeFile, rm, readFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { shadoExePath, shadoHomeForRepo, runShado } from './client';
+import { shadoExePath, shadoHomeForRepo, popbotRootForRepo, runShado } from './client';
 
 /** Free-space headroom over the source folder before a build is allowed. */
 export const BASE_DISK_MARGIN = 1.05;
@@ -131,23 +131,43 @@ export async function basePreflight(repoPath: string, onProgress?: ProgressFn): 
  * path is); never throws.
  */
 export async function buildBase(
-  opts: { repoPath: string; repoId: string; baseName: string; sizeGb: number },
+  opts: {
+    repoPath: string;
+    repoId: string;
+    baseName: string;
+    sizeGb: number;
+    slotPrefix: string;
+    slotCount: number;
+  },
   onProgress?: ProgressFn,
 ): Promise<BaseBuildResult> {
   if (process.platform !== 'win32') {
     return { ok: false, log: 'Base build is only supported on Windows.' };
   }
   const home = shadoHomeForRepo(opts.repoPath, opts.repoId);
+  const worktreesDir = join(popbotRootForRepo(opts.repoPath), 'workspaces', opts.repoId);
   const shado = shadoExePath();
   const stamp = `${Date.now()}-${Math.floor(process.hrtime()[1] % 1e6)}`;
   const log = join(tmpdir(), `shado-base-${stamp}.log`);
   const bat = join(tmpdir(), `shado-base-${stamp}.bat`);
 
-  const batBody =
+  // One elevated session: freeze the base, then mount every slot clone. This
+  // is the ONLY privileged step — slot-init afterwards (p4 client + flush) is
+  // unprivileged because the clones already exist. `if errorlevel 1` bails the
+  // batch on the first failure so a partial mount doesn't look successful.
+  let batBody =
     '@echo off\r\n' +
     `set "SHADO_HOME=${home}"\r\n` +
     `"${shado}" create "${opts.repoPath}" --name ${opts.baseName} --size-gb ${opts.sizeGb} > "${log}" 2>&1\r\n` +
-    'exit /b %ERRORLEVEL%\r\n';
+    'if errorlevel 1 exit /b %errorlevel%\r\n';
+  for (let k = 1; k <= opts.slotCount; k += 1) {
+    const slot = `${opts.slotPrefix}-${k}`;
+    const mount = join(worktreesDir, slot);
+    batBody +=
+      `"${shado}" clone create --name ${opts.baseName} --slot ${slot} --mount "${mount}" >> "${log}" 2>&1\r\n` +
+      'if errorlevel 1 exit /b %errorlevel%\r\n';
+  }
+  batBody += 'exit /b 0\r\n';
 
   try {
     await writeFile(bat, batBody, 'utf8');
