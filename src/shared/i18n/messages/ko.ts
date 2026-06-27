@@ -92,7 +92,7 @@ export const ko = {
   // ---------------------------------------------------------------------------
   // App shell (App.tsx).
   // ---------------------------------------------------------------------------
-  'app.busy.worktreeFailed': '워크트리 설정에 실패했습니다',
+  'app.busy.worktreeFailed': '워크스페이스 설정에 실패했습니다',
   'app.busy.settingUpWorkspace': '작업 공간을 설정하는 중…',
   'app.busy.checkingOutBranch': '{branch} 체크아웃 중',
   'app.busy.branchingFrom': '{baseBranch}에서 {branch} 브랜치 생성 중',

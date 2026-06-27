@@ -92,7 +92,7 @@ export const ptBR = {
   // ---------------------------------------------------------------------------
   // App shell (App.tsx).
   // ---------------------------------------------------------------------------
-  'app.busy.worktreeFailed': 'Falha na configuração do worktree',
+  'app.busy.worktreeFailed': 'Falha na configuração do espaço de trabalho',
   'app.busy.settingUpWorkspace': 'Configurando o workspace…',
   'app.busy.checkingOutBranch': 'Fazendo checkout de {branch}',
   'app.busy.branchingFrom': 'Criando branch {branch} a partir de {baseBranch}',

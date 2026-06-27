@@ -92,7 +92,7 @@ export const ja = {
   // ---------------------------------------------------------------------------
   // App shell (App.tsx).
   // ---------------------------------------------------------------------------
-  'app.busy.worktreeFailed': 'worktree のセットアップに失敗しました',
+  'app.busy.worktreeFailed': 'ワークスペースのセットアップに失敗しました',
   'app.busy.settingUpWorkspace': 'ワークスペースをセットアップ中…',
   'app.busy.checkingOutBranch': '{branch} をチェックアウト中',
   'app.busy.branchingFrom': '{baseBranch} から {branch} を作成中',

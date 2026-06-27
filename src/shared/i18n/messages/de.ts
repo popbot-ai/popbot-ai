@@ -92,7 +92,7 @@ export const de = {
   // ---------------------------------------------------------------------------
   // App shell (App.tsx).
   // ---------------------------------------------------------------------------
-  'app.busy.worktreeFailed': 'Worktree-Einrichtung fehlgeschlagen',
+  'app.busy.worktreeFailed': 'Arbeitsbereich-Einrichtung fehlgeschlagen',
   'app.busy.settingUpWorkspace': 'Arbeitsbereich wird eingerichtet…',
   'app.busy.checkingOutBranch': '{branch} wird ausgecheckt',
   'app.busy.branchingFrom': '{branch} wird von {baseBranch} abgezweigt',

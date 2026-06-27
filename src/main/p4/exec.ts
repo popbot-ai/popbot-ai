@@ -60,9 +60,13 @@ export function envFor(ctx: P4Context): NodeJS.ProcessEnv {
   const env: NodeJS.ProcessEnv = { ...process.env, P4PORT: ctx.port, P4USER: ctx.user };
   if (ctx.client) env.P4CLIENT = ctx.client;
   if (ctx.password) env.P4PASSWD = ctx.password;
-  // Force a clean, locale-independent output; p4 honors P4CHARSET on
-  // unicode servers — utf8 keeps depot paths intact across locales.
-  env.P4CHARSET = env.P4CHARSET || 'utf8';
+  // P4CHARSET must MATCH the server: a unicode server requires it, but a
+  // NON-unicode server REJECTS any charset ("Unicode clients require a unicode
+  // enabled server"). So we NEVER force 'utf8' — use the explicit Perforce
+  // setting when configured (for unicode servers), else inherit whatever the
+  // environment/P4CONFIG already provides (which `...process.env` copied).
+  const charset = getSetting<PerforceSettings>('perforce')?.charset?.trim();
+  if (charset && charset.toLowerCase() !== 'none') env.P4CHARSET = charset;
   return env;
 }
 

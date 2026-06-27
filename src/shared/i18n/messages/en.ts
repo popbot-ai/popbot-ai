@@ -104,7 +104,7 @@ export const en = {
   // ---------------------------------------------------------------------------
   // App shell (App.tsx).
   // ---------------------------------------------------------------------------
-  'app.busy.worktreeFailed': 'Worktree setup failed',
+  'app.busy.worktreeFailed': 'Workspace setup failed',
   'busy.dismiss': 'Dismiss',
   'busy.copyError': 'Copy error',
   'app.busy.settingUpWorkspace': 'Setting up workspace…',

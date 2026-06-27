@@ -92,7 +92,7 @@ export const es = {
   // ---------------------------------------------------------------------------
   // App shell (App.tsx).
   // ---------------------------------------------------------------------------
-  'app.busy.worktreeFailed': 'Error al configurar el worktree',
+  'app.busy.worktreeFailed': 'Error al configurar el espacio de trabajo',
   'app.busy.settingUpWorkspace': 'Configurando el espacio de trabajo…',
   'app.busy.checkingOutBranch': 'Cambiando a {branch}',
   'app.busy.branchingFrom': 'Creando la rama {branch} desde {baseBranch}',

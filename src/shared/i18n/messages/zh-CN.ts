@@ -92,7 +92,7 @@ export const zhCN = {
   // ---------------------------------------------------------------------------
   // App shell (App.tsx).
   // ---------------------------------------------------------------------------
-  'app.busy.worktreeFailed': '工作树设置失败',
+  'app.busy.worktreeFailed': '工作区设置失败',
   'app.busy.settingUpWorkspace': '正在设置工作区…',
   'app.busy.checkingOutBranch': '正在检出 {branch}',
   'app.busy.branchingFrom': '正在从 {baseBranch} 创建分支 {branch}',
