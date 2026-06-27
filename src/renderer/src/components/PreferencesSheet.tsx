@@ -2755,27 +2755,36 @@ function emptyDraft(): NewRepoDraft {
 function RepoColorSwatches({
   value,
   onChange,
+  usedColors = [],
 }: {
   value: string;
   onChange: (next: string) => void;
+  /** Colors taken by OTHER repos — marked with an × and unselectable so two
+   *  repos can't share an accent (the current selection is always allowed). */
+  usedColors?: string[];
 }): JSX.Element {
   const { t } = useTranslation();
+  const used = new Set(usedColors.map((c) => c.toLowerCase()));
   return (
     <div className="repo-swatches" role="radiogroup" aria-label={t('prefs.repos.colorAria')}>
       {POPBOT_PALETTE.map((c) => {
         const selected = value.toLowerCase() === c.value.toLowerCase();
+        const taken = !selected && used.has(c.value.toLowerCase());
         return (
           <button
             key={c.value}
             type="button"
             role="radio"
             aria-checked={selected}
-            aria-label={c.name}
-            title={c.name}
-            className={`repo-swatch ${selected ? 'selected' : ''}`}
+            aria-disabled={taken}
+            aria-label={taken ? `${c.name} — ${t('prefs.repos.colorTaken')}` : c.name}
+            title={taken ? t('prefs.repos.colorTaken') : c.name}
+            className={`repo-swatch ${selected ? 'selected' : ''} ${taken ? 'taken' : ''}`}
             style={{ background: c.value }}
-            onClick={() => onChange(c.value)}
-          />
+            onClick={() => { if (!taken) onChange(c.value); }}
+          >
+            {taken && <i className="fa-solid fa-xmark" />}
+          </button>
         );
       })}
     </div>
@@ -2866,7 +2875,16 @@ function PrefsRepos({ onReposChanged }: { onReposChanged?: () => void }): JSX.El
         ))}
       </div>
       <div style={{ marginTop: 16 }}>
-        <button className="btn primary" onClick={() => setNewRepo(emptyDraft())}>
+        <button
+          className="btn primary"
+          onClick={() => {
+            // Open on the first color no other repo is using, so the default
+            // isn't a taken (and thus unselectable) swatch.
+            const used = new Set(repos.map((r) => r.color.toLowerCase()));
+            const free = POPBOT_PALETTE.find((c) => !used.has(c.value.toLowerCase()))?.value;
+            setNewRepo({ ...emptyDraft(), color: free ?? DEFAULT_REPO_COLOR });
+          }}
+        >
           <i className="fa-solid fa-plus" />&nbsp;{t('prefs.repos.addRepository')}
         </button>
       </div>
@@ -2877,6 +2895,7 @@ function PrefsRepos({ onReposChanged }: { onReposChanged?: () => void }): JSX.El
           onChange={setNewRepo}
           existingIds={repos.map((r) => r.id)}
           existingPaths={repos.map((r) => r.repoPath)}
+          existingColors={repos.map((r) => r.color)}
           onCancel={() => setNewRepo(null)}
           onCreated={async () => {
             setNewRepo(null);
@@ -2887,6 +2906,7 @@ function PrefsRepos({ onReposChanged }: { onReposChanged?: () => void }): JSX.El
       {editing && (
         <EditRepoModal
           repo={editing}
+          usedColors={repos.filter((r) => r.id !== editing.id).map((r) => r.color)}
           onCancel={() => setEditing(null)}
           onSaved={async () => {
             setEditing(null);
@@ -2940,6 +2960,7 @@ function NewRepoWizard({
   onCreated,
   existingIds,
   existingPaths,
+  existingColors,
 }: {
   draft: NewRepoDraft;
   onChange: (d: NewRepoDraft) => void;
@@ -2947,6 +2968,7 @@ function NewRepoWizard({
   onCreated: () => void;
   existingIds: string[];
   existingPaths: string[];
+  existingColors: string[];
 }): JSX.Element {
   const { t } = useTranslation();
   const { get } = useSettings();
@@ -3276,7 +3298,7 @@ function NewRepoWizard({
                 <div className="pref-label-desc">{t('prefs.repos.wizard.color.desc')}</div>
               </div>
               <div className="pref-control">
-                <RepoColorSwatches value={draft.color} onChange={(next) => onChange({ ...draft, color: next })} />
+                <RepoColorSwatches value={draft.color} usedColors={existingColors} onChange={(next) => onChange({ ...draft, color: next })} />
               </div>
             </div>
           </div>
@@ -3495,10 +3517,12 @@ function NewRepoWizard({
  *  Path / color / default base are safely editable. */
 function EditRepoModal({
   repo,
+  usedColors,
   onCancel,
   onSaved,
 }: {
   repo: RepoRecord;
+  usedColors: string[];
   onCancel: () => void;
   onSaved: () => void;
 }): JSX.Element {
@@ -3593,6 +3617,7 @@ function EditRepoModal({
             <div className="pref-control">
               <RepoColorSwatches
                 value={draft.color}
+                usedColors={usedColors}
                 onChange={(next) => setDraft({ ...draft, color: next })}
               />
             </div>

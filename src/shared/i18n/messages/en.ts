@@ -966,6 +966,7 @@ export const en = {
 
   // Preferences — Repositories pane.
   'prefs.repos.colorAria': 'Repo color',
+  'prefs.repos.colorTaken': 'Already used by another repo',
   'prefs.repos.title': 'Repositories',
   'prefs.repos.desc':
     'Each chat lives in a repository. A repo’s mode (slot pool vs. ephemeral worktrees) is set when it’s created and can’t be changed afterward — switching modes would orphan the worktrees of any chats already in flight.',

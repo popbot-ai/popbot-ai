@@ -2711,6 +2711,7 @@ input.input.mono, select.input.mono { font-family: var(--font-mono); font-size: 
   cursor: pointer;
   outline: 2px solid transparent;
   outline-offset: 2px;
+  display: inline-flex; align-items: center; justify-content: center;
   transition: outline-color 100ms ease, transform 80ms ease;
 }
 .repo-swatch:hover { transform: scale(1.08); }
@@ -2718,6 +2719,13 @@ input.input.mono, select.input.mono { font-family: var(--font-mono); font-size: 
   outline-color: var(--fg-0);
 }
 .repo-swatch:focus-visible { outline-color: var(--acc); }
+/* A color already taken by another repo: dimmed, ×-marked, unselectable. */
+.repo-swatch.taken { cursor: not-allowed; opacity: 0.5; }
+.repo-swatch.taken:hover { transform: none; }
+.repo-swatch.taken i {
+  color: #fff; font-size: 13px; line-height: 1;
+  filter: drop-shadow(0 0 1.5px rgba(0,0,0,0.7));
+}
 
 /* Inline warning bar — used in DeleteRepoModal and similar destructive
    confirms. Yellow-amber to distinguish from .pref-error (red). */
