@@ -47,6 +47,8 @@ export interface GitStatusResult {
   /** Perforce only — shelved changelists for the slot (the P4 panel's
    *  bottom section). Absent for git. */
   shelves?: import('./perforce').P4Shelf[];
+  /** Perforce only — the slot's P4 client (workspace) name. Absent for git. */
+  client?: string;
 }
 export type GitStatusResultOrErr =
   | GitStatusResult

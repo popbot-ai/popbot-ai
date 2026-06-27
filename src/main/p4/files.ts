@@ -52,6 +52,7 @@ export async function listStatus(
   behind: number;
   files: GitFileChange[];
   recentCommits: GitCommitSummary[];
+  client?: string;
 }> {
   const [openedR, changesR] = await Promise.all([
     p4exec(ctx, ['-ztag', 'opened'], { cwd: wt, tolerant: true }),
@@ -81,8 +82,9 @@ export async function listStatus(
   }
 
   // Perforce has no branch/ahead/behind; surface the client name as the
-  // "branch" label for the panel header.
-  return { branch: ctx.client ?? null, ahead: 0, behind: 0, files, recentCommits };
+  // "branch" label for the panel header, and also as `client` so the panel can
+  // show the P4 workspace name explicitly.
+  return { branch: ctx.client ?? null, ahead: 0, behind: 0, files, recentCommits, client: ctx.client };
 }
 
 function readWorking(wt: string, path: string): Buffer | null {

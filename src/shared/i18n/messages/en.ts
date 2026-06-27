@@ -658,6 +658,7 @@ export const en = {
 
   // Perforce panel (nativeClientUi for scm: 'perforce').
   'p4.empty': 'No Perforce workspace focused.',
+  'p4.workspace.title': 'Perforce workspace (client): {client}',
   'p4.commits.title': 'Recent changes',
   'p4.commits.empty': 'No submitted changes yet.',
   'p4.changes.title': 'Current changes',

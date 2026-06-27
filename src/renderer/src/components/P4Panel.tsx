@@ -102,6 +102,11 @@ export function P4Panel({ chatId, chatName, diffPath, onOpenDiff }: SourceContro
           </span>
           <span className="git-branch" title={ok?.branch ?? ''}>{ok?.branch ?? '—'}</span>
         </div>
+        {ok?.client && (
+          <div className="p4-workspace mono" title={t('p4.workspace.title', { client: ok.client })}>
+            <i className="fa-solid fa-desktop" />&nbsp;{ok.client}
+          </div>
+        )}
       </div>
       {openProgress && (
         <div className="pref-progress" style={{ margin: '4px 10px' }}>

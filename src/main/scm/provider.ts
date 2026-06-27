@@ -52,6 +52,8 @@ export interface ScmStatus {
   recentCommits: GitCommitSummary[];
   /** Perforce only — shelved changelists for the P4 panel's shelf section. */
   shelves?: import('@shared/perforce').P4Shelf[];
+  /** Perforce only — the slot's P4 client (workspace) name, for the panel. */
+  client?: string;
 }
 
 /** A single file's before/after for the diff overlay. */
