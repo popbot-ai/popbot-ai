@@ -987,6 +987,16 @@ export const de = {
   'prefs.repos.wizard.slotCount.title': 'Slot-Anzahl',
   'prefs.repos.wizard.slotCount.desc': 'Wie viele gleichzeitige Chats dieses Repo unterstützt. 1–64.',
   'prefs.repos.wizard.adding': 'Wird hinzugefügt…',
+  'prefs.repos.wizard.setUp': 'Repository einrichten',
+  'prefs.repos.wizard.settingUp': 'wird eingerichtet',
+  'prefs.repos.wizard.setup.slotsHead': 'Slots',
+  'prefs.repos.wizard.setup.diskHead': 'Speicherplatz',
+  'prefs.repos.wizard.progress.building': 'Basis + Slots werden erstellt (bestätigen Sie die Administrator-Eingabeaufforderung)…',
+  'prefs.repos.wizard.progress.creating': 'Repository wird erstellt…',
+  'prefs.repos.wizard.progress.initing': 'Slot {done} von {total} wird initialisiert…',
+  'prefs.repos.wizard.progress.done': '{id} ist bereit — {count} Slots.',
+  'prefs.repos.wizard.progress.failHint':
+    'Einrichtung gestoppt. Gehen Sie zurück, um Anpassungen vorzunehmen, und versuchen Sie es erneut — die eingefrorene Basis bleibt auf der Festplatte und wird wiederverwendet.',
   'prefs.repos.error.duplicateId': 'Ein Repo mit der ID "{id}" existiert bereits.',
   'prefs.repos.error.generic': 'Repo konnte nicht erstellt werden.',
   'prefs.repos.error.notFound': 'Repo nicht gefunden — wurde es gelöscht?',
@@ -1012,7 +1022,7 @@ export const de = {
   'prefs.repos.delete.reversibleBody':
     'wenn Sie später ein neues Repo mit der ID {id} erstellen, werden alle getrennten Chats automatisch wieder verbunden.',
   'prefs.repos.delete.noTouch':
-    'Dies berührt weder den Quell-Klon unter {path} noch irgendwelche Chat-Branches darin. Auch die Slot-Worktrees auf der Festplatte bleiben unangetastet — Sie können sie von Hand bereinigen, wenn Sie einen sauberen Start wünschen.',
+    'Ihr ursprüngliches Repository unter {path} wird nie berührt — nur die Slot-Klone / Worktrees von PopBot werden entfernt. (Was auf der Festplatte zurückbleibt, kann für einen sauberen Start von Hand bereinigt werden.)',
   'prefs.repos.delete.typeToConfirm': 'Tippen Sie {id} zur Bestätigung:',
   'prefs.repos.delete.deleting': 'Wird gelöscht…',
 

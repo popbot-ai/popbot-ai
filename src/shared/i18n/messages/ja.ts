@@ -987,6 +987,16 @@ export const ja = {
   'prefs.repos.wizard.slotCount.title': 'スロット数',
   'prefs.repos.wizard.slotCount.desc': 'このリポジトリがサポートする同時チャット数。1–64。',
   'prefs.repos.wizard.adding': '追加中…',
+  'prefs.repos.wizard.setUp': 'リポジトリをセットアップ',
+  'prefs.repos.wizard.settingUp': 'セットアップ中',
+  'prefs.repos.wizard.setup.slotsHead': 'slot',
+  'prefs.repos.wizard.setup.diskHead': 'ディスク容量',
+  'prefs.repos.wizard.progress.building': 'ベース + slot を構築中 (admin プロンプトを承認してください)…',
+  'prefs.repos.wizard.progress.creating': 'リポジトリを作成中…',
+  'prefs.repos.wizard.progress.initing': 'slot を初期化中 {total} 個中 {done} 個目…',
+  'prefs.repos.wizard.progress.done': '{id} の準備ができました — slot {count} 個。',
+  'prefs.repos.wizard.progress.failHint':
+    'セットアップを中止しました。戻って調整し、もう一度お試しください — 凍結されたベースはディスク上に残り、再利用されます。',
   'prefs.repos.error.duplicateId': 'ID "{id}" のリポジトリはすでに存在します。',
   'prefs.repos.error.generic': 'リポジトリを作成できませんでした。',
   'prefs.repos.error.notFound': 'リポジトリが見つかりません — 削除されましたか?',
@@ -1012,7 +1022,7 @@ export const ja = {
   'prefs.repos.delete.reversibleBody':
     '後で ID {id} の新しいリポジトリを作成すると、切り離されたすべてのチャットが自動的に再関連付けされます。',
   'prefs.repos.delete.noTouch':
-    'これは {path} のソースクローンやその中のチャットブランチには影響しません。ディスク上のスロット worktree もそのまま残ります — クリーンな状態にしたい場合は手動で整理できます。',
+    '{path} にある元のリポジトリには一切手を加えません — 削除されるのは PopBot の slot クローン／worktree だけです。(ディスク上に残ったものは、クリーンな状態にしたい場合は手動で整理できます。)',
   'prefs.repos.delete.typeToConfirm': '確認のため {id} と入力してください:',
   'prefs.repos.delete.deleting': '削除中…',
 

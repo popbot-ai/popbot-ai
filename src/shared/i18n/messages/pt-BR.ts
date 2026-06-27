@@ -987,6 +987,16 @@ export const ptBR = {
   'prefs.repos.wizard.slotCount.title': 'Quantidade de slots',
   'prefs.repos.wizard.slotCount.desc': 'Quantos chats simultâneos este repositório suporta. 1–64.',
   'prefs.repos.wizard.adding': 'Adicionando…',
+  'prefs.repos.wizard.setUp': 'Configurar repositório',
+  'prefs.repos.wizard.settingUp': 'configurando',
+  'prefs.repos.wizard.setup.slotsHead': 'Slots',
+  'prefs.repos.wizard.setup.diskHead': 'Espaço em disco',
+  'prefs.repos.wizard.progress.building': 'Construindo base + slots (aprove o prompt de administrador)…',
+  'prefs.repos.wizard.progress.creating': 'Criando repositório…',
+  'prefs.repos.wizard.progress.initing': 'Inicializando slot {done} de {total}…',
+  'prefs.repos.wizard.progress.done': '{id} está pronto — {count} slots.',
+  'prefs.repos.wizard.progress.failHint':
+    'A configuração foi interrompida. Volte para ajustar e tente novamente — a base congelada permanece no disco e é reutilizada.',
   'prefs.repos.error.duplicateId': 'Já existe um repositório com o id "{id}".',
   'prefs.repos.error.generic': 'Não foi possível criar o repositório.',
   'prefs.repos.error.notFound': 'Repositório não encontrado — foi excluído?',
@@ -1012,7 +1022,7 @@ export const ptBR = {
   'prefs.repos.delete.reversibleBody':
     'se mais tarde você criar um novo repositório com o id {id}, todos os chats desvinculados serão revinculados automaticamente.',
   'prefs.repos.delete.noTouch':
-    'Isto não tocará no clone de origem em {path} nem em nenhuma branch de chat dentro dele. Os worktrees de slot no disco também são deixados intactos — você pode removê-los manualmente se quiser começar do zero.',
+    'Seu repositório original em {path} nunca é tocado — apenas os clones de slot / worktrees do PopBot são removidos. (Os que sobrarem no disco podem ser removidos manualmente para começar do zero.)',
   'prefs.repos.delete.typeToConfirm': 'Digite {id} para confirmar:',
   'prefs.repos.delete.deleting': 'Excluindo…',
 

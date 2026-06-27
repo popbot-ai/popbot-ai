@@ -987,6 +987,15 @@ export const ko = {
   'prefs.repos.wizard.slotCount.title': '슬롯 개수',
   'prefs.repos.wizard.slotCount.desc': '이 저장소가 지원하는 동시 채팅 수입니다. 1–64.',
   'prefs.repos.wizard.adding': '추가 중…',
+  'prefs.repos.wizard.setUp': '저장소 설정',
+  'prefs.repos.wizard.settingUp': '설정 중',
+  'prefs.repos.wizard.setup.slotsHead': '슬롯',
+  'prefs.repos.wizard.setup.diskHead': '디스크 공간',
+  'prefs.repos.wizard.progress.building': '베이스 + 슬롯 빌드 중 (관리자 프롬프트를 승인하세요)…',
+  'prefs.repos.wizard.progress.creating': '저장소 생성 중…',
+  'prefs.repos.wizard.progress.initing': '슬롯 {total}개 중 {done}개 초기화 중…',
+  'prefs.repos.wizard.progress.done': '{id} 준비 완료 — 슬롯 {count}개.',
+  'prefs.repos.wizard.progress.failHint': '설정이 중단되었습니다. 돌아가서 조정한 뒤 다시 시도하세요 — 고정된 베이스는 디스크에 남아 재사용됩니다.',
   'prefs.repos.error.duplicateId': 'id "{id}"을(를) 가진 저장소가 이미 존재합니다.',
   'prefs.repos.error.generic': '저장소를 생성할 수 없습니다.',
   'prefs.repos.error.notFound': '저장소를 찾을 수 없습니다 — 삭제되었나요?',
@@ -1012,7 +1021,7 @@ export const ko = {
   'prefs.repos.delete.reversibleBody':
     '나중에 id {id}을(를) 가진 새 저장소를 만들면 분리된 모든 채팅이 자동으로 다시 연결됩니다.',
   'prefs.repos.delete.noTouch':
-    '{path}의 소스 클론이나 그 안의 채팅 브랜치는 건드리지 않습니다. 디스크의 슬롯 워크트리도 그대로 둡니다 — 깨끗한 상태를 원하면 직접 정리할 수 있습니다.',
+    '{path}에 있는 원본 저장소는 절대 건드리지 않습니다 — PopBot의 슬롯 클론 / 워크트리만 제거됩니다. (디스크에 남은 것은 깨끗한 상태를 위해 직접 정리할 수 있습니다.)',
   'prefs.repos.delete.typeToConfirm': '확인하려면 {id}을(를) 입력하세요:',
   'prefs.repos.delete.deleting': '삭제 중…',
 

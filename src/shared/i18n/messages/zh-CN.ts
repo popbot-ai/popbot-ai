@@ -987,6 +987,15 @@ export const zhCN = {
   'prefs.repos.wizard.slotCount.title': '槽位数量',
   'prefs.repos.wizard.slotCount.desc': '此仓库支持的并发聊天数量。1–64。',
   'prefs.repos.wizard.adding': '正在添加…',
+  'prefs.repos.wizard.setUp': '设置仓库',
+  'prefs.repos.wizard.settingUp': '正在设置',
+  'prefs.repos.wizard.setup.slotsHead': 'slot',
+  'prefs.repos.wizard.setup.diskHead': '磁盘空间',
+  'prefs.repos.wizard.progress.building': '正在构建基础 + slot（请批准 admin 提示）…',
+  'prefs.repos.wizard.progress.creating': '正在创建仓库…',
+  'prefs.repos.wizard.progress.initing': '正在初始化第 {done} 个 slot，共 {total} 个…',
+  'prefs.repos.wizard.progress.done': '{id} 已就绪 — {count} 个 slot。',
+  'prefs.repos.wizard.progress.failHint': '设置已停止。返回以调整并重试 — 冻结的基础会保留在磁盘上并被重复使用。',
   'prefs.repos.error.duplicateId': 'id 为 "{id}" 的仓库已存在。',
   'prefs.repos.error.generic': '无法创建仓库。',
   'prefs.repos.error.notFound': '未找到仓库 — 它是否已被删除？',
@@ -1012,7 +1021,7 @@ export const zhCN = {
   'prefs.repos.delete.reversibleBody':
     '如果您稍后创建一个 id 为 {id} 的新仓库，所有分离的聊天将自动重新附加。',
   'prefs.repos.delete.noTouch':
-    '这不会触及 {path} 处的源克隆或其中的任何聊天分支。磁盘上的槽位工作树也保持不变 — 如果您想要一个干净的状态，可以手动修剪它们。',
+    '位于 {path} 的原始仓库绝不会被触及 — 只会移除 PopBot 的 slot 克隆／工作树。（磁盘上残留的任何内容都可以手动修剪，以获得干净的状态。）',
   'prefs.repos.delete.typeToConfirm': '输入 {id} 以确认：',
   'prefs.repos.delete.deleting': '正在删除…',
 

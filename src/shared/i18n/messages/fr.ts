@@ -987,6 +987,16 @@ export const fr = {
   'prefs.repos.wizard.slotCount.title': 'Nombre d’emplacements',
   'prefs.repos.wizard.slotCount.desc': 'Combien de chats simultanés ce dépôt prend en charge. 1–64.',
   'prefs.repos.wizard.adding': 'Ajout…',
+  'prefs.repos.wizard.setUp': 'Configurer le dépôt',
+  'prefs.repos.wizard.settingUp': 'configuration en cours',
+  'prefs.repos.wizard.setup.slotsHead': 'Slots',
+  'prefs.repos.wizard.setup.diskHead': 'Espace disque',
+  'prefs.repos.wizard.progress.building': 'Construction de la base + des slots (approuvez l’invite d’administrateur)…',
+  'prefs.repos.wizard.progress.creating': 'Création du dépôt…',
+  'prefs.repos.wizard.progress.initing': 'Initialisation du slot {done} sur {total}…',
+  'prefs.repos.wizard.progress.done': '{id} est prêt — {count} slots.',
+  'prefs.repos.wizard.progress.failHint':
+    'Configuration interrompue. Revenez en arrière pour ajuster et réessayer — la base figée reste sur le disque et est réutilisée.',
   'prefs.repos.error.duplicateId': 'Un dépôt avec l’id « {id} » existe déjà.',
   'prefs.repos.error.generic': 'Impossible de créer le dépôt.',
   'prefs.repos.error.notFound': 'Dépôt introuvable — a-t-il été supprimé ?',
@@ -1012,7 +1022,7 @@ export const fr = {
   'prefs.repos.delete.reversibleBody':
     'si vous créez plus tard un nouveau dépôt avec l’id {id}, tous les chats détachés se rattacheront automatiquement.',
   'prefs.repos.delete.noTouch':
-    'Cela ne touchera pas au clone source à {path} ni à aucune branche de chat dedans. Les worktrees d’emplacement sur le disque sont également laissés tels quels — vous pouvez les élaguer à la main si vous voulez repartir à zéro.',
+    'Votre dépôt d’origine à {path} n’est jamais touché — seuls les clones de slot / worktrees de PopBot sont supprimés. (Ceux laissés sur le disque peuvent être élagués à la main pour repartir à zéro.)',
   'prefs.repos.delete.typeToConfirm': 'Saisissez {id} pour confirmer :',
   'prefs.repos.delete.deleting': 'Suppression…',
 
