@@ -147,37 +147,56 @@ export function registerReposHandlers(): void {
       const repo = getRepo(id);
       try {
         let warning: string | undefined;
-        // Slot repos are shado-backed (git AND perforce): tear the shado base +
-        // clones down FIRST (reclaims the VHDX disk — the disk-heavy part), THEN
-        // remove the repo's co-located workspaces/<id> folder. A FAILED base
-        // teardown is fatal (stop, keep the row). But a leftover file in the
-        // workspace folder (a locked node_modules, a handle an app still holds)
-        // must NOT block removing the repo — the base is already gone.
+        // GENERAL slot teardown (git AND perforce — both are shado-backed): the
+        // delete is mainly "remove the shado base + the workspaces/<id> folder".
+        // It is FULLY RESILIENT: delete + re-create is the main way to recover a
+        // corrupt/broken repo (chats survive by repo id), so NOTHING here may
+        // block removing the row. Failures only produce a leftover-disk warning.
+        // Only genuinely scm-specific bits (perforce client cleanup) switch on
+        // `repo.scm`.
         if (repo && repo.mode === 'slots' && process.platform === 'win32') {
           const baseName = repo.scm === 'perforce' ? repo.p4?.shadoBase : repo.id;
-          // Only run the elevated teardown if the shado project is STILL in the
-          // registry — a prior partial delete may have already removed the base
-          // (then `shado restore` would just fail "No project"). Resilient to
-          // partially-removed projects: skip straight to the folder cleanup.
+          const wsDir = join(popbotRootForRepo(repo.repoPath), 'workspaces', repo.id);
+          const leftoverWarning = (): string =>
+            `The repo was removed (you can re-create it), but its shado base / workspace ` +
+            `folder couldn't be fully cleaned at ${wsDir} — something may still be holding ` +
+            `files open. Delete that folder manually to reclaim the disk.`;
+
+          // Tear down the shado base (reclaims the VHDX disk). Only when the
+          // project is STILL in the registry — a prior partial delete may have
+          // removed it (then `shado restore` would just fail "No project").
           if (baseName && shadoProjectExists(repo.repoPath, repo.id, baseName)) {
             const res = await destroyBase({ repoPath: repo.repoPath, repoId: repo.id, baseName });
             if (!res.ok) {
               dlog('repos.delete.teardownFailed', { id, baseName, error: res.log });
-              return { ok: false, message: res.log };
+              warning = leftoverWarning();
             }
           }
-          const wsDir = join(popbotRootForRepo(repo.repoPath), 'workspaces', repo.id);
+
+          // scm-specific: drop the perforce slots' P4 client workspaces so they
+          // don't linger in P4V. Best-effort — a dead connection must not block.
+          if (repo.scm === 'perforce' && repo.p4) {
+            const scm = getSourceControlProvider(repo);
+            for (let i = 1; i <= Math.max(1, repo.slotCount); i += 1) {
+              try {
+                await scm.deleteBranch(repo.repoPath, scm.parkingBranch(repo.id, i));
+              } catch {
+                /* best-effort — an orphaned client is harmless */
+              }
+            }
+          }
+
+          // Remove the co-located workspaces/<id> folder (incl. the shado home).
+          // Retry transient locks; non-fatal.
           try {
-            // Retry transient locks (ENOTEMPTY/EBUSY/EPERM on Windows deep trees).
             rmSync(wsDir, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
           } catch (err) {
             dlog('repos.delete.folderFailed', { id, wsDir, error: (err as Error).message });
-            warning =
-              `The repo was removed and its shado base reclaimed, but some leftover files in ` +
-              `${wsDir} couldn't be deleted (a file may be in use). You can delete that folder ` +
-              `manually once nothing is holding it open.`;
+            warning = leftoverWarning();
           }
         }
+        // Always drop the row — this is the recovery path; never leave a repo
+        // un-deletable.
         deleteRepo(id);
         return warning ? { ok: true, warning } : { ok: true };
       } catch (err) {
