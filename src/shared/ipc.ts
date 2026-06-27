@@ -267,6 +267,10 @@ export const IpcChannel = {
   ReposCreate: 'pb:repos:create',
   ReposUpdate: 'pb:repos:update',
   ReposDelete: 'pb:repos:delete',
+  /** Slot repos whose VHDX clones are disconnected (reboot dropped mounts). */
+  ReposDisconnectedSlots: 'pb:repos:disconnected-slots',
+  /** User-clicked "Reconnect": re-attach all disconnected slot clones (1 UAC). */
+  ReposReconnectSlots: 'pb:repos:reconnect-slots',
   /** Pre-flight for the delete-confirm UI: how many non-deleted chats
    *  reference this repo. Detached chats persist + reattach if a repo
    *  with the same id is later re-added. */
@@ -710,6 +714,12 @@ export interface PopBotApi {
      *  clones and removes the repo's workspaces folder; a teardown failure
      *  returns `ok:false` (the row is kept) so the UI can show the error. */
     delete(id: string): Promise<{ ok: true } | { ok: false; message: string }>;
+    /** Repo ids whose VHDX slot clones are disconnected (a reboot dropped the
+     *  mounts) — drives the "Reconnect" banner. Empty = all good. */
+    disconnectedSlots(): Promise<string[]>;
+    /** User-clicked reconnect: re-attach all disconnected slot clones in one
+     *  elevated batch (one UAC the user clearly initiated). */
+    reconnectSlots(): Promise<{ ok: boolean; error?: string }>;
     /** Count of non-deleted chats referencing this repo. Powers the
      *  delete-confirm warning. */
     countChats(id: string): Promise<number>;

@@ -105,6 +105,10 @@ export const en = {
   // App shell (App.tsx).
   // ---------------------------------------------------------------------------
   'app.busy.worktreeFailed': 'Workspace setup failed',
+  'app.reconnect.message': 'Workspace drives for {repos} were disconnected by a restart. Reconnect to use their slots + chats.',
+  'app.reconnect.button': 'Reconnect',
+  'app.reconnect.busy': 'Reconnecting…',
+  'app.reconnect.failed': 'Reconnect failed',
   'busy.dismiss': 'Dismiss',
   'busy.copyError': 'Copy error',
   'app.busy.settingUpWorkspace': 'Setting up workspace…',

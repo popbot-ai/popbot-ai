@@ -1069,6 +1069,23 @@ export default function App(): JSX.Element {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Slot repos whose VHDX clones a reboot disconnected. Rather than auto-elevate
+  // on boot, surface a "Reconnect" banner the user clicks — so the one UAC is
+  // clearly their action, over the already-visible window.
+  const [disconnectedSlots, setDisconnectedSlots] = useState<string[]>([]);
+  const [reconnectingSlots, setReconnectingSlots] = useState(false);
+  useEffect(() => {
+    void window.popbot.repos.disconnectedSlots().then(setDisconnectedSlots).catch(() => {});
+  }, []);
+  const reconnectSlots = useCallback(async () => {
+    setReconnectingSlots(true);
+    const res = await window.popbot.repos.reconnectSlots();
+    setReconnectingSlots(false);
+    void window.popbot.repos.disconnectedSlots().then(setDisconnectedSlots).catch(() => {});
+    if (res.ok) refresh();
+    else setBusy({ message: t('app.reconnect.failed'), detail: res.error, error: true });
+  }, [refresh, t]);
+
   const workspaceStyle: ColumnLayoutVars = {
     '--col-left': colWidth + 'px',
     '--row-bottom': bottomHeight + 'px',
@@ -1081,6 +1098,19 @@ export default function App(): JSX.Element {
       className={`app${window.popbot.platform === 'win32' ? ' platform-win' : window.popbot.platform === 'linux' ? ' platform-linux' : ''}`}
       data-screen-label="PopBot · Main"
     >
+      {disconnectedSlots.length > 0 && (
+        <div className="slot-reconnect-banner" data-screen-label="Slot reconnect">
+          <i className="fa-solid fa-plug-circle-exclamation" />
+          <span>{t('app.reconnect.message', { repos: disconnectedSlots.join(', ') })}</span>
+          <button
+            className="btn primary sm"
+            disabled={reconnectingSlots}
+            onClick={() => void reconnectSlots()}
+          >
+            {reconnectingSlots ? t('app.reconnect.busy') : t('app.reconnect.button')}
+          </button>
+        </div>
+      )}
       <Titlebar
         onOpenModal={setModal}
         onOpenPrefs={() => openPrefsAt()}

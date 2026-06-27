@@ -73,13 +73,11 @@ async function ensureSlotsMounted(repo: RepoRecord): Promise<void> {
   if (!res.ok) throw new Error(res.log);
 }
 
-/** STARTUP reconcile: a reboot drops every VHDX slot mount, leaving recovered
- *  chats pointed at dead/broken slot folders. On launch, detect any slot repo
- *  with a disconnected clone (a slot folder that's empty OR errors on read) and
- *  re-mount them ALL in ONE elevated batch — ideally before chats recover, so
- *  their terminals open on live mounts. No-op (no UAC) when everything's up. */
-export async function remountDisconnectedSlots(): Promise<void> {
-  if (process.platform !== 'win32') return;
+/** Detect slot repos whose VHDX clones are DISCONNECTED — a reboot drops every
+ *  mount, leaving slot folders empty or as broken mount points (which error on
+ *  read). Non-elevated + cheap; drives the renderer's "Reconnect" banner. */
+export function listDisconnectedSlotRepos(): Array<{ repoPath: string; repoId: string; baseName: string }> {
+  if (process.platform !== 'win32') return [];
   const need: Array<{ repoPath: string; repoId: string; baseName: string }> = [];
   for (const repo of listRepos()) {
     if (repo.mode !== 'slots') continue;
@@ -97,10 +95,22 @@ export async function remountDisconnectedSlots(): Promise<void> {
     }
     if (disconnected) need.push({ repoPath: repo.repoPath, repoId: repo.id, baseName });
   }
-  if (!need.length) return;
-  dlog('startup.remountSlots', { repos: need.map((r) => r.repoId) });
+  return need;
+}
+
+/** USER-TRIGGERED (the "Reconnect" button): re-attach every disconnected slot
+ *  repo's clones in ONE elevated batch — one UAC, which the user clearly
+ *  initiated. No-op when nothing's disconnected. */
+export async function reconnectSlots(): Promise<{ ok: boolean; error?: string }> {
+  const need = listDisconnectedSlotRepos();
+  if (!need.length) return { ok: true };
+  dlog('repos.reconnectSlots', { repos: need.map((r) => r.repoId) });
   const res = await remountReposElevated(need);
-  if (!res.ok) dlog('startup.remountSlots.failed', { error: res.log });
+  if (!res.ok) {
+    dlog('repos.reconnectSlots.failed', { error: res.log });
+    return { ok: false, error: res.log };
+  }
+  return { ok: true };
 }
 
 interface SlotsSettings { maxCount?: number }
@@ -207,6 +217,12 @@ function ephemeralPathFor(opts: {
 }
 
 export function registerChatHandlers(): void {
+  // Disconnected-slot detection + the user-clicked "Reconnect" (elevated).
+  ipcMain.handle(IpcChannel.ReposDisconnectedSlots, (): string[] =>
+    listDisconnectedSlotRepos().map((r) => r.repoId),
+  );
+  ipcMain.handle(IpcChannel.ReposReconnectSlots, () => reconnectSlots());
+
   ipcMain.handle(IpcChannel.ChatsList, () => listOpenChats());
   ipcMain.handle(IpcChannel.ChatsListClosed, (_e, limit?: number) => listClosedChats(limit));
 
