@@ -11,12 +11,16 @@
  * provider for a P4 repo. There is no reconcile: the slot file-watcher keeps
  * `p4 opened` honest, so this panel just renders provider output.
  */
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { GitFileChange, GitFileStatus } from '@shared/git';
 import { useGitStatus } from '../lib/useGitStatus';
 import { useTranslation } from '../lib/i18n';
 import { P4Glyph } from './P4Glyph';
 import type { SourceControlPanelProps } from './SourceControlPanel';
+
+function clamp(n: number, lo: number, hi: number): number {
+  return Math.max(lo, Math.min(hi, n));
+}
 
 const STATUS_ICON: Record<GitFileStatus, { icon: string; color: string; abbr: string }> = {
   modified: { icon: 'fa-pen', color: 'var(--warn, #d8a657)', abbr: 'M' },
@@ -37,6 +41,33 @@ export function P4Panel({ chatId, chatName, diffPath, onOpenDiff }: SourceContro
   // Live progress while a huge changed-file set is opened into the changelist.
   const [openProgress, setOpenProgress] = useState('');
   useEffect(() => window.popbot.repos.onP4OpenProgress(setOpenProgress), []);
+
+  // Splitter-driven heights for the top (commits) + bottom (shelf) sections;
+  // the middle "current changes" section flexes to fill the rest. flexBasis is
+  // written to the ref directly during drag (no per-pixel re-render).
+  const [commitsPx, setCommitsPx] = useState(120);
+  const [shelfPx, setShelfPx] = useState(100);
+  const commitsRef = useRef<HTMLDivElement | null>(null);
+  const shelfRef = useRef<HTMLDivElement | null>(null);
+  const startVerticalDrag =
+    (current: number, setter: (n: number) => void, target: React.RefObject<HTMLDivElement>, direction: 'down' | 'up') =>
+    (e: React.MouseEvent): void => {
+      e.preventDefault();
+      const startY = e.clientY;
+      let last = current;
+      const move = (ev: MouseEvent): void => {
+        const dy = ev.clientY - startY;
+        last = clamp(current + (direction === 'down' ? dy : -dy), 40, 600);
+        if (target.current) target.current.style.flexBasis = `${last}px`;
+      };
+      const up = (): void => {
+        window.removeEventListener('mousemove', move);
+        window.removeEventListener('mouseup', up);
+        setter(last);
+      };
+      window.addEventListener('mousemove', move);
+      window.addEventListener('mouseup', up);
+    };
 
   const ok = data?.ok ? data : null;
   // Surface a failed status load explicitly rather than rendering as an empty
@@ -117,7 +148,7 @@ export function P4Panel({ chatId, chatName, diffPath, onOpenDiff }: SourceContro
         <div className="p4-error" role="alert">{actionError ?? statusError}</div>
       )}
       {/* top — recent submitted changes */}
-      <div className="p4-section p4-commits">
+      <div className="p4-section p4-commits" ref={commitsRef} style={{ flex: `0 0 ${commitsPx}px` }}>
         <div className="p4-section-head">{t('p4.commits.title')}</div>
         <div className="p4-section-body">
           {commits.length === 0 && <div className="git-empty-line">{t('p4.commits.empty')}</div>}
@@ -131,6 +162,11 @@ export function P4Panel({ chatId, chatName, diffPath, onOpenDiff }: SourceContro
         </div>
       </div>
 
+      <div
+        className="git-splitter"
+        onMouseDown={startVerticalDrag(commitsPx, setCommitsPx, commitsRef, 'down')}
+        title={t('common.dragToResize')}
+      />
       {/* middle — current changes (p4 opened) */}
       <div className="p4-section p4-changes">
         <div className="p4-section-head">
@@ -193,8 +229,13 @@ export function P4Panel({ chatId, chatName, diffPath, onOpenDiff }: SourceContro
         </div>
       </div>
 
+      <div
+        className="git-splitter"
+        onMouseDown={startVerticalDrag(shelfPx, setShelfPx, shelfRef, 'up')}
+        title={t('common.dragToResize')}
+      />
       {/* bottom — shelf */}
-      <div className="p4-section p4-shelf">
+      <div className="p4-section p4-shelf" ref={shelfRef} style={{ flex: `0 0 ${shelfPx}px` }}>
         <div className="p4-section-head">{t('p4.shelf.title')}</div>
         <div className="p4-section-body">
           {shelves.length === 0 && <div className="git-empty-line">{t('p4.shelf.empty')}</div>}
