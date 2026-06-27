@@ -1024,4 +1024,62 @@ export const es = {
     'Elige el idioma que PopBot usa para su interfaz. La mayoría de los textos y los menús se actualizan al instante; algunas cadenas del sistema terminan de actualizarse tras reiniciar.',
   'language.label': 'Idioma de la interfaz',
   'language.systemNote': 'Las ventanas nuevas y el menú de la aplicación también usan este idioma.',
+
+  // ---------------------------------------------------------------------------
+  // Repositories — add-repository wizard (detect / Perforce connect / preflight / build).
+  // ---------------------------------------------------------------------------
+  'prefs.repos.colorTaken': 'Ya lo usa otro repo',
+  'prefs.repos.wizard.step': 'paso {step}',
+  'prefs.repos.wizard.buildingBase': 'construyendo la base',
+  'prefs.repos.wizard.detect.detecting': 'Detectando…',
+  'prefs.repos.wizard.detect.git': 'Repositorio Git',
+  'prefs.repos.wizard.detect.perforce': 'Repositorio Perforce',
+  'prefs.repos.wizard.detect.invalid': 'No es un repositorio de git ni de Perforce',
+  'prefs.repos.wizard.detect.alreadyAdded': 'Esta carpeta ya está añadida como repositorio',
+  'prefs.repos.wizard.detect.idTaken': 'Ese id corto ya está en uso — elige otro',
+  'prefs.repos.wizard.connect.intro':
+    'Conéctate al servidor de Perforce. Capturaremos el changelist al que está sincronizada tu carpeta para que cada slot lo descargue (sin re-transferir).',
+  'prefs.repos.wizard.connect.port.title': 'P4PORT',
+  'prefs.repos.wizard.connect.port.desc': 'Dirección del servidor, p. ej. ssl:host:1666.',
+  'prefs.repos.wizard.connect.user.title': 'P4USER',
+  'prefs.repos.wizard.connect.user.desc':
+    'Tu usuario de Perforce. La autenticación usa tu ticket de login de p4 existente.',
+  'prefs.repos.wizard.connect.depot.title': 'Ruta del depot',
+  'prefs.repos.wizard.connect.depot.desc': 'La ruta del depot a la que mapea esta carpeta, p. ej. //depot/MyGame.',
+  'prefs.repos.wizard.connect.baseName.title': 'Nombre de la base',
+  'prefs.repos.wizard.connect.baseName.desc': 'Nombre de la base shado congelada. Los slots se clonan de ella.',
+  'prefs.repos.wizard.connect.discovered':
+    'Estos son los valores que se usarán para configurar este repositorio, leídos de tu espacio de trabajo de Perforce ({client}).',
+  'prefs.repos.wizard.connect.changelist': 'Changelist sincronizado',
+  'prefs.repos.wizard.connect.base': 'Nombre de la base',
+  'prefs.repos.wizard.preflight.intro':
+    'Comprobando el espacio en disco. La base se construye a partir de tu carpeta (que se deja en su sitio), así que necesita aproximadamente el tamaño de la carpeta en espacio libre en la misma unidad.',
+  'prefs.repos.wizard.preflight.measuring': 'Midiendo la carpeta…',
+  'prefs.repos.wizard.preflight.folder': 'Carpeta de origen',
+  'prefs.repos.wizard.preflight.free': 'Libre en la unidad',
+  'prefs.repos.wizard.preflight.needs': 'La base necesita (≈ +5%)',
+  'prefs.repos.wizard.preflight.ok': 'Hay suficiente espacio libre — listo para construir la base.',
+  'prefs.repos.wizard.preflight.block':
+    'No hay suficiente espacio libre: {free} disponibles, la base necesita {need}. Libera espacio (o elige una carpeta en una unidad más holgada) e inténtalo de nuevo.',
+  'prefs.repos.wizard.build.intro':
+    'Construye la base congelada ({gb}) a partir de tu carpeta. Esto ejecuta una operación shado elevada — verás un aviso de administrador de Windows (UAC). Puede tardar varios minutos; el progreso se muestra en vivo.',
+  'prefs.repos.wizard.build.baseName': 'Base',
+  'prefs.repos.wizard.build.start': 'Construir la base',
+  'prefs.repos.wizard.build.starting': 'Iniciando la construcción de la base (aprueba el aviso de administrador)…',
+  'prefs.repos.wizard.build.done': 'Base construida. Si cancelas ahora, la base permanece en disco y se puede reutilizar.',
+  'prefs.repos.wizard.build.changelist': 'Changelist de la base',
+  'prefs.repos.wizard.build.changelistDesc':
+    'El changelist al que está sincronizada la base — capturado automáticamente. Cámbialo solo si es incorrecto.',
+  'prefs.perforce.p4Path.title': 'Ejecutable de p4',
+  'prefs.perforce.p4Path.desc': 'Ruta al binario de p4. Déjalo en blanco para usar “p4” del PATH.',
+  'prefs.perforce.defaultPort.title': 'P4PORT predeterminado',
+  'prefs.perforce.defaultPort.desc': 'Rellena previamente el paso Añadir repositorio → conexión a Perforce.',
+  'prefs.perforce.defaultUser.title': 'P4USER predeterminado',
+  'prefs.perforce.defaultUser.desc': 'Rellena previamente el paso Añadir repositorio → conexión a Perforce.',
+  'prefs.perforce.parallelThreads.title': 'Hilos de transferencia paralela',
+  'prefs.perforce.parallelThreads.desc': 'Hilos para el sync/submit paralelo de p4. 1 lo desactiva.',
+  'prefs.perforce.revertUnchanged.title': 'Revertir archivos sin cambios',
+  'prefs.perforce.revertUnchanged.desc': 'Descarta los archivos idénticos byte a byte de un changelist antes del submit.',
+  'prefs.perforce.revertUnchanged.toggle': 'Revertir archivos idénticos byte a byte al hacer submit',
+  'prefs.repos.error.duplicatePath': 'Esa carpeta ya está añadida como repo "{id}".',
 } satisfies PartialMessages;

@@ -1016,6 +1016,64 @@ export const de = {
   'prefs.repos.delete.typeToConfirm': 'Tippen Sie {id} zur Bestätigung:',
   'prefs.repos.delete.deleting': 'Wird gelöscht…',
 
+  // Preferences — Add-Repository wizard: Perforce / shado base steps.
+  'prefs.repos.colorTaken': 'Bereits von einem anderen Repo verwendet',
+  'prefs.repos.wizard.step': 'Schritt {step}',
+  'prefs.repos.wizard.buildingBase': 'Basis wird erstellt',
+  'prefs.repos.wizard.detect.detecting': 'Wird erkannt…',
+  'prefs.repos.wizard.detect.git': 'Git-Repository',
+  'prefs.repos.wizard.detect.perforce': 'Perforce-Repository',
+  'prefs.repos.wizard.detect.invalid': 'Kein Git- oder Perforce-Repository',
+  'prefs.repos.wizard.detect.alreadyAdded': 'Dieser Ordner ist bereits als Repository hinzugefügt',
+  'prefs.repos.wizard.detect.idTaken': 'Diese Kurz-ID ist bereits vergeben — wählen Sie eine andere',
+  'prefs.repos.wizard.connect.intro':
+    'Mit dem Perforce-Server verbinden. Wir erfassen die Changelist, auf die Ihr Ordner synchronisiert ist, sodass jeder Slot dorthin flusht (keine erneute Übertragung).',
+  'prefs.repos.wizard.connect.port.title': 'P4PORT',
+  'prefs.repos.wizard.connect.port.desc': 'Serveradresse, z. B. ssl:host:1666.',
+  'prefs.repos.wizard.connect.user.title': 'P4USER',
+  'prefs.repos.wizard.connect.user.desc':
+    'Ihr Perforce-Benutzer. Die Authentifizierung nutzt Ihr bestehendes p4-Login-Ticket.',
+  'prefs.repos.wizard.connect.depot.title': 'Depot-Pfad',
+  'prefs.repos.wizard.connect.depot.desc': 'Der Depot-Pfad, den dieser Ordner abbildet, z. B. //depot/MyGame.',
+  'prefs.repos.wizard.connect.baseName.title': 'Basisname',
+  'prefs.repos.wizard.connect.baseName.desc': 'Name der eingefrorenen shado-Basis. Slots klonen davon.',
+  'prefs.repos.wizard.connect.discovered':
+    'Dies sind die Werte, die zum Einrichten dieses Repositorys verwendet werden, ausgelesen aus Ihrem Perforce-Workspace ({client}).',
+  'prefs.repos.wizard.connect.changelist': 'Synchronisierte Changelist',
+  'prefs.repos.wizard.connect.base': 'Basisname',
+  'prefs.repos.wizard.preflight.intro':
+    'Speicherplatz wird geprüft. Die Basis wird aus Ihrem Ordner erstellt (der an Ort und Stelle bleibt), daher braucht sie etwa die Größe des Ordners an freiem Speicher auf demselben Laufwerk.',
+  'prefs.repos.wizard.preflight.measuring': 'Ordner wird vermessen…',
+  'prefs.repos.wizard.preflight.folder': 'Quellordner',
+  'prefs.repos.wizard.preflight.free': 'Frei auf Laufwerk',
+  'prefs.repos.wizard.preflight.needs': 'Basis benötigt (≈ +5 %)',
+  'prefs.repos.wizard.preflight.ok': 'Genug freier Speicher — bereit, die Basis zu erstellen.',
+  'prefs.repos.wizard.preflight.block':
+    'Nicht genug freier Speicher: {free} verfügbar, die Basis benötigt {need}. Geben Sie Speicher frei (oder wählen Sie einen Ordner auf einem geräumigeren Laufwerk) und versuchen Sie es erneut.',
+  'prefs.repos.wizard.build.intro':
+    'Erstellen Sie die eingefrorene Basis ({gb}) aus Ihrem Ordner. Dies führt eine erhöhte shado-Operation aus — Sie sehen eine Windows-Administrator-Eingabeaufforderung (UAC). Es kann mehrere Minuten dauern; der Fortschritt wird live angezeigt.',
+  'prefs.repos.wizard.build.baseName': 'Basis',
+  'prefs.repos.wizard.build.start': 'Basis erstellen',
+  'prefs.repos.wizard.build.starting': 'Basis-Erstellung wird gestartet (bestätigen Sie die Administrator-Eingabeaufforderung)…',
+  'prefs.repos.wizard.build.done':
+    'Basis erstellt. Wenn Sie jetzt abbrechen, bleibt die Basis auf der Festplatte und kann wiederverwendet werden.',
+  'prefs.repos.wizard.build.changelist': 'Basis-Changelist',
+  'prefs.repos.wizard.build.changelistDesc':
+    'Die Changelist, auf die die Basis synchronisiert ist — automatisch erfasst. Überschreiben Sie sie nur, wenn sie falsch ist.',
+  'prefs.perforce.p4Path.title': 'p4-Programm',
+  'prefs.perforce.p4Path.desc': 'Pfad zur p4-Binärdatei. Leer lassen, um „p4“ aus PATH zu verwenden.',
+  'prefs.perforce.defaultPort.title': 'Standard-P4PORT',
+  'prefs.perforce.defaultPort.desc': 'Füllt den Add-Repository → Perforce-Verbindungsschritt vor.',
+  'prefs.perforce.defaultUser.title': 'Standard-P4USER',
+  'prefs.perforce.defaultUser.desc': 'Füllt den Add-Repository → Perforce-Verbindungsschritt vor.',
+  'prefs.perforce.parallelThreads.title': 'Parallele Übertragungs-Threads',
+  'prefs.perforce.parallelThreads.desc': 'Threads für paralleles p4-Sync/Submit. 1 schaltet es aus.',
+  'prefs.perforce.revertUnchanged.title': 'Unveränderte Dateien zurücksetzen',
+  'prefs.perforce.revertUnchanged.desc':
+    'Byte-identische Dateien vor dem Submit aus einer Changelist entfernen.',
+  'prefs.perforce.revertUnchanged.toggle': 'Byte-identische Dateien beim Submit zurücksetzen',
+  'prefs.repos.error.duplicatePath': 'Dieser Ordner ist bereits als Repo "{id}" hinzugefügt.',
+
   // ---------------------------------------------------------------------------
   // Language preference pane.
   // ---------------------------------------------------------------------------
