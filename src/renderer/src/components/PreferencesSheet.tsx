@@ -2823,7 +2823,7 @@ function PrefsRepos({ onReposChanged }: { onReposChanged?: () => void }): JSX.El
               <span className="repo-card-id mono">{r.id}</span>
               <span className={`repo-card-scm scm-${r.scm ?? 'git'}`}>
                 {(r.scm ?? 'git') === 'perforce' ? (
-                  <><P4Glyph style={{ color: '#4c00ff' }} /> {t('prefs.repos.scm.perforce')}</>
+                  <><P4Glyph /> {t('prefs.repos.scm.perforce')}</>
                 ) : (
                   <><i className="fa-solid fa-code-branch" /> {t('prefs.repos.scm.git')}</>
                 )}

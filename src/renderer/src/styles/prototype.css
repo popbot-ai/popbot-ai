@@ -5251,9 +5251,12 @@ input.input.mono, select.input.mono { font-family: var(--font-mono); font-size: 
    carries the brand color (#4c00ff) via its inline style. */
 .repo-card-scm {
   display: inline-flex; align-items: center; gap: 5px;
-  padding: 1px 8px; border-radius: 999px; font-size: var(--fs-xs);
-  border: 1px solid var(--line-2); color: var(--fg-2); background: var(--bg-3);
+  padding: 2px 9px; border-radius: 999px; font-size: var(--fs-xs); font-weight: 600;
+  border: 1px solid transparent;
 }
+/* Branded, legible badges (gray was invisible against the card). */
+.repo-card-scm.scm-git { background: rgba(240,96,64,0.14); color: #f1936f; }
+.repo-card-scm.scm-perforce { background: rgba(124,92,255,0.18); color: #a78bff; }
 .repo-card-scm svg, .repo-card-scm i { font-size: 0.95em; line-height: 1; }
 
 .p4-error {
