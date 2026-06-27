@@ -31,6 +31,10 @@ interface SlotState {
   changes: Map<string, ChangeKind>;
   /** The slot's ignore matcher, computed ONCE at watch start. */
   ignore: IgnoreMatcher;
+  /** While true, events are DROPPED — set around PopBot's own p4 writes
+   *  (revert/shelve/sync) so those file rewrites aren't recorded as edits and
+   *  re-opened on the next status. */
+  paused: boolean;
 }
 
 const slots = new Map<string, SlotState>();
@@ -190,6 +194,9 @@ function loadIgnore(wt: string): IgnoreMatcher {
  * loop where speed dominates.
  */
 function record(state: SlotState, wt: string, rel: string, event: string): void {
+  // Dropped while paused: PopBot's own p4 writes (a shelve's revert, a sync)
+  // rewrite files on disk; recording them would re-open reverted files.
+  if (state.paused) return;
   // NOTE: the ignore check already ran (fast, on the raw path) in the watch
   // callback — `rel` here is always a kept, non-ignored path.
   const prev = state.changes.get(rel);
@@ -217,6 +224,7 @@ export function startSlotWatch(worktreePath: string): void {
     watcher: undefined as unknown as FSWatcher,
     changes: new Map(),
     ignore: loadIgnore(worktreePath),
+    paused: false,
   };
   const w = watch(worktreePath, { recursive: true }, (event, filename) => {
     if (filename == null) return;
@@ -269,4 +277,17 @@ export function isSlotDirty(worktreePath: string): boolean {
 /** Forget accumulated changes (after submit/revert opens them in p4). */
 export function clearSlotChanges(worktreePath: string): void {
   slots.get(worktreePath)?.changes.clear();
+}
+
+/** Stop recording events for a slot (around a PopBot-initiated p4 write).
+ *  No-op if the slot isn't watched. */
+export function pauseSlotWatch(worktreePath: string): void {
+  const s = slots.get(worktreePath);
+  if (s) s.paused = true;
+}
+
+/** Resume recording for a slot. */
+export function resumeSlotWatch(worktreePath: string): void {
+  const s = slots.get(worktreePath);
+  if (s) s.paused = false;
 }

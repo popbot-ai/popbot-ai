@@ -5257,6 +5257,27 @@ input.input.mono, select.input.mono { font-family: var(--font-mono); font-size: 
 .p4-panel { display: flex; flex-direction: column; height: 100%; overflow: hidden; font-size: var(--fs-sm); }
 .p4-empty { padding: 16px; color: var(--fg-2); }
 .p4-head-actions { display: flex; align-items: center; gap: 6px; }
+/* Section-header overflow menu */
+.p4-menu { position: relative; }
+.p4-menu-pop {
+  position: absolute; top: 100%; right: 0; z-index: 30; margin-top: 4px;
+  min-width: 190px; padding: 4px;
+  background: var(--bg-1); border: 1px solid var(--line-3);
+  border-radius: var(--radius-md, 6px); box-shadow: var(--shadow-lg);
+  display: flex; flex-direction: column; gap: 1px;
+}
+.p4-menu-item {
+  display: flex; align-items: center; gap: 8px; width: 100%;
+  padding: 6px 9px; border: none; background: transparent; cursor: pointer;
+  color: var(--fg-1); font-size: var(--fs-sm); text-align: left; border-radius: 4px;
+}
+.p4-menu-item > i { width: 14px; color: var(--fg-3); text-align: center; }
+.p4-menu-item:hover:not(:disabled) { background: var(--bg-2); color: var(--fg-0); }
+.p4-menu-item:disabled { opacity: 0.4; cursor: default; }
+.p4-menu-item.danger { color: var(--danger, #d05656); }
+.p4-menu-item.danger > i { color: var(--danger, #d05656); }
+.p4-menu-pop.up { top: auto; bottom: 100%; margin-top: 0; margin-bottom: 4px; }
+.p4-menu-sep { height: 1px; background: var(--line-2); margin: 3px 0; }
 .p4-head-all { display: flex; align-items: center; gap: 7px; }
 .p4-head-all .git-row-check { margin: 0; }
 .p4-workspace { padding: 0 10px 6px; font-size: var(--fs-xs); color: var(--fg-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

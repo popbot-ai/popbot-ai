@@ -162,11 +162,11 @@ export function registerGitHandlers(): void {
 
   ipcMain.handle(
     IpcChannel.GitShelve,
-    async (_e, input: { chatId: string; paths: string[]; message?: string }): Promise<{ ok: true; change: string } | { ok: false; error: string }> => {
+    async (_e, input: { chatId: string; paths: string[]; message?: string; keepWorking?: boolean }): Promise<{ ok: true; change: string } | { ok: false; error: string }> => {
       const wt = resolveWorktree(input.chatId);
       if (typeof wt !== 'string') return { ok: false, error: wt.error };
       try {
-        const r = await providerForChat(input.chatId).shelveFiles(wt, input.paths, input.message ?? 'popbot shelf');
+        const r = await providerForChat(input.chatId).shelveFiles(wt, input.paths, input.message ?? 'popbot shelf', input.keepWorking);
         return { ok: true, change: r.change };
       } catch (err) {
         return { ok: false, error: (err as Error).message };
@@ -181,6 +181,20 @@ export function registerGitHandlers(): void {
       if (typeof wt !== 'string') return { ok: false, error: wt.error };
       try {
         await providerForChat(input.chatId).unshelve(wt, input.changes);
+        return { ok: true };
+      } catch (err) {
+        return { ok: false, error: (err as Error).message };
+      }
+    },
+  );
+
+  ipcMain.handle(
+    IpcChannel.GitDeleteShelf,
+    async (_e, input: { chatId: string; changes: string[] }): Promise<{ ok: true } | { ok: false; error: string }> => {
+      const wt = resolveWorktree(input.chatId);
+      if (typeof wt !== 'string') return { ok: false, error: wt.error };
+      try {
+        await providerForChat(input.chatId).deleteShelf(wt, input.changes);
         return { ok: true };
       } catch (err) {
         return { ok: false, error: (err as Error).message };

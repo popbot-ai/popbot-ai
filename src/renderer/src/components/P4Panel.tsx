@@ -22,6 +22,50 @@ function clamp(n: number, lo: number, hi: number): number {
   return Math.max(lo, Math.min(hi, n));
 }
 
+type MenuItem =
+  | 'sep'
+  | { label: string; icon: string; disabled?: boolean; danger?: boolean; onClick: () => void };
+
+/** Section-header overflow ("hamburger") menu. Holds the actions that operate
+ *  on the checkbox-selected rows so the bar doesn't overflow with buttons. */
+function ActionMenu({ items, title, up }: { items: MenuItem[]; title: string; up?: boolean }): JSX.Element {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e: MouseEvent): void => {
+      if (!ref.current?.contains(e.target as Node)) setOpen(false);
+    };
+    window.addEventListener('mousedown', onDown);
+    return () => window.removeEventListener('mousedown', onDown);
+  }, [open]);
+  return (
+    <div className="p4-menu" ref={ref}>
+      <button className="git-mini-action" onClick={() => setOpen((o) => !o)} title={title} aria-haspopup="menu">
+        <i className="fa-solid fa-ellipsis" />
+      </button>
+      {open && (
+        <div className={`p4-menu-pop${up ? ' up' : ''}`} role="menu">
+          {items.map((it, i) =>
+            it === 'sep' ? (
+              <div key={i} className="p4-menu-sep" />
+            ) : (
+              <button
+                key={i}
+                className={`p4-menu-item${it.danger ? ' danger' : ''}`}
+                disabled={it.disabled}
+                onClick={() => { setOpen(false); it.onClick(); }}
+              >
+                <i className={`fa-solid ${it.icon}`} /> {it.label}
+              </button>
+            ),
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 const STATUS_ICON: Record<GitFileStatus, { icon: string; color: string; abbr: string }> = {
   modified: { icon: 'fa-pen', color: 'var(--warn, #d8a657)', abbr: 'M' },
   added: { icon: 'fa-plus', color: 'var(--ok, #6fae5e)', abbr: 'A' },
@@ -132,18 +176,33 @@ export function P4Panel({ chatId, chatName, diffPath, onOpenDiff }: SourceContro
     }
   };
 
-  const shelve = async (): Promise<void> => {
+  const doShelve = async (keepWorking: boolean): Promise<void> => {
     const paths = [...checked].filter((p) => files.some((f) => f.path === p));
     if (!paths.length || busy) return;
     setBusy(true);
     setActionError(null);
-    const res = await window.popbot.git.shelve({ chatId, paths, message: desc.trim() || undefined });
+    const res = await window.popbot.git.shelve({ chatId, paths, message: desc.trim() || undefined, keepWorking });
     setBusy(false);
     if (res.ok) {
       setChecked(new Set());
       refresh();
     } else {
       setActionError(res.error || 'Shelve failed');
+    }
+  };
+
+  const deleteFromShelf = async (): Promise<void> => {
+    const changes = [...shelfChecked];
+    if (!changes.length || busy) return;
+    setBusy(true);
+    setActionError(null);
+    const res = await window.popbot.git.deleteShelf({ chatId, changes });
+    setBusy(false);
+    if (res.ok) {
+      setShelfChecked(new Set());
+      refresh();
+    } else {
+      setActionError(res.error || 'Delete failed');
     }
   };
 
@@ -272,24 +331,15 @@ export function P4Panel({ chatId, chatName, diffPath, onOpenDiff }: SourceContro
             {t('p4.changes.title')}
           </span>
           {files.length > 0 && (
-            <span className="p4-head-actions">
-              <button
-                className="git-mini-action"
-                disabled={checked.size === 0 || busy}
-                onClick={() => void shelve()}
-                title={t('p4.shelveChecked')}
-              >
-                <i className="fa-solid fa-box-archive" /> {t('p4.shelve')}
-              </button>
-              <button
-                className="git-mini-action danger"
-                disabled={checked.size === 0 || busy}
-                onClick={() => revert([...checked])}
-                title={t('p4.revert')}
-              >
-                <i className="fa-solid fa-rotate-left" /> {t('p4.revert')}
-              </button>
-            </span>
+            <ActionMenu
+              title={t('p4.menu.changesActions')}
+              items={[
+                { label: t('p4.menu.copyToShelf'), icon: 'fa-copy', disabled: checked.size === 0 || busy, onClick: () => void doShelve(true) },
+                { label: t('p4.menu.moveToShelf'), icon: 'fa-box-archive', disabled: checked.size === 0 || busy, onClick: () => void doShelve(false) },
+                'sep',
+                { label: t('p4.revert'), icon: 'fa-rotate-left', danger: true, disabled: checked.size === 0 || busy, onClick: () => revert([...checked]) },
+              ]}
+            />
           )}
         </div>
         <div className="p4-section-body">
@@ -372,16 +422,15 @@ export function P4Panel({ chatId, chatName, diffPath, onOpenDiff }: SourceContro
             {t('p4.shelf.title')}
           </span>
           {shelves.length > 0 && (
-            <span className="p4-head-actions">
-              <button
-                className="git-mini-action"
-                disabled={shelfChecked.size === 0 || busy}
-                onClick={() => void unshelve()}
-                title={t('p4.unshelveChecked')}
-              >
-                <i className="fa-solid fa-box-open" /> {t('p4.unshelve')}
-              </button>
-            </span>
+            <ActionMenu
+              title={t('p4.menu.shelfActions')}
+              up
+              items={[
+                { label: t('p4.menu.returnToChangelist'), icon: 'fa-box-open', disabled: shelfChecked.size === 0 || busy, onClick: () => void unshelve() },
+                'sep',
+                { label: t('p4.menu.deleteFromShelf'), icon: 'fa-trash-can', danger: true, disabled: shelfChecked.size === 0 || busy, onClick: () => void deleteFromShelf() },
+              ]}
+            />
           )}
         </div>
         <div className="p4-section-body">

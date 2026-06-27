@@ -158,10 +158,12 @@ const api: PopBotApi = {
     diff: (input: GitDiffInput) => ipcRenderer.invoke(IpcChannel.GitDiff, input),
     commit: (input: GitCommitInput) => ipcRenderer.invoke(IpcChannel.GitCommit, input),
     revert: (input: GitRevertInput) => ipcRenderer.invoke(IpcChannel.GitRevert, input),
-    shelve: (input: { chatId: string; paths: string[]; message?: string }) =>
+    shelve: (input: { chatId: string; paths: string[]; message?: string; keepWorking?: boolean }) =>
       ipcRenderer.invoke(IpcChannel.GitShelve, input),
     unshelve: (input: { chatId: string; changes: string[] }) =>
       ipcRenderer.invoke(IpcChannel.GitUnshelve, input),
+    deleteShelf: (input: { chatId: string; changes: string[] }) =>
+      ipcRenderer.invoke(IpcChannel.GitDeleteShelf, input),
     filesInCommit: (input: GitFilesInCommitInput) =>
       ipcRenderer.invoke(IpcChannel.GitFilesInCommit, input),
     listBaseBranches: (input: { chatId?: string | null; repoId?: string | null }) =>

@@ -48,6 +48,7 @@ import {
   listShelves,
   openChanges,
   readSlotMeta,
+  deleteShelf,
   revertAll,
   shelveFiles,
   shelveWork,
@@ -58,6 +59,8 @@ import {
 import {
   clearSlotChanges,
   getSlotChanges,
+  pauseSlotWatch,
+  resumeSlotWatch,
   startSlotWatch,
   stopSlotWatch,
 } from '../p4/watcher';
@@ -157,19 +160,39 @@ export class PerforceProvider extends SourceControlProvider {
   revertFiles(wt: string, paths: string[]): Promise<void> {
     return p4RevertFiles(this.ctx(wt), wt, paths);
   }
-  /** Shelve the checked files into a new shelf (then revert their working
-   *  copies). Opens watched edits first so checked files are really opened. */
-  async shelveFiles(wt: string, paths: string[], message: string): Promise<{ change: string }> {
+  /** Shelve the checked files. "Move" (default) reverts the working copies;
+   *  "Copy" (keepWorking) leaves them opened. Opens watched edits first so the
+   *  checked files are really opened, and PAUSES the slot watcher around the
+   *  revert so those p4-driven rewrites aren't re-recorded + re-opened. */
+  async shelveFiles(wt: string, paths: string[], message: string, keepWorking = false): Promise<{ change: string }> {
     const ctx = this.ctx(wt);
     await this.syncWatched(ctx, wt);
-    const change = await shelveFiles(ctx, wt, paths, message);
-    return { change: change ?? '' };
+    pauseSlotWatch(wt);
+    try {
+      const change = await shelveFiles(ctx, wt, paths, message, keepWorking);
+      return { change: change ?? '' };
+    } finally {
+      // Let the revert's fs events drain (dropped while paused), then clear +
+      // resume so a stale edit doesn't reappear on the next status.
+      setTimeout(() => {
+        clearSlotChanges(wt);
+        resumeSlotWatch(wt);
+      }, 600);
+    }
   }
-  /** Restore (and remove) the checked shelved changelists. */
+  /** Restore the checked shelved changelists into the working area ("Return to
+   *  Changelist") — unshelve + drop the shelf. */
   async unshelve(wt: string, changes: string[]): Promise<void> {
     const ctx = this.ctx(wt);
     for (const c of changes) {
       await unshelvePop(ctx, wt, c);
+    }
+  }
+  /** Discard the checked shelves ("Delete From Shelf") without restoring. */
+  async deleteShelf(wt: string, changes: string[]): Promise<void> {
+    const ctx = this.ctx(wt);
+    for (const c of changes) {
+      await deleteShelf(ctx, wt, c);
     }
   }
   listFilesInCommit(wt: string, sha: string): Promise<GitFileChange[]> {

@@ -162,9 +162,10 @@ export const IpcChannel = {
   GitCommit: 'pb:git:commit',
   /** Discard local changes for selected paths (delete if untracked). */
   GitRevert: 'pb:git:revert',
-  /** Perforce: shelve checked files / unshelve checked changes. */
+  /** Perforce: shelve checked files / unshelve / delete shelves. */
   GitShelve: 'pb:git:shelve',
   GitUnshelve: 'pb:git:unshelve',
+  GitDeleteShelf: 'pb:git:delete-shelf',
   /** File list for an existing commit, used when browsing history. */
   GitFilesInCommit: 'pb:git:files-in-commit',
   /** Candidate PR base branches (develop + recent rc-1.*). */
@@ -836,10 +837,13 @@ export interface PopBotApi {
     diff(input: GitDiffInput): Promise<GitDiffResultOrErr>;
     commit(input: GitCommitInput): Promise<GitCommitResult>;
     revert(input: GitRevertInput): Promise<GitRevertResult>;
-    /** Perforce: shelve the checked (depot-key) paths into a new shelf. */
-    shelve(input: { chatId: string; paths: string[]; message?: string }): Promise<{ ok: true; change: string } | { ok: false; error: string }>;
+    /** Perforce: shelve the checked (depot-key) paths into a new shelf.
+     *  keepWorking = Copy to shelf (leave files opened); else Move to shelf. */
+    shelve(input: { chatId: string; paths: string[]; message?: string; keepWorking?: boolean }): Promise<{ ok: true; change: string } | { ok: false; error: string }>;
     /** Perforce: unshelve (restore + remove) the checked shelved changelists. */
     unshelve(input: { chatId: string; changes: string[] }): Promise<{ ok: true } | { ok: false; error: string }>;
+    /** Perforce: discard the checked shelved changelists. */
+    deleteShelf(input: { chatId: string; changes: string[] }): Promise<{ ok: true } | { ok: false; error: string }>;
     filesInCommit(input: GitFilesInCommitInput): Promise<GitFilesInCommitResult>;
     /** Resolve a cwd from either the chat (its worktree) or the repo
      *  (the source clone path), in that order, then list base branches.

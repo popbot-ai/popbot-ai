@@ -253,6 +253,7 @@ export async function shelveFiles(
   wt: string,
   paths: string[],
   description: string,
+  keepWorking = false,
 ): Promise<string | null> {
   if (!paths.length) return null;
   const created = await p4exec(ctx, ['change', '-i'], {
@@ -277,9 +278,19 @@ export async function shelveFiles(
     await p4exec(ctx, ['change', '-d', cl], { cwd: wt, tolerant: true }); // nothing shelved → drop empty CL
     return null;
   }
-  // Drop the working copies — the shelf (in CL `cl`) keeps them.
-  for (let i = 0; i < files.length; i += CHUNK) await run(['revert'], files.slice(i, i + CHUNK));
+  // "Move to shelf" drops the working copies (the shelf in CL `cl` keeps them);
+  // "Copy to shelf" (keepWorking) leaves them opened in the new CL.
+  if (!keepWorking) {
+    for (let i = 0; i < files.length; i += CHUNK) await run(['revert'], files.slice(i, i + CHUNK));
+  }
   return cl;
+}
+
+/** Delete a shelved changelist's shelf (discard the shelved work) + the now-
+ *  empty pending changelist. Best-effort. */
+export async function deleteShelf(ctx: P4Context, wt: string, change: string): Promise<void> {
+  await p4exec(ctx, ['shelve', '-d', '-c', change], { cwd: wt, tolerant: true });
+  await p4exec(ctx, ['change', '-d', change], { cwd: wt, tolerant: true });
 }
 
 /** Shelved changelists owned by the user — the P4 panel's shelf section. */
