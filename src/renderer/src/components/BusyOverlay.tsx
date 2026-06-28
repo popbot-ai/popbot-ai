@@ -31,7 +31,7 @@ export function BusyOverlay({ message, detail, error, onDismiss }: BusyOverlayPr
             style={{ color: 'var(--danger, #d05656)' }}
           />
         ) : (
-          <i className="fa-solid fa-circle-notch fa-spin busy-spinner" />
+          <div className="busy-washer" />
         )}
         <div className="busy-msg">{message}</div>
         {detail && <div className="busy-detail mono">{detail}</div>}

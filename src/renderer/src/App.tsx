@@ -523,13 +523,23 @@ export default function App(): JSX.Element {
   };
 
   const doClose = async (id: string, opts: { stash: boolean }) => {
+    const chat = chats.find((c) => c.id === id);
+    // Dismiss the close prompt; the busy overlay takes over the window.
+    setClosingChat(null);
     if (focusedId === id) {
       const nextIdx = chats.findIndex((c) => c.id === id);
       const fallback = chats[nextIdx + 1] ?? chats[nextIdx - 1] ?? null;
       setFocusedId(fallback?.id ?? null);
     }
-    await close(id, opts);
-    setClosingChat(null);
+    // Slot-backed chats do real work on close (persist branch/changelist to the
+    // root + shelve) — show the washing-machine overlay so the window isn't dead
+    // while it runs. Perforce sync progress streams into the overlay detail.
+    if (chat?.slotId != null) setBusy({ message: t('app.busy.closing') });
+    try {
+      await close(id, opts);
+    } finally {
+      setBusy(null);
+    }
   };
 
   /** Create the chat (with optional slot/worktree). Surfaces config

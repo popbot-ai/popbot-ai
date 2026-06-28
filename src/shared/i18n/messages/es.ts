@@ -158,6 +158,7 @@ export const es = {
   'app.busy.branchingFrom': 'Creando la rama {branch} desde {baseBranch}',
   'app.busy.perforce.creating': 'Creando changelist {branch}',
   'app.busy.other.settingUp': 'Configurando {branch}',
+  'app.busy.closing': 'Cerrando el chat…',
   'app.create.newClientTestChat': 'Nuevo chat de prueba de cliente',
   'app.chat.reviewName': '[CR] PR #{number} · {title}',
   'app.update.available': 'Actualización disponible — {name}',

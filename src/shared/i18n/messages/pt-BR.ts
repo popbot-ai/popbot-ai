@@ -158,6 +158,7 @@ export const ptBR = {
   'app.busy.branchingFrom': 'Criando branch {branch} a partir de {baseBranch}',
   'app.busy.perforce.creating': 'Criando changelist {branch}',
   'app.busy.other.settingUp': 'Configurando {branch}',
+  'app.busy.closing': 'Fechando o chat…',
   'app.create.newClientTestChat': 'Novo chat de teste de cliente',
   'app.chat.reviewName': '[CR] PR #{number} · {title}',
   'app.update.available': 'Atualização disponível — {name}',

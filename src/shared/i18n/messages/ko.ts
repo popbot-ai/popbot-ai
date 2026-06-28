@@ -158,6 +158,7 @@ export const ko = {
   'app.busy.branchingFrom': '{baseBranch}에서 {branch} 브랜치 생성 중',
   'app.busy.perforce.creating': '체인지리스트 {branch} 생성 중',
   'app.busy.other.settingUp': '{branch} 설정 중',
+  'app.busy.closing': '채팅을 닫는 중…',
   'app.create.newClientTestChat': '새 클라이언트 테스트 채팅',
   'app.chat.reviewName': '[CR] PR #{number} · {title}',
   'app.update.available': '업데이트 사용 가능 — {name}',

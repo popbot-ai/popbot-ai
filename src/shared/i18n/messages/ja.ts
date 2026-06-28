@@ -158,6 +158,7 @@ export const ja = {
   'app.busy.branchingFrom': '{baseBranch} から {branch} を作成中',
   'app.busy.perforce.creating': 'チェンジリスト {branch} を作成中',
   'app.busy.other.settingUp': '{branch} をセットアップ中',
+  'app.busy.closing': 'チャットを終了中…',
   'app.create.newClientTestChat': '新しいクライアントテストチャット',
   'app.chat.reviewName': '[CR] PR #{number} · {title}',
   'app.update.available': 'アップデートが利用可能 — {name}',

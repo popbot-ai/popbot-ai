@@ -4548,6 +4548,13 @@ input.input.mono, select.input.mono { font-family: var(--font-mono); font-size: 
   font-size: 22px;
   color: var(--acc-hi);
 }
+/* Washing-machine drum for the "please wait" overlay (create / close). */
+.busy-washer {
+  width: 42px; height: 42px; border-radius: 50%;
+  border: 4px solid var(--bg-4, rgba(255, 255, 255, 0.16));
+  border-top-color: var(--acc-hi); border-right-color: var(--acc-hi);
+  animation: washer-drum 1s ease-in-out infinite alternate;
+}
 .busy-msg {
   color: var(--fg-0);
   font-size: var(--fs-md);
