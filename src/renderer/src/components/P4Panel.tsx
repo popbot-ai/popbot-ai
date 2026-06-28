@@ -448,7 +448,8 @@ export function P4Panel({ chatId, chatName, diffPath, onOpenDiff }: SourceContro
           <span>{t('p4.commits.title')}</span>
           {ok?.client && (
             <span className="p4-head-ws mono" title={t('p4.workspace.title', { client: ok.client })}>
-              <i className="fa-solid fa-desktop" />&nbsp;{ok.client}
+              <i className="fa-solid fa-desktop" />
+              <span className="p4-ws-name">{ok.client}</span>
             </span>
           )}
         </div>
