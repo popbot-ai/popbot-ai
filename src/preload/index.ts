@@ -49,12 +49,7 @@ const api: PopBotApi = {
     delete: (chatId: string) => ipcRenderer.invoke(IpcChannel.ChatsDelete, chatId),
     search: (query: string, limit?: number) =>
       ipcRenderer.invoke(IpcChannel.ChatsSearch, query, limit),
-    listSlots: () => ipcRenderer.invoke(IpcChannel.ChatsListSlots),
-    initializeSlots: () => ipcRenderer.invoke(IpcChannel.ChatsInitializeSlots),
-    initializeOneSlot: (slotId: number) =>
-      ipcRenderer.invoke(IpcChannel.ChatsInitializeOneSlot, slotId),
     attachSlot: (chatId: string) => ipcRenderer.invoke(IpcChannel.ChatsAttachSlot, chatId),
-    deleteAllSlots: () => ipcRenderer.invoke(IpcChannel.ChatsDeleteAllSlots),
     listMessages: (chatId: string, tail?: number) =>
       ipcRenderer.invoke(IpcChannel.MessagesList, chatId, tail),
   },

@@ -61,11 +61,7 @@ export const IpcChannel = {
   ChatsReopen: 'pb:chats:reopen',
   ChatsDelete: 'pb:chats:delete',
   ChatsSearch: 'pb:chats:search',
-  ChatsListSlots: 'pb:chats:list-slots',
-  ChatsInitializeSlots: 'pb:chats:initialize-slots',
-  ChatsInitializeOneSlot: 'pb:chats:initialize-one-slot',
   ChatsAttachSlot: 'pb:chats:attach-slot',
-  ChatsDeleteAllSlots: 'pb:chats:delete-all-slots',
   ChatsClosePrep: 'pb:chats:close-prep',
   MessagesList: 'pb:messages:list',
 
@@ -368,41 +364,6 @@ export type ReopenChatResult =
   | { ok: false; reason: 'no-free-slot' }
   | { ok: false; reason: 'worktree-failed'; message: string };
 
-export interface SlotInfo {
-  slotId: number;
-  /** True when the slot's worktree has been created on disk. False
-   *  means it'll be set up lazily on first use. */
-  ready: boolean;
-  /** null when this slot is free. */
-  occupant: {
-    chatId: string;
-    chatName: string;
-    ticket: string | null;
-    pr: number | null;
-    branch: string | null;
-  } | null;
-}
-
-export interface ListSlotsResult {
-  ok: true;
-  maxCount: number;
-  slots: SlotInfo[];
-}
-export type ListSlotsResultOrErr =
-  | ListSlotsResult
-  | { ok: false; reason: 'slots-not-configured' };
-
-export interface SlotInitResult {
-  slotId: number;
-  /** Already had a worktree before this call (no-op). */
-  alreadyReady: boolean;
-  ok: boolean;
-  /** Present when ok=false. */
-  error?: string;
-}
-export type InitializeSlotsResult =
-  | { ok: true; results: SlotInitResult[] }
-  | { ok: false; reason: 'slots-not-configured' | 'git-not-configured' };
 
 /** New-repo form payload. `id` is the user-chosen short name and is
  *  permanent — used as the folder segment in worktree paths and the
@@ -501,11 +462,6 @@ export type RepoSlotStepResult =
   | { ok: false; reason: 'repo-not-found' }
   | { ok: false; reason: 'wrong-mode' }
   | { ok: false; reason: 'slot-in-use'; chatName: string };
-
-export type DeleteAllSlotsResult =
-  | { ok: true; removed: number }
-  | { ok: false; reason: 'git-not-configured' }
-  | { ok: false; reason: 'slots-in-use'; chatNames: string[] };
 
 export interface ClosePrepResult {
   hasWorktree: boolean;
@@ -608,17 +564,9 @@ export interface PopBotApi {
     reopen(chatId: string): Promise<ReopenChatResult>;
     delete(chatId: string): Promise<void>;
     search(query: string, limit?: number): Promise<ChatRecord[]>;
-    listSlots(): Promise<ListSlotsResultOrErr>;
-    initializeSlots(): Promise<InitializeSlotsResult>;
-    /** Initialize a single slot — used by the renderer's progress
-     *  panel so it can show "creating slot N of M" + allow cancel. */
-    initializeOneSlot(slotId: number): Promise<SlotInitResult | { ok: false; error: string }>;
     /** Attach a slot + worktree to an existing chat that doesn't yet
      *  have one (e.g. it was created before slots were configured). */
     attachSlot(chatId: string): Promise<CreateChatResult>;
-    /** Tear down every slot worktree on disk + delete each parking
-     *  branch. Refuses if any open chat is currently using a slot. */
-    deleteAllSlots(): Promise<DeleteAllSlotsResult>;
     listMessages(chatId: string, tail?: number): Promise<MessageRecord[]>;
   };
   settings: {
