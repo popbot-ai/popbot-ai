@@ -49,6 +49,7 @@ export const es = {
   'p4.menu.moveToShelf': 'Mover al archivador',
   'p4.menu.returnToChangelist': 'Devolver al changelist',
   'p4.menu.deleteFromShelf': 'Eliminar del archivador',
+  'p4.menu.clearShelf': 'Vaciar archivador',
   'p4.shelf.title': 'Archivador',
   'p4.shelf.empty': 'No hay cambios archivados.',
   'p4.promptPreviewPlaceholder': 'Vista previa del prompt',

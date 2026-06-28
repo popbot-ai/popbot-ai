@@ -307,11 +307,18 @@ export async function deleteShelf(ctx: P4Context, wt: string, change: string): P
   await p4exec(ctx, ['change', '-d', change], { cwd: wt, tolerant: true });
 }
 
-/** Shelved changelists owned by the user — the P4 panel's shelf section. */
+/**
+ * Shelved changelists for the P4 panel's shelf section — scoped to THIS slot's
+ * client (`-c`), not the whole user (`-u`). The cross-slot continuity backup
+ * lives on a separate `popbot_<repo>_root` client and other slots have their
+ * own; surfacing those here is confusing (and the root one can't be deleted
+ * from a slot client). Falls back to `-u` only if the slot has no client name.
+ */
 export async function listShelves(ctx: P4Context, max = 50): Promise<P4Shelf[]> {
+  const scope = ctx.client ? ['-c', ctx.client] : ['-u', ctx.user];
   const { stdout } = await p4exec(
     ctx,
-    ['-ztag', 'changes', '-s', 'shelved', '-u', ctx.user, '-L', '-m', String(max)],
+    ['-ztag', 'changes', '-s', 'shelved', ...scope, '-L', '-m', String(max)],
     { tolerant: true },
   );
   const out: P4Shelf[] = [];

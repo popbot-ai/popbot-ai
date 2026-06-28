@@ -49,6 +49,7 @@ export const ja = {
   'p4.menu.moveToShelf': 'シェルフに移動',
   'p4.menu.returnToChangelist': 'チェンジリストに戻す',
   'p4.menu.deleteFromShelf': 'シェルフから削除',
+  'p4.menu.clearShelf': 'シェルフをクリア',
   'p4.shelf.title': 'シェルフ',
   'p4.shelf.empty': 'シェルブされた変更はありません。',
   'p4.promptPreviewPlaceholder': 'プロンプトプレビュー',

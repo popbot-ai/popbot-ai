@@ -49,6 +49,7 @@ export const ko = {
   'p4.menu.moveToShelf': '셸브로 이동',
   'p4.menu.returnToChangelist': '체인지리스트로 되돌리기',
   'p4.menu.deleteFromShelf': '셸브에서 삭제',
+  'p4.menu.clearShelf': '셸브 비우기',
   'p4.shelf.title': '셸브',
   'p4.shelf.empty': '셸브된 변경 사항이 없습니다.',
   'p4.promptPreviewPlaceholder': '프롬프트 미리보기',

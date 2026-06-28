@@ -49,6 +49,7 @@ export const de = {
   'p4.menu.moveToShelf': 'In Zurückstellung verschieben',
   'p4.menu.returnToChangelist': 'In Changelist zurückführen',
   'p4.menu.deleteFromShelf': 'Aus Zurückstellung löschen',
+  'p4.menu.clearShelf': 'Zurückstellung leeren',
   'p4.shelf.title': 'Zurückstellung',
   'p4.shelf.empty': 'Keine zurückgestellten Änderungen.',
   'p4.promptPreviewPlaceholder': 'Prompt-Vorschau',

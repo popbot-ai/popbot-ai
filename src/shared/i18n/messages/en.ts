@@ -706,6 +706,7 @@ export const en = {
   'p4.menu.moveToShelf': 'Move to Shelf',
   'p4.menu.returnToChangelist': 'Return to Changelist',
   'p4.menu.deleteFromShelf': 'Delete From Shelf',
+  'p4.menu.clearShelf': 'Clear Shelf',
   'p4.shelf.title': 'Shelf',
   'p4.shelf.empty': 'No shelved changes.',
   'git.base.targetTitle': 'PR target / fork-point branch',

@@ -271,6 +271,22 @@ export function P4Panel({ chatId, chatName, diffPath, onOpenDiff }: SourceContro
     }
   };
 
+  /** Delete EVERY shelved changelist in this slot (not just the checked ones). */
+  const clearShelf = async (): Promise<void> => {
+    const changes = shelves.map((s) => String(s.change));
+    if (!changes.length || busy) return;
+    setBusy(true);
+    setActionError(null);
+    const res = await window.popbot.git.deleteShelf({ chatId, changes });
+    setBusy(false);
+    if (res.ok) {
+      setShelfChecked(new Set());
+      refresh();
+    } else {
+      setActionError(res.error || 'Clear failed');
+    }
+  };
+
   const unshelve = async (): Promise<void> => {
     const changes = [...shelfChecked];
     if (!changes.length || busy) return;
@@ -534,6 +550,7 @@ export function P4Panel({ chatId, chatName, diffPath, onOpenDiff }: SourceContro
                 { label: t('p4.menu.returnToChangelist'), icon: 'fa-box-open', disabled: shelfChecked.size === 0 || busy, onClick: () => void unshelve() },
                 'sep',
                 { label: t('p4.menu.deleteFromShelf'), icon: 'fa-trash-can', danger: true, disabled: shelfChecked.size === 0 || busy, onClick: () => void deleteFromShelf() },
+                { label: t('p4.menu.clearShelf'), icon: 'fa-broom', danger: true, disabled: busy, onClick: () => void clearShelf() },
               ]}
             />
           )}

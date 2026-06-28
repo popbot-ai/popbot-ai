@@ -49,6 +49,7 @@ export const fr = {
   'p4.menu.moveToShelf': 'Déplacer vers la remise',
   'p4.menu.returnToChangelist': 'Renvoyer vers la liste de modifications',
   'p4.menu.deleteFromShelf': 'Supprimer de la remise',
+  'p4.menu.clearShelf': 'Vider la remise',
   'p4.shelf.title': 'Remise',
   'p4.shelf.empty': 'Aucune modification remisée.',
   'p4.promptPreviewPlaceholder': 'Aperçu du prompt',

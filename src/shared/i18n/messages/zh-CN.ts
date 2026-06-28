@@ -49,6 +49,7 @@ export const zhCN = {
   'p4.menu.moveToShelf': '移动到搁置区',
   'p4.menu.returnToChangelist': '返回更改列表',
   'p4.menu.deleteFromShelf': '从搁置区删除',
+  'p4.menu.clearShelf': '清空搁置区',
   'p4.shelf.title': '搁置区',
   'p4.shelf.empty': '没有搁置的更改。',
   'p4.promptPreviewPlaceholder': '提示词预览',

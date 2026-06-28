@@ -49,6 +49,7 @@ export const ptBR = {
   'p4.menu.moveToShelf': 'Mover para o shelf',
   'p4.menu.returnToChangelist': 'Retornar ao changelist',
   'p4.menu.deleteFromShelf': 'Excluir do shelf',
+  'p4.menu.clearShelf': 'Limpar shelf',
   'p4.shelf.title': 'Shelf',
   'p4.shelf.empty': 'Nenhuma alteração arquivada.',
   'p4.promptPreviewPlaceholder': 'Prévia do prompt',
