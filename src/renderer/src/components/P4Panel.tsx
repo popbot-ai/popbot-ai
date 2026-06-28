@@ -308,13 +308,13 @@ export function P4Panel({ chatId, chatName, diffPath, onOpenDiff }: SourceContro
     const first = paths[0].split('/').pop() ?? paths[0];
     const shelfLabel = desc.trim() || (paths.length === 1 ? first : `${first} +${paths.length - 1}`);
     const res = await window.popbot.git.shelve({ chatId, paths, message: shelfLabel, keepWorking });
-    setBusy(false);
     if (res.ok) {
       setChecked(new Set());
-      refresh();
+      await refresh(); // keep the overlay up until the panel reflects the change
     } else {
       setActionError(res.error || 'Shelve failed');
     }
+    setBusy(false);
   };
 
   const deleteFromShelf = async (): Promise<void> => {
@@ -323,13 +323,13 @@ export function P4Panel({ chatId, chatName, diffPath, onOpenDiff }: SourceContro
     setBusy(true);
     setActionError(null);
     const res = await window.popbot.git.deleteShelf({ chatId, items });
-    setBusy(false);
     if (res.ok) {
       setShelfChecked(new Set());
-      refresh();
+      await refresh(); // keep the overlay up until the panel reflects the change
     } else {
       setActionError(res.error || 'Delete failed');
     }
+    setBusy(false);
   };
 
 
@@ -339,13 +339,13 @@ export function P4Panel({ chatId, chatName, diffPath, onOpenDiff }: SourceContro
     setBusy(true);
     setActionError(null);
     const res = await window.popbot.git.unshelve({ chatId, items });
-    setBusy(false);
     if (res.ok) {
       setShelfChecked(new Set());
-      refresh();
+      await refresh(); // keep the overlay up until the panel reflects the change
     } else {
       setActionError(res.error || 'Unshelve failed');
     }
+    setBusy(false);
   };
 
   // Header select-all / none toggles (the indeterminate state is set on the
@@ -371,14 +371,14 @@ export function P4Panel({ chatId, chatName, diffPath, onOpenDiff }: SourceContro
     setBusy(true);
     setActionError(null);
     const res = await window.popbot.git.commit({ chatId, message: desc, paths });
-    setBusy(false);
     if (res.ok) {
       setChecked(new Set());
       setDesc('');
-      refresh();
+      await refresh(); // keep the overlay up until the panel reflects the change
     } else {
       setActionError(res.error || 'Submit failed');
     }
+    setBusy(false);
   };
 
   /** Run the active footer mode: manual submit, or send the rendered AI
@@ -404,17 +404,17 @@ export function P4Panel({ chatId, chatName, diffPath, onOpenDiff }: SourceContro
     setBusy(true);
     setActionError(null);
     const res = await window.popbot.git.revert({ chatId, paths });
-    setBusy(false);
     if (res.ok) {
       setChecked((prev) => {
         const next = new Set(prev);
         paths.forEach((p) => next.delete(p));
         return next;
       });
-      refresh();
+      await refresh(); // keep the overlay up until the panel reflects the change
     } else {
       setActionError(res.error || 'Revert failed');
     }
+    setBusy(false);
   };
 
   return (
