@@ -425,23 +425,14 @@ export function P4Panel({ chatId, chatName, diffPath, onOpenDiff }: SourceContro
           <div className="p4-washer" />
         </div>
       )}
-      {/* Row 1: SCM badge + workspace. Row 2: the changelist (#number + name). */}
+      {/* Single row: SCM badge + changelist (#number + name). The workspace
+          name sits on the right of the RECENT CHANGES bar below. */}
       <div className="p4-head">
-        <div className="p4-head-top">
-          <span className="repo-card-scm scm-perforce" title={t('prefs.repos.scm.perforce')}>
-            <P4Glyph /> {t('prefs.repos.scm.perforce')}
-          </span>
-          {ok?.client && (
-            <span className="p4-head-ws mono" title={t('p4.workspace.title', { client: ok.client })}>
-              <i className="fa-solid fa-desktop" />&nbsp;{ok.client}
-            </span>
-          )}
-        </div>
-        <div className="p4-head-cl" title={ok?.branch ?? ''}>
-          <i className="fa-solid fa-code-branch p4-head-cl-ico" />
-          {ok?.changeNumber && <span className="p4-head-clnum">@{ok.changeNumber}</span>}
-          <span className="p4-head-clname">{ok?.branch ?? '—'}</span>
-        </div>
+        <span className="repo-card-scm scm-perforce" title={t('prefs.repos.scm.perforce')}>
+          <P4Glyph /> {t('prefs.repos.scm.perforce')}
+        </span>
+        {ok?.changeNumber && <span className="p4-head-clnum">@{ok.changeNumber}</span>}
+        <span className="p4-head-clname" title={ok?.branch ?? ''}>{ok?.branch ?? '—'}</span>
       </div>
       {openProgress && (
         <div className="pref-progress" style={{ margin: '4px 10px' }}>
@@ -453,7 +444,14 @@ export function P4Panel({ chatId, chatName, diffPath, onOpenDiff }: SourceContro
       )}
       {/* top — recent submitted changes */}
       <div className="p4-section p4-commits" ref={commitsRef} style={{ flex: `0 0 ${commitsPx}px` }}>
-        <div className="p4-section-head">{t('p4.commits.title')}</div>
+        <div className="p4-section-head">
+          <span>{t('p4.commits.title')}</span>
+          {ok?.client && (
+            <span className="p4-head-ws mono" title={t('p4.workspace.title', { client: ok.client })}>
+              <i className="fa-solid fa-desktop" />&nbsp;{ok.client}
+            </span>
+          )}
+        </div>
         <div className="p4-section-body">
           {commits.length === 0 && <div className="git-empty-line">{t('p4.commits.empty')}</div>}
           {commits.map((c) => (
