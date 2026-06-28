@@ -15,6 +15,66 @@ export const ja = {
   'common.loading': '読み込み中…',
   'common.retry': '再試行',
   'common.reconnect': '再接続',
+  'app.reconnect.title': 'ワークスペースドライブが切断されました',
+  'app.reconnect.message':
+    '{repos} のワークスペースドライブが再起動により切断されました。スロットとチャットを使用するには再接続してください。',
+  'app.reconnect.button': '再接続',
+  'app.reconnect.later': '後で',
+  'app.reconnect.busy': '再接続中…',
+  'app.reconnect.working':
+    '管理者の確認を承認すると、ワークスペースドライブが再接続されます。1 分ほどかかる場合があります…',
+  'app.reconnect.failed': '再接続に失敗しました',
+  // --- Source-control panel, slots, repo wizard (session additions) ---
+  'slots.detail.recheck': '{count} 個のスロットを再チェックし、不足しているワークスペースをセットアップします。',
+  'git.files.truncated': '変更されたファイル {total} 件中 {shown} 件を表示しています。上限は 環境設定 → バージョン管理 で引き上げられます。',
+  'busy.dismiss': '閉じる',
+  'busy.copyError': 'エラーをコピー',
+  'p4.empty': 'フォーカス中の Perforce ワークスペースはありません。',
+  'p4.workspace.title': 'Perforce ワークスペース (クライアント): {client}',
+  'p4.commits.title': '最近の変更',
+  'p4.commits.empty': 'まだサブミットされた変更はありません。',
+  'p4.changes.title': '現在の変更',
+  'p4.changes.empty': '開いているファイルはありません。',
+  'p4.submit': '{count} 件をサブミット',
+  'p4.submitPlaceholder': 'チェンジリストの説明…',
+  'p4.revert': '元に戻す',
+  'p4.selectAll': 'すべて選択 / 解除',
+  'p4.shelve': 'シェルブ',
+  'p4.shelveChecked': 'チェックした変更をシェルブ',
+  'p4.unshelve': 'アンシェルブ',
+  'p4.unshelveChecked': 'チェックした変更をアンシェルブ',
+  'p4.menu.changesActions': 'チェックした変更に対する操作',
+  'p4.menu.shelfActions': 'チェックしたシェルブに対する操作',
+  'p4.menu.copyToShelf': 'シェルフにコピー',
+  'p4.menu.moveToShelf': 'シェルフに移動',
+  'p4.menu.returnToChangelist': 'チェンジリストに戻す',
+  'p4.menu.deleteFromShelf': 'シェルフから削除',
+  'p4.confirm.revertBody': '{count} 個のファイルを元に戻しますか？変更は破棄され、復元できません。',
+  'p4.confirm.deleteShelfBody': '{count} 個のシェルブされたファイルを削除しますか？この操作は元に戻せません。',
+  'p4.login.title': 'Perforce のログインが必要です',
+  'p4.login.body': 'Perforce のセッションが期限切れです。パスワードを入力して再度ログインしてください。',
+  'p4.login.placeholder': 'Perforce パスワード',
+  'p4.login.button': 'ログイン',
+  'p4.login.busy': 'ログイン中…',
+  'p4.shelf.title': 'シェルフ',
+  'p4.shelf.empty': 'シェルブされた変更はありません。',
+  'p4.promptPreviewPlaceholder': 'プロンプトプレビュー',
+  'p4.mode.submit.label': 'SUBMIT',
+  'p4.mode.submit.short': 'SUBMIT',
+  'p4.mode.cr.label': 'CODE REVIEW (AI)',
+  'p4.mode.cr.short': 'CR (AI)',
+  'p4.mode.tests.label': 'RUN TESTS (AI)',
+  'p4.mode.tests.short': 'TESTS (AI)',
+  'p4.mode.reviewCommit.label': 'SUBMIT (AI)',
+  'p4.mode.reviewCommit.short': 'SUBMIT (AI)',
+  'branch.dialog.branchName': 'ブランチ名',
+  'branch.dialog.changelistName': 'チェンジリスト名',
+  'branch.dialog.perforceLatest': 'この Perforce スロットは最新のチェンジリストに同期されるため、選択するベースブランチはありません。',
+  'prefs.git.maxChangedFiles.title': '変更ビューのファイル上限',
+  'prefs.git.maxChangedFiles.desc': '変更ビューでリストが打ち切られるまでに表示されるファイルの最大数です (git と Perforce に適用)。{min}–{max}。',
+  'prefs.repos.scm.git': 'Git',
+  'prefs.repos.scm.perforce': 'Perforce',
+  'prefs.repos.wizard.setup.gitIntro': '各スロットはこのリポジトリのコピーオンライトクローンであるため、ビルドキャッシュ (node_modules、ビルド出力) がチャット間でウォームに保たれます。まずフォルダからベースを固定し、その後スロットをマウントします。',
   'common.refresh': '更新',
   'common.clear': 'クリア',
   'common.copy': 'コピー',
@@ -92,10 +152,13 @@ export const ja = {
   // ---------------------------------------------------------------------------
   // App shell (App.tsx).
   // ---------------------------------------------------------------------------
-  'app.busy.worktreeFailed': 'worktree のセットアップに失敗しました',
+  'app.busy.worktreeFailed': 'ワークスペースのセットアップに失敗しました',
   'app.busy.settingUpWorkspace': 'ワークスペースをセットアップ中…',
   'app.busy.checkingOutBranch': '{branch} をチェックアウト中',
   'app.busy.branchingFrom': '{baseBranch} から {branch} を作成中',
+  'app.busy.perforce.creating': 'チェンジリスト {branch} を作成中',
+  'app.busy.other.settingUp': '{branch} をセットアップ中',
+  'app.busy.closing': 'チャットを終了中…',
   'app.create.newClientTestChat': '新しいクライアントテストチャット',
   'app.chat.reviewName': '[CR] PR #{number} · {title}',
   'app.update.available': 'アップデートが利用可能 — {name}',
@@ -352,14 +415,19 @@ export const ja = {
   // Close-chat prompt (CloseChatPrompt.tsx).
   // ---------------------------------------------------------------------------
   'close.title': 'ブランチ {branch} を閉じようとしています。',
+  'close.title.perforce': 'チェンジリスト {branch} を閉じようとしています。',
   'close.parkSub': 'スロット {slotId} は popbot/slot-{slotId} に parking されます。',
   'close.checking': 'worktree を確認中…',
   'close.noWorktree': 'このチャットにはクリーンアップする worktree がありません。',
   'close.clean': 'worktree はクリーンです — stash するものはありません。',
+  'close.clean.perforce': 'ワークスペースはクリーンです — シェルブするものはありません。',
   'close.stashPrompt':
     'コミットされていないすべての変更を stash しますか? これらの変更は、このチャットを再度開くと unstash されます。',
+  'close.stashPrompt.perforce':
+    'ペンディング中のすべての変更をシェルブしますか? これらの変更は、このチャットを再度開くとアンシェルブされます。',
   'close.discardClose': '破棄して閉じる',
   'close.stashClose': 'stash して閉じる',
+  'close.stashClose.perforce': 'シェルブして閉じる',
   'close.closeChat': 'チャットを閉じる',
 
   // ---------------------------------------------------------------------------
@@ -392,6 +460,7 @@ export const ja = {
   'chat.slot.fallback': 'スロット {slotId}',
   'chat.slot.worktreeTitle': 'worktree · {worktreePath}',
   'chat.branch.title': 'ブランチ · {branch}',
+  'chat.branch.title.perforce': 'チェンジリスト · {branch}',
   'chat.type.lite': 'Lite',
   'chat.type.clientTest': 'クライアントテスト',
   'chat.input.resizeTitle': 'ドラッグして入力欄のサイズを変更',
@@ -768,6 +837,9 @@ export const ja = {
   'prefs.git.actionTemplates.title': 'アクションテンプレート',
   'prefs.git.actionTemplates.intro':
     '大きなアクションボタンをクリックしたとき (またはベースブランチを変更したとき) に git パネルがチャットエージェントに送信するプロンプトです。{macro} マクロを使ってコンテキストを挿入できます。',
+  'prefs.p4.actionTemplates.title': 'Perforce アクションテンプレート',
+  'prefs.p4.actionTemplates.intro':
+    'CR (Helix Swarm レビュー)、テスト実行、レビュー & コミット のために Perforce パネルがチャットエージェントに送信するプロンプトです。{macro} マクロを使ってコンテキストを挿入できます。',
 
   // Preferences — External apps pane.
   'prefs.apps.title': '外部アプリ',
@@ -814,6 +886,11 @@ export const ja = {
   'prefs.templates.git.makePrReady.label': 'MARK PR READY (AI)',
   'prefs.templates.git.addressCr.label': 'ADDRESS CR (AI)',
   'prefs.templates.git.rebaseBase.label': 'CHANGE BASE BRANCH (AI)',
+  'prefs.templates.p4.codeReview.label': 'CODE REVIEW (AI)',
+  'prefs.templates.p4.runTests.label': 'RUN TESTS (AI)',
+  'prefs.templates.p4.reviewCommit.label': 'REVIEW & COMMIT (AI)',
+  'prefs.templates.resetThis': 'このテンプレートをデフォルトにリセット',
+  'prefs.templates.modified': 'カスタマイズ済み — デフォルトと異なります',
   'prefs.templates.resetDefaults': 'デフォルトにリセット',
   'prefs.templates.title': 'プロンプトテンプレート',
   'prefs.templates.intro':
@@ -987,6 +1064,16 @@ export const ja = {
   'prefs.repos.wizard.slotCount.title': 'スロット数',
   'prefs.repos.wizard.slotCount.desc': 'このリポジトリがサポートする同時チャット数。1–64。',
   'prefs.repos.wizard.adding': '追加中…',
+  'prefs.repos.wizard.setUp': 'リポジトリをセットアップ',
+  'prefs.repos.wizard.settingUp': 'セットアップ中',
+  'prefs.repos.wizard.setup.slotsHead': 'slot',
+  'prefs.repos.wizard.setup.diskHead': 'ディスク容量',
+  'prefs.repos.wizard.progress.building': 'ベース + slot を構築中 (admin プロンプトを承認してください)…',
+  'prefs.repos.wizard.progress.creating': 'リポジトリを作成中…',
+  'prefs.repos.wizard.progress.initing': 'slot を初期化中 {total} 個中 {done} 個目…',
+  'prefs.repos.wizard.progress.done': '{id} の準備ができました — slot {count} 個。',
+  'prefs.repos.wizard.progress.failHint':
+    'セットアップを中止しました。戻って調整し、もう一度お試しください — 凍結されたベースはディスク上に残り、再利用されます。',
   'prefs.repos.error.duplicateId': 'ID "{id}" のリポジトリはすでに存在します。',
   'prefs.repos.error.generic': 'リポジトリを作成できませんでした。',
   'prefs.repos.error.notFound': 'リポジトリが見つかりません — 削除されましたか?',
@@ -1012,7 +1099,7 @@ export const ja = {
   'prefs.repos.delete.reversibleBody':
     '後で ID {id} の新しいリポジトリを作成すると、切り離されたすべてのチャットが自動的に再関連付けされます。',
   'prefs.repos.delete.noTouch':
-    'これは {path} のソースクローンやその中のチャットブランチには影響しません。ディスク上のスロット worktree もそのまま残ります — クリーンな状態にしたい場合は手動で整理できます。',
+    '{path} にある元のリポジトリには一切手を加えません — 削除されるのは PopBot の slot クローン／worktree だけです。(ディスク上に残ったものは、クリーンな状態にしたい場合は手動で整理できます。)',
   'prefs.repos.delete.typeToConfirm': '確認のため {id} と入力してください:',
   'prefs.repos.delete.deleting': '削除中…',
 
@@ -1024,4 +1111,70 @@ export const ja = {
     'PopBot のインターフェイスで使用する言語を選択します。ほとんどのテキストとメニューはすぐに更新されますが、一部のシステム文字列は再起動後に更新が完了します。',
   'language.label': '表示言語',
   'language.systemNote': '新しいウィンドウとアプリメニューもこの言語を使用します。',
+
+  // ---------------------------------------------------------------------------
+  // Repositories — Add-Repository wizard (Perforce / Git) + Perforce prefs.
+  // ---------------------------------------------------------------------------
+  'prefs.repos.colorTaken': '他のリポジトリで既に使用されています',
+  'prefs.repos.wizard.step': 'ステップ {step}',
+  'prefs.repos.wizard.buildingBase': 'ベースを構築中',
+  'prefs.repos.wizard.detect.detecting': '検出中…',
+  'prefs.repos.wizard.detect.git': 'Git リポジトリ',
+  'prefs.repos.wizard.detect.perforce': 'Perforce リポジトリ',
+  'prefs.repos.wizard.detect.invalid': 'git でも Perforce でもないリポジトリです',
+  'prefs.repos.wizard.detect.alreadyAdded': 'このフォルダは既にリポジトリとして追加されています',
+  'prefs.repos.wizard.detect.idTaken': 'その短縮 ID は既に使用されています — 別のものを選んでください',
+  'prefs.repos.wizard.connect.intro':
+    'Perforce サーバーに接続します。フォルダが同期されている changelist を取得し、すべてのスロットがそこへ flush されるようにします (再転送は不要です)。',
+  'prefs.repos.wizard.connect.port.title': 'P4PORT',
+  'prefs.repos.wizard.connect.port.desc': 'サーバーアドレス。例: ssl:host:1666。',
+  'prefs.repos.wizard.connect.user.title': 'P4USER',
+  'prefs.repos.wizard.connect.user.desc':
+    'Perforce のユーザーです。認証には既存の p4 ログインチケットを使用します。',
+  'prefs.repos.wizard.connect.depot.title': 'Depot パス',
+  'prefs.repos.wizard.connect.depot.desc':
+    'このフォルダがマッピングする depot パス。例: //depot/MyGame。',
+  'prefs.repos.wizard.connect.baseName.title': 'ベース名',
+  'prefs.repos.wizard.connect.baseName.desc':
+    '凍結された shado ベースの名前。スロットはこれからクローンされます。',
+  'prefs.repos.wizard.connect.discovered':
+    'これらは、このリポジトリをセットアップするために使用される値で、お使いの Perforce ワークスペース ({client}) から読み取られます。',
+  'prefs.repos.wizard.connect.changelist': '同期済み changelist',
+  'prefs.repos.wizard.connect.base': 'ベース名',
+  'prefs.repos.wizard.preflight.intro':
+    'ディスク容量を確認しています。ベースはフォルダ (そのままの場所に残ります) から構築されるため、同じドライブにフォルダとほぼ同じサイズの空き容量が必要です。',
+  'prefs.repos.wizard.preflight.measuring': 'フォルダを測定中…',
+  'prefs.repos.wizard.preflight.folder': 'ソースフォルダ',
+  'prefs.repos.wizard.preflight.free': 'ドライブの空き容量',
+  'prefs.repos.wizard.preflight.needs': 'ベースに必要な容量 (≈ +5%)',
+  'prefs.repos.wizard.preflight.ok': '空き容量は十分です — ベースを構築する準備ができました。',
+  'prefs.repos.wizard.preflight.block':
+    '空き容量が不足しています: 利用可能 {free}、ベースには {need} が必要です。空き容量を確保するか (またはより余裕のあるドライブのフォルダを選択して)、もう一度お試しください。',
+  'prefs.repos.wizard.build.intro':
+    'フォルダから凍結ベース ({gb}) を構築します。これは昇格された shado 操作を実行します — Windows の管理者 (UAC) プロンプトが表示されます。数分かかる場合があります。進捗はリアルタイムで表示されます。',
+  'prefs.repos.wizard.build.baseName': 'ベース',
+  'prefs.repos.wizard.build.start': 'ベースを構築',
+  'prefs.repos.wizard.build.starting': 'ベースの構築を開始中 (管理者プロンプトを承認してください)…',
+  'prefs.repos.wizard.build.done':
+    'ベースを構築しました。ここでキャンセルしても、ベースはディスク上に残り、再利用できます。',
+  'prefs.repos.wizard.build.changelist': 'ベースの changelist',
+  'prefs.repos.wizard.build.changelistDesc':
+    'ベースが同期されている changelist — 自動的に取得されます。誤っている場合のみ上書きしてください。',
+  'prefs.perforce.p4Path.title': 'p4 実行ファイル',
+  'prefs.perforce.p4Path.desc':
+    'p4 バイナリへのパス。空欄のままにすると PATH の「p4」を使用します。',
+  'prefs.perforce.defaultPort.title': 'デフォルトの P4PORT',
+  'prefs.perforce.defaultPort.desc':
+    'リポジトリ追加 → Perforce 接続ステップに事前入力します。',
+  'prefs.perforce.defaultUser.title': 'デフォルトの P4USER',
+  'prefs.perforce.defaultUser.desc':
+    'リポジトリ追加 → Perforce 接続ステップに事前入力します。',
+  'prefs.perforce.parallelThreads.title': '並列転送スレッド数',
+  'prefs.perforce.parallelThreads.desc':
+    'p4 の並列 sync/submit 用のスレッド数。1 にすると無効になります。',
+  'prefs.perforce.revertUnchanged.title': '変更のないファイルを revert',
+  'prefs.perforce.revertUnchanged.desc':
+    'submit の前に、バイト単位で同一のファイルを changelist から除外します。',
+  'prefs.perforce.revertUnchanged.toggle': 'submit 時にバイト単位で同一のファイルを revert',
+  'prefs.repos.error.duplicatePath': 'そのフォルダは既にリポジトリ "{id}" として追加されています。',
 } satisfies PartialMessages;

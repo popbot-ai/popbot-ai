@@ -91,7 +91,10 @@ export function upsertRepo(input: Omit<RepoRecord, 'createdAt' | 'updatedAt'>): 
        slot_prefix  = excluded.slot_prefix,
        default_base = excluded.default_base,
        slot_count   = excluded.slot_count,
-       p4_config    = excluded.p4_config,
+       -- COALESCE so an update that omits p4 (e.g. the edit-repo flow) can't
+       -- NULL a Perforce config; a base recache still updates it with a real
+       -- (non-null) value. scm is intentionally absent → insert-only/immutable.
+       p4_config    = COALESCE(excluded.p4_config, repos.p4_config),
        updated_at   = excluded.updated_at`,
   ).run(
     input.id,

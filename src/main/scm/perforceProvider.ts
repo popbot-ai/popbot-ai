@@ -21,6 +21,7 @@
  */
 import { hostname } from 'node:os';
 import type { GitBaseBranches, GitFileChange, GitScope } from '@shared/git';
+import type { P4ShelfItem } from '@shared/perforce';
 import type { PerforceRepoConfig, RepoRecord } from '@shared/persistence';
 import {
   type SourceControlCapabilities,
@@ -36,23 +37,37 @@ import {
   listStatus as p4ListStatus,
   revertFiles as p4RevertFiles,
   submitFiles as p4SubmitFiles,
+  submitChangelist,
 } from '../p4/files';
 import {
   deleteClient,
+  createChangelist,
+  deleteChangelist,
   ensureClient,
+  ensureRootClient,
   findLatestShelf,
   flushTo,
   listShelves,
   openChanges,
   readSlotMeta,
+  deleteShelf,
+  reshelveInto,
   revertAll,
+  revertUnchanged,
+  rootClientName,
+  shelveFiles,
   shelveWork,
+  syncLatest,
+  unshelveInto,
   unshelvePop,
   writeSlotMeta,
 } from '../p4/workspace';
+import { p4exec } from '../p4/exec';
 import {
   clearSlotChanges,
   getSlotChanges,
+  pauseSlotWatch,
+  resumeSlotWatch,
   startSlotWatch,
   stopSlotWatch,
 } from '../p4/watcher';
@@ -99,8 +114,16 @@ export class PerforceProvider extends SourceControlProvider {
     startSlotWatch(wt); // idempotent
     const changes = getSlotChanges(wt);
     if (changes.length) {
-      await openChanges(ctx, wt, changes);
+      // Open the watcher's changes into the chat's named changelist.
+      await openChanges(ctx, wt, changes, readSlotMeta(wt)?.changelist);
       clearSlotChanges(wt);
+      // The watcher opens files on raw OS write events — which include PopBot's
+      // OWN bulk writes (p4 sync / unshelve) whose content equals the depot, so
+      // a fresh slot can show thousands of byte-identical files "opened". p4 is
+      // the content authority: `revert -a` drops every unchanged open and keeps
+      // only genuinely-modified files. `p4 edit`/`revert` fire ~no fs events
+      // (verified), so this doesn't feed the watcher.
+      await revertUnchanged(ctx, wt);
     }
   }
 
@@ -128,7 +151,9 @@ export class PerforceProvider extends SourceControlProvider {
     await this.syncWatched(ctx, wt);
     const status = await p4ListStatus(ctx, wt);
     const shelves = await listShelves(ctx).catch(() => []);
-    return { ...status, shelves };
+    // Surface the chat's changelist name (its branch analog) as the branch.
+    const name = readSlotMeta(wt)?.changelistName;
+    return { ...status, branch: name ?? status.branch, shelves };
   }
   fileDiff(wt: string, scope: GitScope, path: string): Promise<ScmFileDiff> {
     return p4FileDiff(this.ctx(wt), wt, scope, path);
@@ -136,10 +161,81 @@ export class PerforceProvider extends SourceControlProvider {
   async commitFiles(wt: string, message: string, paths: string[]): Promise<{ sha: string }> {
     const ctx = this.ctx(wt);
     await this.syncWatched(ctx, wt);
+    const meta = readSlotMeta(wt);
+    if (meta?.changelist) {
+      const res = await submitChangelist(ctx, wt, meta.changelist, message);
+      // Keep the chat going in a fresh changelist with the same name.
+      const cl = await createChangelist(ctx, meta.changelistName ?? message);
+      writeSlotMeta(wt, { ...meta, changelist: cl || undefined });
+      return res;
+    }
     return p4SubmitFiles(ctx, wt, message, paths);
   }
-  revertFiles(wt: string, paths: string[]): Promise<void> {
-    return p4RevertFiles(this.ctx(wt), wt, paths);
+  /** Revert the selected files. PAUSE the slot watcher around it: `p4 revert`
+   *  rewrites each file back to the depot version on disk, which fires OS
+   *  file-change events — without the pause the watcher re-records them and the
+   *  next status `p4 edit`s them right back open, so the revert appears to do
+   *  nothing. */
+  async revertFiles(wt: string, paths: string[]): Promise<void> {
+    const ctx = this.ctx(wt);
+    pauseSlotWatch(wt);
+    try {
+      await p4RevertFiles(ctx, wt, paths);
+    } finally {
+      // Drain the revert's fs events (dropped while paused), then clear +
+      // resume so the just-reverted files don't reappear on the next status.
+      setTimeout(() => {
+        clearSlotChanges(wt);
+        resumeSlotWatch(wt);
+      }, 600);
+    }
+  }
+  /** Shelve the checked files. "Move" (default) reverts the working copies;
+   *  "Copy" (keepWorking) leaves them opened. Opens watched edits first so the
+   *  checked files are really opened, and PAUSES the slot watcher around the
+   *  revert so those p4-driven rewrites aren't re-recorded + re-opened. */
+  async shelveFiles(wt: string, paths: string[], message: string, keepWorking = false): Promise<{ change: string }> {
+    const ctx = this.ctx(wt);
+    await this.syncWatched(ctx, wt);
+    pauseSlotWatch(wt);
+    try {
+      const change = await shelveFiles(ctx, wt, paths, message, keepWorking);
+      return { change: change ?? '' };
+    } finally {
+      // Let the revert's fs events drain (dropped while paused), then clear +
+      // resume so a stale edit doesn't reappear on the next status.
+      setTimeout(() => {
+        clearSlotChanges(wt);
+        resumeSlotWatch(wt);
+      }, 600);
+    }
+  }
+  /** Restore the checked shelved FILES into the working area ("Return to
+   *  Changelist") — unshelve the named files + drop them from the shelf. The
+   *  panel lists files, so each item is a changelist + the files picked from it. */
+  async unshelve(wt: string, items: P4ShelfItem[]): Promise<void> {
+    const ctx = this.ctx(wt);
+    // Pause the watcher: unshelve writes the shelved files to disk (and opens
+    // them in p4 directly), so the fs events it fires would otherwise be
+    // re-recorded and churned on the next status.
+    pauseSlotWatch(wt);
+    try {
+      for (const it of items) {
+        await unshelvePop(ctx, wt, it.change, it.paths);
+      }
+    } finally {
+      setTimeout(() => {
+        clearSlotChanges(wt);
+        resumeSlotWatch(wt);
+      }, 600);
+    }
+  }
+  /** Discard the checked shelved FILES ("Delete From Shelf") without restoring. */
+  async deleteShelf(wt: string, items: P4ShelfItem[]): Promise<void> {
+    const ctx = this.ctx(wt);
+    for (const it of items) {
+      await deleteShelf(ctx, wt, it.change, it.paths);
+    }
   }
   listFilesInCommit(wt: string, sha: string): Promise<GitFileChange[]> {
     return p4FilesInChange(this.ctx(wt), wt, sha);
@@ -170,11 +266,12 @@ export class PerforceProvider extends SourceControlProvider {
   }
 
   async ensureSlotWorktree(opts: EnsureSlotWorktreeOpts): Promise<void> {
-    const { p4 } = this.repoFor(opts.repoPath);
+    const { repo, p4 } = this.repoFor(opts.repoPath);
     // shado COW clone mounted at the slot path (shared substrate enforces
-    // same-drive + <base>-N naming + SHADO_HOME on the repo's drive).
+    // same-drive + <base>-N naming + SHADO_HOME under workspaces/<id>/shado).
     await ensureSlot({
       baseName: p4.shadoBase,
+      repoId: repo.id,
       repoPath: opts.repoPath,
       worktreePath: opts.worktreePath,
     });
@@ -196,11 +293,46 @@ export class PerforceProvider extends SourceControlProvider {
   async checkoutBranch(opts: CheckoutBranchOpts): Promise<void> {
     const ctx = this.ctx(opts.worktreePath);
     const meta = readSlotMeta(opts.worktreePath);
-    await revertAll(ctx, opts.worktreePath);
-    if (meta) await flushTo(ctx, meta.depotPath, meta.baseChangelist);
-    // Fresh slot for a new chat — forget any prior watched edits, watch anew.
-    clearSlotChanges(opts.worktreePath);
+    // revertAll + sync below rewrite many files on disk. PAUSE the slot watcher
+    // first (ensure it exists, then pause) so those PopBot-driven writes aren't
+    // recorded as agent edits and `p4 edit`-ed — that bug opened the ENTIRE
+    // depot for edit (thousands of "M" files in a fresh slot). The watcher's
+    // `clearSlotChanges` alone is insufficient: ReadDirectoryChangesW delivers
+    // events asynchronously, so writes recorded AFTER a clear still leak.
     startSlotWatch(opts.worktreePath);
+    pauseSlotWatch(opts.worktreePath);
+    try {
+      await revertAll(ctx, opts.worktreePath);
+      // Drop the prior chat's (now reverted / empty) changelist.
+      if (meta?.changelist) await deleteChangelist(ctx, meta.changelist);
+      if (meta) {
+        await flushTo(ctx, meta.depotPath, meta.baseChangelist);
+        // A new chat starts from the LATEST changelist — flushing re-anchors the
+        // have-list at the warm frozen base, then sync transfers only the
+        // base→head delta (the warm-slot payoff).
+        await syncLatest(ctx, opts.worktreePath, meta.depotPath);
+      }
+      // The chat's named pending changelist (its git-branch analog) — the slot
+      // watcher opens edits into it; commit submits it.
+      const cl = await createChangelist(ctx, opts.branch);
+      if (meta) {
+        writeSlotMeta(opts.worktreePath, {
+          ...meta,
+          changelist: cl || undefined,
+          changelistName: opts.branch,
+        });
+      }
+    } finally {
+      // Forget everything recorded so far, then resume after a delay so any
+      // in-flight fs events from the sync drain WHILE STILL PAUSED (dropped),
+      // and clear once more at resume in case one lands right on the boundary.
+      clearSlotChanges(opts.worktreePath);
+      const wt = opts.worktreePath;
+      setTimeout(() => {
+        clearSlotChanges(wt);
+        resumeSlotWatch(wt);
+      }, 1500);
+    }
   }
 
   async worktreeStatus(worktreePath: string): Promise<WorktreeStatus> {
@@ -280,8 +412,8 @@ export class PerforceProvider extends SourceControlProvider {
       /* no client / config — fall through to shado teardown */
     }
     try {
-      const { p4 } = this.repoFor(opts.repoPath);
-      await removeSlot({ baseName: p4.shadoBase, repoPath: opts.repoPath, worktreePath: opts.worktreePath });
+      const { repo, p4 } = this.repoFor(opts.repoPath);
+      await removeSlot({ baseName: p4.shadoBase, repoId: repo.id, repoPath: opts.repoPath, worktreePath: opts.worktreePath });
     } catch {
       /* repo gone or shado unavailable — best-effort */
     }
@@ -304,5 +436,111 @@ export class PerforceProvider extends SourceControlProvider {
   }
   popStash(worktreePath: string, ref: string): Promise<void> {
     return unshelvePop(this.ctx(worktreePath), worktreePath, ref);
+  }
+
+  /* ---------- cross-slot continuity ---------- */
+
+  /** Connection to the per-repo ROOT client (owns chat WIP shelves). */
+  private rootCtx(repoPath: string): { ctx: P4Context; depotPath: string } {
+    const { repo, p4 } = this.repoFor(repoPath);
+    return {
+      ctx: { port: p4.port, user: p4.user, client: rootClientName(repo.id) },
+      depotPath: p4.depotPath,
+    };
+  }
+
+  /**
+   * On close: re-home the slot's WIP to the ROOT client as a shelf (server-side
+   * `reshelve` — no file transfer), then clear the slot. Returns the root shelf
+   * changelist to persist on the chat (or null when there's nothing/discarded).
+   */
+  async persistChatOnClose(opts: {
+    repoPath: string;
+    worktreePath: string;
+    branch: string;
+    discard: boolean;
+    p4ShelfCl?: number | null;
+  }): Promise<{ p4ShelfCl?: number | null }> {
+    const wt = opts.worktreePath;
+    let slotCtx: P4Context;
+    try {
+      slotCtx = this.ctx(wt);
+    } catch {
+      return { p4ShelfCl: opts.p4ShelfCl ?? null }; // slot never initialized
+    }
+    const { ctx: rootCtx, depotPath } = this.rootCtx(opts.repoPath);
+    // Open any pending watcher edits into the named CL so they're captured.
+    await this.syncWatched(slotCtx, wt).catch(() => undefined);
+    const slotCl = readSlotMeta(wt)?.changelist;
+
+    const dropRootShelf = async (): Promise<void> => {
+      if (opts.p4ShelfCl) await deleteShelf(rootCtx, opts.repoPath, String(opts.p4ShelfCl)).catch(() => undefined);
+    };
+
+    // Discard, or nothing to keep → revert the slot + drop the parked shelf.
+    if (opts.discard) {
+      await revertAll(slotCtx, wt).catch(() => undefined);
+      if (slotCl) await deleteChangelist(slotCtx, slotCl).catch(() => undefined);
+      await dropRootShelf();
+      return { p4ShelfCl: null };
+    }
+    if (!slotCl) return { p4ShelfCl: opts.p4ShelfCl ?? null };
+
+    // Shelve the slot's pending CL; bail to discard-semantics if nothing shelved.
+    const shelved = await p4exec(slotCtx, ['shelve', '-c', String(slotCl)], { cwd: wt, tolerant: true });
+    if (!/shelved/i.test(shelved.stdout + shelved.stderr)) {
+      await revertAll(slotCtx, wt).catch(() => undefined);
+      await deleteChangelist(slotCtx, slotCl).catch(() => undefined);
+      await dropRootShelf();
+      return { p4ShelfCl: null };
+    }
+
+    // Re-home the shelf to the root client (reuse the chat's root CL if it has
+    // one, else create it), then wipe the slot's shelf + opened files + CL.
+    await ensureRootClient({ ctx: rootCtx, root: opts.repoPath, depotPath, host: hostname() });
+    let rootCl = opts.p4ShelfCl ?? null;
+    if (!rootCl) rootCl = await createChangelist(rootCtx, opts.branch);
+    await reshelveInto(slotCtx, slotCl, rootCl);
+    await p4exec(slotCtx, ['shelve', '-d', '-c', String(slotCl)], { cwd: wt, tolerant: true });
+    await revertAll(slotCtx, wt).catch(() => undefined);
+    await deleteChangelist(slotCtx, slotCl).catch(() => undefined);
+    return { p4ShelfCl: rootCl };
+  }
+
+  /**
+   * On reopen: unshelve the chat's parked ROOT shelf into this slot's fresh CL
+   * (keeping the root copy as the backup). `checkoutBranch` already created the
+   * clean slot CL. Returns the (unchanged) root shelf to keep persisting.
+   */
+  async restoreChatOnReopen(opts: {
+    repoPath: string;
+    worktreePath: string;
+    branch: string;
+    baseBranch: string;
+    p4ShelfCl?: number | null;
+  }): Promise<{ p4ShelfCl?: number | null }> {
+    if (!opts.p4ShelfCl) return { p4ShelfCl: opts.p4ShelfCl ?? null };
+    const wt = opts.worktreePath;
+    let slotCtx: P4Context;
+    try {
+      slotCtx = this.ctx(wt);
+    } catch {
+      return { p4ShelfCl: opts.p4ShelfCl };
+    }
+    const slotCl = readSlotMeta(wt)?.changelist;
+    if (!slotCl) return { p4ShelfCl: opts.p4ShelfCl };
+    // unshelve writes files to the slot — pause the watcher so they aren't
+    // recorded as agent edits (same reason the sync path pauses).
+    pauseSlotWatch(wt);
+    try {
+      await unshelveInto(slotCtx, wt, opts.p4ShelfCl, slotCl);
+    } finally {
+      clearSlotChanges(wt);
+      setTimeout(() => {
+        clearSlotChanges(wt);
+        resumeSlotWatch(wt);
+      }, 1500);
+    }
+    return { p4ShelfCl: opts.p4ShelfCl };
   }
 }

@@ -24,7 +24,10 @@ export const TICKET_TEMPLATE_VARS = [
   { name: 'ticketurl',   desc: 'Direct link to the issue' },
   { name: 'priority',    desc: 'urgent / high / med / low' },
   { name: 'project',     desc: 'Linear project name' },
-  { name: 'branch',      desc: 'Branch checked out in this slot' },
+  { name: 'branch',      desc: 'Branch (git) / changelist name (Perforce) for this slot' },
+  { name: 'scm',         desc: 'Version control system — "Git" or "Perforce"' },
+  { name: 'scmnoun',     desc: '"branch" for git, "changelist" for Perforce' },
+  { name: 'commitverb',  desc: '"commit" for git, "submit the changelist" for Perforce' },
   { name: 'slot',        desc: 'Workspace slot number' },
 ] as const;
 
@@ -42,13 +45,13 @@ export const DEFAULT_START_TICKET_TEMPLATE = `Please review and, if possible, di
 \${markdown}
 
 ## Workspace
-- Branch: \`\${branch}\`
+- The \${scm} \${scmnoun} is \`\${branch}\`.
 - Slot: \${slot}
 - Linear: \${ticketurl}
 
 ## How to proceed
 1. Read whatever files you need to understand the scope.
-2. If you can fix the issue, go ahead — make the changes, run the relevant tests, and commit.
+2. If you can fix the issue, go ahead — make the changes, run the relevant tests, and \${commitverb}.
 3. If you can't (ambiguous spec, missing context, risky tradeoff), ask your questions here. The engineer will be notified and respond.
 4. When the fix is complete, notify the engineer that it's ready to test and describe the full fix — what changed, why, and how to verify.`;
 
@@ -193,3 +196,46 @@ Recommended approach:
 
 Do NOT merge — merging is always done manually via the PR web page.
 When done, confirm the final branch name.`;
+
+/* ===== Perforce-action templates (used by the P4Panel action button) =====
+ *
+ * The agent does the real p4/Helix-Swarm work from these prompts. Swarm's
+ * canonical CLI path: a shelved changelist whose description contains
+ * `#review` opens a new review; `#review-<id>` updates that review. */
+
+export const P4_ACTION_TEMPLATE_VARS = [
+  { name: 'changelist', desc: 'This chat’s changelist name (its branch analog)' },
+  { name: 'client',     desc: 'Perforce workspace (client) for this slot' },
+] as const;
+
+export const DEFAULT_P4_CODE_REVIEW_TEMPLATE = `Please submit this changelist to a Helix Swarm code review using the Swarm command-line tools.
+
+Steps:
+1. Review the pending changes first (\`p4 opened\`, \`p4 diff\`) and find the pending changelist number for this work (\`${'${changelist}'}\`).
+2. Give the changelist a clear description — what changed and why.
+3. Shelve the changelist so its files are available to Swarm: \`p4 shelve -c <cl#>\` (re-shelve with \`-f\` when updating an existing review).
+4. Use the Swarm command-line tools to create the review from this changelist. Discover the exact command first (e.g. \`swarm --help\`), then create a NEW review for changelist <cl#> — or, if you're updating an existing review, target it by its review id.
+5. If no \`swarm\` CLI is available in this environment, fall back to the p4-native path: add \`#review\` to the changelist description (keep \`#review-<id>\` to update an existing one) and shelve so Swarm picks it up.
+
+Do NOT \`p4 submit\` — the change goes through Swarm review first.
+When done, reply with the Swarm review URL or id.`;
+
+export const DEFAULT_RUN_TESTS_TEMPLATE = `Please run this project's test suite and report the results.
+
+Steps:
+1. Detect how tests run here (package.json scripts, Makefile, pytest, go test, gradle, etc.).
+2. Run the full suite — or, if a full run is impractical, the most relevant subset (say which you chose and why).
+3. Summarize: pass/fail counts, and for each failure the test name + the root cause.
+
+Do NOT submit or shelve anything — this is just a test run.`;
+
+export const DEFAULT_P4_REVIEW_COMMIT_TEMPLATE = `Please do a final pre-submit review of this changelist (\`${'${changelist}'}\`), make sure the Swarm review is clean, then write a proper submit message and submit it.
+
+Steps:
+1. Do a careful final review of the pending changes (\`p4 opened\`, \`p4 diff\`) — watch for bugs, debug/print leftovers, secrets, commented-out code, and anything that shouldn't ship.
+2. Check the current Helix Swarm review for this changelist (use the Swarm command-line tools — \`swarm --help\` for the exact command) and make sure ALL of its open comments/issues have been addressed. Do NOT submit over unresolved review feedback — fix anything still outstanding first.
+3. Fix any other issues you find before submitting.
+4. Write a proper changelist description that clearly states what changed and why (a real submit message, not a placeholder).
+5. Submit the whole changelist: \`p4 submit -c <cl#>\` (this submits every open file in the changelist).
+
+If anything looks risky or ambiguous, stop and ask instead of submitting.`;

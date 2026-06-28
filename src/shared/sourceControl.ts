@@ -76,6 +76,11 @@ export interface SourceControlProviderMeta {
   /** False while a provider is only roughed-in (no concrete class yet),
    *  so the UI can hide it from selectors. */
   implemented: boolean;
+  /** Prompt-template substitutions for THIS version control system, spread
+   *  into the start-* templates so the wording matches the backend instead of
+   *  presuming git. A flat key/value map so new VCS can add their own terms
+   *  without touching the renderer (e.g. `scm`, `scmnoun`, `commitverb`). */
+  promptVars: Record<string, string>;
 }
 
 export const SOURCE_CONTROL_PROVIDERS: Record<SourceControlProviderId, SourceControlProviderMeta> = {
@@ -93,6 +98,7 @@ export const SOURCE_CONTROL_PROVIDERS: Record<SourceControlProviderId, SourceCon
       supportsEphemeralRepos: true,
     },
     implemented: true,
+    promptVars: { scm: 'Git', scmnoun: 'branch', commitverb: 'commit' },
   },
   perforce: {
     id: 'perforce',
@@ -115,6 +121,7 @@ export const SOURCE_CONTROL_PROVIDERS: Record<SourceControlProviderId, SourceCon
       supportsEphemeralRepos: false,
     },
     implemented: true,
+    promptVars: { scm: 'Perforce', scmnoun: 'changelist', commitverb: 'submit the changelist' },
   },
   lore: {
     id: 'lore',
@@ -133,6 +140,7 @@ export const SOURCE_CONTROL_PROVIDERS: Record<SourceControlProviderId, SourceCon
       supportsEphemeralRepos: false,
     },
     implemented: false,
+    promptVars: { scm: 'Lore', scmnoun: 'change', commitverb: 'save' },
   },
 };
 

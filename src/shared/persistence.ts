@@ -86,6 +86,12 @@ export interface ChatRecord {
    *  store the resolved path so cleanup still works after the user
    *  changes their worktrees directory in Preferences. */
   worktreePath: string | null;
+  /** Perforce only: the changelist whose SHELF holds this chat's work while
+   *  closed. Slots are per-slot p4 clients, so a pending changelist is
+   *  slot-local; the server-side shelf (tracked here) is what survives a
+   *  reopen on a different slot — unshelved into a fresh CL there. Null for
+   *  git chats and any chat with no shelved work. */
+  p4ShelfCl: number | null;
   /** ID of the repo this chat lives in. Defaults to `'app'` for
    *  pre-multi-repo rows. Raw chats use {@link RAW_CHAT_REPO_ID} and
    *  deliberately do not join to a repo row. */
@@ -316,6 +322,11 @@ export interface PerforceSettings {
   /** Revert files the agent opened but left byte-identical, before submit,
    *  so the watcher's auto-edits don't create no-op revisions. Default on. */
   revertUnchanged?: boolean;
+  /** P4CHARSET for the connection. ONLY set this for a unicode-enabled server
+   *  (e.g. 'utf8') — a non-unicode server REJECTS any charset. Blank/'none' =
+   *  unset (the correct value for a non-unicode server). When blank, P4CHARSET
+   *  is still inherited from the environment/P4CONFIG if present. */
+  charset?: string;
 }
 
 export interface MessageBodyTool {

@@ -52,6 +52,10 @@ export interface ScmStatus {
   recentCommits: GitCommitSummary[];
   /** Perforce only — shelved changelists for the P4 panel's shelf section. */
   shelves?: import('@shared/perforce').P4Shelf[];
+  /** Perforce only — the slot's P4 client (workspace) name, for the panel. */
+  client?: string;
+  /** Perforce only — the chat's numbered pending changelist, if any. */
+  changeNumber?: string;
 }
 
 /** A single file's before/after for the diff overlay. */
@@ -102,6 +106,22 @@ export abstract class SourceControlProvider {
   abstract commitFiles(wt: string, message: string, paths: string[]): Promise<{ sha: string }>;
   /** Discard local changes for the given paths. */
   abstract revertFiles(wt: string, paths: string[]): Promise<void>;
+  /** Shelve the given (depot-key) paths into a recoverable shelf. `keepWorking`
+   *  = "Copy to shelf" (leave files opened); else "Move to shelf" (revert the
+   *  working copies). Perforce-only; default throws. */
+  shelveFiles(_wt: string, _paths: string[], _message: string, _keepWorking?: boolean): Promise<{ change: string }> {
+    return Promise.reject(new Error('Shelving is not supported by this source control.'));
+  }
+  /** Restore the given shelved files — "Return to Changelist".
+   *  Perforce-only; default throws. */
+  unshelve(_wt: string, _items: import('@shared/perforce').P4ShelfItem[]): Promise<void> {
+    return Promise.reject(new Error('Unshelving is not supported by this source control.'));
+  }
+  /** Discard the given shelved files — "Delete From Shelf".
+   *  Perforce-only; default throws. */
+  deleteShelf(_wt: string, _items: import('@shared/perforce').P4ShelfItem[]): Promise<void> {
+    return Promise.reject(new Error('Shelf delete is not supported by this source control.'));
+  }
   /** Files touched by a commit/change. */
   abstract listFilesInCommit(wt: string, sha: string): Promise<GitFileChange[]>;
   /** Candidate base refs to fork a chat from. Gated by
@@ -158,4 +178,39 @@ export abstract class SourceControlProvider {
   abstract findLatestStashRef(worktreePath: string, prefix: string): Promise<string | null>;
   /** Restore (pop) a stash/shelve by ref. */
   abstract popStash(worktreePath: string, ref: string): Promise<void>;
+
+  /* ---------- cross-slot continuity (the central "home" for a chat) ----------
+   *
+   * A slot is an independent clone/client, so a chat's branch (git) or pending
+   * changelist (perforce) lives only in the slot it was created in — and a chat
+   * can reopen on a DIFFERENT slot. These hooks consolidate a chat's work to a
+   * slot-independent home on close and restore it on reopen:
+   *   - git:      push the chat branch to the LOCAL ROOT repo / fetch it back.
+   *   - perforce: shelve the changelist (server-side) / unshelve into the slot.
+   * Default no-op so a provider that doesn't need it (or hasn't implemented it
+   * yet) keeps the legacy slot-local stash behavior. Returns chat-record state
+   * to persist (the perforce shelf changelist; git needs none). */
+
+  persistChatOnClose(_opts: {
+    repoPath: string;
+    worktreePath: string;
+    branch: string;
+    /** User chose discard (vs keep) in the close prompt. */
+    discard: boolean;
+    /** Prior shelf changelist for this chat (perforce), if any. */
+    p4ShelfCl?: number | null;
+  }): Promise<{ p4ShelfCl?: number | null }> {
+    return Promise.resolve({});
+  }
+
+  restoreChatOnReopen(_opts: {
+    repoPath: string;
+    worktreePath: string;
+    branch: string;
+    baseBranch: string;
+    /** The chat's persisted shelf changelist (perforce), if any. */
+    p4ShelfCl?: number | null;
+  }): Promise<{ p4ShelfCl?: number | null }> {
+    return Promise.resolve({});
+  }
 }

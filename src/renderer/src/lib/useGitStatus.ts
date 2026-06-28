@@ -13,7 +13,8 @@ export function useGitStatus(
 ): {
   data: GitStatusResultOrErr | null;
   loading: boolean;
-  refresh: () => void;
+  /** Re-fetch now; await it to know when the new snapshot is applied. */
+  refresh: () => Promise<void>;
 } {
   const [data, setData] = useState<GitStatusResultOrErr | null>(null);
   const [loading, setLoading] = useState(false);

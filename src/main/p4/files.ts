@@ -18,6 +18,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { GitCommitSummary, GitFileChange, GitFileStatus, GitScope } from '@shared/git';
 import { clampP4ParallelThreads, type PerforceSettings } from '@shared/persistence';
+import { isP4AuthError } from '@shared/perforce';
 import { getSetting } from '../persistence/settings';
 import { p4exec, p4execRaw, parseZtag, type P4Context } from './exec';
 
@@ -52,6 +53,8 @@ export async function listStatus(
   behind: number;
   files: GitFileChange[];
   recentCommits: GitCommitSummary[];
+  client?: string;
+  changeNumber?: string;
 }> {
   const [openedR, changesR] = await Promise.all([
     p4exec(ctx, ['-ztag', 'opened'], { cwd: wt, tolerant: true }),
@@ -61,10 +64,22 @@ export async function listStatus(
     }),
   ]);
 
+  // `tolerant` swallows a failed `p4 opened`, which on an expired/missing login
+  // ticket would otherwise render as an empty "no open files" workspace and
+  // hide the real cause. Surface the auth error so the panel shows the login
+  // prompt instead.
+  if (openedR.code !== 0 && isP4AuthError(`${openedR.stderr}\n${openedR.stdout}`)) {
+    throw new Error(openedR.stderr.trim() || openedR.stdout.trim() || 'Perforce login required');
+  }
+
   const files: GitFileChange[] = [];
+  // Capture the chat's numbered pending changelist from the opened files (some
+  // files may sit in 'default'; the named CL is the one the panel header shows).
+  let changeNumber: string | undefined;
   for (const rec of parseZtag(openedR.stdout)) {
     const depotFile = rec.depotFile;
     if (!depotFile) continue;
+    if (rec.change && rec.change !== 'default') changeNumber = rec.change;
     files.push({ path: depotToKey(depotFile), status: actionToStatus(rec.action ?? 'edit') });
   }
 
@@ -81,8 +96,9 @@ export async function listStatus(
   }
 
   // Perforce has no branch/ahead/behind; surface the client name as the
-  // "branch" label for the panel header.
-  return { branch: ctx.client ?? null, ahead: 0, behind: 0, files, recentCommits };
+  // "branch" label for the panel header, and also as `client` so the panel can
+  // show the P4 workspace name explicitly.
+  return { branch: ctx.client ?? null, ahead: 0, behind: 0, files, recentCommits, client: ctx.client, changeNumber };
 }
 
 function readWorking(wt: string, path: string): Buffer | null {
@@ -158,6 +174,32 @@ export async function submitFiles(
   // p4 prints "Change N submitted." (possibly after renumber lines).
   const m = /Change (\d+) submitted/.exec(res.stdout);
   return { sha: m?.[1] ?? '' };
+}
+
+/** Submit the chat's named pending changelist (which already holds the
+ *  watcher-opened files), setting its description to `message` first so the
+ *  commit message wins over the working name. */
+export async function submitChangelist(
+  ctx: P4Context,
+  wt: string,
+  cl: number,
+  message: string,
+): Promise<{ sha: string }> {
+  if (!message.trim()) throw new Error('Submit description required');
+  // Read-modify-write the changelist spec to set the description.
+  const got = await p4exec(ctx, ['change', '-o', String(cl)], { cwd: wt, tolerant: true });
+  const desc = message.trim().replace(/\n/g, '\n\t');
+  const spec = got.stdout.replace(/^Description:\n(?:\t.*\n?)*/m, `Description:\n\t${desc}\n`);
+  await p4exec(ctx, ['change', '-i'], { input: spec, cwd: wt, tolerant: true });
+  const threads = clampP4ParallelThreads(getSetting<PerforceSettings>('perforce')?.parallelThreads);
+  const args = ['submit', '-c', String(cl)];
+  if (threads > 1) args.push(`--parallel=threads=${threads},batch=8,min=1`);
+  const res = await p4exec(ctx, args, { cwd: wt, tolerant: true });
+  if (/No files to submit/i.test(res.stdout + res.stderr)) return { sha: '' };
+  if (res.code !== 0) {
+    throw new Error(`p4 submit failed: ${res.stderr.trim() || res.stdout.trim()}`);
+  }
+  return { sha: /Change (\d+) submitted/.exec(res.stdout)?.[1] ?? '' };
 }
 
 /** Discard local changes for the given paths (revert opened files). */

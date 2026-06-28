@@ -39,6 +39,13 @@
   --st-err-bg:  rgba(214,90,90,0.16);
   --st-idle-bg: rgba(107,114,128,0.16);
 
+  /* Source-control brand colors (git orange, perforce purplish-blue) — used
+     for the scm chips + the wizard "detected" lines. */
+  --scm-git: #f1936f;
+  --scm-git-bg: rgba(240,96,64,0.14);
+  --scm-perforce: #8884ff;
+  --scm-perforce-bg: rgba(136,132,255,0.18);
+
   /* Type */
   --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
@@ -205,6 +212,49 @@ input, textarea { font: inherit; color: inherit; background: none; border: 0; ou
 .app {
   display: flex; flex-direction: column;
   height: 100vh; width: 100vw;
+}
+/* Reboot disconnected the VHDX slot mounts → user-clicked reconnect banner. */
+/* Post-reboot slot reconnect — a center modal (see ReconnectModal.tsx).
+   Replaced the old top banner, which the Windows title-bar overlay obscured. */
+.reconnect-modal { max-width: 440px; }
+.reconnect-modal .reconnect-body {
+  font-size: var(--fs-sm); color: var(--fg-2); max-width: 380px; line-height: 1.45;
+}
+.reconnect-actions {
+  margin-top: 14px; display: flex; gap: 8px; justify-content: center; flex-wrap: wrap;
+}
+/* Indeterminate "washing machine" bar — sweeps back and forth while the opaque
+   elevated remount runs (no real percentage to report). */
+.washer-track {
+  position: relative; width: 320px; max-width: 70vw; height: 6px;
+  margin-top: 4px; border-radius: 3px; overflow: hidden;
+  background: var(--bg-4, rgba(255,255,255,0.08));
+}
+.washer-fill {
+  position: absolute; top: 0; height: 100%; width: 35%;
+  border-radius: 3px; background: var(--acc-hi);
+  animation: washer 1.4s ease-in-out infinite alternate;
+}
+@keyframes washer { from { left: -2%; } to { left: 67%; } }
+
+/* Centered "washing machine" busy overlay over the whole P4 panel while ANY
+   operation (shelve / revert / unshelve / submit) runs — unmissable. */
+.p4-busy-overlay {
+  position: absolute; inset: 0; z-index: 30;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(0, 0, 0, 0.28);
+}
+.p4-washer {
+  width: 52px; height: 52px; border-radius: 50%;
+  border: 5px solid var(--bg-4, rgba(255, 255, 255, 0.16));
+  border-top-color: var(--acc-hi);
+  border-right-color: var(--acc-hi);
+  /* `alternate` makes the drum agitate back and forth like a washing machine. */
+  animation: washer-drum 1s ease-in-out infinite alternate;
+}
+@keyframes washer-drum {
+  from { transform: rotate(-140deg); }
+  to   { transform: rotate(140deg); }
 }
 .workspace {
   flex: 1 1 auto; min-height: 0;
@@ -516,6 +566,19 @@ input, textarea { font: inherit; color: inherit; background: none; border: 0; ou
   background: var(--col-accent, var(--acc));
   color: var(--col-accent-fg, #fff);
   flex: 0 0 12px;
+}
+/* VCS-icon variant: keep the filled accent disc (the per-repo color cue) but
+   show the source-control symbol inside it, in the same contrasting fg the
+   status character used. Slightly larger so the icon reads. */
+.chat-row .status-glyph.scm-glyph {
+  font-size: 9px;
+  width: 16px; height: 16px; flex-basis: 16px;
+  margin-top: 2px;
+}
+/* The git branch mark sits slightly high/left in its glyph box — nudge it
+   down + right to optically center it in the disc. */
+.chat-row .status-glyph.scm-glyph .scm-mark-git {
+  transform: translate(0.75px, 0.75px);
 }
 .chat-row .name {
   font-size: var(--fs-sm); color: var(--fg-0); font-weight: 500;
@@ -1778,6 +1841,10 @@ input, textarea { font: inherit; color: inherit; background: none; border: 0; ou
   max-width: 240px;
 }
 .attachment-chip > i { color: var(--fg-2); font-size: 10px; }
+.attachment-chip-thumb {
+  height: 20px; max-width: 44px; border-radius: 3px; object-fit: cover;
+  display: block; flex: 0 0 auto;
+}
 .attachment-chip-name {
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   max-width: 180px;
@@ -2571,6 +2638,10 @@ input.input.mono, select.input.mono { font-family: var(--font-mono); font-size: 
   z-index: 50;
   animation: fadein 0.15s ease-out;
 }
+/* A modal opened from WITHIN another modal (e.g. Resize Slots from Edit Repo):
+   lift its scrim above the parent modal (z51) so its box isn't painted under
+   the parent — otherwise only the scrim darkening shows. */
+.modal-scrim.modal-scrim-stacked { z-index: 60; }
 
 /* Repo list (Preferences → Repositories) */
 .repo-list { display: flex; flex-direction: column; gap: 10px; margin-top: 12px; }
@@ -2597,8 +2668,10 @@ input.input.mono, select.input.mono { font-family: var(--font-mono); font-size: 
   border: 1px solid var(--line-3);
 }
 .repo-card-body { display: flex; flex-direction: column; gap: 4px; margin-top: 8px; font-size: 11.5px; color: var(--fg-2); }
-.repo-card-row { display: flex; gap: 10px; }
-.repo-card-label { color: var(--fg-3); min-width: 100px; }
+.repo-card-row { display: flex; gap: 8px; align-items: baseline; min-width: 0; }
+.repo-card-label { color: var(--fg-3); flex: 0 0 78px; }
+/* Long paths truncate cleanly instead of clipping at the card edge. */
+.repo-card-row .mono { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* Mode picker cards in the New Repo wizard step 1. */
 .mode-card {
@@ -2709,6 +2782,7 @@ input.input.mono, select.input.mono { font-family: var(--font-mono); font-size: 
   cursor: pointer;
   outline: 2px solid transparent;
   outline-offset: 2px;
+  display: inline-flex; align-items: center; justify-content: center;
   transition: outline-color 100ms ease, transform 80ms ease;
 }
 .repo-swatch:hover { transform: scale(1.08); }
@@ -2716,6 +2790,13 @@ input.input.mono, select.input.mono { font-family: var(--font-mono); font-size: 
   outline-color: var(--fg-0);
 }
 .repo-swatch:focus-visible { outline-color: var(--acc); }
+/* A color already taken by another repo: dimmed, ×-marked, unselectable. */
+.repo-swatch.taken { cursor: not-allowed; opacity: 0.5; }
+.repo-swatch.taken:hover { transform: none; }
+.repo-swatch.taken i {
+  color: #fff; font-size: 13px; line-height: 1;
+  filter: drop-shadow(0 0 1.5px rgba(0,0,0,0.7));
+}
 
 /* Inline warning bar — used in DeleteRepoModal and similar destructive
    confirms. Yellow-amber to distinguish from .pref-error (red). */
@@ -4467,6 +4548,13 @@ input.input.mono, select.input.mono { font-family: var(--font-mono); font-size: 
   font-size: 22px;
   color: var(--acc-hi);
 }
+/* Washing-machine drum for the "please wait" overlay (create / close). */
+.busy-washer {
+  width: 42px; height: 42px; border-radius: 50%;
+  border: 4px solid var(--bg-4, rgba(255, 255, 255, 0.16));
+  border-top-color: var(--acc-hi); border-right-color: var(--acc-hi);
+  animation: washer-drum 1s ease-in-out infinite alternate;
+}
 .busy-msg {
   color: var(--fg-0);
   font-size: var(--fs-md);
@@ -4781,6 +4869,30 @@ input.input.mono, select.input.mono { font-family: var(--font-mono); font-size: 
   box-shadow: 0 0 0 1px var(--acc-line);
 }
 .pref-template-block { margin-bottom: 18px; }
+
+/* Collapsible template accordion — one compact row per template; expand to
+   edit. Keeps a long list of action templates from becoming a wall of boxes. */
+.pref-tmpl-acc { border: 1px solid var(--line-2); border-radius: 5px; margin-bottom: 6px; }
+.pref-tmpl-acc.open { border-color: var(--line-1); }
+.pref-tmpl-acc-head {
+  display: flex; align-items: center; gap: 8px; width: 100%;
+  background: transparent; border: 0; cursor: pointer;
+  padding: 8px 10px; color: var(--fg-1); font-size: var(--fs-sm); font-weight: 600;
+  text-align: left;
+}
+.pref-tmpl-acc-head:hover { background: var(--bg-2); }
+.pref-tmpl-acc.open .pref-tmpl-acc-head { border-bottom: 1px solid var(--line-2); }
+.pref-tmpl-acc-caret { color: var(--fg-3); font-size: 10px; width: 10px; }
+.pref-tmpl-acc-label { flex: 1 1 auto; letter-spacing: 0.03em; }
+.pref-tmpl-acc-dot {
+  width: 7px; height: 7px; border-radius: 50%; background: var(--acc-hi); flex: 0 0 auto;
+}
+.pref-tmpl-acc-reset {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 22px; height: 22px; border-radius: 4px; color: var(--fg-3); cursor: pointer;
+}
+.pref-tmpl-acc-reset:hover { background: var(--bg-3); color: var(--fg-1); }
+.pref-tmpl-acc-body { padding: 8px 10px 10px; }
 
 /* In-app terminal (xterm.js wrapper). The xterm CSS handles the
    interior; we just need the host to fill its parent + a dark bg. */
@@ -5216,12 +5328,66 @@ input.input.mono, select.input.mono { font-family: var(--font-mono); font-size: 
 
 /* Perforce panel (P4Panel) — three stacked sections: commits / changes /
    shelf. Reuses git-file-row + git-* styles for the rows. */
-.p4-panel { display: flex; flex-direction: column; height: 100%; overflow: hidden; font-size: var(--fs-sm); }
+.p4-panel { position: relative; display: flex; flex-direction: column; height: 100%; overflow: hidden; font-size: var(--fs-sm); }
 .p4-empty { padding: 16px; color: var(--fg-2); }
+.p4-head-actions { display: flex; align-items: center; gap: 6px; }
+/* Section-header overflow menu */
+.p4-menu { position: relative; }
+.p4-menu-pop {
+  position: absolute; top: 100%; right: 0; z-index: 30; margin-top: 4px;
+  min-width: 190px; padding: 4px;
+  background: var(--bg-1); border: 1px solid var(--line-3);
+  border-radius: var(--radius-md, 6px); box-shadow: var(--shadow-lg);
+  display: flex; flex-direction: column; gap: 1px;
+}
+.p4-menu-item {
+  display: flex; align-items: center; gap: 8px; width: 100%;
+  padding: 6px 9px; border: none; background: transparent; cursor: pointer;
+  color: var(--fg-1); font-size: var(--fs-sm); text-align: left; border-radius: 4px;
+}
+.p4-menu-item > i { width: 14px; color: var(--fg-3); text-align: center; }
+.p4-menu-item:hover:not(:disabled) { background: var(--bg-2); color: var(--fg-0); }
+.p4-menu-item:disabled { opacity: 0.4; cursor: default; }
+.p4-menu-item.danger { color: var(--danger, #d05656); }
+.p4-menu-item.danger > i { color: var(--danger, #d05656); }
+.p4-menu-pop.up { top: auto; bottom: 100%; margin-top: 0; margin-bottom: 4px; }
+.p4-menu-sep { height: 1px; background: var(--line-2); margin: 3px 0; }
+.p4-head-all { display: flex; align-items: center; gap: 7px; }
+.p4-head-all .git-row-check { margin: 0; }
+/* P4 panel header — single left-aligned row: [badge  @cl  changelist-name].
+   The workspace name lives on the right of the RECENT CHANGES bar instead. */
+.p4-head {
+  display: flex; align-items: center; justify-content: flex-start; gap: 5px;
+  padding: 8px 10px; border-bottom: 1px solid var(--line-1); flex: 0 0 auto;
+}
+.p4-head-clnum {
+  flex: 0 0 auto; font-family: var(--font-mono); font-size: 11px; font-weight: 600;
+  color: var(--acc-hi); background: var(--bg-4, rgba(255,255,255,0.07));
+  padding: 0 5px; border-radius: 4px;
+}
+.p4-head-clname {
+  flex: 1 1 auto; min-width: 0; text-align: left;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-family: var(--font-mono); font-size: 11px; font-weight: 600; color: var(--fg-1);
+}
+/* Workspace chip — right side of the RECENT CHANGES bar, vertically centered.
+   `text-transform:none` overrides the section header's uppercasing. */
+.p4-head-ws {
+  display: inline-flex; align-items: center; gap: 5px; flex: 0 1 auto; min-width: 0;
+  font-size: var(--fs-xs); color: var(--fg-3); font-weight: 400; line-height: 1;
+  text-transform: none; letter-spacing: 0;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+/* Tight line boxes on both so the icon and name share one vertical centerline. */
+.p4-head-ws i { line-height: 1; }
+/* +2px bottom padding lifts the name ~2px above the icon's centerline. */
+.p4-ws-name { line-height: 1; padding-bottom: 2px; overflow: hidden; text-overflow: ellipsis; }
 .p4-section { display: flex; flex-direction: column; min-height: 0; border-bottom: 1px solid var(--line-2); }
-.p4-commits { flex: 0 0 auto; max-height: 22%; }
+/* Top/bottom heights are splitter-driven (inline flexBasis); the middle
+   "current changes" section flexes to fill the rest. */
+.p4-commits { flex: 0 0 auto; min-height: 0; }
 .p4-changes { flex: 1 1 auto; min-height: 0; }
-.p4-shelf { flex: 0 0 auto; max-height: 22%; border-bottom: none; }
+.p4-shelf { flex: 0 0 auto; min-height: 0; border-bottom: none; }
 .p4-section-head {
   display: flex; align-items: center; justify-content: space-between; gap: 8px;
   padding: 6px 10px; font-size: var(--fs-xs); text-transform: uppercase; letter-spacing: 0.04em;
@@ -5240,8 +5406,13 @@ input.input.mono, select.input.mono { font-family: var(--font-mono); font-size: 
   border-top: 1px solid var(--line-2); flex: 0 0 auto;
 }
 .p4-submit-msg {
-  resize: vertical; width: 100%; background: var(--bg-3); color: var(--fg-0);
+  resize: none; width: 100%; flex: 1 1 auto; min-height: 36px;
+  background: var(--bg-3); color: var(--fg-0);
   border: 1px solid var(--line-2); border-radius: 4px; padding: 5px 7px; font-size: var(--fs-sm);
+}
+/* Read-only AI prompt preview (mode ≠ submit) — mono + dimmer, like git's. */
+.p4-submit-msg.preview {
+  font-family: var(--font-mono); font-size: 11px; color: var(--fg-2); background: var(--bg-1);
 }
 .p4-foot { padding: 4px 10px; color: var(--fg-2); font-size: var(--fs-xs); border-top: 1px solid var(--line-2); }
 
@@ -5249,13 +5420,44 @@ input.input.mono, select.input.mono { font-family: var(--font-mono); font-size: 
    carries the brand color (#4c00ff) via its inline style. */
 .repo-card-scm {
   display: inline-flex; align-items: center; gap: 5px;
-  padding: 1px 8px; border-radius: 999px; font-size: var(--fs-xs);
-  border: 1px solid var(--line-2); color: var(--fg-2); background: var(--bg-3);
+  padding: 2px 9px; border-radius: 999px; font-size: var(--fs-xs); font-weight: 600;
+  border: 1px solid transparent;
 }
+/* Branded, legible badges (gray was invisible against the card). */
+.repo-card-scm.scm-git { background: var(--scm-git-bg); color: var(--scm-git); }
+.repo-card-scm.scm-perforce { background: var(--scm-perforce-bg); color: var(--scm-perforce); }
 .repo-card-scm svg, .repo-card-scm i { font-size: 0.95em; line-height: 1; }
 
 .p4-error {
   margin: 6px 10px; padding: 6px 9px; border-radius: 5px;
   background: rgba(208,86,86,0.12); border: 1px solid rgba(208,86,86,0.4);
   color: #e58a8a; font-size: var(--fs-xs);
+}
+
+/* New-repo wizard: reserved, fixed-height SCM-detection status under the
+   folder box (so the layout never jumps as detection resolves). */
+.repo-detect {
+  min-height: 22px; display: flex; align-items: center;
+  margin: 2px 0 6px; font-size: var(--fs-xs);
+}
+.repo-detect-ok { display: inline-flex; align-items: center; gap: 6px; color: #5fb98a; }
+.repo-detect-bad { display: inline-flex; align-items: center; gap: 6px; color: #e58a8a; }
+.repo-detect-busy { display: inline-flex; align-items: center; gap: 6px; color: var(--fg-3); }
+/* "Detected" lines wear the SCM brand color — icon + text inherit the same
+   currentColor (the P4 glyph fills with currentColor too), and bright enough
+   to read on the near-black modal. */
+.repo-detect-git { display: inline-flex; align-items: center; gap: 6px; color: var(--scm-git); }
+.repo-detect-perforce { display: inline-flex; align-items: center; gap: 6px; color: var(--scm-perforce); }
+.repo-detect-ok svg, .repo-detect-ok i,
+.repo-detect-bad i, .repo-detect-busy i,
+.repo-detect-git i, .repo-detect-perforce svg { font-size: 0.95em; line-height: 1; }
+
+/* Wizard long-op progress + success lines (disk preflight, base build). */
+.pref-progress {
+  display: flex; align-items: center; gap: 8px; margin: 10px 0;
+  font-size: var(--fs-xs); color: var(--fg-2); font-family: var(--mono, monospace);
+}
+.pref-ok {
+  margin: 10px 0; display: flex; align-items: center; gap: 8px;
+  font-size: var(--fs-xs); color: #5fb98a;
 }

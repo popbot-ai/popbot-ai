@@ -11,6 +11,7 @@ import type {
 import {
   IpcChannel,
   type ApprovePermissionInput,
+  type BuildBaseInput,
   type CloseChatOptions,
   type ConfigureAgentInput,
   type CreateChatInput,
@@ -48,12 +49,7 @@ const api: PopBotApi = {
     delete: (chatId: string) => ipcRenderer.invoke(IpcChannel.ChatsDelete, chatId),
     search: (query: string, limit?: number) =>
       ipcRenderer.invoke(IpcChannel.ChatsSearch, query, limit),
-    listSlots: () => ipcRenderer.invoke(IpcChannel.ChatsListSlots),
-    initializeSlots: () => ipcRenderer.invoke(IpcChannel.ChatsInitializeSlots),
-    initializeOneSlot: (slotId: number) =>
-      ipcRenderer.invoke(IpcChannel.ChatsInitializeOneSlot, slotId),
     attachSlot: (chatId: string) => ipcRenderer.invoke(IpcChannel.ChatsAttachSlot, chatId),
-    deleteAllSlots: () => ipcRenderer.invoke(IpcChannel.ChatsDeleteAllSlots),
     listMessages: (chatId: string, tail?: number) =>
       ipcRenderer.invoke(IpcChannel.MessagesList, chatId, tail),
   },
@@ -69,6 +65,10 @@ const api: PopBotApi = {
       ipcRenderer.invoke(IpcChannel.FilesLineOfText, path, needle),
     pickAttachment: (kind: 'image' | 'any') =>
       ipcRenderer.invoke(IpcChannel.FilesPickAttachment, kind),
+    saveClipboardImage: (bytes: ArrayBuffer, ext: string) =>
+      ipcRenderer.invoke(IpcChannel.FilesSaveClipboardImage, bytes, ext),
+    imageThumbnail: (path: string) =>
+      ipcRenderer.invoke(IpcChannel.FilesImageThumbnail, path),
     openAttachment: (path: string) =>
       ipcRenderer.invoke(IpcChannel.FilesOpenAttachment, path),
     openInEditor: (chatId: string | null, path: string, line?: number) =>
@@ -95,14 +95,31 @@ const api: PopBotApi = {
     create: (input: CreateRepoInput) => ipcRenderer.invoke(IpcChannel.ReposCreate, input),
     update: (input: UpdateRepoInput) => ipcRenderer.invoke(IpcChannel.ReposUpdate, input),
     delete: (id: string) => ipcRenderer.invoke(IpcChannel.ReposDelete, id),
+    disconnectedSlots: () => ipcRenderer.invoke(IpcChannel.ReposDisconnectedSlots),
+    reconnectSlots: () => ipcRenderer.invoke(IpcChannel.ReposReconnectSlots),
     countChats: (id: string) => ipcRenderer.invoke(IpcChannel.ReposCountChats, id),
     detectScm: (folder: string) => ipcRenderer.invoke(IpcChannel.ReposDetectScm, folder),
+    detectP4Workspace: (folder: string) => ipcRenderer.invoke(IpcChannel.ReposDetectP4Workspace, folder),
     listSlotOccupants: (id: string) => ipcRenderer.invoke(IpcChannel.ReposListSlotOccupants, id),
     initializeOneSlot: (repoId: string, slotId: number) =>
       ipcRenderer.invoke(IpcChannel.ReposInitializeOneSlot, repoId, slotId),
+    prepareGrow: (repoId: string, toCount: number) =>
+      ipcRenderer.invoke(IpcChannel.ReposPrepareGrow, repoId, toCount),
     deleteOneSlot: (repoId: string, slotId: number) =>
       ipcRenderer.invoke(IpcChannel.ReposDeleteOneSlot, repoId, slotId),
     setSlotCount: (id: string, n: number) => ipcRenderer.invoke(IpcChannel.ReposSetSlotCount, id, n),
+    basePreflight: (repoPath: string) => ipcRenderer.invoke(IpcChannel.ReposBasePreflight, repoPath),
+    buildBase: (input: BuildBaseInput) => ipcRenderer.invoke(IpcChannel.ReposBuildBase, input),
+    onBaseProgress: (cb: (message: string) => void) => {
+      const listener = (_e: IpcRendererEvent, message: string) => cb(message);
+      ipcRenderer.on(IpcChannel.ReposBaseProgress, listener);
+      return () => ipcRenderer.removeListener(IpcChannel.ReposBaseProgress, listener);
+    },
+    onP4OpenProgress: (cb: (message: string) => void) => {
+      const listener = (_e: IpcRendererEvent, message: string) => cb(message);
+      ipcRenderer.on(IpcChannel.P4OpenProgress, listener);
+      return () => ipcRenderer.removeListener(IpcChannel.P4OpenProgress, listener);
+    },
   },
   sentry: {
     test: (input: { token: string; orgSlug: string }) =>
@@ -138,6 +155,14 @@ const api: PopBotApi = {
     diff: (input: GitDiffInput) => ipcRenderer.invoke(IpcChannel.GitDiff, input),
     commit: (input: GitCommitInput) => ipcRenderer.invoke(IpcChannel.GitCommit, input),
     revert: (input: GitRevertInput) => ipcRenderer.invoke(IpcChannel.GitRevert, input),
+    p4Login: (input: { chatId: string; password: string }) =>
+      ipcRenderer.invoke(IpcChannel.P4Login, input),
+    shelve: (input: { chatId: string; paths: string[]; message?: string; keepWorking?: boolean }) =>
+      ipcRenderer.invoke(IpcChannel.GitShelve, input),
+    unshelve: (input: { chatId: string; items: import('@shared/perforce').P4ShelfItem[] }) =>
+      ipcRenderer.invoke(IpcChannel.GitUnshelve, input),
+    deleteShelf: (input: { chatId: string; items: import('@shared/perforce').P4ShelfItem[] }) =>
+      ipcRenderer.invoke(IpcChannel.GitDeleteShelf, input),
     filesInCommit: (input: GitFilesInCommitInput) =>
       ipcRenderer.invoke(IpcChannel.GitFilesInCommit, input),
     listBaseBranches: (input: { chatId?: string | null; repoId?: string | null }) =>

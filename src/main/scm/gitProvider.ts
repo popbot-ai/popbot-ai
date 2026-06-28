@@ -7,8 +7,13 @@
  * source-control provider" instead of importing git functions directly,
  * which is what makes Perforce / Lore addable without touching callers.
  */
+import { execFile } from 'node:child_process';
 import { homedir } from 'node:os';
+import { promisify } from 'node:util';
 import type { GitBaseBranches, GitFileChange, GitScope } from '@shared/git';
+import type { RepoRecord } from '@shared/persistence';
+import { listRepos } from '../persistence/repos';
+import { ensureSlot, removeSlot } from '../shado/slots';
 import {
   type SourceControlCapabilities,
   SOURCE_CONTROL_PROVIDERS,
@@ -39,25 +44,43 @@ import {
 import {
   chatStashPrefix,
   checkoutBranch,
-  deleteBranch,
   ensureChatWorktree,
-  ensureSlotWorktree,
   ephemeralWorktreeSlug,
   findLatestStashRef,
   newChatStashName,
   parkSlot,
   parkingBranch,
+  persistBranchToRoot,
   popStash,
   refreshParkBranchInBackground,
   refreshSlotForAllocation,
   removeChatWorktree,
-  removeWorktree,
+  restoreBranchFromRoot,
   worktreeStatus,
 } from '../git/worktrees';
+
+const execFileP = promisify(execFile);
 
 export class GitProvider extends SourceControlProvider {
   readonly id = 'git' as const;
   readonly capabilities: SourceControlCapabilities = SOURCE_CONTROL_PROVIDERS.git.capabilities;
+
+  /** The git repo backing a folder (for the base name = its short id). */
+  private repoFor(repoPath: string): RepoRecord {
+    const repo = listRepos().find(
+      (r) => r.repoPath === repoPath && (r.scm ?? 'git') !== 'perforce',
+    );
+    if (!repo) throw new Error(`No git repo configured for ${repoPath}`);
+    return repo;
+  }
+
+  private async gitInSlot(cwd: string, args: string[]): Promise<void> {
+    // shado slot clones are created in the elevated (UAC) context, so their
+    // files are owned by the Administrators group while PopBot runs as the
+    // normal user — git then refuses with "detected dubious ownership". Trust
+    // the dir for this invocation (scoped `-c`, not a global config change).
+    await execFileP('git', ['-c', 'safe.directory=*', ...args], { cwd, maxBuffer: 8 * 1024 * 1024, windowsHide: true });
+  }
 
   /* ---------- review / working-tree ---------- */
 
@@ -91,8 +114,28 @@ export class GitProvider extends SourceControlProvider {
   parkingBranch(repoName: string, slotId: number): string {
     return parkingBranch(repoName, slotId);
   }
-  ensureSlotWorktree(opts: EnsureSlotWorktreeOpts): Promise<void> {
-    return ensureSlotWorktree(opts);
+  /**
+   * Slot mode now rides shado: each slot is a copy-on-write clone of the
+   * repo's frozen base (so warm caches — node_modules, build output —
+   * survive across chats), not a `git worktree`. The clone is a full git
+   * repo at the slot path; we just establish the parking branch inside it.
+   * The clone is created by the elevated base-build, so ensureSlot here
+   * tolerates the already-mounted slot and stays unprivileged.
+   */
+  async ensureSlotWorktree(opts: EnsureSlotWorktreeOpts): Promise<void> {
+    const repo = this.repoFor(opts.repoPath);
+    await ensureSlot({
+      baseName: repo.id,
+      repoId: repo.id,
+      repoPath: opts.repoPath,
+      worktreePath: opts.worktreePath,
+    });
+    // Park the freshly-cloned slot on its parking branch off the base. FORCE
+    // the checkout: a clone inherits whatever uncommitted state the base had
+    // (e.g. a modified package-lock.json), which would otherwise abort with
+    // "local changes would be overwritten". A slot is meant to start pristine,
+    // so we discard that inherited dirt and land cleanly on the parking branch.
+    await this.gitInSlot(opts.worktreePath, ['checkout', '-f', '-B', opts.parkBranch, opts.baseBranch]);
   }
   checkoutBranch(opts: CheckoutBranchOpts): Promise<void> {
     return checkoutBranch(opts);
@@ -113,8 +156,10 @@ export class GitProvider extends SourceControlProvider {
   }): void {
     refreshParkBranchInBackground(opts);
   }
-  deleteBranch(repoPath: string, branch: string): Promise<void> {
-    return deleteBranch(repoPath, branch);
+  deleteBranch(_repoPath: string, _branch: string): Promise<void> {
+    // Parking branches live inside each slot's clone (its own .git), so they
+    // vanish when the clone is removed — nothing to delete in the source repo.
+    return Promise.resolve();
   }
 
   /* ---------- ephemeral worktree lifecycle ---------- */
@@ -128,8 +173,14 @@ export class GitProvider extends SourceControlProvider {
   removeChatWorktree(opts: RemoveChatWorktreeOpts): Promise<void> {
     return removeChatWorktree(opts);
   }
-  removeWorktree(opts: { repoPath: string; worktreePath: string }): Promise<void> {
-    return removeWorktree(opts);
+  async removeWorktree(opts: { repoPath: string; worktreePath: string }): Promise<void> {
+    const repo = this.repoFor(opts.repoPath);
+    await removeSlot({
+      baseName: repo.id,
+      repoId: repo.id,
+      repoPath: opts.repoPath,
+      worktreePath: opts.worktreePath,
+    });
   }
 
   /* ---------- stash / shelve ---------- */
@@ -145,5 +196,36 @@ export class GitProvider extends SourceControlProvider {
   }
   popStash(worktreePath: string, ref: string): Promise<void> {
     return popStash(worktreePath, ref);
+  }
+
+  /* ---------- cross-slot continuity ---------- */
+
+  async persistChatOnClose(opts: {
+    repoPath: string;
+    worktreePath: string;
+    branch: string;
+    discard: boolean;
+  }): Promise<{ p4ShelfCl?: number | null }> {
+    // Push the chat branch (carrying uncommitted work as a soft WIP commit,
+    // unless discarded) to the local root so any slot can restore it.
+    await persistBranchToRoot(opts);
+    return {};
+  }
+
+  async restoreChatOnReopen(opts: {
+    repoPath: string;
+    worktreePath: string;
+    branch: string;
+    baseBranch: string;
+  }): Promise<{ p4ShelfCl?: number | null }> {
+    // `checkoutBranch` already placed us on a fresh `branch` off the latest
+    // base; overlay the chat's persisted state from the local root if present
+    // (no-op when nothing was ever persisted).
+    await restoreBranchFromRoot({
+      repoPath: opts.repoPath,
+      worktreePath: opts.worktreePath,
+      branch: opts.branch,
+    });
+    return {};
   }
 }

@@ -6,6 +6,8 @@
  * prototype's shape needs to grow.
  */
 
+import type { SourceControlProviderId } from '@shared/sourceControl';
+
 export type ChatStatus = 'run' | 'done' | 'wait' | 'err' | 'idle';
 
 export interface Ticket {
@@ -61,6 +63,9 @@ export interface Chat {
    *  per-chat MonitorCard ring + thumb tint. Only present on chats
    *  projected from a real repo row. */
   repoColor?: string | null;
+  /** Source-control system of this chat's repo (denormalized) — drives the
+   *  per-row VCS icon in the chat list. */
+  scm?: SourceControlProviderId | null;
 }
 
 export interface InactiveChat {

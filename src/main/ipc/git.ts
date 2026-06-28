@@ -21,6 +21,7 @@ import type {
   GitStatusResultOrErr,
   GitBaseBranchesResult,
 } from '@shared/git';
+import type { P4ShelfItem } from '@shared/perforce';
 import {
   clampMaxChangedFiles,
   type SourceControlSettings,
@@ -31,6 +32,7 @@ import { getRepo, listRepos } from '../persistence/repos';
 import { getSetting } from '../persistence/settings';
 import { worktreePathForChat } from '../git/chatPaths';
 import { getSourceControlProvider, sourceControlIdFor } from '../scm';
+import { p4Login } from '../p4/workspace';
 
 /** The source-control provider backing a chat's repo (git today). */
 function providerForChat(chatId: string) {
@@ -153,6 +155,61 @@ export function registerGitHandlers(): void {
       if (typeof wt !== 'string') return { ok: false, error: wt.error };
       try {
         await providerForChat(input.chatId).revertFiles(wt, input.paths);
+        return { ok: true };
+      } catch (err) {
+        return { ok: false, error: (err as Error).message };
+      }
+    },
+  );
+
+  ipcMain.handle(
+    IpcChannel.GitShelve,
+    async (_e, input: { chatId: string; paths: string[]; message?: string; keepWorking?: boolean }): Promise<{ ok: true; change: string } | { ok: false; error: string }> => {
+      const wt = resolveWorktree(input.chatId);
+      if (typeof wt !== 'string') return { ok: false, error: wt.error };
+      try {
+        const r = await providerForChat(input.chatId).shelveFiles(wt, input.paths, input.message ?? 'popbot shelf', input.keepWorking);
+        return { ok: true, change: r.change };
+      } catch (err) {
+        return { ok: false, error: (err as Error).message };
+      }
+    },
+  );
+
+  /** Perforce: mint a login ticket from a password typed into the in-app login
+   *  prompt (shown when a p4 op fails with an auth error). Password transits
+   *  only this call's stdin — never stored. */
+  ipcMain.handle(
+    IpcChannel.P4Login,
+    async (_e, input: { chatId: string; password: string }): Promise<{ ok: boolean; error?: string }> => {
+      const chat = getChat(input.chatId);
+      const repo = chat?.repoId ? getRepo(chat.repoId) : null;
+      if (repo?.scm !== 'perforce' || !repo.p4) return { ok: false, error: 'Not a Perforce chat.' };
+      return p4Login({ port: repo.p4.port, user: repo.p4.user }, input.password);
+    },
+  );
+
+  ipcMain.handle(
+    IpcChannel.GitUnshelve,
+    async (_e, input: { chatId: string; items: P4ShelfItem[] }): Promise<{ ok: true } | { ok: false; error: string }> => {
+      const wt = resolveWorktree(input.chatId);
+      if (typeof wt !== 'string') return { ok: false, error: wt.error };
+      try {
+        await providerForChat(input.chatId).unshelve(wt, input.items);
+        return { ok: true };
+      } catch (err) {
+        return { ok: false, error: (err as Error).message };
+      }
+    },
+  );
+
+  ipcMain.handle(
+    IpcChannel.GitDeleteShelf,
+    async (_e, input: { chatId: string; items: P4ShelfItem[] }): Promise<{ ok: true } | { ok: false; error: string }> => {
+      const wt = resolveWorktree(input.chatId);
+      if (typeof wt !== 'string') return { ok: false, error: wt.error };
+      try {
+        await providerForChat(input.chatId).deleteShelf(wt, input.items);
         return { ok: true };
       } catch (err) {
         return { ok: false, error: (err as Error).message };

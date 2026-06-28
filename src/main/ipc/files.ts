@@ -1,6 +1,6 @@
-import { BrowserWindow, dialog, ipcMain, shell } from 'electron';
+import { app, BrowserWindow, dialog, ipcMain, nativeImage, shell } from 'electron';
 import { randomUUID } from 'node:crypto';
-import { existsSync, readFileSync, statSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { basename, dirname, extname, isAbsolute, join } from 'node:path';
 import { IpcChannel, type PickedAttachment } from '@shared/ipc';
@@ -102,6 +102,41 @@ export function registerFilesHandlers(): void {
           isImage: isImageExt(extname(path)),
         };
       });
+    },
+  );
+
+  ipcMain.handle(
+    IpcChannel.FilesSaveClipboardImage,
+    async (_e, bytes: ArrayBuffer, ext: string): Promise<PickedAttachment | null> => {
+      try {
+        const buf = Buffer.from(bytes);
+        if (buf.length === 0) return null;
+        const dir = join(app.getPath('userData'), 'attachments', 'pasted');
+        mkdirSync(dir, { recursive: true });
+        const safeExt = (ext || 'png').replace(/[^a-z0-9]/gi, '').toLowerCase() || 'png';
+        const id = 'att_' + randomUUID().replace(/-/g, '').slice(0, 12);
+        const name = `pasted-${id}.${safeExt}`;
+        const path = join(dir, name);
+        writeFileSync(path, buf);
+        return { id, path, name, sizeBytes: buf.length, isImage: true };
+      } catch {
+        return null;
+      }
+    },
+  );
+
+  ipcMain.handle(
+    IpcChannel.FilesImageThumbnail,
+    async (_e, path: string): Promise<string | null> => {
+      try {
+        if (!path || !existsSync(path)) return null;
+        const img = nativeImage.createFromPath(path);
+        if (img.isEmpty()) return null; // not a decodable raster image (e.g. svg)
+        // Cap the thumbnail height; toDataURL yields a small inline preview.
+        return img.resize({ height: 44 }).toDataURL();
+      } catch {
+        return null;
+      }
     },
   );
 

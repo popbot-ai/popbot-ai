@@ -15,6 +15,66 @@ export const zhCN = {
   'common.loading': '正在加载…',
   'common.retry': '重试',
   'common.reconnect': '重新连接',
+  'app.reconnect.title': '工作区驱动器已断开连接',
+  'app.reconnect.message':
+    '{repos} 的工作区驱动器因重启而断开连接。重新连接以使用其插槽和聊天。',
+  'app.reconnect.button': '重新连接',
+  'app.reconnect.later': '稍后',
+  'app.reconnect.busy': '正在重新连接…',
+  'app.reconnect.working':
+    '批准管理员提示，然后工作区驱动器将重新连接。这可能需要一分钟…',
+  'app.reconnect.failed': '重新连接失败',
+  // --- Source-control panel, slots, repo wizard (session additions) ---
+  'slots.detail.recheck': '重新检查 {count} 个槽位，设置任何缺失的工作区。',
+  'git.files.truncated': '显示 {total} 个已更改文件中的 {shown} 个。可在偏好设置 → 版本控制中提高上限。',
+  'busy.dismiss': '忽略',
+  'busy.copyError': '复制错误',
+  'p4.empty': '没有聚焦的 Perforce 工作区。',
+  'p4.workspace.title': 'Perforce 工作区（客户端）：{client}',
+  'p4.commits.title': '最近更改',
+  'p4.commits.empty': '尚无已提交的更改。',
+  'p4.changes.title': '当前更改',
+  'p4.changes.empty': '没有打开的文件。',
+  'p4.submit': '提交 {count}',
+  'p4.submitPlaceholder': '更改列表描述…',
+  'p4.revert': '还原',
+  'p4.selectAll': '全选 / 全不选',
+  'p4.shelve': '搁置',
+  'p4.shelveChecked': '搁置选中的更改',
+  'p4.unshelve': '取消搁置',
+  'p4.unshelveChecked': '取消搁置选中的更改',
+  'p4.menu.changesActions': '对选中更改的操作',
+  'p4.menu.shelfActions': '对选中搁置项的操作',
+  'p4.menu.copyToShelf': '复制到搁置区',
+  'p4.menu.moveToShelf': '移动到搁置区',
+  'p4.menu.returnToChangelist': '返回更改列表',
+  'p4.menu.deleteFromShelf': '从搁置区删除',
+  'p4.confirm.revertBody': '还原 {count} 个文件？其更改将被丢弃且无法恢复。',
+  'p4.confirm.deleteShelfBody': '删除 {count} 个搁置的文件？此操作无法撤消。',
+  'p4.login.title': '需要 Perforce 登录',
+  'p4.login.body': '你的 Perforce 会话已过期。请输入密码重新登录。',
+  'p4.login.placeholder': 'Perforce 密码',
+  'p4.login.button': '登录',
+  'p4.login.busy': '正在登录…',
+  'p4.shelf.title': '搁置区',
+  'p4.shelf.empty': '没有搁置的更改。',
+  'p4.promptPreviewPlaceholder': '提示词预览',
+  'p4.mode.submit.label': 'SUBMIT',
+  'p4.mode.submit.short': 'SUBMIT',
+  'p4.mode.cr.label': 'CODE REVIEW (AI)',
+  'p4.mode.cr.short': 'CR (AI)',
+  'p4.mode.tests.label': 'RUN TESTS (AI)',
+  'p4.mode.tests.short': 'TESTS (AI)',
+  'p4.mode.reviewCommit.label': 'SUBMIT (AI)',
+  'p4.mode.reviewCommit.short': 'SUBMIT (AI)',
+  'branch.dialog.branchName': '分支名称',
+  'branch.dialog.changelistName': '更改列表名称',
+  'branch.dialog.perforceLatest': '此 Perforce 槽位同步到最新的更改列表 — 无需选择基础分支。',
+  'prefs.git.maxChangedFiles.title': '更改视图文件上限',
+  'prefs.git.maxChangedFiles.desc': '更改视图在列表被截断前最多显示的文件数（适用于 Git 和 Perforce）。{min}–{max}。',
+  'prefs.repos.scm.git': 'Git',
+  'prefs.repos.scm.perforce': 'Perforce',
+  'prefs.repos.wizard.setup.gitIntro': '每个槽位都是此仓库的写时复制克隆，因此构建缓存（node_modules、构建输出）会在各次聊天间保持预热。我们将从该文件夹冻结一个基础，然后挂载各个槽位。',
   'common.refresh': '刷新',
   'common.clear': '清除',
   'common.copy': '复制',
@@ -92,10 +152,13 @@ export const zhCN = {
   // ---------------------------------------------------------------------------
   // App shell (App.tsx).
   // ---------------------------------------------------------------------------
-  'app.busy.worktreeFailed': '工作树设置失败',
+  'app.busy.worktreeFailed': '工作区设置失败',
   'app.busy.settingUpWorkspace': '正在设置工作区…',
   'app.busy.checkingOutBranch': '正在检出 {branch}',
   'app.busy.branchingFrom': '正在从 {baseBranch} 创建分支 {branch}',
+  'app.busy.perforce.creating': '正在创建更改列表 {branch}',
+  'app.busy.other.settingUp': '正在设置 {branch}',
+  'app.busy.closing': '正在关闭聊天…',
   'app.create.newClientTestChat': '新建客户端测试聊天',
   'app.chat.reviewName': '[CR] PR #{number} · {title}',
   'app.update.available': '有可用更新 — {name}',
@@ -352,14 +415,19 @@ export const zhCN = {
   // Close-chat prompt (CloseChatPrompt.tsx).
   // ---------------------------------------------------------------------------
   'close.title': '您正在关闭此分支 {branch}。',
+  'close.title.perforce': '您正在关闭此更改列表 {branch}。',
   'close.parkSub': '槽位 {slotId} 将停放回 popbot/slot-{slotId}。',
   'close.checking': '正在检查工作树…',
   'close.noWorktree': '此聊天没有需要清理的工作树。',
   'close.clean': '工作树是干净的 — 无需暂存。',
+  'close.clean.perforce': '工作区是干净的 — 无需搁置。',
   'close.stashPrompt':
     '是否要暂存所有未提交的更改？如果您重新打开此聊天，这些更改将被取消暂存。',
+  'close.stashPrompt.perforce':
+    '是否要搁置所有未提交的更改？如果您重新打开此聊天，这些更改将被取消搁置。',
   'close.discardClose': '放弃并关闭',
   'close.stashClose': '暂存并关闭',
+  'close.stashClose.perforce': '搁置并关闭',
   'close.closeChat': '关闭聊天',
 
   // ---------------------------------------------------------------------------
@@ -392,6 +460,7 @@ export const zhCN = {
   'chat.slot.fallback': '槽位 {slotId}',
   'chat.slot.worktreeTitle': '工作树 · {worktreePath}',
   'chat.branch.title': '分支 · {branch}',
+  'chat.branch.title.perforce': '更改列表 · {branch}',
   'chat.type.lite': 'Lite',
   'chat.type.clientTest': '客户端测试',
   'chat.input.resizeTitle': '拖动以调整输入框大小',
@@ -768,6 +837,9 @@ export const zhCN = {
   'prefs.git.actionTemplates.title': '操作模板',
   'prefs.git.actionTemplates.intro':
     '当您点击大操作按钮（或更改基础分支）时，git 面板发送给聊天代理的提示词。使用 {macro} 宏来注入上下文。',
+  'prefs.p4.actionTemplates.title': 'Perforce 操作模板',
+  'prefs.p4.actionTemplates.intro':
+    'Perforce 面板针对 CR（Helix Swarm 审查）、运行测试以及审查并提交发送给聊天代理的提示词。使用 {macro} 宏来注入上下文。',
 
   // Preferences — External apps pane.
   'prefs.apps.title': '外部应用',
@@ -814,6 +886,11 @@ export const zhCN = {
   'prefs.templates.git.makePrReady.label': 'MARK PR READY (AI)',
   'prefs.templates.git.addressCr.label': 'ADDRESS CR (AI)',
   'prefs.templates.git.rebaseBase.label': 'CHANGE BASE BRANCH (AI)',
+  'prefs.templates.p4.codeReview.label': 'CODE REVIEW (AI)',
+  'prefs.templates.p4.runTests.label': 'RUN TESTS (AI)',
+  'prefs.templates.p4.reviewCommit.label': 'REVIEW & COMMIT (AI)',
+  'prefs.templates.resetThis': '将此模板重置为默认值',
+  'prefs.templates.modified': '已自定义 — 与默认值不同',
   'prefs.templates.resetDefaults': '重置为默认值',
   'prefs.templates.title': '提示词模板',
   'prefs.templates.intro':
@@ -987,6 +1064,15 @@ export const zhCN = {
   'prefs.repos.wizard.slotCount.title': '槽位数量',
   'prefs.repos.wizard.slotCount.desc': '此仓库支持的并发聊天数量。1–64。',
   'prefs.repos.wizard.adding': '正在添加…',
+  'prefs.repos.wizard.setUp': '设置仓库',
+  'prefs.repos.wizard.settingUp': '正在设置',
+  'prefs.repos.wizard.setup.slotsHead': 'slot',
+  'prefs.repos.wizard.setup.diskHead': '磁盘空间',
+  'prefs.repos.wizard.progress.building': '正在构建基础 + slot（请批准 admin 提示）…',
+  'prefs.repos.wizard.progress.creating': '正在创建仓库…',
+  'prefs.repos.wizard.progress.initing': '正在初始化第 {done} 个 slot，共 {total} 个…',
+  'prefs.repos.wizard.progress.done': '{id} 已就绪 — {count} 个 slot。',
+  'prefs.repos.wizard.progress.failHint': '设置已停止。返回以调整并重试 — 冻结的基础会保留在磁盘上并被重复使用。',
   'prefs.repos.error.duplicateId': 'id 为 "{id}" 的仓库已存在。',
   'prefs.repos.error.generic': '无法创建仓库。',
   'prefs.repos.error.notFound': '未找到仓库 — 它是否已被删除？',
@@ -1012,7 +1098,7 @@ export const zhCN = {
   'prefs.repos.delete.reversibleBody':
     '如果您稍后创建一个 id 为 {id} 的新仓库，所有分离的聊天将自动重新附加。',
   'prefs.repos.delete.noTouch':
-    '这不会触及 {path} 处的源克隆或其中的任何聊天分支。磁盘上的槽位工作树也保持不变 — 如果您想要一个干净的状态，可以手动修剪它们。',
+    '位于 {path} 的原始仓库绝不会被触及 — 只会移除 PopBot 的 slot 克隆／工作树。（磁盘上残留的任何内容都可以手动修剪，以获得干净的状态。）',
   'prefs.repos.delete.typeToConfirm': '输入 {id} 以确认：',
   'prefs.repos.delete.deleting': '正在删除…',
 
@@ -1024,4 +1110,65 @@ export const zhCN = {
     '选择 PopBot 界面使用的语言。大多数文本和菜单会立即更新；少量系统文本将在重启后完成更新。',
   'language.label': '显示语言',
   'language.systemNote': '新窗口和应用菜单也会使用此语言。',
+
+  // ---------------------------------------------------------------------------
+  // Add-repository wizard — detect / Perforce connect / preflight / build.
+  // ---------------------------------------------------------------------------
+  'prefs.repos.colorTaken': '已被另一个仓库使用',
+  'prefs.repos.wizard.step': '第 {step} 步',
+  'prefs.repos.wizard.buildingBase': '正在构建基础',
+  'prefs.repos.wizard.detect.detecting': '正在检测…',
+  'prefs.repos.wizard.detect.git': 'Git 仓库',
+  'prefs.repos.wizard.detect.perforce': 'Perforce 仓库',
+  'prefs.repos.wizard.detect.invalid': '不是 git 或 Perforce 仓库',
+  'prefs.repos.wizard.detect.alreadyAdded': '此文件夹已作为仓库添加',
+  'prefs.repos.wizard.detect.idTaken': '该短 id 已被占用 — 请另选一个',
+  'prefs.repos.wizard.connect.intro':
+    '连接到 Perforce 服务器。我们会记录你的文件夹同步到的 changelist，以便每个槽位都刷新到它（无需重新传输）。',
+  'prefs.repos.wizard.connect.port.title': 'P4PORT',
+  'prefs.repos.wizard.connect.port.desc': '服务器地址，例如 ssl:host:1666。',
+  'prefs.repos.wizard.connect.user.title': 'P4USER',
+  'prefs.repos.wizard.connect.user.desc': '你的 Perforce 用户。身份验证使用你现有的 p4 登录票据。',
+  'prefs.repos.wizard.connect.depot.title': '仓库路径',
+  'prefs.repos.wizard.connect.depot.desc': '此文件夹映射的仓库路径，例如 //depot/MyGame。',
+  'prefs.repos.wizard.connect.baseName.title': '基础名称',
+  'prefs.repos.wizard.connect.baseName.desc': '冻结的 shado 基础的名称。槽位从它克隆。',
+  'prefs.repos.wizard.connect.discovered':
+    '这些是将用于设置此仓库的值，从你的 Perforce 工作区（{client}）中读取。',
+  'prefs.repos.wizard.connect.changelist': '已同步的 changelist',
+  'prefs.repos.wizard.connect.base': '基础名称',
+  'prefs.repos.wizard.preflight.intro':
+    '正在检查磁盘空间。基础从你的文件夹构建（原地保留），因此它需要同一驱动器上大致相当于文件夹大小的可用空间。',
+  'prefs.repos.wizard.preflight.measuring': '正在测量文件夹…',
+  'prefs.repos.wizard.preflight.folder': '源文件夹',
+  'prefs.repos.wizard.preflight.free': '驱动器可用空间',
+  'prefs.repos.wizard.preflight.needs': '基础需要（≈ +5%）',
+  'prefs.repos.wizard.preflight.ok': '可用空间充足 — 准备好构建基础。',
+  'prefs.repos.wizard.preflight.block':
+    '可用空间不足：可用 {free}，基础需要 {need}。请释放空间（或选择一个空间更充裕的驱动器上的文件夹）后重试。',
+  'prefs.repos.wizard.build.intro':
+    '从你的文件夹构建冻结的基础（{gb}）。这会运行一个提权的 shado 操作 — 你会看到 Windows 管理员（UAC）提示。它可能需要几分钟；进度会实时显示。',
+  'prefs.repos.wizard.build.baseName': '基础',
+  'prefs.repos.wizard.build.start': '构建基础',
+  'prefs.repos.wizard.build.starting': '正在开始构建基础（请批准管理员提示）…',
+  'prefs.repos.wizard.build.done': '基础已构建。如果你现在取消，基础会保留在磁盘上并可重复使用。',
+  'prefs.repos.wizard.build.changelist': '基础 changelist',
+  'prefs.repos.wizard.build.changelistDesc':
+    '基础同步到的 changelist — 自动记录。仅在出错时覆盖。',
+
+  // ---------------------------------------------------------------------------
+  // Preferences — Perforce pane.
+  // ---------------------------------------------------------------------------
+  'prefs.perforce.p4Path.title': 'p4 可执行文件',
+  'prefs.perforce.p4Path.desc': 'p4 二进制文件的路径。留空以使用 PATH 中的 “p4”。',
+  'prefs.perforce.defaultPort.title': '默认 P4PORT',
+  'prefs.perforce.defaultPort.desc': '预填充“添加仓库 → Perforce 连接”步骤。',
+  'prefs.perforce.defaultUser.title': '默认 P4USER',
+  'prefs.perforce.defaultUser.desc': '预填充“添加仓库 → Perforce 连接”步骤。',
+  'prefs.perforce.parallelThreads.title': '并行传输线程',
+  'prefs.perforce.parallelThreads.desc': '用于 p4 并行同步/提交的线程数。设为 1 即关闭。',
+  'prefs.perforce.revertUnchanged.title': '还原未更改的文件',
+  'prefs.perforce.revertUnchanged.desc': '在提交前从 changelist 中剔除字节完全相同的文件。',
+  'prefs.perforce.revertUnchanged.toggle': '提交时还原字节完全相同的文件',
+  'prefs.repos.error.duplicatePath': '该文件夹已作为仓库 "{id}" 添加。',
 } satisfies PartialMessages;

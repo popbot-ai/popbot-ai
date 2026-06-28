@@ -1,11 +1,15 @@
 import { useEffect, useState } from 'react';
 import type { ClosePrepResult } from '@shared/ipc';
+import type { SourceControlProviderId } from '@shared/sourceControl';
 import { useTranslation } from '../lib/i18n';
 
 interface CloseChatPromptProps {
   chatId: string;
   branch: string | null;
   slotId: number | null;
+  /** Drives SCM-aware wording (branch vs changelist, stash vs shelve).
+   *  Perforce gets its own strings; anything else uses git's. */
+  scm: SourceControlProviderId | null;
   onCancel: () => void;
   onClose: (opts: { stash: boolean }) => void;
 }
@@ -19,11 +23,13 @@ export function CloseChatPrompt({
   chatId,
   branch,
   slotId,
+  scm,
   onCancel,
   onClose,
 }: CloseChatPromptProps): JSX.Element {
   const { t } = useTranslation();
   const [prep, setPrep] = useState<ClosePrepResult | null>(null);
+  const p4 = scm === 'perforce';
 
   useEffect(() => {
     void window.popbot.chats.closePrep(chatId).then(setPrep);
@@ -34,7 +40,11 @@ export function CloseChatPrompt({
       <div className="scrim" onClick={onCancel} />
       <div className="modal" data-screen-label="Modal · close-chat">
         <div className="modal-head">
-          <h2>{t('close.title', { branch: branch ?? t('common.noBranch') })}</h2>
+          <h2>
+            {t(p4 ? 'close.title.perforce' : 'close.title', {
+              branch: branch ?? t('common.noBranch'),
+            })}
+          </h2>
           <div className="sub">
             {slotId != null && t('close.parkSub', { slotId })}
           </div>
@@ -45,11 +55,11 @@ export function CloseChatPrompt({
             <>{t('close.noWorktree')}</>
           )}
           {prep !== null && prep.hasWorktree && !prep.dirty && (
-            <>{t('close.clean')}</>
+            <>{t(p4 ? 'close.clean.perforce' : 'close.clean')}</>
           )}
           {prep !== null && prep.hasWorktree && prep.dirty && (
             <>
-              <p>{t('close.stashPrompt')}</p>
+              <p>{t(p4 ? 'close.stashPrompt.perforce' : 'close.stashPrompt')}</p>
               <pre className="dirty-files">
                 {prep.files.map((f) => f).join('\n')}
               </pre>
@@ -64,7 +74,7 @@ export function CloseChatPrompt({
                 {t('close.discardClose')}
               </button>
               <button className="btn primary" onClick={() => onClose({ stash: true })}>
-                {t('close.stashClose')}
+                {t(p4 ? 'close.stashClose.perforce' : 'close.stashClose')}
               </button>
             </>
           ) : (

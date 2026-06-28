@@ -15,6 +15,66 @@ export const fr = {
   'common.loading': 'Chargement…',
   'common.retry': 'Réessayer',
   'common.reconnect': 'Reconnecter',
+  'app.reconnect.title': 'Disques d’espace de travail déconnectés',
+  'app.reconnect.message':
+    'Les disques d’espace de travail de {repos} ont été déconnectés par un redémarrage. Reconnectez-vous pour utiliser leurs slots et discussions.',
+  'app.reconnect.button': 'Reconnecter',
+  'app.reconnect.later': 'Plus tard',
+  'app.reconnect.busy': 'Reconnexion…',
+  'app.reconnect.working':
+    'Approuvez l’invite d’administrateur, puis vos disques d’espace de travail se reconnectent. Cela peut prendre une minute…',
+  'app.reconnect.failed': 'Échec de la reconnexion',
+  // --- Source-control panel, slots, repo wizard (session additions) ---
+  'slots.detail.recheck': 'Revérifier {count} emplacements, en configurant les espaces de travail manquants.',
+  'git.files.truncated': 'Affichage de {shown} sur {total} fichiers modifiés. Augmentez la limite dans Préférences → Gestion de versions.',
+  'busy.dismiss': 'Ignorer',
+  'busy.copyError': 'Copier l’erreur',
+  'p4.empty': 'Aucun espace de travail Perforce sélectionné.',
+  'p4.workspace.title': 'Espace de travail Perforce (client) : {client}',
+  'p4.commits.title': 'Modifications récentes',
+  'p4.commits.empty': 'Aucune modification soumise pour l’instant.',
+  'p4.changes.title': 'Modifications en cours',
+  'p4.changes.empty': 'Aucun fichier ouvert.',
+  'p4.submit': 'Soumettre {count}',
+  'p4.submitPlaceholder': 'Description de la liste de modifications…',
+  'p4.revert': 'Annuler',
+  'p4.selectAll': 'Tout sélectionner / aucun',
+  'p4.shelve': 'Remiser',
+  'p4.shelveChecked': 'Remiser les modifications cochées',
+  'p4.unshelve': 'Récupérer',
+  'p4.unshelveChecked': 'Récupérer les modifications cochées',
+  'p4.menu.changesActions': 'Actions pour les modifications cochées',
+  'p4.menu.shelfActions': 'Actions pour les remises cochées',
+  'p4.menu.copyToShelf': 'Copier vers la remise',
+  'p4.menu.moveToShelf': 'Déplacer vers la remise',
+  'p4.menu.returnToChangelist': 'Renvoyer vers la liste de modifications',
+  'p4.menu.deleteFromShelf': 'Supprimer de la remise',
+  'p4.confirm.revertBody': 'Rétablir {count} fichier(s) ? Leurs modifications sont supprimées et ne peuvent pas être récupérées.',
+  'p4.confirm.deleteShelfBody': 'Supprimer {count} fichier(s) remisé(s) ? Cette action est irréversible.',
+  'p4.login.title': 'Connexion Perforce requise',
+  'p4.login.body': 'Votre session Perforce a expiré. Saisissez votre mot de passe pour vous reconnecter.',
+  'p4.login.placeholder': 'Mot de passe Perforce',
+  'p4.login.button': 'Se connecter',
+  'p4.login.busy': 'Connexion…',
+  'p4.shelf.title': 'Remise',
+  'p4.shelf.empty': 'Aucune modification remisée.',
+  'p4.promptPreviewPlaceholder': 'Aperçu du prompt',
+  'p4.mode.submit.label': 'SUBMIT',
+  'p4.mode.submit.short': 'SUBMIT',
+  'p4.mode.cr.label': 'CODE REVIEW (AI)',
+  'p4.mode.cr.short': 'CR (AI)',
+  'p4.mode.tests.label': 'RUN TESTS (AI)',
+  'p4.mode.tests.short': 'TESTS (AI)',
+  'p4.mode.reviewCommit.label': 'SUBMIT (AI)',
+  'p4.mode.reviewCommit.short': 'SUBMIT (AI)',
+  'branch.dialog.branchName': 'Nom de la branche',
+  'branch.dialog.changelistName': 'Nom de la liste de modifications',
+  'branch.dialog.perforceLatest': 'Cet emplacement Perforce se synchronise sur la dernière liste de modifications — aucune branche de base à choisir.',
+  'prefs.git.maxChangedFiles.title': 'Limite de fichiers de la vue des modifications',
+  'prefs.git.maxChangedFiles.desc': 'Nombre maximal de fichiers affichés dans la vue des modifications avant que la liste ne soit plafonnée (s’applique à git et Perforce). {min}–{max}.',
+  'prefs.repos.scm.git': 'Git',
+  'prefs.repos.scm.perforce': 'Perforce',
+  'prefs.repos.wizard.setup.gitIntro': 'Chaque emplacement est un clone en copie sur écriture de ce dépôt, de sorte que les caches de build (node_modules, sortie de build) restent chauds entre les chats. Nous figerons une base à partir du dossier, puis monterons les emplacements.',
   'common.refresh': 'Actualiser',
   'common.clear': 'Effacer',
   'common.copy': 'Copier',
@@ -92,10 +152,13 @@ export const fr = {
   // ---------------------------------------------------------------------------
   // App shell (App.tsx).
   // ---------------------------------------------------------------------------
-  'app.busy.worktreeFailed': 'Échec de la configuration du worktree',
+  'app.busy.worktreeFailed': "Échec de la configuration de l'espace de travail",
   'app.busy.settingUpWorkspace': 'Configuration de l’espace de travail…',
   'app.busy.checkingOutBranch': 'Extraction de {branch}',
   'app.busy.branchingFrom': 'Création de {branch} à partir de {baseBranch}',
+  'app.busy.perforce.creating': 'Création de la liste de modifications {branch}',
+  'app.busy.other.settingUp': 'Configuration de {branch}',
+  'app.busy.closing': 'Fermeture du chat…',
   'app.create.newClientTestChat': 'Nouveau chat de test client',
   'app.chat.reviewName': '[CR] PR #{number} · {title}',
   'app.update.available': 'Mise à jour disponible — {name}',
@@ -352,14 +415,19 @@ export const fr = {
   // Close-chat prompt (CloseChatPrompt.tsx).
   // ---------------------------------------------------------------------------
   'close.title': 'Vous fermez cette branche {branch}.',
+  'close.title.perforce': 'Vous fermez cette liste de modifications {branch}.',
   'close.parkSub': 'L’emplacement {slotId} sera parqué de nouveau vers popbot/slot-{slotId}.',
   'close.checking': 'Vérification du worktree…',
   'close.noWorktree': 'Ce chat n’a aucun worktree à nettoyer.',
   'close.clean': 'Le worktree est propre — rien à remiser.',
+  'close.clean.perforce': 'L’espace de travail est propre — rien à remiser.',
   'close.stashPrompt':
     'Voulez-vous remiser toutes les modifications non validées ? Ces modifications seront dé-remisées si vous rouvrez ce chat.',
+  'close.stashPrompt.perforce':
+    'Voulez-vous remiser toutes les modifications en attente ? Ces modifications seront dé-remisées si vous rouvrez ce chat.',
   'close.discardClose': 'Abandonner et fermer',
   'close.stashClose': 'Remiser et fermer',
+  'close.stashClose.perforce': 'Remiser et fermer',
   'close.closeChat': 'Fermer le chat',
 
   // ---------------------------------------------------------------------------
@@ -392,6 +460,7 @@ export const fr = {
   'chat.slot.fallback': 'Emplacement {slotId}',
   'chat.slot.worktreeTitle': 'Worktree · {worktreePath}',
   'chat.branch.title': 'Branche · {branch}',
+  'chat.branch.title.perforce': 'Liste de modifications · {branch}',
   'chat.type.lite': 'Lite',
   'chat.type.clientTest': 'Test client',
   'chat.input.resizeTitle': 'Glisser pour redimensionner la saisie',
@@ -768,6 +837,9 @@ export const fr = {
   'prefs.git.actionTemplates.title': 'Modèles d’action',
   'prefs.git.actionTemplates.intro':
     'Prompts que le panneau git envoie à l’agent du chat lorsque vous cliquez sur le grand bouton d’action (ou changez la branche de base). Utilisez les macros {macro} pour injecter du contexte.',
+  'prefs.p4.actionTemplates.title': 'Modèles d’action Perforce',
+  'prefs.p4.actionTemplates.intro':
+    'Prompts que le panneau Perforce envoie à l’agent du chat pour CR (revue Helix Swarm), Lancer les tests et Revue et soumission. Utilisez les macros {macro} pour injecter du contexte.',
 
   // Preferences — External apps pane.
   'prefs.apps.title': 'Applications externes',
@@ -814,6 +886,11 @@ export const fr = {
   'prefs.templates.git.makePrReady.label': 'MARK PR READY (AI)',
   'prefs.templates.git.addressCr.label': 'ADDRESS CR (AI)',
   'prefs.templates.git.rebaseBase.label': 'CHANGE BASE BRANCH (AI)',
+  'prefs.templates.p4.codeReview.label': 'CODE REVIEW (AI)',
+  'prefs.templates.p4.runTests.label': 'RUN TESTS (AI)',
+  'prefs.templates.p4.reviewCommit.label': 'REVIEW & COMMIT (AI)',
+  'prefs.templates.resetThis': 'Réinitialiser ce modèle à la valeur par défaut',
+  'prefs.templates.modified': 'Personnalisé — diffère de la valeur par défaut',
   'prefs.templates.resetDefaults': 'Réinitialiser aux valeurs par défaut',
   'prefs.templates.title': 'Modèles de prompt',
   'prefs.templates.intro':
@@ -987,6 +1064,16 @@ export const fr = {
   'prefs.repos.wizard.slotCount.title': 'Nombre d’emplacements',
   'prefs.repos.wizard.slotCount.desc': 'Combien de chats simultanés ce dépôt prend en charge. 1–64.',
   'prefs.repos.wizard.adding': 'Ajout…',
+  'prefs.repos.wizard.setUp': 'Configurer le dépôt',
+  'prefs.repos.wizard.settingUp': 'configuration en cours',
+  'prefs.repos.wizard.setup.slotsHead': 'Slots',
+  'prefs.repos.wizard.setup.diskHead': 'Espace disque',
+  'prefs.repos.wizard.progress.building': 'Construction de la base + des slots (approuvez l’invite d’administrateur)…',
+  'prefs.repos.wizard.progress.creating': 'Création du dépôt…',
+  'prefs.repos.wizard.progress.initing': 'Initialisation du slot {done} sur {total}…',
+  'prefs.repos.wizard.progress.done': '{id} est prêt — {count} slots.',
+  'prefs.repos.wizard.progress.failHint':
+    'Configuration interrompue. Revenez en arrière pour ajuster et réessayer — la base figée reste sur le disque et est réutilisée.',
   'prefs.repos.error.duplicateId': 'Un dépôt avec l’id « {id} » existe déjà.',
   'prefs.repos.error.generic': 'Impossible de créer le dépôt.',
   'prefs.repos.error.notFound': 'Dépôt introuvable — a-t-il été supprimé ?',
@@ -1012,9 +1099,69 @@ export const fr = {
   'prefs.repos.delete.reversibleBody':
     'si vous créez plus tard un nouveau dépôt avec l’id {id}, tous les chats détachés se rattacheront automatiquement.',
   'prefs.repos.delete.noTouch':
-    'Cela ne touchera pas au clone source à {path} ni à aucune branche de chat dedans. Les worktrees d’emplacement sur le disque sont également laissés tels quels — vous pouvez les élaguer à la main si vous voulez repartir à zéro.',
+    'Votre dépôt d’origine à {path} n’est jamais touché — seuls les clones de slot / worktrees de PopBot sont supprimés. (Ceux laissés sur le disque peuvent être élagués à la main pour repartir à zéro.)',
   'prefs.repos.delete.typeToConfirm': 'Saisissez {id} pour confirmer :',
   'prefs.repos.delete.deleting': 'Suppression…',
+
+  // Preferences — Repositories: color + add-repository wizard (new keys).
+  'prefs.repos.colorTaken': 'Déjà utilisée par un autre dépôt',
+  'prefs.repos.wizard.step': 'étape {step}',
+  'prefs.repos.wizard.buildingBase': 'construction de la base',
+  'prefs.repos.wizard.detect.detecting': 'Détection…',
+  'prefs.repos.wizard.detect.git': 'Dépôt Git',
+  'prefs.repos.wizard.detect.perforce': 'Dépôt Perforce',
+  'prefs.repos.wizard.detect.invalid': 'Ni un dépôt git ni un dépôt Perforce',
+  'prefs.repos.wizard.detect.alreadyAdded': 'Ce dossier est déjà ajouté comme dépôt',
+  'prefs.repos.wizard.detect.idTaken': 'Cet id court est déjà pris — choisissez-en un autre',
+  'prefs.repos.wizard.connect.intro':
+    'Connectez-vous au serveur Perforce. Nous capturerons la changelist sur laquelle votre dossier est synchronisé afin que chaque emplacement la reflète (aucun re-transfert).',
+  'prefs.repos.wizard.connect.port.title': 'P4PORT',
+  'prefs.repos.wizard.connect.port.desc': 'Adresse du serveur, ex. ssl:host:1666.',
+  'prefs.repos.wizard.connect.user.title': 'P4USER',
+  'prefs.repos.wizard.connect.user.desc':
+    'Votre utilisateur Perforce. L’authentification utilise votre ticket de connexion p4 existant.',
+  'prefs.repos.wizard.connect.depot.title': 'Chemin du depot',
+  'prefs.repos.wizard.connect.depot.desc':
+    'Le chemin du depot que ce dossier mappe, ex. //depot/MyGame.',
+  'prefs.repos.wizard.connect.baseName.title': 'Nom de la base',
+  'prefs.repos.wizard.connect.baseName.desc': 'Nom de la base shado figée. Les emplacements la clonent.',
+  'prefs.repos.wizard.connect.discovered':
+    'Voici les valeurs qui seront utilisées pour configurer ce dépôt, lues depuis votre espace de travail Perforce ({client}).',
+  'prefs.repos.wizard.connect.changelist': 'Changelist synchronisée',
+  'prefs.repos.wizard.connect.base': 'Nom de la base',
+  'prefs.repos.wizard.preflight.intro':
+    'Vérification de l’espace disque. La base est construite à partir de votre dossier (laissé en place), elle a donc besoin d’environ la taille du dossier en espace libre sur le même disque.',
+  'prefs.repos.wizard.preflight.measuring': 'Mesure du dossier…',
+  'prefs.repos.wizard.preflight.folder': 'Dossier source',
+  'prefs.repos.wizard.preflight.free': 'Libre sur le disque',
+  'prefs.repos.wizard.preflight.needs': 'La base nécessite (≈ +5 %)',
+  'prefs.repos.wizard.preflight.ok': 'Espace libre suffisant — prêt à construire la base.',
+  'prefs.repos.wizard.preflight.block':
+    'Espace libre insuffisant : {free} disponible, la base nécessite {need}. Libérez de l’espace (ou choisissez un dossier sur un disque plus spacieux) et réessayez.',
+  'prefs.repos.wizard.build.intro':
+    'Construisez la base figée ({gb}) à partir de votre dossier. Cela exécute une opération shado élevée — vous verrez une invite d’administrateur Windows (UAC). Cela peut prendre plusieurs minutes ; la progression est affichée en direct.',
+  'prefs.repos.wizard.build.baseName': 'Base',
+  'prefs.repos.wizard.build.start': 'Construire la base',
+  'prefs.repos.wizard.build.starting': 'Démarrage de la construction de la base (approuvez l’invite d’administrateur)…',
+  'prefs.repos.wizard.build.done':
+    'Base construite. Si vous annulez maintenant, la base reste sur le disque et peut être réutilisée.',
+  'prefs.repos.wizard.build.changelist': 'Changelist de la base',
+  'prefs.repos.wizard.build.changelistDesc':
+    'La changelist sur laquelle la base est synchronisée — capturée automatiquement. Ne la remplacez que si elle est incorrecte.',
+  'prefs.perforce.p4Path.title': 'Exécutable p4',
+  'prefs.perforce.p4Path.desc': 'Chemin vers le binaire p4. Laissez vide pour utiliser « p4 » depuis le PATH.',
+  'prefs.perforce.defaultPort.title': 'P4PORT par défaut',
+  'prefs.perforce.defaultPort.desc': 'Pré-remplit l’étape Ajouter un dépôt → connexion Perforce.',
+  'prefs.perforce.defaultUser.title': 'P4USER par défaut',
+  'prefs.perforce.defaultUser.desc': 'Pré-remplit l’étape Ajouter un dépôt → connexion Perforce.',
+  'prefs.perforce.parallelThreads.title': 'Threads de transfert parallèles',
+  'prefs.perforce.parallelThreads.desc':
+    'Threads pour la synchronisation/soumission parallèle p4. 1 le désactive.',
+  'prefs.perforce.revertUnchanged.title': 'Annuler les fichiers inchangés',
+  'prefs.perforce.revertUnchanged.desc':
+    'Retire les fichiers identiques octet pour octet d’une changelist avant la soumission.',
+  'prefs.perforce.revertUnchanged.toggle': 'Annuler les fichiers identiques octet pour octet à la soumission',
+  'prefs.repos.error.duplicatePath': 'Ce dossier est déjà ajouté comme dépôt « {id} ».',
 
   // ---------------------------------------------------------------------------
   // Language preference pane.

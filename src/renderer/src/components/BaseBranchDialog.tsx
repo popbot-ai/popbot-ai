@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import type { GitBaseBranches } from '@shared/git';
 import type { RepoRecord } from '@shared/persistence';
 import { useTranslation } from '../lib/i18n';
+import { P4Glyph } from './P4Glyph';
 import {
   AGENT_EFFORT_DEFAULTS_SETTING,
   AgentCreateControls,
@@ -31,6 +32,11 @@ interface BaseBranchDialogProps {
    *  source either from. The derived `subject` and `branch` come back
    *  in `onConfirm`. */
   askSubject?: boolean;
+  /** Pre-derived branch / changelist name for flows that DON'T ask for a
+   *  subject (ticket/PR), e.g. `bcooley/eng-204-…`. Shown — editable — so the
+   *  user always sees the branch (git) or changelist (Perforce) name that will
+   *  be created, and the (possibly edited) value comes back in `onConfirm`. */
+  initialBranch?: string;
   /** Show a "No repo" option that creates a raw chat with no slot,
    *  worktree, branch, or base branch. Only used by generic new-chat
    *  creation; ticket/PR flows still require a real repo. */
@@ -238,6 +244,7 @@ export function BaseBranchDialog({
   initial,
   lockedRepoId,
   askSubject,
+  initialBranch,
   allowNoRepo,
   allowRepoRoot,
   showAgentPicker,
@@ -252,6 +259,10 @@ export function BaseBranchDialog({
   const [picked, setPicked] = useState<string>(initial ?? '');
   const [recentBases, setRecentBases] = useState<string[]>([]);
   const [subject, setSubject] = useState('');
+  // Editable branch / changelist name. Null = follow the derived value; once
+  // the user types, their edit sticks. For Perforce this names the pending
+  // changelist; for git it's the branch name.
+  const [branchEdit, setBranchEdit] = useState<string | null>(null);
   // A unique fallback name shown as the input's placeholder and used
   // verbatim when the user leaves the subject blank — so a chat always
   // has a valid, distinct name and creation is never silently blocked.
@@ -284,6 +295,12 @@ export function BaseBranchDialog({
   const effectiveSubject = subject.trim() || defaultSubject;
   const derivedSlug = slugifySubject(effectiveSubject);
   const derivedBranch = derivedSlug ? `${username}/${derivedSlug}` : '';
+  // The name seed: derived-from-subject when we ask for one (generic flow),
+  // else the caller's pre-derived ticket/PR branch.
+  const seedBranch = askSubject ? derivedBranch : (initialBranch ?? '');
+  // The branch / changelist name actually used: the user's edit if they typed
+  // one, else the seed.
+  const effectiveBranch = branchEdit && branchEdit.trim() ? branchEdit.trim() : seedBranch;
   const isRawChat = pickedRepoId === null && allowNoRepo === true;
   // "Free Chat (no slot)" radio is selected → run from the repo root with
   // no slot/worktree/branch (same as a CR chat).
@@ -315,6 +332,13 @@ export function BaseBranchDialog({
   // Re-fetch base branches whenever the picked repo changes.
   useEffect(() => {
     if (!pickedRepoId) {
+      setBranches(null);
+      setError(null);
+      setPicked('');
+      return;
+    }
+    // Perforce has no branches — skip the fetch; the slot syncs to latest.
+    if ((repos?.find((r) => r.id === pickedRepoId)?.scm ?? 'git') === 'perforce') {
       setBranches(null);
       setError(null);
       setPicked('');
@@ -358,24 +382,23 @@ export function BaseBranchDialog({
       return;
     }
     if (!pickedRepoId) return;
-    if (!isFreeChat && !picked) return;
+    if (!isFreeChat && !isPerforce && !picked) return;
     if (!lockedRepoId) void window.popbot.settings.set(LAST_REPO_SETTING, pickedRepoId);
     // Remember the picked base branch so it surfaces at the top of the
-    // picker next time (most-recent first, capped).
-    if (!isFreeChat && picked) {
+    // picker next time (most-recent first, capped). Perforce has no pick.
+    if (!isFreeChat && !isPerforce && picked) {
       const nextRecents = [picked, ...recentBases.filter((b) => b !== picked)].slice(0, 8);
       void window.popbot.settings.set(RECENT_BASE_BRANCHES_SETTING, nextRecents);
     }
     onConfirm({
       repoId: pickedRepoId,
-      baseBranch: isFreeChat ? null : picked,
+      // Perforce slots sync to latest — there's no base branch to fork from.
+      baseBranch: isFreeChat ? null : isPerforce ? 'latest' : picked,
       workspaceMode: isFreeChat ? 'repo-root' : 'slot',
-      ...(askSubject
-        ? {
-            subject: effectiveSubject,
-            ...(isFreeChat ? {} : { branch: derivedBranch }),
-          }
-        : {}),
+      ...(askSubject ? { subject: effectiveSubject } : {}),
+      // Return the (possibly edited) branch/changelist name for any slot chat,
+      // so a ticket/PR flow uses what the user saw + tweaked, not its own.
+      ...(!isFreeChat && effectiveBranch ? { branch: effectiveBranch } : {}),
       ...(chosenAgent ? { agentConfig: chosenAgent } : {}),
     });
   };
@@ -385,7 +408,7 @@ export function BaseBranchDialog({
       if (e.key === 'Escape') onCancel();
       // `picked` is FREE_CHAT_VALUE (truthy) when the free-chat radio is
       // selected, so the slot-branch condition already covers that case.
-      else if (e.key === 'Enter' && (isRawChat || (picked && pickedRepoId))) submit();
+      else if (e.key === 'Enter' && (isRawChat || ((picked || isPerforce) && pickedRepoId))) submit();
     };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
@@ -394,14 +417,17 @@ export function BaseBranchDialog({
   }, [onCancel, onConfirm, picked, pickedRepoId, derivedBranch, subject, isRawChat, isFreeChat]);
 
   const currentRepo = repos?.find((r) => r.id === pickedRepoId) ?? null;
+  const isPerforce = (currentRepo?.scm ?? 'git') === 'perforce';
   const allBranches = branches?.branches ?? [];
 
   // The subject is never blocking now — it falls back to a generated
-  // default. A slot chat still needs a repo + a base branch picked.
+  // default. A git slot chat still needs a repo + a base branch picked;
+  // Perforce has no branches (the slot syncs to latest), so those gates
+  // don't apply.
   const noRepo = !isRawChat && !pickedRepoId;
-  const noBranches = !isRawChat && !isFreeChat && branches != null && allBranches.length === 0;
-  const noBranchPicked = !isRawChat && !isFreeChat && !noBranches && !picked;
-  const branchesLoading = !isRawChat && !isFreeChat && branches == null && !error;
+  const noBranches = !isRawChat && !isFreeChat && !isPerforce && branches != null && allBranches.length === 0;
+  const noBranchPicked = !isRawChat && !isFreeChat && !isPerforce && !noBranches && !picked;
+  const branchesLoading = !isRawChat && !isFreeChat && !isPerforce && branches == null && !error;
   const confirmDisabled = noRepo || noBranches || noBranchPicked || branchesLoading;
   // Plain-language reason shown beside a disabled Create button.
   const disabledReason = noRepo ? t('branch.dialog.disabled.pickRepo')
@@ -438,11 +464,22 @@ export function BaseBranchDialog({
                 style={{ width: '100%' }}
                 autoFocus
               />
-              {derivedBranch && !isFreeChat && (
-                <div style={{ fontSize: 11, color: 'var(--fg-3)', marginTop: 4 }}>
-                  {t('branch.dialog.branchPrefix')} <span className="mono">{derivedBranch}</span>
-                </div>
-              )}
+            </div>
+          )}
+          {/* Always show the branch (git) / changelist (Perforce) name that
+              will be created — derived from the subject above, or the ticket/PR
+              branch — and let the user edit it. */}
+          {!isRawChat && !isFreeChat && (askSubject || initialBranch) && (
+            <div style={{ marginBottom: 12 }}>
+              <div style={{ fontSize: 11, color: 'var(--fg-3)', marginBottom: 4 }}>
+                {isPerforce ? t('branch.dialog.changelistName') : t('branch.dialog.branchName')}
+              </div>
+              <input
+                className="pref-input mono narrow"
+                value={effectiveBranch}
+                onChange={(e) => setBranchEdit(e.target.value)}
+                style={{ width: '100%' }}
+              />
             </div>
           )}
           {!repos && <div>{t('branch.dialog.loadingRepos')}</div>}
@@ -481,8 +518,13 @@ export function BaseBranchDialog({
                         />
                         <span
                           className="base-branch-name mono"
-                          style={{ borderLeft: `3px solid ${r.color}`, paddingLeft: 6 }}
+                          style={{ borderLeft: `3px solid ${r.color}`, paddingLeft: 6, display: 'inline-flex', alignItems: 'center', gap: 5 }}
                         >
+                          {(r.scm ?? 'git') === 'perforce' ? (
+                            <P4Glyph style={{ color: 'var(--scm-perforce)' }} />
+                          ) : (
+                            <i className="fa-solid fa-code-branch" style={{ color: 'var(--scm-git)' }} />
+                          )}
                           {r.id}
                         </span>
                         <span className="base-branch-tag">
@@ -498,6 +540,10 @@ export function BaseBranchDialog({
               {isRawChat ? (
                 <div style={{ color: 'var(--fg-2)', fontSize: 12 }}>
                   {t('branch.dialog.rawChatDesc')}
+                </div>
+              ) : isPerforce ? (
+                <div style={{ color: 'var(--fg-2)', fontSize: 12 }}>
+                  {t('branch.dialog.perforceLatest')}
                 </div>
               ) : (
                 <>

@@ -442,6 +442,9 @@ void app.whenReady().then(async () => {
   } catch (err) {
     console.error('[boot] repo seed failed', err);
   }
+  // (A reboot drops VHDX slot mounts; rather than auto-elevate on boot, the
+  // renderer surfaces a "Reconnect" banner the user clicks — so the UAC is
+  // clearly their action. See repos.disconnectedSlots / repos.reconnectSlots.)
   // Boot-time chat-session recovery — restores chat→session links
   // that the legacy JSONL-based pin repair (now retired) wrongly
   // cleared, and attributes orphan SDK transcript entries to their

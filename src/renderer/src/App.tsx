@@ -15,6 +15,7 @@ import { Modal } from './components/Modal';
 import { PreferencesSheet } from './components/PreferencesSheet';
 import { CloseChatPrompt } from './components/CloseChatPrompt';
 import { BusyOverlay } from './components/BusyOverlay';
+import { ReconnectModal } from './components/ReconnectModal';
 import {
   AGENT_EFFORT_DEFAULTS_SETTING,
   agentCreateConfigWithEffortDefaults,
@@ -22,6 +23,8 @@ import {
   type AgentEffortDefaultsSettings,
 } from './components/AgentCreateControls';
 import { DEFAULT_RE_REVIEW_TEMPLATE, DEFAULT_START_CODE_REVIEW_TEMPLATE, DEFAULT_START_TICKET_TEMPLATE, expandTemplate } from './lib/templates';
+import { DEFAULT_SOURCE_CONTROL, SOURCE_CONTROL_PROVIDERS } from '@shared/sourceControl';
+import type { SourceControlProviderId } from '@shared/sourceControl';
 import type { ReviewItem } from '@shared/reviews';
 import type { LinearIssueDto } from '@shared/linear';
 import { useLinearIssues } from './lib/useLinearIssues';
@@ -77,6 +80,7 @@ function chatRecordToFixture(c: ChatRecord, t: Translator): ChatFixture {
     slotId: c.slotId,
     worktreePath: c.worktreePath,
     repoColor: c.repoColor,
+    scm: c.repoScm,
   };
 }
 
@@ -172,7 +176,17 @@ export default function App(): JSX.Element {
   const [slotConfigVersion, setSlotConfigVersion] = useState(0);
   /** Whole-window "please wait" overlay shown during slow main-side
    *  work (git worktree add, checkout, stash pop, …). */
-  const [busy, setBusy] = useState<{ message: string; detail?: string } | null>(null);
+  const [busy, setBusy] = useState<{ message: string; detail?: string; error?: boolean } | null>(null);
+  // Stream Perforce sync/open progress into the busy overlay's detail while
+  // it's up — e.g. "Syncing to latest — N files…" during a new chat's slot
+  // prep. Only enhances an existing overlay; never pops one on its own.
+  useEffect(
+    () =>
+      window.popbot.repos.onP4OpenProgress((msg) => {
+        if (msg) setBusy((b) => (b ? { ...b, detail: msg } : b));
+      }),
+    [],
+  );
   /** Chat that's mid-close (showing the CloseChatPrompt). */
   const [closingChat, setClosingChat] = useState<ChatRecord | null>(null);
   /** True when a chat-create failed because the slot pool is full. */
@@ -231,6 +245,9 @@ export default function App(): JSX.Element {
      *  (and derives the branch name from it). Used by the generic
      *  "+" / Cmd-K new-chat flow where there's no ticket/PR. */
     askSubject?: boolean;
+    /** Pre-derived branch/changelist name (ticket/PR flows) — shown editable
+     *  so the user always sees it; the edited value comes back in run(). */
+    initialBranch?: string;
     /** Generic new-chat flow can intentionally skip repo selection. */
     allowNoRepo?: boolean;
     /** Generic lite chats can run from repo root without a slot. */
@@ -506,13 +523,23 @@ export default function App(): JSX.Element {
   };
 
   const doClose = async (id: string, opts: { stash: boolean }) => {
+    const chat = chats.find((c) => c.id === id);
+    // Dismiss the close prompt; the busy overlay takes over the window.
+    setClosingChat(null);
     if (focusedId === id) {
       const nextIdx = chats.findIndex((c) => c.id === id);
       const fallback = chats[nextIdx + 1] ?? chats[nextIdx - 1] ?? null;
       setFocusedId(fallback?.id ?? null);
     }
-    await close(id, opts);
-    setClosingChat(null);
+    // Slot-backed chats do real work on close (persist branch/changelist to the
+    // root + shelve) — show the washing-machine overlay so the window isn't dead
+    // while it runs. Perforce sync progress streams into the overlay detail.
+    if (chat?.slotId != null) setBusy({ message: t('app.busy.closing') });
+    try {
+      await close(id, opts);
+    } finally {
+      setBusy(null);
+    }
   };
 
   /** Create the chat (with optional slot/worktree). Surfaces config
@@ -521,7 +548,10 @@ export default function App(): JSX.Element {
    *  the count. Shows a busy overlay during the slow git work. */
   const createWithSlot = async (
     input: CreateChatInput,
-    opts?: { busy?: { message: string; detail?: string }; onCreated?: (chatId: string) => void },
+    opts?: {
+      busy?: { message: string; detail?: string };
+      onCreated?: (chatId: string, slotId: number | null) => void;
+    },
   ) => {
     if (opts?.busy) setBusy(opts.busy);
     let result;
@@ -541,12 +571,11 @@ export default function App(): JSX.Element {
       } else if (result.reason === 'worktree-failed') {
         // eslint-disable-next-line no-console
         console.error('worktree setup failed:', result.message);
-        setBusy({ message: t('app.busy.worktreeFailed'), detail: result.message });
-        setTimeout(() => setBusy(null), 2500);
+        setBusy({ message: t('app.busy.worktreeFailed'), detail: result.message, error: true });
       }
       return;
     }
-    opts?.onCreated?.(result.chat.id);
+    opts?.onCreated?.(result.chat.id, result.chat.slotId ?? null);
     scrollToChat(result.chat.id);
   };
 
@@ -586,6 +615,23 @@ export default function App(): JSX.Element {
     return `${username}/${idSlug}-${slugifyTitle(t.title)}`;
   };
 
+  /** SCM-aware detail under "Setting up workspace…". Git branches off a base
+   *  (or checks a branch out when re-attaching); Perforce creates the per-slot
+   *  workspace; any other provider gets a neutral line. Keyed by provider so a
+   *  new SCM only needs its strings — no call-site changes. */
+  const workspaceSetupDetail = (
+    scm: SourceControlProviderId | null | undefined,
+    branch: string,
+    baseBranch?: string,
+  ): string => {
+    if (scm === 'perforce') return t('app.busy.perforce.creating', { branch });
+    if (scm && scm !== 'git') return t('app.busy.other.settingUp', { branch });
+    // git, or a legacy repo with no scm recorded (defaults to git)
+    return baseBranch
+      ? t('app.busy.branchingFrom', { branch, baseBranch })
+      : t('app.busy.checkingOutBranch', { branch });
+  };
+
   /** Focus an existing chat — and if it doesn't yet have a slot, kick
    *  off the attach-slot flow so it ends up with a real workspace. */
   const focusOrAttach = async (existing: ChatRecord) => {
@@ -597,8 +643,7 @@ export default function App(): JSX.Element {
       if (!result.ok) {
         if (result.reason === 'no-free-slot') setNoSlotsOpen(true);
         else if (result.reason === 'worktree-failed') {
-          setBusy({ message: t('app.busy.worktreeFailed'), detail: result.message });
-          setTimeout(() => setBusy(null), 2500);
+          setBusy({ message: t('app.busy.worktreeFailed'), detail: result.message, error: true });
         }
         return;
       }
@@ -607,7 +652,10 @@ export default function App(): JSX.Element {
     if (!target) return;
     scrollToChat(target.id);
     if (target.slotId == null && target.branch) {
-      setBusy({ message: t('app.busy.settingUpWorkspace'), detail: t('app.busy.checkingOutBranch', { branch: target.branch }) });
+      setBusy({
+        message: t('app.busy.settingUpWorkspace'),
+        detail: workspaceSetupDetail(target.repoScm, target.branch),
+      });
       let result;
       try {
         result = await attachSlot(target.id);
@@ -619,8 +667,7 @@ export default function App(): JSX.Element {
         else if (result.reason === 'no-free-slot') setNoSlotsOpen(true);
         else if (result.reason === 'git-not-configured') openPrefsAt('git');
         else if (result.reason === 'worktree-failed') {
-          setBusy({ message: t('app.busy.worktreeFailed'), detail: result.message });
-          setTimeout(() => setBusy(null), 2500);
+          setBusy({ message: t('app.busy.worktreeFailed'), detail: result.message, error: true });
         }
       }
     }
@@ -636,13 +683,21 @@ export default function App(): JSX.Element {
     setPendingCreate({
       subtitle: `${ticket.id} · ${ticket.title.slice(0, 60)}`,
       showAgentPicker: true,
-      run: async ({ repoId, baseBranch, agentConfig }) => {
+      initialBranch: branch,
+      run: async ({ repoId, baseBranch, branch: editedBranch, agentConfig }) => {
         if (!repoId || !baseBranch) return;
+        // The user may have tweaked the branch/changelist name in the dialog.
+        const finalBranch = editedBranch?.trim() || branch;
+        // Resolve the repo's SCM once — drives both the "setting up" wording
+        // and the SCM-aware template vars below.
+        const scm =
+          (await window.popbot.repos.list()).find((r) => r.id === repoId)?.scm
+          ?? DEFAULT_SOURCE_CONTROL;
         await createWithSlot(
       {
         name: `${ticket.id} · ${ticket.title.slice(0, 60)}`,
         ticket: ticket.id,
-        branch,
+        branch: finalBranch,
         baseBranch,
         type: 'lite',
         allocateSlot: true,
@@ -650,8 +705,11 @@ export default function App(): JSX.Element {
         ...agentConfig,
       },
       {
-        busy: { message: t('app.busy.settingUpWorkspace'), detail: t('app.busy.branchingFrom', { branch, baseBranch }) },
-        onCreated: (chatId) => {
+        busy: {
+          message: t('app.busy.settingUpWorkspace'),
+          detail: workspaceSetupDetail(scm, finalBranch, baseBranch),
+        },
+        onCreated: async (chatId, slotId) => {
           // Auto-promote the ticket to "In Progress" when we open a
           // chat for it. Idempotent + scoped on the main side: only
           // upstream states (backlog/triage/unstarted) get touched;
@@ -667,10 +725,11 @@ export default function App(): JSX.Element {
             ?? DEFAULT_START_TICKET_TEMPLATE
           ).trim();
           if (!tmpl) return;
-          // Look up the slot the chat just got assigned (post-create
-          // state may not have hit React yet, so query by ticket).
-          const justCreated = chats.find((c) => c.id === chatId);
-          const slot = justCreated?.slotId ?? '';
+          // SCM-aware wording comes from the repo's source-control provider
+          // (scm name, "branch"/"changelist", commit verb, …) — a key/value
+          // map per VCS, so this scales past git/perforce with no branching.
+          // `scm` was resolved once at the top of `run`.
+          const scmVars = (SOURCE_CONTROL_PROVIDERS[scm] ?? SOURCE_CONTROL_PROVIDERS[DEFAULT_SOURCE_CONTROL]).promptVars;
           const description = ticket.description ?? '';
           const text = expandTemplate(tmpl, {
             ticketid: ticket.id,
@@ -683,8 +742,11 @@ export default function App(): JSX.Element {
             ticketurl: ticket.url ?? '',
             priority: ticket.priority,
             project: ticket.project,
-            branch,
-            slot,
+            branch: finalBranch,
+            ...scmVars,
+            // The slot the chat was actually assigned (passed back from
+            // createWithSlot — the `chats` state hasn't updated yet here).
+            slot: slotId ?? '',
           });
           void window.popbot.agent.send({ chatId, text });
         },
@@ -1045,6 +1107,35 @@ export default function App(): JSX.Element {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Slot repos whose VHDX clones a reboot disconnected. Rather than auto-elevate
+  // on boot, surface a center modal the user clicks Reconnect in — so the one
+  // UAC is clearly their action. (Windows-only: disconnectedSlots() returns []
+  // on mac/linux, where slots are plain folders that survive reboots.)
+  const [disconnectedSlots, setDisconnectedSlots] = useState<string[]>([]);
+  const [reconnectingSlots, setReconnectingSlots] = useState(false);
+  const [reconnectError, setReconnectError] = useState<string | null>(null);
+  const [reconnectDismissed, setReconnectDismissed] = useState(false);
+  useEffect(() => {
+    if (window.popbot.platform !== 'win32') return; // no VHDX slots off Windows
+    void window.popbot.repos.disconnectedSlots().then(setDisconnectedSlots).catch(() => {});
+  }, []);
+  const reconnectSlots = useCallback(async () => {
+    setReconnectError(null);
+    setReconnectingSlots(true);
+    const res = await window.popbot.repos.reconnectSlots();
+    setReconnectingSlots(false);
+    void window.popbot.repos.disconnectedSlots().then(setDisconnectedSlots).catch(() => {});
+    if (res.ok) refresh();
+    else setReconnectError(res.error || t('app.reconnect.failed'));
+  }, [refresh, t]);
+  // Modal state: working while the elevated remount runs, error if it failed,
+  // otherwise the prompt. Hidden once nothing's disconnected or the user defers.
+  const reconnectStatus: 'working' | 'error' | 'prompt' = reconnectingSlots
+    ? 'working'
+    : reconnectError
+      ? 'error'
+      : 'prompt';
+
   const workspaceStyle: ColumnLayoutVars = {
     '--col-left': colWidth + 'px',
     '--row-bottom': bottomHeight + 'px',
@@ -1057,6 +1148,19 @@ export default function App(): JSX.Element {
       className={`app${window.popbot.platform === 'win32' ? ' platform-win' : window.popbot.platform === 'linux' ? ' platform-linux' : ''}`}
       data-screen-label="PopBot · Main"
     >
+      {disconnectedSlots.length > 0 && (!reconnectDismissed || reconnectStatus !== 'prompt') && (
+        <ReconnectModal
+          repos={disconnectedSlots}
+          status={reconnectStatus}
+          error={reconnectError ?? undefined}
+          onReconnect={() => void reconnectSlots()}
+          onLater={() => setReconnectDismissed(true)}
+          onDismiss={() => {
+            setReconnectError(null);
+            setReconnectDismissed(true);
+          }}
+        />
+      )}
       <Titlebar
         onOpenModal={setModal}
         onOpenPrefs={() => openPrefsAt()}
@@ -1115,8 +1219,7 @@ export default function App(): JSX.Element {
               } else if (result.reason === 'no-free-slot') {
                 setNoSlotsOpen(true);
               } else if (result.reason === 'worktree-failed') {
-                setBusy({ message: t('app.busy.worktreeFailed'), detail: result.message });
-                setTimeout(() => setBusy(null), 2500);
+                setBusy({ message: t('app.busy.worktreeFailed'), detail: result.message, error: true });
               }
             }}
             onDelete={(id) => {
@@ -1301,6 +1404,7 @@ export default function App(): JSX.Element {
           subtitle={pendingCreate.subtitle}
           initial={pendingCreate.initialBase}
           askSubject={pendingCreate.askSubject}
+          initialBranch={pendingCreate.initialBranch}
           allowNoRepo={pendingCreate.allowNoRepo}
           allowRepoRoot={pendingCreate.allowRepoRoot}
           showAgentPicker={pendingCreate.showAgentPicker}
@@ -1336,7 +1440,14 @@ export default function App(): JSX.Element {
           onClose={() => setGateOpen(false)}
         />
       )}
-      {busy && <BusyOverlay message={busy.message} detail={busy.detail} />}
+      {busy && (
+        <BusyOverlay
+          message={busy.message}
+          detail={busy.detail}
+          error={busy.error}
+          onDismiss={busy.error ? () => setBusy(null) : undefined}
+        />
+      )}
       {toast && (
         <Toast
           message={toast.message}
@@ -1382,6 +1493,7 @@ export default function App(): JSX.Element {
           chatId={closingChat.id}
           branch={closingChat.branch}
           slotId={closingChat.slotId}
+          scm={closingChat.repoScm}
           onCancel={() => setClosingChat(null)}
           onClose={(opts) => void doClose(closingChat.id, opts)}
         />

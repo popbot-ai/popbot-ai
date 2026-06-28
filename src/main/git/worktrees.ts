@@ -27,7 +27,12 @@ const execFileP = promisify(execFile);
 
 async function git(cwd: string, args: string[]): Promise<{ stdout: string; stderr: string }> {
   try {
-    const { stdout, stderr } = await execFileP('git', args, { cwd, maxBuffer: 4 * 1024 * 1024 });
+    // `safe.directory=*` (scoped to this invocation) trusts the dir regardless
+    // of owner — shado slot clones are created elevated and end up owned by the
+    // Administrators group, which would otherwise trip git's dubious-ownership
+    // guard. No-op for the user's own repos. Avoids recursive ACL rewrites that
+    // would be ruinously slow + COW-bloating on a real game tree.
+    const { stdout, stderr } = await execFileP('git', ['-c', 'safe.directory=*', ...args], { cwd, maxBuffer: 4 * 1024 * 1024 });
     return { stdout, stderr };
   } catch (err) {
     const e = err as { stderr?: string; message: string };
@@ -134,7 +139,95 @@ export async function checkoutBranch(opts: CheckoutBranchOpts): Promise<void> {
     .then(() => true)
     .catch(() => false);
   const startPoint = hasRemoteBase ? `origin/${baseBranch}` : baseBranch;
-  await git(worktreePath, ['checkout', '-b', branch, startPoint]);
+  // A shado slot is a copy-on-write clone of the frozen base, so it inherits
+  // the base's working tree — a stale local base ref plus whatever uncommitted
+  // / untracked files the source repo had at freeze time. Land the new branch
+  // EXACTLY on the latest base (`-f -B` discards inherited tracked edits) and
+  // wipe inherited untracked files with `clean -fd`. We deliberately omit `-x`
+  // so gitignored warm caches (node_modules, build output) survive — that warm
+  // state is the whole point of slots. `-e` keeps nothing extra; this only runs
+  // on the fresh-branch path (a resumed chat takes the gentle `checkout` above).
+  await git(worktreePath, ['checkout', '-f', '-B', branch, startPoint]);
+  await git(worktreePath, ['clean', '-fd']).catch(() => undefined);
+}
+
+/* ===========================================================================
+ * Branch consolidation to the LOCAL ROOT.
+ *
+ * Each slot is an independent clone (shado COW clone of the frozen base), so
+ * branches/commits made in a slot live ONLY in that slot's `.git`. A chat can
+ * reopen on a different slot, where its branch wouldn't exist. To make a chat's
+ * work slot-independent we mirror the old shared-`.git` worktree behavior: on
+ * close we push the chat branch to the LOCAL ROOT (the on-drive repo folder we
+ * cloned every slot from — `repo.repoPath`), and on reopen we restore it from
+ * there. `origin` is left alone (the real GitHub remote, for PRs).
+ * =========================================================================== */
+
+/** Remote name in each slot pointing at the local root repo. */
+export const ROOT_REMOTE = 'root';
+/** Throwaway commit that carries uncommitted work across the push. Bracketed so
+ *  it reads as a meta note (not a user-authored message) if seen in the log;
+ *  undone via `reset --soft` on restore. */
+export const WIP_COMMIT_MSG = '[Soft committed unstaged files]';
+
+/** Point the slot's `root` remote at the local root repo (idempotent). */
+async function ensureRootRemote(worktreePath: string, repoPath: string): Promise<void> {
+  const has = await git(worktreePath, ['remote', 'get-url', ROOT_REMOTE]).then(() => true).catch(() => false);
+  if (has) await git(worktreePath, ['remote', 'set-url', ROOT_REMOTE, repoPath]).catch(() => undefined);
+  else await git(worktreePath, ['remote', 'add', ROOT_REMOTE, repoPath]).catch(() => undefined);
+}
+
+/**
+ * On close: consolidate the chat branch to the local root so a reopen on ANY
+ * slot can restore it. Uncommitted work rides along as a throwaway WIP commit
+ * unless the user chose to discard (then it's cleaned first).
+ */
+export async function persistBranchToRoot(opts: {
+  repoPath: string;
+  worktreePath: string;
+  branch: string;
+  discard: boolean;
+}): Promise<void> {
+  const { repoPath, worktreePath, branch, discard } = opts;
+  const { stdout } = await git(worktreePath, ['status', '--porcelain']).catch(() => ({ stdout: '', stderr: '' }));
+  if (stdout.trim().length > 0) {
+    if (discard) {
+      await git(worktreePath, ['checkout', '--', '.']).catch(() => undefined);
+      await git(worktreePath, ['clean', '-fd']).catch(() => undefined);
+    } else {
+      await git(worktreePath, ['add', '-A']).catch(() => undefined);
+      // --no-verify: a mechanical snapshot, not a real commit — skip hooks.
+      await git(worktreePath, ['commit', '--no-verify', '-m', WIP_COMMIT_MSG]).catch(() => undefined);
+    }
+  }
+  await ensureRootRemote(worktreePath, repoPath);
+  // Force: the chat branch belongs to this chat, and the local root never has it
+  // checked out (it sits on its own default branch), so the push is safe.
+  await git(worktreePath, ['push', '-f', ROOT_REMOTE, `refs/heads/${branch}:refs/heads/${branch}`]);
+}
+
+/**
+ * On reopen: overlay the chat branch's persisted state from the local root onto
+ * the freshly-checked-out slot. Returns false when the root has no such branch
+ * (first-ever open / nothing persisted) so the caller keeps the base checkout.
+ */
+export async function restoreBranchFromRoot(opts: {
+  repoPath: string;
+  worktreePath: string;
+  branch: string;
+}): Promise<boolean> {
+  const { repoPath, worktreePath, branch } = opts;
+  await ensureRootRemote(worktreePath, repoPath);
+  const fetched = await git(worktreePath, ['fetch', ROOT_REMOTE, branch]).then(() => true).catch(() => false);
+  if (!fetched) return false;
+  await git(worktreePath, ['checkout', '-f', '-B', branch, 'FETCH_HEAD']);
+  await git(worktreePath, ['clean', '-fd']).catch(() => undefined);
+  // Undo the WIP commit so its changes come back as uncommitted edits. `--mixed`
+  // (not `--soft`) also resets the index, so they return UNSTAGED — matching how
+  // uncommitted work normally looks — rather than all staged.
+  const top = await git(worktreePath, ['log', '-1', '--pretty=%s']).then((r) => r.stdout.trim()).catch(() => '');
+  if (top === WIP_COMMIT_MSG) await git(worktreePath, ['reset', '--mixed', 'HEAD~1']).catch(() => undefined);
+  return true;
 }
 
 export interface WorktreeStatus {
