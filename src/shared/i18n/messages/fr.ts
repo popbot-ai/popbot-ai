@@ -50,7 +50,7 @@ export const fr = {
   'p4.menu.returnToChangelist': 'Renvoyer vers la liste de modifications',
   'p4.menu.deleteFromShelf': 'Supprimer de la remise',
   'p4.confirm.revertBody': 'Rétablir {count} fichier(s) ? Leurs modifications sont supprimées et ne peuvent pas être récupérées.',
-  'p4.confirm.deleteShelfBody': 'Supprimer {count} liste(s) de modifications remisée(s) ? Cette action est irréversible.',
+  'p4.confirm.deleteShelfBody': 'Supprimer {count} fichier(s) remisé(s) ? Cette action est irréversible.',
   'p4.login.title': 'Connexion Perforce requise',
   'p4.login.body': 'Votre session Perforce a expiré. Saisissez votre mot de passe pour vous reconnecter.',
   'p4.login.placeholder': 'Mot de passe Perforce',

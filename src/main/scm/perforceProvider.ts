@@ -21,6 +21,7 @@
  */
 import { hostname } from 'node:os';
 import type { GitBaseBranches, GitFileChange, GitScope } from '@shared/git';
+import type { P4ShelfItem } from '@shared/perforce';
 import type { PerforceRepoConfig, RepoRecord } from '@shared/persistence';
 import {
   type SourceControlCapabilities,
@@ -209,17 +210,18 @@ export class PerforceProvider extends SourceControlProvider {
       }, 600);
     }
   }
-  /** Restore the checked shelved changelists into the working area ("Return to
-   *  Changelist") — unshelve + drop the shelf. */
-  async unshelve(wt: string, changes: string[]): Promise<void> {
+  /** Restore the checked shelved FILES into the working area ("Return to
+   *  Changelist") — unshelve the named files + drop them from the shelf. The
+   *  panel lists files, so each item is a changelist + the files picked from it. */
+  async unshelve(wt: string, items: P4ShelfItem[]): Promise<void> {
     const ctx = this.ctx(wt);
     // Pause the watcher: unshelve writes the shelved files to disk (and opens
     // them in p4 directly), so the fs events it fires would otherwise be
     // re-recorded and churned on the next status.
     pauseSlotWatch(wt);
     try {
-      for (const c of changes) {
-        await unshelvePop(ctx, wt, c);
+      for (const it of items) {
+        await unshelvePop(ctx, wt, it.change, it.paths);
       }
     } finally {
       setTimeout(() => {
@@ -228,11 +230,11 @@ export class PerforceProvider extends SourceControlProvider {
       }, 600);
     }
   }
-  /** Discard the checked shelves ("Delete From Shelf") without restoring. */
-  async deleteShelf(wt: string, changes: string[]): Promise<void> {
+  /** Discard the checked shelved FILES ("Delete From Shelf") without restoring. */
+  async deleteShelf(wt: string, items: P4ShelfItem[]): Promise<void> {
     const ctx = this.ctx(wt);
-    for (const c of changes) {
-      await deleteShelf(ctx, wt, c);
+    for (const it of items) {
+      await deleteShelf(ctx, wt, it.change, it.paths);
     }
   }
   listFilesInCommit(wt: string, sha: string): Promise<GitFileChange[]> {

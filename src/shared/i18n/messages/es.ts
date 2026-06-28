@@ -50,7 +50,7 @@ export const es = {
   'p4.menu.returnToChangelist': 'Devolver al changelist',
   'p4.menu.deleteFromShelf': 'Eliminar del archivador',
   'p4.confirm.revertBody': '¿Revertir {count} archivo(s)? Sus cambios se descartan y no se pueden recuperar.',
-  'p4.confirm.deleteShelfBody': '¿Eliminar {count} changelist(s) archivado(s)? Esto no se puede deshacer.',
+  'p4.confirm.deleteShelfBody': '¿Eliminar {count} archivo(s) archivado(s)? Esto no se puede deshacer.',
   'p4.login.title': 'Se requiere iniciar sesión en Perforce',
   'p4.login.body': 'Tu sesión de Perforce expiró. Introduce tu contraseña para volver a iniciar sesión.',
   'p4.login.placeholder': 'Contraseña de Perforce',

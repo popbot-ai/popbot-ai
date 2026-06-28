@@ -707,7 +707,7 @@ export const en = {
   'p4.menu.returnToChangelist': 'Return to Changelist',
   'p4.menu.deleteFromShelf': 'Delete From Shelf',
   'p4.confirm.revertBody': 'Revert {count} file(s)? Their changes are discarded and can’t be recovered.',
-  'p4.confirm.deleteShelfBody': 'Delete {count} shelved changelist(s)? This can’t be undone.',
+  'p4.confirm.deleteShelfBody': 'Delete {count} shelved file(s)? This can’t be undone.',
   'p4.login.title': 'Perforce login required',
   'p4.login.body': 'Your Perforce session has expired. Enter your password to log back in.',
   'p4.login.placeholder': 'Perforce password',

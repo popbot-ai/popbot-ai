@@ -50,7 +50,7 @@ export const de = {
   'p4.menu.returnToChangelist': 'In Changelist zurückführen',
   'p4.menu.deleteFromShelf': 'Aus Zurückstellung löschen',
   'p4.confirm.revertBody': '{count} Datei(en) zurücksetzen? Ihre Änderungen werden verworfen und können nicht wiederhergestellt werden.',
-  'p4.confirm.deleteShelfBody': '{count} zurückgestellte Changelist(s) löschen? Dies kann nicht rückgängig gemacht werden.',
+  'p4.confirm.deleteShelfBody': '{count} zurückgestellte Datei(en) löschen? Dies kann nicht rückgängig gemacht werden.',
   'p4.login.title': 'Perforce-Anmeldung erforderlich',
   'p4.login.body': 'Deine Perforce-Sitzung ist abgelaufen. Gib dein Passwort ein, um dich erneut anzumelden.',
   'p4.login.placeholder': 'Perforce-Passwort',

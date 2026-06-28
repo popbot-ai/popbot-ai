@@ -13,6 +13,14 @@ import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { clampP4ParallelThreads, type PerforceSettings } from '@shared/persistence';
 import type { P4Shelf } from '@shared/perforce';
+import type { GitFileStatus } from '@shared/git';
+
+/** Map a Perforce file action to the shared status enum (for shelf file rows). */
+function p4ActionToStatus(action: string): GitFileStatus {
+  if (action === 'add' || action === 'branch' || action === 'move/add' || action === 'import') return 'added';
+  if (action === 'delete' || action === 'move/delete' || action === 'purge') return 'deleted';
+  return 'modified';
+}
 import { getSetting } from '../persistence/settings';
 import { emitP4Progress } from './progress';
 import {
@@ -328,9 +336,19 @@ export async function shelveFiles(
 
 /** Delete a shelved changelist's shelf (discard the shelved work) + the now-
  *  empty pending changelist. Best-effort. */
-export async function deleteShelf(ctx: P4Context, wt: string, change: string): Promise<void> {
-  await p4exec(ctx, ['shelve', '-d', '-c', change], { cwd: wt, tolerant: true });
-  await p4exec(ctx, ['change', '-d', change], { cwd: wt, tolerant: true });
+export async function deleteShelf(
+  ctx: P4Context,
+  wt: string,
+  change: string,
+  paths?: string[],
+): Promise<void> {
+  const specs = paths?.length ? paths.map((p) => `//${p}`) : [];
+  await p4exec(ctx, ['shelve', '-d', '-c', change, ...specs], { cwd: wt, tolerant: true });
+  // Only discard the pending changelist when the WHOLE shelf was cleared — a
+  // partial (per-file) delete leaves the rest of the shelf intact.
+  if (!specs.length) {
+    await p4exec(ctx, ['change', '-d', change], { cwd: wt, tolerant: true });
+  }
 }
 
 /**
@@ -354,8 +372,26 @@ export async function listShelves(ctx: P4Context, max = 50): Promise<P4Shelf[]> 
       change: rec.change,
       description: (rec.desc ?? '').trim().split('\n')[0] ?? '',
       time: rec.time ? Number(rec.time) * 1000 : 0,
+      files: [],
     });
   }
+  // Pull the shelved FILES for each shelf — the panel lists files, not the
+  // changelist containers. `describe -s -S` (short, no diffs) returns the files
+  // as `depotFile0/action0`, `depotFile1/action1`, … in one ztag record.
+  await Promise.all(
+    out.map(async (shelf) => {
+      const d = await p4exec(ctx, ['-ztag', 'describe', '-s', '-S', shelf.change], { tolerant: true });
+      const rec = parseZtag(d.stdout)[0];
+      if (!rec) return;
+      for (let i = 0; rec[`depotFile${i}`]; i += 1) {
+        shelf.files.push({
+          path: rec[`depotFile${i}`].replace(/^\/\//, ''),
+          status: p4ActionToStatus(rec[`action${i}`] ?? 'edit'),
+          change: shelf.change,
+        });
+      }
+    }),
+  );
   return out;
 }
 
@@ -469,15 +505,25 @@ export async function deleteChangelist(ctx: P4Context, cl: number): Promise<void
 
 /** Restore a shelved change into the slot, then drop the shelf + its
  *  (now redundant) changelist. */
-export async function unshelvePop(ctx: P4Context, wt: string, change: string): Promise<void> {
-  const un = await p4exec(ctx, ['unshelve', '-s', change], { cwd: wt, tolerant: true });
+export async function unshelvePop(
+  ctx: P4Context,
+  wt: string,
+  change: string,
+  paths?: string[],
+): Promise<void> {
+  const specs = paths?.length ? paths.map((p) => `//${p}`) : [];
+  const un = await p4exec(ctx, ['unshelve', '-s', change, ...specs], { cwd: wt, tolerant: true });
   // Only drop the shelf once the work is safely restored — otherwise an
   // unshelve failure (conflict, locked file) would destroy the only copy.
   if (un.code !== 0) {
     throw new Error(`p4 unshelve -s ${change} failed: ${un.stderr.trim() || un.stdout.trim()}`);
   }
-  await p4exec(ctx, ['shelve', '-d', '-c', change], { cwd: wt, tolerant: true });
-  await p4exec(ctx, ['change', '-d', change], { cwd: wt, tolerant: true });
+  // Remove the restored files from the shelf (or the whole shelf when no
+  // specific files were named). Only discard the pending CL on a full pop.
+  await p4exec(ctx, ['shelve', '-d', '-c', change, ...specs], { cwd: wt, tolerant: true });
+  if (!specs.length) {
+    await p4exec(ctx, ['change', '-d', change], { cwd: wt, tolerant: true });
+  }
 }
 
 /* ===========================================================================

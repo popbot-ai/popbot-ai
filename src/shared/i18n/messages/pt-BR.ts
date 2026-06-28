@@ -50,7 +50,7 @@ export const ptBR = {
   'p4.menu.returnToChangelist': 'Retornar ao changelist',
   'p4.menu.deleteFromShelf': 'Excluir do shelf',
   'p4.confirm.revertBody': 'Reverter {count} arquivo(s)? As alterações são descartadas e não podem ser recuperadas.',
-  'p4.confirm.deleteShelfBody': 'Excluir {count} changelist(s) no shelf? Isso não pode ser desfeito.',
+  'p4.confirm.deleteShelfBody': 'Excluir {count} arquivo(s) no shelf? Isso não pode ser desfeito.',
   'p4.login.title': 'Login do Perforce necessário',
   'p4.login.body': 'Sua sessão do Perforce expirou. Digite sua senha para entrar novamente.',
   'p4.login.placeholder': 'Senha do Perforce',

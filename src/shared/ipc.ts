@@ -802,10 +802,11 @@ export interface PopBotApi {
     /** Perforce: shelve the checked (depot-key) paths into a new shelf.
      *  keepWorking = Copy to shelf (leave files opened); else Move to shelf. */
     shelve(input: { chatId: string; paths: string[]; message?: string; keepWorking?: boolean }): Promise<{ ok: true; change: string } | { ok: false; error: string }>;
-    /** Perforce: unshelve (restore + remove) the checked shelved changelists. */
-    unshelve(input: { chatId: string; changes: string[] }): Promise<{ ok: true } | { ok: false; error: string }>;
-    /** Perforce: discard the checked shelved changelists. */
-    deleteShelf(input: { chatId: string; changes: string[] }): Promise<{ ok: true } | { ok: false; error: string }>;
+    /** Perforce: unshelve (restore + remove) the checked shelved FILES, grouped
+     *  by their changelist. */
+    unshelve(input: { chatId: string; items: import('./perforce').P4ShelfItem[] }): Promise<{ ok: true } | { ok: false; error: string }>;
+    /** Perforce: discard the checked shelved FILES, grouped by their changelist. */
+    deleteShelf(input: { chatId: string; items: import('./perforce').P4ShelfItem[] }): Promise<{ ok: true } | { ok: false; error: string }>;
     filesInCommit(input: GitFilesInCommitInput): Promise<GitFilesInCommitResult>;
     /** Resolve a cwd from either the chat (its worktree) or the repo
      *  (the source clone path), in that order, then list base branches.

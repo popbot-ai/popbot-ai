@@ -50,7 +50,7 @@ export const ja = {
   'p4.menu.returnToChangelist': 'チェンジリストに戻す',
   'p4.menu.deleteFromShelf': 'シェルフから削除',
   'p4.confirm.revertBody': '{count} 個のファイルを元に戻しますか？変更は破棄され、復元できません。',
-  'p4.confirm.deleteShelfBody': '{count} 個のシェルブされたチェンジリストを削除しますか？この操作は元に戻せません。',
+  'p4.confirm.deleteShelfBody': '{count} 個のシェルブされたファイルを削除しますか？この操作は元に戻せません。',
   'p4.login.title': 'Perforce のログインが必要です',
   'p4.login.body': 'Perforce のセッションが期限切れです。パスワードを入力して再度ログインしてください。',
   'p4.login.placeholder': 'Perforce パスワード',

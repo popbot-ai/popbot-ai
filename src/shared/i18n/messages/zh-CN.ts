@@ -50,7 +50,7 @@ export const zhCN = {
   'p4.menu.returnToChangelist': '返回更改列表',
   'p4.menu.deleteFromShelf': '从搁置区删除',
   'p4.confirm.revertBody': '还原 {count} 个文件？其更改将被丢弃且无法恢复。',
-  'p4.confirm.deleteShelfBody': '删除 {count} 个搁置的更改列表？此操作无法撤消。',
+  'p4.confirm.deleteShelfBody': '删除 {count} 个搁置的文件？此操作无法撤消。',
   'p4.login.title': '需要 Perforce 登录',
   'p4.login.body': '你的 Perforce 会话已过期。请输入密码重新登录。',
   'p4.login.placeholder': 'Perforce 密码',

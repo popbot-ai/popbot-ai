@@ -50,7 +50,7 @@ export const ko = {
   'p4.menu.returnToChangelist': '체인지리스트로 되돌리기',
   'p4.menu.deleteFromShelf': '셸브에서 삭제',
   'p4.confirm.revertBody': '{count}개 파일을 되돌리시겠습니까? 변경 사항이 삭제되며 복구할 수 없습니다.',
-  'p4.confirm.deleteShelfBody': '셸브된 체인지리스트 {count}개를 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.',
+  'p4.confirm.deleteShelfBody': '셸브된 파일 {count}개를 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.',
   'p4.login.title': 'Perforce 로그인 필요',
   'p4.login.body': 'Perforce 세션이 만료되었습니다. 비밀번호를 입력하여 다시 로그인하세요.',
   'p4.login.placeholder': 'Perforce 비밀번호',

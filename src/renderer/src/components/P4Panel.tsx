@@ -114,6 +114,28 @@ const STATUS_ICON: Record<GitFileStatus, { icon: string; color: string; abbr: st
   conflict: { icon: 'fa-triangle-exclamation', color: 'var(--danger, #d05656)', abbr: '!' },
 };
 
+// Shelf rows are files, but the selection set is flat strings — key a shelved
+// file by its changelist + path. The changelist is numeric, so the FIRST space
+// is always the delimiter even when the depot path itself contains spaces.
+const SHELF_KEY_SEP = ' ';
+const shelfFileKey = (f: { change: string; path: string }): string =>
+  `${f.change}${SHELF_KEY_SEP}${f.path}`;
+
+/** Group checked shelf-file keys back into `{ change, paths }` items for the
+ *  unshelve/delete IPC (one item per source changelist). */
+function groupShelfSelection(keys: Iterable<string>): { change: string; paths: string[] }[] {
+  const byChange = new Map<string, string[]>();
+  for (const key of keys) {
+    const sep = key.indexOf(SHELF_KEY_SEP);
+    const change = key.slice(0, sep);
+    const path = key.slice(sep + 1);
+    const list = byChange.get(change);
+    if (list) list.push(path);
+    else byChange.set(change, [path]);
+  }
+  return [...byChange].map(([change, paths]) => ({ change, paths }));
+}
+
 export function P4Panel({ chatId, chatName, diffPath, onOpenDiff }: SourceControlPanelProps): JSX.Element {
   const { t } = useTranslation();
   const { data, refresh } = useGitStatus(chatId);
@@ -203,6 +225,9 @@ export function P4Panel({ chatId, chatName, diffPath, onOpenDiff }: SourceContro
   const files: GitFileChange[] = ok?.files ?? [];
   const commits = ok?.recentCommits ?? [];
   const shelves = ok?.shelves ?? [];
+  // The shelf section lists FILES (flattened across shelves), not changelists.
+  // The selection set holds per-file keys; actions group them back by CL.
+  const shelvedFiles = shelves.flatMap((s) => s.files);
   const truncatedFrom = ok?.truncatedFrom;
 
   if (!chatId) {
@@ -256,16 +281,16 @@ export function P4Panel({ chatId, chatName, diffPath, onOpenDiff }: SourceContro
     const setAt = (lo: number, hi: number): void =>
       setShelfChecked((prev) => {
         const next = new Set(prev);
-        for (let i = lo; i <= hi; i += 1) if (shelves[i]) next.add(String(shelves[i].change));
+        for (let i = lo; i <= hi; i += 1) if (shelvedFiles[i]) next.add(shelfFileKey(shelvedFiles[i]));
         return next;
       });
     if (shift && shelfAnchor.current !== null) {
       setAt(Math.min(shelfAnchor.current, idx), Math.max(shelfAnchor.current, idx));
     } else {
-      const change = String(shelves[idx].change);
+      const key = shelfFileKey(shelvedFiles[idx]);
       setShelfChecked((prev) => {
         const next = new Set(prev);
-        next.has(change) ? next.delete(change) : next.add(change);
+        next.has(key) ? next.delete(key) : next.add(key);
         return next;
       });
       shelfAnchor.current = idx;
@@ -293,11 +318,11 @@ export function P4Panel({ chatId, chatName, diffPath, onOpenDiff }: SourceContro
   };
 
   const deleteFromShelf = async (): Promise<void> => {
-    const changes = [...shelfChecked];
-    if (!changes.length || busy) return;
+    const items = groupShelfSelection(shelfChecked);
+    if (!items.length || busy) return;
     setBusy(true);
     setActionError(null);
-    const res = await window.popbot.git.deleteShelf({ chatId, changes });
+    const res = await window.popbot.git.deleteShelf({ chatId, items });
     setBusy(false);
     if (res.ok) {
       setShelfChecked(new Set());
@@ -309,11 +334,11 @@ export function P4Panel({ chatId, chatName, diffPath, onOpenDiff }: SourceContro
 
 
   const unshelve = async (): Promise<void> => {
-    const changes = [...shelfChecked];
-    if (!changes.length || busy) return;
+    const items = groupShelfSelection(shelfChecked);
+    if (!items.length || busy) return;
     setBusy(true);
     setActionError(null);
-    const res = await window.popbot.git.unshelve({ chatId, changes });
+    const res = await window.popbot.git.unshelve({ chatId, items });
     setBusy(false);
     if (res.ok) {
       setShelfChecked(new Set());
@@ -331,10 +356,10 @@ export function P4Panel({ chatId, chatName, diffPath, onOpenDiff }: SourceContro
     setChecked(allFilesChecked ? new Set() : new Set(files.map((f) => f.path)));
     fileAnchor.current = null;
   };
-  const allShelvesChecked = shelves.length > 0 && shelves.every((s) => shelfChecked.has(String(s.change)));
-  const someShelvesChecked = shelves.some((s) => shelfChecked.has(String(s.change)));
+  const allShelvesChecked = shelvedFiles.length > 0 && shelvedFiles.every((f) => shelfChecked.has(shelfFileKey(f)));
+  const someShelvesChecked = shelvedFiles.some((f) => shelfChecked.has(shelfFileKey(f)));
   const toggleAllShelves = (): void => {
-    setShelfChecked(allShelvesChecked ? new Set() : new Set(shelves.map((s) => String(s.change))));
+    setShelfChecked(allShelvesChecked ? new Set() : new Set(shelvedFiles.map((f) => shelfFileKey(f))));
     shelfAnchor.current = null;
   };
 
@@ -559,7 +584,7 @@ export function P4Panel({ chatId, chatName, diffPath, onOpenDiff }: SourceContro
       <div className="p4-section p4-shelf" ref={shelfRef} style={{ flex: `0 0 ${shelfPx}px` }}>
         <div className="p4-section-head">
           <span className="p4-head-all">
-            {shelves.length > 0 && (
+            {shelvedFiles.length > 0 && (
               <input
                 type="checkbox"
                 className="git-row-check"
@@ -571,7 +596,7 @@ export function P4Panel({ chatId, chatName, diffPath, onOpenDiff }: SourceContro
             )}
             {t('p4.shelf.title')}
           </span>
-          {shelves.length > 0 && (
+          {shelvedFiles.length > 0 && (
             <ActionMenu
               title={t('p4.menu.shelfActions')}
               up
@@ -584,22 +609,26 @@ export function P4Panel({ chatId, chatName, diffPath, onOpenDiff }: SourceContro
           )}
         </div>
         <div className="p4-section-body">
-          {shelves.length === 0 && <div className="git-empty-line">{t('p4.shelf.empty')}</div>}
-          {shelves.map((s, idx) => (
-            <div key={s.change} className="p4-shelf-row" title={s.description}>
-              <input
-                type="checkbox"
-                className="git-row-check"
-                checked={shelfChecked.has(String(s.change))}
-                onMouseDown={(e) => { shiftRef.current = e.shiftKey; }}
-                onChange={() => toggleShelfAt(idx, shiftRef.current)}
-                onClick={(e) => e.stopPropagation()}
-              />
-              <i className="fa-solid fa-box-archive git-file-icon" />
-              <span className="p4-change">@{s.change}</span>
-              <span className="p4-commit-subject">{s.description}</span>
-            </div>
-          ))}
+          {shelvedFiles.length === 0 && <div className="git-empty-line">{t('p4.shelf.empty')}</div>}
+          {shelvedFiles.map((f, idx) => {
+            const meta = STATUS_ICON[f.status];
+            const key = shelfFileKey(f);
+            return (
+              <div key={key} className="p4-shelf-row" title={`@${f.change}  ${f.path}`}>
+                <input
+                  type="checkbox"
+                  className="git-row-check"
+                  checked={shelfChecked.has(key)}
+                  onMouseDown={(e) => { shiftRef.current = e.shiftKey; }}
+                  onChange={() => toggleShelfAt(idx, shiftRef.current)}
+                  onClick={(e) => e.stopPropagation()}
+                />
+                <i className={`fa-solid ${meta.icon} git-file-icon`} style={{ color: meta.color }} />
+                <span className="git-file-path">{f.path}</span>
+                <span className="git-file-status" style={{ color: meta.color }}>{meta.abbr}</span>
+              </div>
+            );
+          })}
         </div>
       </div>
 

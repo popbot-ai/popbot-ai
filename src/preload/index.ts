@@ -159,9 +159,9 @@ const api: PopBotApi = {
       ipcRenderer.invoke(IpcChannel.P4Login, input),
     shelve: (input: { chatId: string; paths: string[]; message?: string; keepWorking?: boolean }) =>
       ipcRenderer.invoke(IpcChannel.GitShelve, input),
-    unshelve: (input: { chatId: string; changes: string[] }) =>
+    unshelve: (input: { chatId: string; items: import('@shared/perforce').P4ShelfItem[] }) =>
       ipcRenderer.invoke(IpcChannel.GitUnshelve, input),
-    deleteShelf: (input: { chatId: string; changes: string[] }) =>
+    deleteShelf: (input: { chatId: string; items: import('@shared/perforce').P4ShelfItem[] }) =>
       ipcRenderer.invoke(IpcChannel.GitDeleteShelf, input),
     filesInCommit: (input: GitFilesInCommitInput) =>
       ipcRenderer.invoke(IpcChannel.GitFilesInCommit, input),

@@ -21,6 +21,7 @@ import type {
   GitStatusResultOrErr,
   GitBaseBranchesResult,
 } from '@shared/git';
+import type { P4ShelfItem } from '@shared/perforce';
 import {
   clampMaxChangedFiles,
   type SourceControlSettings,
@@ -190,11 +191,11 @@ export function registerGitHandlers(): void {
 
   ipcMain.handle(
     IpcChannel.GitUnshelve,
-    async (_e, input: { chatId: string; changes: string[] }): Promise<{ ok: true } | { ok: false; error: string }> => {
+    async (_e, input: { chatId: string; items: P4ShelfItem[] }): Promise<{ ok: true } | { ok: false; error: string }> => {
       const wt = resolveWorktree(input.chatId);
       if (typeof wt !== 'string') return { ok: false, error: wt.error };
       try {
-        await providerForChat(input.chatId).unshelve(wt, input.changes);
+        await providerForChat(input.chatId).unshelve(wt, input.items);
         return { ok: true };
       } catch (err) {
         return { ok: false, error: (err as Error).message };
@@ -204,11 +205,11 @@ export function registerGitHandlers(): void {
 
   ipcMain.handle(
     IpcChannel.GitDeleteShelf,
-    async (_e, input: { chatId: string; changes: string[] }): Promise<{ ok: true } | { ok: false; error: string }> => {
+    async (_e, input: { chatId: string; items: P4ShelfItem[] }): Promise<{ ok: true } | { ok: false; error: string }> => {
       const wt = resolveWorktree(input.chatId);
       if (typeof wt !== 'string') return { ok: false, error: wt.error };
       try {
-        await providerForChat(input.chatId).deleteShelf(wt, input.changes);
+        await providerForChat(input.chatId).deleteShelf(wt, input.items);
         return { ok: true };
       } catch (err) {
         return { ok: false, error: (err as Error).message };
