@@ -709,16 +709,18 @@ export function registerChatHandlers(): void {
       }
       const repo = resolveRepo(chat.repoId);
       const gitCfg = readGitSettings();
-      if (!repo || !gitCfg) {
-        // Repo row vanished (deleted via Preferences) or git not
-        // configured. Fall back to a plain reopen so the chat is at
-        // least usable; user can reattach via the per-chat reattach
-        // flow once they re-add the repo.
+      // Per-repo config (mode / scm / slotCount / repoPath / defaultBase) lives
+      // on the repo row. The global gitCfg / slotsCfg are LEGACY and absent on
+      // multi-repo installs — requiring them here wrongly skipped slot reopen
+      // (chat reopened with no slot + no restored branch). Only `repo` is
+      // mandatory; gitCfg is an optional fallback for pre-multi-repo rows.
+      if (!repo) {
         const reopened = reopenChat(chatId);
         if (!reopened) return { ok: false, reason: 'not-found' };
         return { ok: true, chat: reopened };
       }
-      const baseBranch = repo.defaultBase || gitCfg.defaultBase;
+      const baseBranch = repo.defaultBase || gitCfg?.defaultBase || 'main';
+      const repoPath = repo.repoPath || gitCfg?.repoPath || '';
       const scm = getSourceControlProvider(repo);
 
       if (repo.mode === 'ephemeral') {
@@ -731,7 +733,7 @@ export function registerChatHandlers(): void {
         });
         try {
           await scm.ensureChatWorktree({
-            repoPath: repo.repoPath || gitCfg.repoPath,
+            repoPath,
             worktreePath,
             branch: chat.branch,
             baseBranch,
@@ -748,9 +750,10 @@ export function registerChatHandlers(): void {
         return { ok: true, chat: reopened };
       }
 
-      // Slot-pool mode.
-      const slotsCfg = readSlotsSettings();
-      if (!slotsCfg) {
+      // Slot-pool mode. Pool size comes from the repo row (global slots setting
+      // is only a pre-multi-repo fallback) — mirrors the create path.
+      const maxSlots = repo.slotCount || readSlotsSettings()?.maxCount || 0;
+      if (maxSlots < 1) {
         const reopened = reopenChat(chatId);
         if (!reopened) return { ok: false, reason: 'not-found' };
         return { ok: true, chat: reopened };
@@ -758,26 +761,29 @@ export function registerChatHandlers(): void {
       // Remember which slot this chat last lived in so we can detect a
       // forced slot-reassignment below and tell the agent about it.
       const previousSlotId = chat.slotId;
-      const slotId = allocateSlotPreferring(slotsCfg.maxCount, chat.slotId);
+      const slotId = allocateSlotPreferring(maxSlots, chat.slotId);
       if (slotId === null) return { ok: false, reason: 'no-free-slot' };
       const worktreePath = slotWorktreePathForRepo(repo, slotId);
       try {
+        // Re-attach VHDX slot mounts if a reboot dropped them, before any slot
+        // op touches an empty mount (same guard the create path uses).
+        await ensureSlotsMounted(repo);
         await scm.ensureSlotWorktree({
-          repoPath: repo.repoPath || gitCfg.repoPath,
+          repoPath,
           worktreePath,
           parkBranch: scm.parkingBranch(repo.id, slotId),
-          baseBranch: repo.defaultBase || gitCfg.defaultBase,
+          baseBranch,
         });
-        await scm.checkoutBranch({ worktreePath, branch: chat.branch, baseBranch: repo.defaultBase || gitCfg.defaultBase });
+        await scm.checkoutBranch({ worktreePath, branch: chat.branch, baseBranch });
         // Restore the chat's work from its slot-independent home (git → fetch
         // the branch from the local root; perforce → unshelve into this slot).
         // Replaces the old slot-local stash, which couldn't survive a reopen on
         // a different slot. Returns updated state to persist (perforce shelf CL).
         const restored = await scm.restoreChatOnReopen({
-          repoPath: repo.repoPath || gitCfg.repoPath,
+          repoPath,
           worktreePath,
           branch: chat.branch,
-          baseBranch: repo.defaultBase || gitCfg.defaultBase,
+          baseBranch,
           p4ShelfCl: chat.p4ShelfCl ?? null,
         });
         if (restored.p4ShelfCl !== undefined) setChatP4Shelf(chatId, restored.p4ShelfCl ?? null);
