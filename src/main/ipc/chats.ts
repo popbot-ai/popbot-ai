@@ -28,6 +28,7 @@ import {
   searchChats,
   setChatSlot,
   setChatWorktree,
+  setChatP4Shelf,
 } from '../persistence/chats';
 import { listMessages } from '../persistence/messages';
 import { getSetting, setSetting } from '../persistence/settings';
@@ -615,7 +616,28 @@ export function registerChatHandlers(): void {
           ? scm.parkingBranch(repo.id, chat.slotId)
           : gitCfg ? scm.parkingBranch(gitCfg.repoName, chat.slotId) : null;
         const baseBranch = repo?.defaultBase || gitCfg?.defaultBase;
+        const repoPath = repo?.repoPath || gitCfg?.repoPath;
         try {
+          // Consolidate the chat's work to its slot-independent home BEFORE
+          // parking (parking resets the slot). git → push branch to the local
+          // root; perforce → shelve the changelist. Returns state to persist
+          // on the chat (the perforce shelf changelist).
+          if (repoPath && chat.branch) {
+            try {
+              const persisted = await scm.persistChatOnClose({
+                repoPath,
+                worktreePath: chat.worktreePath,
+                branch: chat.branch,
+                discard: opts?.stash !== true,
+                p4ShelfCl: chat.p4ShelfCl ?? null,
+              });
+              if (persisted.p4ShelfCl !== undefined) {
+                setChatP4Shelf(chat.id, persisted.p4ShelfCl ?? null);
+              }
+            } catch (err) {
+              console.warn(`[slots] persist-on-close failed for chat ${chatId}: ${(err as Error).message}`);
+            }
+          }
           if (park) {
             await scm.parkSlot({
               worktreePath: chat.worktreePath,
@@ -747,8 +769,18 @@ export function registerChatHandlers(): void {
           baseBranch: repo.defaultBase || gitCfg.defaultBase,
         });
         await scm.checkoutBranch({ worktreePath, branch: chat.branch, baseBranch: repo.defaultBase || gitCfg.defaultBase });
-        const stashRef = await scm.findLatestStashRef(worktreePath, scm.chatStashPrefix(chatId));
-        if (stashRef) await scm.popStash(worktreePath, stashRef);
+        // Restore the chat's work from its slot-independent home (git → fetch
+        // the branch from the local root; perforce → unshelve into this slot).
+        // Replaces the old slot-local stash, which couldn't survive a reopen on
+        // a different slot. Returns updated state to persist (perforce shelf CL).
+        const restored = await scm.restoreChatOnReopen({
+          repoPath: repo.repoPath || gitCfg.repoPath,
+          worktreePath,
+          branch: chat.branch,
+          baseBranch: repo.defaultBase || gitCfg.defaultBase,
+          p4ShelfCl: chat.p4ShelfCl ?? null,
+        });
+        if (restored.p4ShelfCl !== undefined) setChatP4Shelf(chatId, restored.p4ShelfCl ?? null);
       } catch (err) {
         return { ok: false, reason: 'worktree-failed', message: (err as Error).message };
       }

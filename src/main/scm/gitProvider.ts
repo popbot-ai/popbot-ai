@@ -50,10 +50,12 @@ import {
   newChatStashName,
   parkSlot,
   parkingBranch,
+  persistBranchToRoot,
   popStash,
   refreshParkBranchInBackground,
   refreshSlotForAllocation,
   removeChatWorktree,
+  restoreBranchFromRoot,
   worktreeStatus,
 } from '../git/worktrees';
 
@@ -194,5 +196,36 @@ export class GitProvider extends SourceControlProvider {
   }
   popStash(worktreePath: string, ref: string): Promise<void> {
     return popStash(worktreePath, ref);
+  }
+
+  /* ---------- cross-slot continuity ---------- */
+
+  async persistChatOnClose(opts: {
+    repoPath: string;
+    worktreePath: string;
+    branch: string;
+    discard: boolean;
+  }): Promise<{ p4ShelfCl?: number | null }> {
+    // Push the chat branch (carrying uncommitted work as a soft WIP commit,
+    // unless discarded) to the local root so any slot can restore it.
+    await persistBranchToRoot(opts);
+    return {};
+  }
+
+  async restoreChatOnReopen(opts: {
+    repoPath: string;
+    worktreePath: string;
+    branch: string;
+    baseBranch: string;
+  }): Promise<{ p4ShelfCl?: number | null }> {
+    // `checkoutBranch` already placed us on a fresh `branch` off the latest
+    // base; overlay the chat's persisted state from the local root if present
+    // (no-op when nothing was ever persisted).
+    await restoreBranchFromRoot({
+      repoPath: opts.repoPath,
+      worktreePath: opts.worktreePath,
+      branch: opts.branch,
+    });
+    return {};
   }
 }

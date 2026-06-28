@@ -176,4 +176,39 @@ export abstract class SourceControlProvider {
   abstract findLatestStashRef(worktreePath: string, prefix: string): Promise<string | null>;
   /** Restore (pop) a stash/shelve by ref. */
   abstract popStash(worktreePath: string, ref: string): Promise<void>;
+
+  /* ---------- cross-slot continuity (the central "home" for a chat) ----------
+   *
+   * A slot is an independent clone/client, so a chat's branch (git) or pending
+   * changelist (perforce) lives only in the slot it was created in — and a chat
+   * can reopen on a DIFFERENT slot. These hooks consolidate a chat's work to a
+   * slot-independent home on close and restore it on reopen:
+   *   - git:      push the chat branch to the LOCAL ROOT repo / fetch it back.
+   *   - perforce: shelve the changelist (server-side) / unshelve into the slot.
+   * Default no-op so a provider that doesn't need it (or hasn't implemented it
+   * yet) keeps the legacy slot-local stash behavior. Returns chat-record state
+   * to persist (the perforce shelf changelist; git needs none). */
+
+  persistChatOnClose(_opts: {
+    repoPath: string;
+    worktreePath: string;
+    branch: string;
+    /** User chose discard (vs keep) in the close prompt. */
+    discard: boolean;
+    /** Prior shelf changelist for this chat (perforce), if any. */
+    p4ShelfCl?: number | null;
+  }): Promise<{ p4ShelfCl?: number | null }> {
+    return Promise.resolve({});
+  }
+
+  restoreChatOnReopen(_opts: {
+    repoPath: string;
+    worktreePath: string;
+    branch: string;
+    baseBranch: string;
+    /** The chat's persisted shelf changelist (perforce), if any. */
+    p4ShelfCl?: number | null;
+  }): Promise<{ p4ShelfCl?: number | null }> {
+    return Promise.resolve({});
+  }
 }

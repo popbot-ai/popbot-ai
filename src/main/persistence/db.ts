@@ -326,6 +326,14 @@ const SCHEMA = [
   ALTER TABLE repos ADD COLUMN scm TEXT NOT NULL DEFAULT 'git';
   ALTER TABLE repos ADD COLUMN p4_config TEXT;
   `,
+  // v19 — cross-slot continuity for Perforce chats. A pending changelist is
+  //       per-slot (each slot is its own p4 client), so the chat's work is
+  //       carried across reopen-on-a-different-slot as a server-side SHELF.
+  //       `p4_shelf_cl` tracks that shelved changelist while the chat is closed;
+  //       reopen unshelves it into a fresh CL on the new slot. Null for git.
+  `
+  ALTER TABLE chats ADD COLUMN p4_shelf_cl INTEGER;
+  `,
 ];
 
 export function initDb(): Database.Database {

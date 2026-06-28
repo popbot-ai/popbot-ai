@@ -41,6 +41,7 @@ interface ChatRow {
   tokens_budget: number;
   slot_id: number | null;
   worktree_path: string | null;
+  p4_shelf_cl: number | null;
   session_id: string | null;
   codex_thread_id: string | null;
   claude_model: string;
@@ -64,7 +65,7 @@ interface ChatRow {
  *  repos lookup. */
 const CHAT_COLUMNS = `
   c.id, c.name, c.ticket, c.pr, c.branch, c.type, c.mode, c.agent, c.status,
-  c.snippet, c.tokens_used, c.tokens_budget, c.slot_id, c.worktree_path,
+  c.snippet, c.tokens_used, c.tokens_budget, c.slot_id, c.worktree_path, c.p4_shelf_cl,
   c.session_id, c.codex_thread_id, c.claude_model, c.claude_reasoning_effort,
   c.codex_model, c.codex_reasoning_effort,
   c.permission_rules, c.created_at, c.last_active_at, c.closed_at,
@@ -104,6 +105,7 @@ function rowToRecord(r: ChatRow): ChatRecord {
     tokensBudget: r.tokens_budget,
     slotId: r.slot_id,
     worktreePath: r.worktree_path,
+    p4ShelfCl: r.p4_shelf_cl,
     sessionId: r.session_id,
     codexThreadId: r.codex_thread_id,
     claudeModel: normalizeClaudeModel(r.claude_model),
@@ -400,6 +402,12 @@ export function setChatWorktree(id: string, worktreePath: string): void {
   db()
     .prepare('UPDATE chats SET slot_id = NULL, worktree_path = ?, last_active_at = ? WHERE id = ?')
     .run(worktreePath, Date.now(), id);
+}
+
+/** Perforce: record (or clear) the server-side shelf changelist that holds this
+ *  chat's work while it's closed, so a reopen on any slot can unshelve it. */
+export function setChatP4Shelf(id: string, shelfCl: number | null): void {
+  db().prepare('UPDATE chats SET p4_shelf_cl = ? WHERE id = ?').run(shelfCl, id);
 }
 
 /** Backfill the chat's Linear ticket id (e.g. 'ENG-1234') when we
