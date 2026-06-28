@@ -80,7 +80,7 @@ function ActionMenu({ items, title, up }: { items: MenuItem[]; title: string; up
   return (
     <div className="p4-menu" ref={ref}>
       <button className="git-mini-action" onClick={() => setOpen((o) => !o)} title={title} aria-haspopup="menu">
-        <i className="fa-solid fa-ellipsis" />
+        <i className="fa-solid fa-bars" />
       </button>
       {open && (
         <div className={`p4-menu-pop${up ? ' up' : ''}`} role="menu">
