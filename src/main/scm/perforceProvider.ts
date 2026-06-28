@@ -170,8 +170,24 @@ export class PerforceProvider extends SourceControlProvider {
     }
     return p4SubmitFiles(ctx, wt, message, paths);
   }
-  revertFiles(wt: string, paths: string[]): Promise<void> {
-    return p4RevertFiles(this.ctx(wt), wt, paths);
+  /** Revert the selected files. PAUSE the slot watcher around it: `p4 revert`
+   *  rewrites each file back to the depot version on disk, which fires OS
+   *  file-change events — without the pause the watcher re-records them and the
+   *  next status `p4 edit`s them right back open, so the revert appears to do
+   *  nothing. */
+  async revertFiles(wt: string, paths: string[]): Promise<void> {
+    const ctx = this.ctx(wt);
+    pauseSlotWatch(wt);
+    try {
+      await p4RevertFiles(ctx, wt, paths);
+    } finally {
+      // Drain the revert's fs events (dropped while paused), then clear +
+      // resume so the just-reverted files don't reappear on the next status.
+      setTimeout(() => {
+        clearSlotChanges(wt);
+        resumeSlotWatch(wt);
+      }, 600);
+    }
   }
   /** Shelve the checked files. "Move" (default) reverts the working copies;
    *  "Copy" (keepWorking) leaves them opened. Opens watched edits first so the
@@ -197,8 +213,19 @@ export class PerforceProvider extends SourceControlProvider {
    *  Changelist") — unshelve + drop the shelf. */
   async unshelve(wt: string, changes: string[]): Promise<void> {
     const ctx = this.ctx(wt);
-    for (const c of changes) {
-      await unshelvePop(ctx, wt, c);
+    // Pause the watcher: unshelve writes the shelved files to disk (and opens
+    // them in p4 directly), so the fs events it fires would otherwise be
+    // re-recorded and churned on the next status.
+    pauseSlotWatch(wt);
+    try {
+      for (const c of changes) {
+        await unshelvePop(ctx, wt, c);
+      }
+    } finally {
+      setTimeout(() => {
+        clearSlotChanges(wt);
+        resumeSlotWatch(wt);
+      }, 600);
     }
   }
   /** Discard the checked shelves ("Delete From Shelf") without restoring. */
