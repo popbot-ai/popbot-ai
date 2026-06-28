@@ -210,6 +210,20 @@ export async function revertAll(ctx: P4Context, wt: string): Promise<void> {
   await p4exec(ctx, ['revert', `//${ctx.client}/...`], { cwd: wt, tolerant: true });
 }
 
+/**
+ * Revert only opened files whose CONTENT is unchanged from the depot (`p4
+ * revert -a`). The slot watcher opens files on raw OS file-change events
+ * (ReadDirectoryChangesW reports modtime/size/read-only-attribute touches, not
+ * just content), and Perforce's own read-only toggling on a copy-on-write base
+ * fires metadata events for thousands of byte-identical files. p4 is the
+ * content authority: `revert -a` drops every phantom open and keeps only the
+ * genuinely-modified ones. Verified live: collapses 1042 opened → 6 real.
+ */
+export async function revertUnchanged(ctx: P4Context, wt: string): Promise<void> {
+  if (!ctx.client) return;
+  await p4exec(ctx, ['revert', '-a', `//${ctx.client}/...`], { cwd: wt, tolerant: true });
+}
+
 /** Delete the slot's client spec (teardown). Does not touch files on disk
  *  (the shado clone owns those). */
 export async function deleteClient(ctx: P4Context): Promise<void> {

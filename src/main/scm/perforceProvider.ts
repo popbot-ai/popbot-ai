@@ -52,6 +52,7 @@ import {
   deleteShelf,
   reshelveInto,
   revertAll,
+  revertUnchanged,
   rootClientName,
   shelveFiles,
   shelveWork,
@@ -115,6 +116,13 @@ export class PerforceProvider extends SourceControlProvider {
       // Open the watcher's changes into the chat's named changelist.
       await openChanges(ctx, wt, changes, readSlotMeta(wt)?.changelist);
       clearSlotChanges(wt);
+      // The watcher opens files on raw OS write events — which include PopBot's
+      // OWN bulk writes (p4 sync / unshelve) whose content equals the depot, so
+      // a fresh slot can show thousands of byte-identical files "opened". p4 is
+      // the content authority: `revert -a` drops every unchanged open and keeps
+      // only genuinely-modified files. `p4 edit`/`revert` fire ~no fs events
+      // (verified), so this doesn't feed the watcher.
+      await revertUnchanged(ctx, wt);
     }
   }
 
