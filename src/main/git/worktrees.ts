@@ -139,7 +139,16 @@ export async function checkoutBranch(opts: CheckoutBranchOpts): Promise<void> {
     .then(() => true)
     .catch(() => false);
   const startPoint = hasRemoteBase ? `origin/${baseBranch}` : baseBranch;
-  await git(worktreePath, ['checkout', '-b', branch, startPoint]);
+  // A shado slot is a copy-on-write clone of the frozen base, so it inherits
+  // the base's working tree — a stale local base ref plus whatever uncommitted
+  // / untracked files the source repo had at freeze time. Land the new branch
+  // EXACTLY on the latest base (`-f -B` discards inherited tracked edits) and
+  // wipe inherited untracked files with `clean -fd`. We deliberately omit `-x`
+  // so gitignored warm caches (node_modules, build output) survive — that warm
+  // state is the whole point of slots. `-e` keeps nothing extra; this only runs
+  // on the fresh-branch path (a resumed chat takes the gentle `checkout` above).
+  await git(worktreePath, ['checkout', '-f', '-B', branch, startPoint]);
+  await git(worktreePath, ['clean', '-fd']).catch(() => undefined);
 }
 
 export interface WorktreeStatus {

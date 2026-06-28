@@ -251,29 +251,46 @@ export class PerforceProvider extends SourceControlProvider {
   async checkoutBranch(opts: CheckoutBranchOpts): Promise<void> {
     const ctx = this.ctx(opts.worktreePath);
     const meta = readSlotMeta(opts.worktreePath);
-    await revertAll(ctx, opts.worktreePath);
-    // Drop the prior chat's (now reverted / empty) changelist.
-    if (meta?.changelist) await deleteChangelist(ctx, meta.changelist);
-    if (meta) {
-      await flushTo(ctx, meta.depotPath, meta.baseChangelist);
-      // A new chat starts from the LATEST changelist — flushing re-anchors the
-      // have-list at the warm frozen base, then sync transfers only the
-      // base→head delta (the warm-slot payoff).
-      await syncLatest(ctx, opts.worktreePath, meta.depotPath);
-    }
-    // The chat's named pending changelist (its git-branch analog) — the slot
-    // watcher opens edits into it; commit submits it.
-    const cl = await createChangelist(ctx, opts.branch);
-    if (meta) {
-      writeSlotMeta(opts.worktreePath, {
-        ...meta,
-        changelist: cl || undefined,
-        changelistName: opts.branch,
-      });
-    }
-    // Fresh slot for a new chat — forget any prior watched edits, watch anew.
-    clearSlotChanges(opts.worktreePath);
+    // revertAll + sync below rewrite many files on disk. PAUSE the slot watcher
+    // first (ensure it exists, then pause) so those PopBot-driven writes aren't
+    // recorded as agent edits and `p4 edit`-ed — that bug opened the ENTIRE
+    // depot for edit (thousands of "M" files in a fresh slot). The watcher's
+    // `clearSlotChanges` alone is insufficient: ReadDirectoryChangesW delivers
+    // events asynchronously, so writes recorded AFTER a clear still leak.
     startSlotWatch(opts.worktreePath);
+    pauseSlotWatch(opts.worktreePath);
+    try {
+      await revertAll(ctx, opts.worktreePath);
+      // Drop the prior chat's (now reverted / empty) changelist.
+      if (meta?.changelist) await deleteChangelist(ctx, meta.changelist);
+      if (meta) {
+        await flushTo(ctx, meta.depotPath, meta.baseChangelist);
+        // A new chat starts from the LATEST changelist — flushing re-anchors the
+        // have-list at the warm frozen base, then sync transfers only the
+        // base→head delta (the warm-slot payoff).
+        await syncLatest(ctx, opts.worktreePath, meta.depotPath);
+      }
+      // The chat's named pending changelist (its git-branch analog) — the slot
+      // watcher opens edits into it; commit submits it.
+      const cl = await createChangelist(ctx, opts.branch);
+      if (meta) {
+        writeSlotMeta(opts.worktreePath, {
+          ...meta,
+          changelist: cl || undefined,
+          changelistName: opts.branch,
+        });
+      }
+    } finally {
+      // Forget everything recorded so far, then resume after a delay so any
+      // in-flight fs events from the sync drain WHILE STILL PAUSED (dropped),
+      // and clear once more at resume in case one lands right on the boundary.
+      clearSlotChanges(opts.worktreePath);
+      const wt = opts.worktreePath;
+      setTimeout(() => {
+        clearSlotChanges(wt);
+        resumeSlotWatch(wt);
+      }, 1500);
+    }
   }
 
   async worktreeStatus(worktreePath: string): Promise<WorktreeStatus> {
