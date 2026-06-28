@@ -102,6 +102,18 @@ export function popbotRootForRepo(repoPath: string): string {
  *  (`…/popbot/workspaces/<id>/<prefix>-N`). On the repo's drive so base
  *  creation and slot cloning always agree on the parent path. */
 export function shadoHomeForRepo(repoPath: string, repoId: string): string {
+  // repoId becomes a path segment — reject separators / traversal so it can't
+  // escape the workspaces dir (it also names an elevated SHADO_HOME).
+  if (
+    !repoId ||
+    repoId === '.' ||
+    repoId === '..' ||
+    repoId.includes('/') ||
+    repoId.includes('\\') ||
+    repoId.includes('\0')
+  ) {
+    throw new Error(`Unsafe repo id: ${repoId}`)
+  }
   return join(popbotRootForRepo(repoPath), 'workspaces', repoId, 'shado')
 }
 

@@ -94,10 +94,26 @@ async function measureFolder(
   return { bytes, count };
 }
 
+/** shado base/slot names are interpolated UNQUOTED into elevated .bat commands,
+ *  so they must not carry shell metacharacters (spaces, &, |, >, quotes, …). */
+const SAFE_SHADO_NAME = /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/;
+/** Returns an error string for an unsafe name, or null when it's safe. */
+function badShadoName(name: string, kind: string): string | null {
+  return SAFE_SHADO_NAME.test(name) ? null : `Invalid ${kind}: ${name}`;
+}
+
 /** Measure the source folder + the repo drive's free space and decide
  *  whether a base build is allowed. The base lives under SHADO_HOME on the
  *  repo's drive (same-drive invariant), so free space is checked there. */
 export async function basePreflight(repoPath: string, onProgress?: ProgressFn): Promise<BasePreflight> {
+  // A missing/unreadable repo path measures as 0 bytes / 0 free, which would
+  // otherwise satisfy `ok = free >= needed` (0 >= 0) and report a clean
+  // preflight for a path that can't be built. Bail explicitly.
+  try {
+    if (!(await stat(repoPath)).isDirectory()) throw new Error('not a directory');
+  } catch {
+    return { folderBytes: 0, fileCount: 0, freeBytes: 0, neededBytes: 0, sizeGb: 0, ok: false };
+  }
   const { bytes, count } = await measureFolder(repoPath, onProgress);
   let freeBytes = 0;
   try {
@@ -144,6 +160,12 @@ export async function buildBase(
   if (process.platform !== 'win32') {
     return { ok: false, log: 'Base build is only supported on Windows.' };
   }
+  // These names go UNQUOTED into an ELEVATED .bat — validate before building it.
+  const nameErr = badShadoName(opts.baseName, 'base name') ?? badShadoName(opts.slotPrefix, 'slot prefix');
+  if (nameErr) return { ok: false, log: nameErr };
+  if (!Number.isInteger(opts.sizeGb) || opts.sizeGb <= 0 || opts.sizeGb > 1_000_000) {
+    return { ok: false, log: `Invalid size: ${opts.sizeGb}` };
+  }
   const home = shadoHomeForRepo(opts.repoPath, opts.repoId);
   const worktreesDir = join(popbotRootForRepo(opts.repoPath), 'workspaces', opts.repoId);
   const shado = shadoExePath();
@@ -180,9 +202,10 @@ export async function buildBase(
 
   // PowerShell runs non-elevated and fires the UAC prompt for the .bat.
   // -PassThru + -Wait lets us read the elevated process's real exit code.
+  const psBat = bat.replace(/'/g, "''"); // escape for the PS single-quoted path
   const psCmd =
     `$ErrorActionPreference='Stop'; ` +
-    `try { $p = Start-Process -FilePath '${bat}' -Verb RunAs -Wait -PassThru -WindowStyle Hidden; exit $p.ExitCode } ` +
+    `try { $p = Start-Process -FilePath '${psBat}' -Verb RunAs -Wait -PassThru -WindowStyle Hidden; exit $p.ExitCode } ` +
     `catch { Write-Error $_; exit 1223 }`; // 1223 = ERROR_CANCELLED (UAC declined)
 
   // Stream progress while the elevated build runs: an elapsed timer plus the
@@ -254,6 +277,8 @@ export async function remountSlots(
   if (process.platform !== 'win32') {
     return { ok: false, log: 'Remount is only supported on Windows.' };
   }
+  const nameErr = badShadoName(opts.baseName, 'base name');
+  if (nameErr) return { ok: false, log: nameErr };
   const home = shadoHomeForRepo(opts.repoPath, opts.repoId);
   const shado = shadoExePath();
   const stamp = `${Date.now()}-${Math.floor(process.hrtime()[1] % 1e6)}`;
@@ -269,9 +294,10 @@ export async function remountSlots(
   } catch (err) {
     return { ok: false, log: `Could not stage remount script: ${(err as Error).message}` };
   }
+  const psBat = bat.replace(/'/g, "''"); // escape for the PS single-quoted path
   const psCmd =
     `$ErrorActionPreference='Stop'; ` +
-    `try { $p = Start-Process -FilePath '${bat}' -Verb RunAs -Wait -PassThru -WindowStyle Hidden; exit $p.ExitCode } ` +
+    `try { $p = Start-Process -FilePath '${psBat}' -Verb RunAs -Wait -PassThru -WindowStyle Hidden; exit $p.ExitCode } ` +
     `catch { Write-Error $_; exit 1223 }`; // 1223 = ERROR_CANCELLED (UAC declined)
   onProgress?.('Remounting workspace slots…');
   const exitCode: number = await new Promise((resolvePromise) => {
@@ -316,6 +342,8 @@ export async function destroyBase(
   if (process.platform !== 'win32') {
     return { ok: false, log: 'Base teardown is only supported on Windows.' };
   }
+  const nameErr = badShadoName(opts.baseName, 'base name');
+  if (nameErr) return { ok: false, log: nameErr };
   const home = shadoHomeForRepo(opts.repoPath, opts.repoId);
   const shado = shadoExePath();
   const stamp = `${Date.now()}-${Math.floor(process.hrtime()[1] % 1e6)}`;
@@ -331,9 +359,10 @@ export async function destroyBase(
   } catch (err) {
     return { ok: false, log: `Could not stage teardown script: ${(err as Error).message}` };
   }
+  const psBat = bat.replace(/'/g, "''"); // escape for the PS single-quoted path
   const psCmd =
     `$ErrorActionPreference='Stop'; ` +
-    `try { $p = Start-Process -FilePath '${bat}' -Verb RunAs -Wait -PassThru -WindowStyle Hidden; exit $p.ExitCode } ` +
+    `try { $p = Start-Process -FilePath '${psBat}' -Verb RunAs -Wait -PassThru -WindowStyle Hidden; exit $p.ExitCode } ` +
     `catch { Write-Error $_; exit 1223 }`; // 1223 = ERROR_CANCELLED (UAC declined)
   onProgress?.('Removing workspace base + slots…');
   const exitCode: number = await new Promise((resolvePromise) => {
@@ -388,6 +417,8 @@ export async function growSlotClones(
     return { ok: false, log: 'Slot resize is only supported on Windows.' };
   }
   if (opts.toCount <= opts.fromCount) return { ok: true, log: '' };
+  const nameErr = badShadoName(opts.baseName, 'base name') ?? badShadoName(opts.slotPrefix, 'slot prefix');
+  if (nameErr) return { ok: false, log: nameErr };
   const home = shadoHomeForRepo(opts.repoPath, opts.repoId);
   const worktreesDir = join(popbotRootForRepo(opts.repoPath), 'workspaces', opts.repoId);
   const shado = shadoExePath();
@@ -410,9 +441,10 @@ export async function growSlotClones(
   } catch (err) {
     return { ok: false, log: `Could not stage resize script: ${(err as Error).message}` };
   }
+  const psBat = bat.replace(/'/g, "''"); // escape for the PS single-quoted path
   const psCmd =
     `$ErrorActionPreference='Stop'; ` +
-    `try { $p = Start-Process -FilePath '${bat}' -Verb RunAs -Wait -PassThru -WindowStyle Hidden; exit $p.ExitCode } ` +
+    `try { $p = Start-Process -FilePath '${psBat}' -Verb RunAs -Wait -PassThru -WindowStyle Hidden; exit $p.ExitCode } ` +
     `catch { Write-Error $_; exit 1223 }`; // 1223 = ERROR_CANCELLED (UAC declined)
   onProgress?.(`Creating slots ${opts.fromCount + 1}–${opts.toCount}…`);
   const exitCode: number = await new Promise((resolvePromise) => {
@@ -460,6 +492,8 @@ export async function remountReposElevated(
   const bat = join(tmpdir(), `shado-remount-all-${stamp}.bat`);
   let batBody = '@echo off\r\n';
   for (const r of repos) {
+    const nameErr = badShadoName(r.baseName, 'base name');
+    if (nameErr) return { ok: false, log: nameErr };
     const home = shadoHomeForRepo(r.repoPath, r.repoId);
     batBody += `set "SHADO_HOME=${home}"\r\n`;
     batBody += `"${shado}" remount --name ${r.baseName} >> "${log}" 2>&1\r\n`;
