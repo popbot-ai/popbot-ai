@@ -208,15 +208,16 @@ export const P4_ACTION_TEMPLATE_VARS = [
   { name: 'client',     desc: 'Perforce workspace (client) for this slot' },
 ] as const;
 
-export const DEFAULT_P4_CODE_REVIEW_TEMPLATE = `Please put the current pending changelist up for a Helix Swarm code review.
+export const DEFAULT_P4_CODE_REVIEW_TEMPLATE = `Please submit this changelist to a Helix Swarm code review using the Swarm command-line tools.
 
 Steps:
-1. Review the pending changes first (\`p4 opened\`, \`p4 diff\`). Find the pending changelist number for this work (\`${'${changelist}'}\`).
-2. Make the changelist description clear (what changed and why). To open a NEW review, add \`#review\` to the description; to UPDATE an existing review, keep its \`#review-<id>\` keyword.
-3. Shelve the changelist so Swarm picks it up: \`p4 shelve -c <cl#>\` (re-shelve with \`-f\` when updating).
-4. If this project exposes a \`swarm\` CLI or REST endpoint, you may use that to create/update the review instead.
+1. Review the pending changes first (\`p4 opened\`, \`p4 diff\`) and find the pending changelist number for this work (\`${'${changelist}'}\`).
+2. Give the changelist a clear description — what changed and why.
+3. Shelve the changelist so its files are available to Swarm: \`p4 shelve -c <cl#>\` (re-shelve with \`-f\` when updating an existing review).
+4. Use the Swarm command-line tools to create the review from this changelist. Discover the exact command first (e.g. \`swarm --help\`), then create a NEW review for changelist <cl#> — or, if you're updating an existing review, target it by its review id.
+5. If no \`swarm\` CLI is available in this environment, fall back to the p4-native path: add \`#review\` to the changelist description (keep \`#review-<id>\` to update an existing one) and shelve so Swarm picks it up.
 
-Do NOT submit — review happens in Swarm first.
+Do NOT \`p4 submit\` — the change goes through Swarm review first.
 When done, reply with the Swarm review URL or id.`;
 
 export const DEFAULT_RUN_TESTS_TEMPLATE = `Please run this project's test suite and report the results.
