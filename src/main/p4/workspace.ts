@@ -432,3 +432,64 @@ export async function unshelvePop(ctx: P4Context, wt: string, change: string): P
   await p4exec(ctx, ['shelve', '-d', '-c', change], { cwd: wt, tolerant: true });
   await p4exec(ctx, ['change', '-d', change], { cwd: wt, tolerant: true });
 }
+
+/* ===========================================================================
+ * Cross-slot continuity — re-home a chat's WIP shelf to the ROOT client.
+ *
+ * A pending changelist is per-slot (each slot is its own client), so to make a
+ * chat's work slot-independent we keep its WIP as a SHELF owned by a stable,
+ * never-synced per-repo ROOT client (the perforce analog of pushing branches
+ * to the local-root git repo). `p4 reshelve` moves shelved content between
+ * changelists SERVER-SIDE — verified against Helix 2025.2: cross-client, no
+ * workspace sync, nothing written to the root's disk ("moving shelves around
+ * is better than modifying files"). So slots end empty; the root client owns
+ * one shelved CL per chat.
+ * =========================================================================== */
+
+/** Per-repo root client name that OWNS chat WIP shelves (parallels the slot
+ *  clients `popbot_<repo>_slot<N>`). Never synced — it only owns shelves. */
+export function rootClientName(repoId: string): string {
+  return `popbot_${repoId}_root`;
+}
+
+/** Ensure the root client SPEC exists (Root + depot View). Unlike a slot
+ *  client we never flush/sync it — it exists solely to own shelved changelists
+ *  server-side, so `reshelve`/`createChangelist` can target it. Idempotent. */
+export async function ensureRootClient(opts: {
+  ctx: P4Context;
+  root: string;
+  depotPath: string;
+  host?: string;
+}): Promise<void> {
+  const { ctx, root, depotPath, host } = opts;
+  if (!ctx.client) throw new Error('ensureRootClient: ctx.client required');
+  const dp = normDepot(depotPath);
+  const sub = dp.replace(/^\/+/, '');
+  const spec =
+    `Client: ${ctx.client}\n` +
+    `Owner: ${ctx.user}\n` +
+    (host ? `Host: ${host}\n` : '') +
+    `Root: ${root}\n` +
+    `LineEnd: local\n` +
+    `View:\n\t${dp}/... //${ctx.client}/${sub}/...\n`;
+  await p4exec(ctx, ['client', '-i'], { input: spec });
+}
+
+/** Server-side copy of `srcShelfCl`'s shelf onto `dstCl` (which may be owned by
+ *  another client — e.g. the root). `-f` overwrites an existing shelf so a
+ *  chat's root CL is reused across closes. No workspace sync. */
+export async function reshelveInto(ctx: P4Context, srcShelfCl: number, dstCl: number): Promise<void> {
+  const r = await p4exec(ctx, ['reshelve', '-s', String(srcShelfCl), '-f', '-c', String(dstCl)], { tolerant: true });
+  if (r.code !== 0) {
+    throw new Error(`p4 reshelve -s ${srcShelfCl} -c ${dstCl} failed: ${r.stderr.trim() || r.stdout.trim()}`);
+  }
+}
+
+/** Unshelve `srcShelfCl` INTO `dstCl` (this slot's CL) WITHOUT deleting the
+ *  source shelf — the root copy stays as the parked backup. */
+export async function unshelveInto(ctx: P4Context, wt: string, srcShelfCl: number, dstCl: number): Promise<void> {
+  const r = await p4exec(ctx, ['unshelve', '-s', String(srcShelfCl), '-c', String(dstCl)], { cwd: wt, tolerant: true });
+  if (r.code !== 0) {
+    throw new Error(`p4 unshelve -s ${srcShelfCl} -c ${dstCl} failed: ${r.stderr.trim() || r.stdout.trim()}`);
+  }
+}

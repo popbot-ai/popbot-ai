@@ -43,19 +43,24 @@ import {
   createChangelist,
   deleteChangelist,
   ensureClient,
+  ensureRootClient,
   findLatestShelf,
   flushTo,
   listShelves,
   openChanges,
   readSlotMeta,
   deleteShelf,
+  reshelveInto,
   revertAll,
+  rootClientName,
   shelveFiles,
   shelveWork,
   syncLatest,
+  unshelveInto,
   unshelvePop,
   writeSlotMeta,
 } from '../p4/workspace';
+import { p4exec } from '../p4/exec';
 import {
   clearSlotChanges,
   getSlotChanges,
@@ -394,5 +399,111 @@ export class PerforceProvider extends SourceControlProvider {
   }
   popStash(worktreePath: string, ref: string): Promise<void> {
     return unshelvePop(this.ctx(worktreePath), worktreePath, ref);
+  }
+
+  /* ---------- cross-slot continuity ---------- */
+
+  /** Connection to the per-repo ROOT client (owns chat WIP shelves). */
+  private rootCtx(repoPath: string): { ctx: P4Context; depotPath: string } {
+    const { repo, p4 } = this.repoFor(repoPath);
+    return {
+      ctx: { port: p4.port, user: p4.user, client: rootClientName(repo.id) },
+      depotPath: p4.depotPath,
+    };
+  }
+
+  /**
+   * On close: re-home the slot's WIP to the ROOT client as a shelf (server-side
+   * `reshelve` — no file transfer), then clear the slot. Returns the root shelf
+   * changelist to persist on the chat (or null when there's nothing/discarded).
+   */
+  async persistChatOnClose(opts: {
+    repoPath: string;
+    worktreePath: string;
+    branch: string;
+    discard: boolean;
+    p4ShelfCl?: number | null;
+  }): Promise<{ p4ShelfCl?: number | null }> {
+    const wt = opts.worktreePath;
+    let slotCtx: P4Context;
+    try {
+      slotCtx = this.ctx(wt);
+    } catch {
+      return { p4ShelfCl: opts.p4ShelfCl ?? null }; // slot never initialized
+    }
+    const { ctx: rootCtx, depotPath } = this.rootCtx(opts.repoPath);
+    // Open any pending watcher edits into the named CL so they're captured.
+    await this.syncWatched(slotCtx, wt).catch(() => undefined);
+    const slotCl = readSlotMeta(wt)?.changelist;
+
+    const dropRootShelf = async (): Promise<void> => {
+      if (opts.p4ShelfCl) await deleteShelf(rootCtx, opts.repoPath, String(opts.p4ShelfCl)).catch(() => undefined);
+    };
+
+    // Discard, or nothing to keep → revert the slot + drop the parked shelf.
+    if (opts.discard) {
+      await revertAll(slotCtx, wt).catch(() => undefined);
+      if (slotCl) await deleteChangelist(slotCtx, slotCl).catch(() => undefined);
+      await dropRootShelf();
+      return { p4ShelfCl: null };
+    }
+    if (!slotCl) return { p4ShelfCl: opts.p4ShelfCl ?? null };
+
+    // Shelve the slot's pending CL; bail to discard-semantics if nothing shelved.
+    const shelved = await p4exec(slotCtx, ['shelve', '-c', String(slotCl)], { cwd: wt, tolerant: true });
+    if (!/shelved/i.test(shelved.stdout + shelved.stderr)) {
+      await revertAll(slotCtx, wt).catch(() => undefined);
+      await deleteChangelist(slotCtx, slotCl).catch(() => undefined);
+      await dropRootShelf();
+      return { p4ShelfCl: null };
+    }
+
+    // Re-home the shelf to the root client (reuse the chat's root CL if it has
+    // one, else create it), then wipe the slot's shelf + opened files + CL.
+    await ensureRootClient({ ctx: rootCtx, root: opts.repoPath, depotPath, host: hostname() });
+    let rootCl = opts.p4ShelfCl ?? null;
+    if (!rootCl) rootCl = await createChangelist(rootCtx, opts.branch);
+    await reshelveInto(slotCtx, slotCl, rootCl);
+    await p4exec(slotCtx, ['shelve', '-d', '-c', String(slotCl)], { cwd: wt, tolerant: true });
+    await revertAll(slotCtx, wt).catch(() => undefined);
+    await deleteChangelist(slotCtx, slotCl).catch(() => undefined);
+    return { p4ShelfCl: rootCl };
+  }
+
+  /**
+   * On reopen: unshelve the chat's parked ROOT shelf into this slot's fresh CL
+   * (keeping the root copy as the backup). `checkoutBranch` already created the
+   * clean slot CL. Returns the (unchanged) root shelf to keep persisting.
+   */
+  async restoreChatOnReopen(opts: {
+    repoPath: string;
+    worktreePath: string;
+    branch: string;
+    baseBranch: string;
+    p4ShelfCl?: number | null;
+  }): Promise<{ p4ShelfCl?: number | null }> {
+    if (!opts.p4ShelfCl) return { p4ShelfCl: opts.p4ShelfCl ?? null };
+    const wt = opts.worktreePath;
+    let slotCtx: P4Context;
+    try {
+      slotCtx = this.ctx(wt);
+    } catch {
+      return { p4ShelfCl: opts.p4ShelfCl };
+    }
+    const slotCl = readSlotMeta(wt)?.changelist;
+    if (!slotCl) return { p4ShelfCl: opts.p4ShelfCl };
+    // unshelve writes files to the slot — pause the watcher so they aren't
+    // recorded as agent edits (same reason the sync path pauses).
+    pauseSlotWatch(wt);
+    try {
+      await unshelveInto(slotCtx, wt, opts.p4ShelfCl, slotCl);
+    } finally {
+      clearSlotChanges(wt);
+      setTimeout(() => {
+        clearSlotChanges(wt);
+        resumeSlotWatch(wt);
+      }, 1500);
+    }
+    return { p4ShelfCl: opts.p4ShelfCl };
   }
 }
