@@ -419,6 +419,8 @@ export function P4Panel({ chatId, chatName, diffPath, onOpenDiff }: SourceContro
 
   return (
     <div className="p4-panel">
+      {/* Unmissable top-of-panel activity bar for any in-flight operation. */}
+      {busy && <div className="p4-busy-bar" aria-hidden="true" />}
       {/* SCM tag + the chat's changelist name (its branch analog). */}
       <div className="git-panel-head">
         <div className="git-panel-title">

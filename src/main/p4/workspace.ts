@@ -377,12 +377,14 @@ export async function listShelves(ctx: P4Context, max = 50): Promise<P4Shelf[]> 
   }
   // Pull the shelved FILES for each shelf — the panel lists files, not the
   // changelist containers. `describe -s -S` (short, no diffs) returns the files
-  // as `depotFile0/action0`, `depotFile1/action1`, … in one ztag record.
+  // as `depotFile0/action0`, `depotFile1/action1`, …. NOTE: the multi-line
+  // `desc` field emits a blank line, which `parseZtag` treats as a record
+  // boundary — so the file fields land in a LATER record. Merge all records
+  // into one object before scanning for the file array.
   await Promise.all(
     out.map(async (shelf) => {
       const d = await p4exec(ctx, ['-ztag', 'describe', '-s', '-S', shelf.change], { tolerant: true });
-      const rec = parseZtag(d.stdout)[0];
-      if (!rec) return;
+      const rec: Record<string, string> = Object.assign({}, ...parseZtag(d.stdout));
       for (let i = 0; rec[`depotFile${i}`]; i += 1) {
         shelf.files.push({
           path: rec[`depotFile${i}`].replace(/^\/\//, ''),
