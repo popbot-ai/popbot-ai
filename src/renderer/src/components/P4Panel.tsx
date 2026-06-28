@@ -120,6 +120,10 @@ export function P4Panel({ chatId, chatName, diffPath, onOpenDiff }: SourceContro
   const [desc, setDesc] = useState('');
   const [busy, setBusy] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
+  // Confirmation prompt for destructive actions (revert / delete shelf).
+  const [confirmAction, setConfirmAction] = useState<
+    { title: string; body: string; label: string; run: () => void } | null
+  >(null);
   // Footer mode (manual submit vs an AI action) + the live prompt preview.
   const [mode, setMode] = useState<P4Mode>('submit');
   const [previewText, setPreviewText] = useState('');
@@ -271,21 +275,6 @@ export function P4Panel({ chatId, chatName, diffPath, onOpenDiff }: SourceContro
     }
   };
 
-  /** Delete EVERY shelved changelist in this slot (not just the checked ones). */
-  const clearShelf = async (): Promise<void> => {
-    const changes = shelves.map((s) => String(s.change));
-    if (!changes.length || busy) return;
-    setBusy(true);
-    setActionError(null);
-    const res = await window.popbot.git.deleteShelf({ chatId, changes });
-    setBusy(false);
-    if (res.ok) {
-      setShelfChecked(new Set());
-      refresh();
-    } else {
-      setActionError(res.error || 'Clear failed');
-    }
-  };
 
   const unshelve = async (): Promise<void> => {
     const changes = [...shelfChecked];
@@ -437,7 +426,7 @@ export function P4Panel({ chatId, chatName, diffPath, onOpenDiff }: SourceContro
                 { label: t('p4.menu.copyToShelf'), icon: 'fa-copy', disabled: checked.size === 0 || busy, onClick: () => void doShelve(true) },
                 { label: t('p4.menu.moveToShelf'), icon: 'fa-box-archive', disabled: checked.size === 0 || busy, onClick: () => void doShelve(false) },
                 'sep',
-                { label: t('p4.revert'), icon: 'fa-rotate-left', danger: true, disabled: checked.size === 0 || busy, onClick: () => revert([...checked]) },
+                { label: t('p4.revert'), icon: 'fa-rotate-left', danger: true, disabled: checked.size === 0 || busy, onClick: () => setConfirmAction({ title: t('p4.revert'), body: t('p4.confirm.revertBody', { count: checked.size }), label: t('p4.revert'), run: () => revert([...checked]) }) },
               ]}
             />
           )}
@@ -549,8 +538,7 @@ export function P4Panel({ chatId, chatName, diffPath, onOpenDiff }: SourceContro
               items={[
                 { label: t('p4.menu.returnToChangelist'), icon: 'fa-box-open', disabled: shelfChecked.size === 0 || busy, onClick: () => void unshelve() },
                 'sep',
-                { label: t('p4.menu.deleteFromShelf'), icon: 'fa-trash-can', danger: true, disabled: shelfChecked.size === 0 || busy, onClick: () => void deleteFromShelf() },
-                { label: t('p4.menu.clearShelf'), icon: 'fa-broom', danger: true, disabled: busy, onClick: () => void clearShelf() },
+                { label: t('p4.menu.deleteFromShelf'), icon: 'fa-trash-can', danger: true, disabled: shelfChecked.size === 0 || busy, onClick: () => setConfirmAction({ title: t('p4.menu.deleteFromShelf'), body: t('p4.confirm.deleteShelfBody', { count: shelfChecked.size }), label: t('p4.menu.deleteFromShelf'), run: () => deleteFromShelf() }) },
               ]}
             />
           )}
@@ -576,6 +564,33 @@ export function P4Panel({ chatId, chatName, diffPath, onOpenDiff }: SourceContro
       </div>
 
       {chatName && <div className="p4-foot">{chatName}</div>}
+
+      {confirmAction && (
+        <>
+          <div className="scrim" onClick={() => setConfirmAction(null)} />
+          <div className="modal" data-screen-label="Modal · p4-confirm">
+            <div className="modal-head">
+              <h2>{confirmAction.title}</h2>
+            </div>
+            <div className="modal-body">{confirmAction.body}</div>
+            <div className="modal-foot">
+              <button className="btn ghost" onClick={() => setConfirmAction(null)}>
+                {t('common.cancel')}
+              </button>
+              <button
+                className="btn danger"
+                onClick={() => {
+                  const run = confirmAction.run;
+                  setConfirmAction(null);
+                  run();
+                }}
+              >
+                {confirmAction.label}
+              </button>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }
