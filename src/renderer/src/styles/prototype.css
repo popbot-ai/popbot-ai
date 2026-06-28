@@ -5373,7 +5373,8 @@ input.input.mono, select.input.mono { font-family: var(--font-mono); font-size: 
 }
 /* Tight line boxes on both so the icon and name share one vertical centerline. */
 .p4-head-ws i { line-height: 1; }
-.p4-ws-name { line-height: 1; overflow: hidden; text-overflow: ellipsis; }
+/* +2px bottom padding lifts the name ~2px above the icon's centerline. */
+.p4-ws-name { line-height: 1; padding-bottom: 2px; overflow: hidden; text-overflow: ellipsis; }
 .p4-section { display: flex; flex-direction: column; min-height: 0; border-bottom: 1px solid var(--line-2); }
 /* Top/bottom heights are splitter-driven (inline flexBasis); the middle
    "current changes" section flexes to fill the rest. */
