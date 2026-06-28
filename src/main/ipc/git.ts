@@ -31,6 +31,7 @@ import { getRepo, listRepos } from '../persistence/repos';
 import { getSetting } from '../persistence/settings';
 import { worktreePathForChat } from '../git/chatPaths';
 import { getSourceControlProvider, sourceControlIdFor } from '../scm';
+import { p4Login } from '../p4/workspace';
 
 /** The source-control provider backing a chat's repo (git today). */
 function providerForChat(chatId: string) {
@@ -171,6 +172,19 @@ export function registerGitHandlers(): void {
       } catch (err) {
         return { ok: false, error: (err as Error).message };
       }
+    },
+  );
+
+  /** Perforce: mint a login ticket from a password typed into the in-app login
+   *  prompt (shown when a p4 op fails with an auth error). Password transits
+   *  only this call's stdin — never stored. */
+  ipcMain.handle(
+    IpcChannel.P4Login,
+    async (_e, input: { chatId: string; password: string }): Promise<{ ok: boolean; error?: string }> => {
+      const chat = getChat(input.chatId);
+      const repo = chat?.repoId ? getRepo(chat.repoId) : null;
+      if (repo?.scm !== 'perforce' || !repo.p4) return { ok: false, error: 'Not a Perforce chat.' };
+      return p4Login({ port: repo.p4.port, user: repo.p4.user }, input.password);
     },
   );
 

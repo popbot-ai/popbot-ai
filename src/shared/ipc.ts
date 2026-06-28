@@ -158,6 +158,8 @@ export const IpcChannel = {
   GitCommit: 'pb:git:commit',
   /** Discard local changes for selected paths (delete if untracked). */
   GitRevert: 'pb:git:revert',
+  /** Perforce: authenticate (mint a login ticket from a typed password). */
+  P4Login: 'pb:p4:login',
   /** Perforce: shelve checked files / unshelve / delete shelves. */
   GitShelve: 'pb:git:shelve',
   GitUnshelve: 'pb:git:unshelve',
@@ -795,6 +797,8 @@ export interface PopBotApi {
     diff(input: GitDiffInput): Promise<GitDiffResultOrErr>;
     commit(input: GitCommitInput): Promise<GitCommitResult>;
     revert(input: GitRevertInput): Promise<GitRevertResult>;
+    /** Perforce: mint a login ticket from a typed password (in-app login). */
+    p4Login(input: { chatId: string; password: string }): Promise<{ ok: boolean; error?: string }>;
     /** Perforce: shelve the checked (depot-key) paths into a new shelf.
      *  keepWorking = Copy to shelf (leave files opened); else Move to shelf. */
     shelve(input: { chatId: string; paths: string[]; message?: string; keepWorking?: boolean }): Promise<{ ok: true; change: string } | { ok: false; error: string }>;

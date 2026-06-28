@@ -224,6 +224,32 @@ export async function revertUnchanged(ctx: P4Context, wt: string): Promise<void>
   await p4exec(ctx, ['revert', '-a', `//${ctx.client}/...`], { cwd: wt, tolerant: true });
 }
 
+/**
+ * Authenticate by running `p4 login` with the password piped to stdin — mints a
+ * ticket into P4TICKETS so subsequent ticket-based ops work. The password only
+ * transits stdin for this one call; it is NEVER stored on disk or in the DB.
+ * Needs only port + user (no client). Returns ok + any error text.
+ */
+export async function p4Login(
+  conn: { port: string; user: string },
+  password: string,
+): Promise<{ ok: boolean; error?: string }> {
+  const res = await p4exec(
+    { port: conn.port, user: conn.user },
+    ['login'],
+    { input: password.endsWith('\n') ? password : `${password}\n`, tolerant: true },
+  );
+  const out = `${res.stdout}\n${res.stderr}`.trim();
+  if (res.code === 0 && /logged in|ticket|expires/i.test(out)) return { ok: true };
+  return { ok: false, error: out || 'p4 login failed' };
+}
+
+/** Whether the user currently has a valid login ticket (`p4 login -s`). */
+export async function p4LoginStatus(conn: { port: string; user: string }): Promise<boolean> {
+  const res = await p4exec({ port: conn.port, user: conn.user }, ['login', '-s'], { tolerant: true });
+  return res.code === 0 && /expires/i.test(res.stdout);
+}
+
 /** Delete the slot's client spec (teardown). Does not touch files on disk
  *  (the shado clone owns those). */
 export async function deleteClient(ctx: P4Context): Promise<void> {

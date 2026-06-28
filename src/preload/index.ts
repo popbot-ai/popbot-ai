@@ -155,6 +155,8 @@ const api: PopBotApi = {
     diff: (input: GitDiffInput) => ipcRenderer.invoke(IpcChannel.GitDiff, input),
     commit: (input: GitCommitInput) => ipcRenderer.invoke(IpcChannel.GitCommit, input),
     revert: (input: GitRevertInput) => ipcRenderer.invoke(IpcChannel.GitRevert, input),
+    p4Login: (input: { chatId: string; password: string }) =>
+      ipcRenderer.invoke(IpcChannel.P4Login, input),
     shelve: (input: { chatId: string; paths: string[]; message?: string; keepWorking?: boolean }) =>
       ipcRenderer.invoke(IpcChannel.GitShelve, input),
     unshelve: (input: { chatId: string; changes: string[] }) =>

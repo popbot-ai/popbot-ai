@@ -13,6 +13,7 @@
  */
 import { useEffect, useRef, useState } from 'react';
 import type { GitFileChange, GitFileStatus } from '@shared/git';
+import { isP4AuthError } from '@shared/perforce';
 import { useGitStatus } from '../lib/useGitStatus';
 import { useTranslation } from '../lib/i18n';
 import type { MessageKey } from '@shared/i18n';
@@ -124,6 +125,10 @@ export function P4Panel({ chatId, chatName, diffPath, onOpenDiff }: SourceContro
   const [confirmAction, setConfirmAction] = useState<
     { title: string; body: string; label: string; run: () => void } | null
   >(null);
+  // In-app Perforce login (shown when an op fails with an auth error).
+  const [loginPassword, setLoginPassword] = useState('');
+  const [loginBusy, setLoginBusy] = useState(false);
+  const [loginError, setLoginError] = useState<string | null>(null);
   // Footer mode (manual submit vs an AI action) + the live prompt preview.
   const [mode, setMode] = useState<P4Mode>('submit');
   const [previewText, setPreviewText] = useState('');
@@ -193,6 +198,8 @@ export function P4Panel({ chatId, chatName, diffPath, onOpenDiff }: SourceContro
   // Surface a failed status load explicitly rather than rendering as an empty
   // (clean) workspace, which would hide real errors.
   const statusError = data && !data.ok ? (data.error ?? data.reason) : null;
+  // An expired/missing p4 ticket → show the login prompt instead of a raw error.
+  const needsLogin = isP4AuthError(statusError) || isP4AuthError(actionError);
   const files: GitFileChange[] = ok?.files ?? [];
   const commits = ok?.recentCommits ?? [];
   const shelves = ok?.shelves ?? [];
@@ -201,6 +208,21 @@ export function P4Panel({ chatId, chatName, diffPath, onOpenDiff }: SourceContro
   if (!chatId) {
     return <div className="p4-panel p4-empty">{t('p4.empty')}</div>;
   }
+
+  const doLogin = async (): Promise<void> => {
+    if (!loginPassword.trim() || loginBusy) return;
+    setLoginBusy(true);
+    setLoginError(null);
+    const res = await window.popbot.git.p4Login({ chatId, password: loginPassword });
+    setLoginBusy(false);
+    if (res.ok) {
+      setLoginPassword('');
+      setActionError(null);
+      refresh();
+    } else {
+      setLoginError(res.error || 'Login failed');
+    }
+  };
 
   const toggle = (path: string): void =>
     setChecked((prev) => {
@@ -564,6 +586,40 @@ export function P4Panel({ chatId, chatName, diffPath, onOpenDiff }: SourceContro
       </div>
 
       {chatName && <div className="p4-foot">{chatName}</div>}
+
+      {needsLogin && (
+        <>
+          <div className="scrim" />
+          <div className="modal" data-screen-label="Modal · p4-login">
+            <div className="modal-head">
+              <h2>{t('p4.login.title')}</h2>
+            </div>
+            <div className="modal-body">
+              <p>{t('p4.login.body')}</p>
+              <input
+                type="password"
+                className="pref-input mono"
+                style={{ width: '100%' }}
+                value={loginPassword}
+                placeholder={t('p4.login.placeholder')}
+                autoFocus
+                onChange={(e) => setLoginPassword(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') void doLogin(); }}
+              />
+              {loginError && <div className="p4-error" role="alert">{loginError}</div>}
+            </div>
+            <div className="modal-foot">
+              <button
+                className="btn primary"
+                disabled={!loginPassword.trim() || loginBusy}
+                onClick={() => void doLogin()}
+              >
+                {loginBusy ? t('p4.login.busy') : t('p4.login.button')}
+              </button>
+            </div>
+          </div>
+        </>
+      )}
 
       {confirmAction && (
         <>
