@@ -222,9 +222,11 @@ export async function restoreBranchFromRoot(opts: {
   if (!fetched) return false;
   await git(worktreePath, ['checkout', '-f', '-B', branch, 'FETCH_HEAD']);
   await git(worktreePath, ['clean', '-fd']).catch(() => undefined);
-  // Undo the soft WIP commit so its changes come back as uncommitted edits.
+  // Undo the WIP commit so its changes come back as uncommitted edits. `--mixed`
+  // (not `--soft`) also resets the index, so they return UNSTAGED — matching how
+  // uncommitted work normally looks — rather than all staged.
   const top = await git(worktreePath, ['log', '-1', '--pretty=%s']).then((r) => r.stdout.trim()).catch(() => '');
-  if (top === WIP_COMMIT_MSG) await git(worktreePath, ['reset', '--soft', 'HEAD~1']).catch(() => undefined);
+  if (top === WIP_COMMIT_MSG) await git(worktreePath, ['reset', '--mixed', 'HEAD~1']).catch(() => undefined);
   return true;
 }
 
