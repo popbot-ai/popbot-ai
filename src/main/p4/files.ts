@@ -54,6 +54,7 @@ export async function listStatus(
   files: GitFileChange[];
   recentCommits: GitCommitSummary[];
   client?: string;
+  changeNumber?: string;
 }> {
   const [openedR, changesR] = await Promise.all([
     p4exec(ctx, ['-ztag', 'opened'], { cwd: wt, tolerant: true }),
@@ -72,9 +73,13 @@ export async function listStatus(
   }
 
   const files: GitFileChange[] = [];
+  // Capture the chat's numbered pending changelist from the opened files (some
+  // files may sit in 'default'; the named CL is the one the panel header shows).
+  let changeNumber: string | undefined;
   for (const rec of parseZtag(openedR.stdout)) {
     const depotFile = rec.depotFile;
     if (!depotFile) continue;
+    if (rec.change && rec.change !== 'default') changeNumber = rec.change;
     files.push({ path: depotToKey(depotFile), status: actionToStatus(rec.action ?? 'edit') });
   }
 
@@ -93,7 +98,7 @@ export async function listStatus(
   // Perforce has no branch/ahead/behind; surface the client name as the
   // "branch" label for the panel header, and also as `client` so the panel can
   // show the P4 workspace name explicitly.
-  return { branch: ctx.client ?? null, ahead: 0, behind: 0, files, recentCommits, client: ctx.client };
+  return { branch: ctx.client ?? null, ahead: 0, behind: 0, files, recentCommits, client: ctx.client, changeNumber };
 }
 
 function readWorking(wt: string, path: string): Buffer | null {

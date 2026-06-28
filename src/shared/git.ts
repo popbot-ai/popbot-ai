@@ -49,6 +49,9 @@ export interface GitStatusResult {
   shelves?: import('./perforce').P4Shelf[];
   /** Perforce only — the slot's P4 client (workspace) name. Absent for git. */
   client?: string;
+  /** Perforce only — the chat's numbered pending changelist (from the opened
+   *  files), if any are open in a named CL. Absent for git / default-only. */
+  changeNumber?: string;
 }
 export type GitStatusResultOrErr =
   | GitStatusResult

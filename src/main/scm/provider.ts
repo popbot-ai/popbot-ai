@@ -54,6 +54,8 @@ export interface ScmStatus {
   shelves?: import('@shared/perforce').P4Shelf[];
   /** Perforce only — the slot's P4 client (workspace) name, for the panel. */
   client?: string;
+  /** Perforce only — the chat's numbered pending changelist, if any. */
+  changeNumber?: string;
 }
 
 /** A single file's before/after for the diff overlay. */

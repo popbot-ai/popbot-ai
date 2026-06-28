@@ -5347,7 +5347,28 @@ input.input.mono, select.input.mono { font-family: var(--font-mono); font-size: 
 .p4-menu-sep { height: 1px; background: var(--line-2); margin: 3px 0; }
 .p4-head-all { display: flex; align-items: center; gap: 7px; }
 .p4-head-all .git-row-check { margin: 0; }
-.p4-workspace { padding: 0 10px 6px; font-size: var(--fs-xs); color: var(--fg-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* P4 panel header — two tidy rows: [badge ⋯ workspace] then [⑂ @cl  name]. */
+.p4-head {
+  display: flex; flex-direction: column; gap: 5px;
+  padding: 8px 10px; border-bottom: 1px solid var(--line-1); flex: 0 0 auto;
+}
+.p4-head-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.p4-head-ws {
+  display: inline-flex; align-items: center; min-width: 0;
+  font-size: var(--fs-xs); color: var(--fg-3);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.p4-head-cl { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.p4-head-cl-ico { color: var(--acc-hi); font-size: 11px; flex: 0 0 auto; }
+.p4-head-clnum {
+  flex: 0 0 auto; font-family: var(--font-mono); font-size: 11px; font-weight: 600;
+  color: var(--acc-hi); background: var(--bg-4, rgba(255,255,255,0.07));
+  padding: 0 5px; border-radius: 4px;
+}
+.p4-head-clname {
+  min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-family: var(--font-mono); font-size: 11px; font-weight: 600; color: var(--fg-1);
+}
 .p4-section { display: flex; flex-direction: column; min-height: 0; border-bottom: 1px solid var(--line-2); }
 /* Top/bottom heights are splitter-driven (inline flexBasis); the middle
    "current changes" section flexes to fill the rest. */

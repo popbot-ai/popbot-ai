@@ -425,19 +425,23 @@ export function P4Panel({ chatId, chatName, diffPath, onOpenDiff }: SourceContro
           <div className="p4-washer" />
         </div>
       )}
-      {/* SCM tag + the chat's changelist name (its branch analog). */}
-      <div className="git-panel-head">
-        <div className="git-panel-title">
+      {/* Row 1: SCM badge + workspace. Row 2: the changelist (#number + name). */}
+      <div className="p4-head">
+        <div className="p4-head-top">
           <span className="repo-card-scm scm-perforce" title={t('prefs.repos.scm.perforce')}>
             <P4Glyph /> {t('prefs.repos.scm.perforce')}
           </span>
-          <span className="git-branch" title={ok?.branch ?? ''}>{ok?.branch ?? '—'}</span>
+          {ok?.client && (
+            <span className="p4-head-ws mono" title={t('p4.workspace.title', { client: ok.client })}>
+              <i className="fa-solid fa-desktop" />&nbsp;{ok.client}
+            </span>
+          )}
         </div>
-        {ok?.client && (
-          <div className="p4-workspace mono" title={t('p4.workspace.title', { client: ok.client })}>
-            <i className="fa-solid fa-desktop" />&nbsp;{ok.client}
-          </div>
-        )}
+        <div className="p4-head-cl" title={ok?.branch ?? ''}>
+          <i className="fa-solid fa-code-branch p4-head-cl-ico" />
+          {ok?.changeNumber && <span className="p4-head-clnum">@{ok.changeNumber}</span>}
+          <span className="p4-head-clname">{ok?.branch ?? '—'}</span>
+        </div>
       </div>
       {openProgress && (
         <div className="pref-progress" style={{ margin: '4px 10px' }}>
