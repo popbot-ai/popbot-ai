@@ -229,12 +229,13 @@ Steps:
 
 Do NOT submit or shelve anything — this is just a test run.`;
 
-export const DEFAULT_P4_REVIEW_COMMIT_TEMPLATE = `Please review the pending changelist (\`${'${changelist}'}\`), then submit it.
+export const DEFAULT_P4_REVIEW_COMMIT_TEMPLATE = `Please do a final pre-submit review of this changelist (\`${'${changelist}'}\`), make sure the Swarm review is clean, then write a proper submit message and submit it.
 
 Steps:
-1. Review the pending changes critically (\`p4 opened\`, \`p4 diff\`) — watch for bugs, debug leftovers, secrets, and anything that shouldn't ship.
-2. Fix any issues you find.
-3. Make the changelist description clearly state what changed and why.
-4. Submit the whole changelist: \`p4 submit -c <cl#>\` (this submits every open file in the changelist).
+1. Do a careful final review of the pending changes (\`p4 opened\`, \`p4 diff\`) — watch for bugs, debug/print leftovers, secrets, commented-out code, and anything that shouldn't ship.
+2. Check the current Helix Swarm review for this changelist (use the Swarm command-line tools — \`swarm --help\` for the exact command) and make sure ALL of its open comments/issues have been addressed. Do NOT submit over unresolved review feedback — fix anything still outstanding first.
+3. Fix any other issues you find before submitting.
+4. Write a proper changelist description that clearly states what changed and why (a real submit message, not a placeholder).
+5. Submit the whole changelist: \`p4 submit -c <cl#>\` (this submits every open file in the changelist).
 
 If anything looks risky or ambiguous, stop and ask instead of submitting.`;
