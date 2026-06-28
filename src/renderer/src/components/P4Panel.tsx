@@ -211,16 +211,21 @@ export function P4Panel({ chatId, chatName, diffPath, onOpenDiff }: SourceContro
 
   const doLogin = async (): Promise<void> => {
     if (!loginPassword.trim() || loginBusy) return;
-    setLoginBusy(true);
+    setLoginBusy(true); // immediate feedback; stays busy through the reload below
     setLoginError(null);
-    const res = await window.popbot.git.p4Login({ chatId, password: loginPassword });
-    setLoginBusy(false);
-    if (res.ok) {
-      setLoginPassword('');
-      setActionError(null);
-      refresh();
-    } else {
-      setLoginError(res.error || 'Login failed');
+    try {
+      const res = await window.popbot.git.p4Login({ chatId, password: loginPassword });
+      if (res.ok) {
+        setLoginPassword('');
+        setActionError(null);
+        // Await the status reload so the button keeps spinning until the panel
+        // actually updates (and the modal closes) — no idle gap mid-flow.
+        await refresh();
+      } else {
+        setLoginError(res.error || 'Login failed');
+      }
+    } finally {
+      setLoginBusy(false);
     }
   };
 
@@ -272,7 +277,12 @@ export function P4Panel({ chatId, chatName, diffPath, onOpenDiff }: SourceContro
     if (!paths.length || busy) return;
     setBusy(true);
     setActionError(null);
-    const res = await window.popbot.git.shelve({ chatId, paths, message: desc.trim() || undefined, keepWorking });
+    // Default the shelf label to the file name(s) so the shelf row is
+    // recognizable (vs the generic "popbot shelf"). The typed changelist
+    // description wins if present.
+    const first = paths[0].split('/').pop() ?? paths[0];
+    const shelfLabel = desc.trim() || (paths.length === 1 ? first : `${first} +${paths.length - 1}`);
+    const res = await window.popbot.git.shelve({ chatId, paths, message: shelfLabel, keepWorking });
     setBusy(false);
     if (res.ok) {
       setChecked(new Set());
@@ -350,11 +360,12 @@ export function P4Panel({ chatId, chatName, diffPath, onOpenDiff }: SourceContro
    *  prompt to the chat agent as a user message. */
   const runAction = async (): Promise<void> => {
     if (mode === 'submit') { await submit(); return; }
-    const text = await buildModePrompt(mode);
-    if (!text) return;
-    setBusy(true);
+    if (busy) return;
+    setBusy(true); // immediate feedback BEFORE building the prompt (reads settings)
     setActionError(null);
     try {
+      const text = await buildModePrompt(mode);
+      if (!text) return;
       await window.popbot.agent.send({ chatId, text });
     } catch (err) {
       setActionError((err as Error).message);
@@ -526,7 +537,7 @@ export function P4Panel({ chatId, chatName, diffPath, onOpenDiff }: SourceContro
             onClick={() => void runAction()}
             title={t(P4_MODE_META[mode].labelKey)}
           >
-            <i className={`fa-solid ${P4_MODE_META[mode].icon}`} />
+            <i className={`fa-solid ${busy ? 'fa-circle-notch fa-spin' : P4_MODE_META[mode].icon}`} />
             &nbsp;{t(P4_MODE_META[mode].labelKey)}
           </button>
         </div>
@@ -614,7 +625,13 @@ export function P4Panel({ chatId, chatName, diffPath, onOpenDiff }: SourceContro
                 disabled={!loginPassword.trim() || loginBusy}
                 onClick={() => void doLogin()}
               >
-                {loginBusy ? t('p4.login.busy') : t('p4.login.button')}
+                {loginBusy ? (
+                  <>
+                    <i className="fa-solid fa-circle-notch fa-spin" />&nbsp;{t('p4.login.busy')}
+                  </>
+                ) : (
+                  t('p4.login.button')
+                )}
               </button>
             </div>
           </div>
