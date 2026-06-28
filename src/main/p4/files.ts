@@ -18,6 +18,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { GitCommitSummary, GitFileChange, GitFileStatus, GitScope } from '@shared/git';
 import { clampP4ParallelThreads, type PerforceSettings } from '@shared/persistence';
+import { isP4AuthError } from '@shared/perforce';
 import { getSetting } from '../persistence/settings';
 import { p4exec, p4execRaw, parseZtag, type P4Context } from './exec';
 
@@ -61,6 +62,14 @@ export async function listStatus(
       tolerant: true,
     }),
   ]);
+
+  // `tolerant` swallows a failed `p4 opened`, which on an expired/missing login
+  // ticket would otherwise render as an empty "no open files" workspace and
+  // hide the real cause. Surface the auth error so the panel shows the login
+  // prompt instead.
+  if (openedR.code !== 0 && isP4AuthError(`${openedR.stderr}\n${openedR.stdout}`)) {
+    throw new Error(openedR.stderr.trim() || openedR.stdout.trim() || 'Perforce login required');
+  }
 
   const files: GitFileChange[] = [];
   for (const rec of parseZtag(openedR.stdout)) {
