@@ -543,26 +543,27 @@ export function registerChatHandlers(): void {
     if (chat.slotId != null && chat.worktreePath) {
       return { ok: true, chat };
     }
-    const slotsCfg = readSlotsSettings();
-    if (!slotsCfg) return { ok: false, reason: 'slots-not-configured' };
     const repo = resolveRepo(chat.repoId);
-    const gitCfg = readGitSettings();
-    if (!repo || !gitCfg) return { ok: false, reason: 'git-not-configured' };
+    if (!repo) return { ok: false, reason: 'git-not-configured' };
+    // Repo row is the source of truth (slotCount/repoPath/defaultBase); the
+    // global git/slots settings are a pre-multi-repo fallback only — never
+    // required (requiring them is what broke reopen).
+    const maxSlots = repo.slotCount || readSlotsSettings()?.maxCount || 0;
+    if (maxSlots < 1) return { ok: false, reason: 'slots-not-configured' };
     const scm = getSourceControlProvider(repo);
 
-    const slotId = allocateSlotPreferring(slotsCfg.maxCount, null);
+    const slotId = allocateSlotPreferring(maxSlots, null);
     if (slotId === null) return { ok: false, reason: 'no-free-slot' };
 
     // Same per-repo path / parking branch / base resolution as the
-    // create + reopen handlers — anything keyed off `gitCfg` directly
-    // would route this attach into the default repo's slot pool.
+    // create + reopen handlers.
     const worktreePath = slotWorktreePathForRepo(repo, slotId);
     const branch = chat.branch?.trim() || `popbot/chat-${chat.id}`;
-    const baseBranch = repo.defaultBase || gitCfg.defaultBase;
+    const baseBranch = repo.defaultBase || readGitSettings()?.defaultBase || 'main';
     try {
       await ensureSlotsMounted(repo);
       await scm.ensureSlotWorktree({
-        repoPath: repo.repoPath || gitCfg.repoPath,
+        repoPath: repo.repoPath || readGitSettings()?.repoPath || '',
         worktreePath,
         parkBranch: scm.parkingBranch(repo.id, slotId),
         baseBranch,
