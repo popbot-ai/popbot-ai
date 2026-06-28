@@ -401,6 +401,13 @@ export function P4Panel({ chatId, chatName, diffPath, onOpenDiff }: SourceContro
             <P4Glyph /> {t('prefs.repos.scm.perforce')}
           </span>
           <span className="git-branch" title={ok?.branch ?? ''}>{ok?.branch ?? '—'}</span>
+          {busy && (
+            <i
+              className="fa-solid fa-circle-notch fa-spin"
+              style={{ color: 'var(--acc-hi)', marginLeft: 6 }}
+              title={t('common.loading')}
+            />
+          )}
         </div>
         {ok?.client && (
           <div className="p4-workspace mono" title={t('p4.workspace.title', { client: ok.client })}>
