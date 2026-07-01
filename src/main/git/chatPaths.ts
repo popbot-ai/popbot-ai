@@ -17,7 +17,7 @@
  */
 import { existsSync } from 'node:fs';
 import { homedir } from 'node:os';
-import { basename, join } from 'node:path';
+import { basename, isAbsolute, join, relative } from 'node:path';
 import type { ChatRecord, RepoRecord } from '@shared/persistence';
 import { getSetting } from '../persistence/settings';
 import { getRepo } from '../persistence/repos';
@@ -117,6 +117,10 @@ export function applyPerforceAgentCwd(
   const sub = (repo.p4.agentCwd ?? '').trim().replace(/^\/+/, '').replace(/\/+$/, '');
   if (!sub) return baseCwd;
   const resolved = join(baseCwd, sub);
+  // Reject anything that escapes the mount root (e.g. `../other-repo`) — it must
+  // be a subpath, and existsSync alone would happily accept an escape.
+  const rel = relative(baseCwd, resolved);
+  if (rel === '' || rel.startsWith('..') || isAbsolute(rel)) return baseCwd;
   return existsSync(resolved) ? resolved : baseCwd;
 }
 

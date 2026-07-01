@@ -107,10 +107,11 @@ export function useReviews({ onNew }: Options = {}): {
       } else if (res.reason === 'no-repo') {
         // Configured but nothing to show (e.g. Swarm not wired / not logged in)
         // — an empty slice, NOT an error, so it can't blank out the other
-        // provider's reviews.
+        // provider's reviews. Deliberately DON'T reset the seen baseline: a
+        // transient config/login gap shouldn't make the next successful poll
+        // re-alert every existing review as fresh.
         errorsRef.current.delete(p.id);
         slicesRef.current.set(p.id, []);
-        seenRef.current.set(p.id, new Set());
       } else {
         errorsRef.current.set(
           p.id,

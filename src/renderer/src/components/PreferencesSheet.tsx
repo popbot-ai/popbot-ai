@@ -930,7 +930,7 @@ function PerforceConfigPanel(): JSX.Element {
                     defaultUser: defaultUser.trim() || undefined,
                     parallelThreads,
                     revertUnchanged,
-                    reviewPollIntervalMs: Math.max(30, reviewPollSec) * 1000,
+                    reviewPollIntervalMs: Math.min(3600, Math.max(30, reviewPollSec)) * 1000,
                   } satisfies PerforceSettings);
                   setSaved(true);
                 }}

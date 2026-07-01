@@ -11,6 +11,7 @@ import {
   DEFAULT_CODEX_REASONING_EFFORT,
   RAW_CHAT_REPO_ID,
   type ClaudeModelId,
+  type ChatRecord,
   type ClaudeReasoningEffort,
   type CodexModelId,
   type CodexReasoningEffort,
@@ -79,6 +80,23 @@ import { persistChatAttachments } from '../attachments/store';
  * user paths or deeply-nested workspaces.)
  */
 const SDK_ENCODED_DIR_MAX = 200;
+
+/**
+ * The cwd the SDK keys a chat's session by: the slot worktree, else the chat's
+ * OWN repo root (not the legacy global `git` setting), with the Perforce
+ * agentCwd subpath applied. Shared by resume + validate so they resolve the
+ * same cwd the agent actually spawned in.
+ */
+export function sessionCwdForChat(
+  chat: Pick<ChatRecord, 'slotId' | 'repoId' | 'worktreePath'> | null | undefined,
+): string | null {
+  const base =
+    worktreePathForChat(chat)
+    ?? (chat?.repoId ? getRepo(chat.repoId)?.repoPath : undefined)
+    ?? getSetting<{ repoPath?: string }>('git')?.repoPath
+    ?? null;
+  return applyPerforceAgentCwd(base, chat);
+}
 
 export function sdkSessionJsonlPath(cwd: string, sessionId: string): string | null {
   if (!cwd || !sessionId) return null;
@@ -402,10 +420,7 @@ class AgentHostImpl {
   > {
     const chat = getChat(chatId);
     if (!chat) return { ok: false, reason: 'no-worktree' };
-    const cwd = applyPerforceAgentCwd(
-      worktreePathForChat(chat) ?? getSetting<{ repoPath?: string }>('git')?.repoPath ?? null,
-      chat,
-    );
+    const cwd = sessionCwdForChat(chat);
     if (!cwd) return { ok: false, reason: 'no-worktree' };
     try {
       // Same `includeWorktrees: false` rationale as discoverSessionId
@@ -851,10 +866,7 @@ class AgentHostImpl {
     if (!chat) return { state: 'unknown', details: 'chat not found' };
     if (chat.agent === 'codex') return { state: 'ok' };
     if (!chat.sessionId) return { state: 'ok' };
-    const cwd = applyPerforceAgentCwd(
-      worktreePathForChat(chat) ?? getSetting<{ repoPath?: string }>('git')?.repoPath ?? null,
-      chat,
-    );
+    const cwd = sessionCwdForChat(chat);
     if (!cwd) return { state: 'unknown', details: 'no cwd' };
     const jsonl = sdkSessionJsonlPath(cwd, chat.sessionId);
     const present = jsonl ? existsSync(jsonl) : false;

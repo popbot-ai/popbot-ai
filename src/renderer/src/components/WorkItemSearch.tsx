@@ -94,19 +94,23 @@ function filterTickets(tickets: LinearIssueDto[], q: string): LinearIssueDto[] {
   return out;
 }
 
+/** Namespace review identity by system — a GitHub PR #27 and a Swarm review #27
+ *  are distinct rows. */
+const prKey = (p: ReviewItem): string => `${p.scm}:${p.number}`;
+
 function filterPrs(prs: ReviewItem[], q: string): ReviewItem[] {
   if (!q) return [];
   const needle = q.toLowerCase();
   const asNumber = /^(?:pr\s*)?#?\s*(\d+)$/i.exec(q);
-  const seen = new Set<number>();
+  const seen = new Set<string>();
   const out: ReviewItem[] = [];
   for (const p of prs) {
-    if (seen.has(p.number)) continue;
+    if (seen.has(prKey(p))) continue;
     if (
       p.title.toLowerCase().includes(needle)
       || (asNumber ? p.number === Number(asNumber[1]) : false)
     ) {
-      seen.add(p.number);
+      seen.add(prKey(p));
       out.push(p);
       if (out.length >= 8) break;
     }
@@ -264,13 +268,17 @@ export function WorkItemSearch({
               <div className="work-item-search-head">{t('work.prs')}</div>
               {prHits.map((p) => (
                 <button
-                  key={p.number}
+                  key={prKey(p)}
                   type="button"
                   className="work-item-search-row"
                   onClick={() => { onSelectPr?.(p); onCancel(); }}
                 >
                   <i className="fa-solid fa-code-pull-request" style={{ color: 'var(--fg-3)' }} />
-                  <span className="mono">{t('work.prNumber', { number: p.number })}</span>
+                  <span className="mono">
+                    {p.scm === 'swarm'
+                      ? t('work.reviewNumber', { number: p.number })
+                      : t('work.prNumber', { number: p.number })}
+                  </span>
                   <span className="work-item-search-row-title">{p.title}</span>
                 </button>
               ))}
