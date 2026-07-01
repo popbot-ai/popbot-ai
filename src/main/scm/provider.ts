@@ -56,6 +56,11 @@ export interface ScmStatus {
   client?: string;
   /** Perforce only — the chat's numbered pending changelist, if any. */
   changeNumber?: string;
+  /** Perforce only — a folder the watcher just auto-muted for runaway churn
+   *  (build/generated output), as a worktree-relative path. The panel surfaces a
+   *  dialog so the user can ignore it (.p4ignore/prefs/session) or reconcile it.
+   *  Null/absent when there's nothing to surface. */
+  spamSuggestion?: string | null;
 }
 
 /** A single file's before/after for the diff overlay. */

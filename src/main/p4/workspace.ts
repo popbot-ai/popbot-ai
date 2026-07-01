@@ -40,6 +40,10 @@ import {
  */
 export interface SlotMeta {
   depotPath: string;
+  /** The user's MAIN workspace client — its view holds the real (possibly
+   *  aggregate) include list, used to scope "recent changes". The per-slot
+   *  client only maps the single base depot path. */
+  mainClient?: string;
   baseChangelist: number;
   /** The chat's named pending changelist (the git-branch analog). The agent's
    *  edits are opened into it; submit submits it. */

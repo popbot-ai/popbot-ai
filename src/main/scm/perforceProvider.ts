@@ -38,6 +38,7 @@ import {
   revertFiles as p4RevertFiles,
   submitFiles as p4SubmitFiles,
   submitChangelist,
+  queueRecentChangesRefresh,
 } from '../p4/files';
 import {
   deleteClient,
@@ -66,11 +67,18 @@ import { p4exec } from '../p4/exec';
 import {
   clearSlotChanges,
   getSlotChanges,
+  getSpamSuggestion,
+  clearSpamSuggestion,
+  muteSubtree,
   pauseSlotWatch,
+  reloadSlotWatch,
   resumeSlotWatch,
   startSlotWatch,
   stopSlotWatch,
 } from '../p4/watcher';
+import { writeFileSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { getSetting, setSetting } from '../persistence/settings';
 import {
   SourceControlProvider,
   type CheckoutBranchOpts,
@@ -94,6 +102,11 @@ export class PerforceProvider extends SourceControlProvider {
 
   /* ---------- helpers ---------- */
 
+  /** Slots whose watcher setup has been scheduled — so the heavy recursive
+   *  fs.watch is kicked off once, OFF the awaited status path (it blocked the
+   *  app ~14s on the first status). */
+  private readonly watchScheduled = new Set<string>();
+
   /** P4 connection for a slot path, from its `.p4config`. Throws when the
    *  slot was never initialized (no config) — callers in the review path
    *  catch and surface "no workspace". */
@@ -111,7 +124,13 @@ export class PerforceProvider extends SourceControlProvider {
    * explicit `p4 edit`.
    */
   private async syncWatched(ctx: P4Context, wt: string): Promise<void> {
-    startSlotWatch(wt); // idempotent
+    // Start the slot watcher OFF the awaited status path. Its recursive fs.watch
+    // setup is heavy on a large slot tree (blocked the app ~14s on the first
+    // status), so schedule it once, asynchronously — never gate status on it.
+    if (!this.watchScheduled.has(wt)) {
+      this.watchScheduled.add(wt);
+      setImmediate(() => startSlotWatch(wt, this.spamIgnoreRels(wt)));
+    }
     const changes = getSlotChanges(wt);
     if (changes.length) {
       // Open the watcher's changes into the chat's named changelist.
@@ -149,12 +168,78 @@ export class PerforceProvider extends SourceControlProvider {
     // the IPC layer returns { ok:false, error } and the panel shows them —
     // a connection failure must NOT render as an empty, clean workspace.
     await this.syncWatched(ctx, wt);
-    const status = await p4ListStatus(ctx, wt);
+    // "Recent changes" scopes to the MAIN workspace's client view (aggregate
+    // include list) / depot path — repo-level, fetched once per repo (cached).
+    const meta = readSlotMeta(wt);
+    const status = await p4ListStatus(ctx, wt, meta?.mainClient, meta?.depotPath);
     const shelves = await listShelves(ctx).catch(() => []);
-    // Surface the chat's changelist name (its branch analog) as the branch.
-    const name = readSlotMeta(wt)?.changelistName;
-    return { ...status, branch: name ?? status.branch, shelves };
+    // Surface the chat's changelist name (its branch analog) as the branch, and
+    // any pending spam-folder suggestion the watcher auto-muted.
+    const name = meta?.changelistName;
+    return { ...status, branch: name ?? status.branch, shelves, spamSuggestion: getSpamSuggestion(wt) };
   }
+  /** Act on an auto-muted spam folder (worktree-rel `path`). Always mutes it for
+   *  the session (stops the live spam); then optionally persists an ignore or
+   *  recovers the real changes via a bounded reconcile. */
+  async spamAction(wt: string, path: string, action: 'p4ignore' | 'prefs' | 'session' | 'reconcile'): Promise<void> {
+    const rel = path.replace(/^\/+|\/+$/g, '');
+    if (!rel) return;
+    if (action === 'p4ignore' || action === 'prefs') {
+      if (action === 'p4ignore') {
+        // Team-shared, p4-native: append the dir to the slot's .p4ignore.
+        const file = join(wt, '.p4ignore');
+        let cur = '';
+        try { cur = readFileSync(file, 'utf8'); } catch { /* none yet */ }
+        const present = cur.split(/\r?\n/).some((l) => l.trim() === `${rel}/` || l.trim() === rel);
+        if (!present) {
+          try { writeFileSync(file, (cur && !cur.endsWith('\n') ? cur + '\n' : cur) + `${rel}/\n`); } catch { /* best effort */ }
+        }
+      } else {
+        // App-local (for teams who can't edit .p4ignore): keyed by the repo's depot
+        // path (repo-stable, read straight from slot meta — no repo lookup needed).
+        const key = readSlotMeta(wt)?.depotPath;
+        if (key) {
+          const all = getSetting<Record<string, string[]>>('p4-ignore') ?? {};
+          all[key] = [...new Set([...(all[key] ?? []), rel])];
+          setSetting('p4-ignore', all);
+        }
+      }
+      // Re-prune @parcel so the folder stops consuming inotify now AND next
+      // session (via spamIgnoreRels). This clears the pending suggestion too
+      // (fresh state) and carries over other folders' mutes + pending changes.
+      await reloadSlotWatch(wt, this.spamIgnoreRels(wt));
+      return;
+    }
+    // session / reconcile: mute for this run; reconcile also recovers the real
+    // edits the mute dropped — bounded to this folder, into the chat's CL.
+    muteSubtree(wt, rel);
+    clearSpamSuggestion(wt);
+    if (action === 'reconcile') {
+      const cl = readSlotMeta(wt)?.changelist;
+      const args = ['reconcile', ...(cl ? ['-c', String(cl)] : []), `${rel}/...`];
+      await p4exec(this.ctx(wt), args, { cwd: wt, tolerant: true, maxBuffer: 64 * 1024 * 1024 });
+    }
+  }
+
+  /** Persisted per-folder ignores for a slot — the @parcel prune set passed to
+   *  the watcher: PopBot-pref ignores (depot-path keyed) + exact-path dir entries
+   *  from .p4ignore. Built-in heavy dirs (Saved/, Intermediate/, …) are pruned
+   *  separately by the watcher's own globs. */
+  private spamIgnoreRels(wt: string): string[] {
+    const rels = new Set<string>();
+    const key = readSlotMeta(wt)?.depotPath;
+    if (key) for (const r of getSetting<Record<string, string[]>>('p4-ignore')?.[key] ?? []) rels.add(r);
+    try {
+      for (const raw of readFileSync(join(wt, '.p4ignore'), 'utf8').split(/\r?\n/)) {
+        const line = raw.trim();
+        if (!line || line.startsWith('#') || line.startsWith('!')) continue;
+        const p = line.replace(/^\/+|\/+$/g, '');
+        if (p && !/[*?[\]]/.test(p)) rels.add(p); // exact dir (name or path); wildcards stay in loadIgnore
+      }
+    } catch { /* no .p4ignore */ }
+    return [...rels];
+  }
+
   fileDiff(wt: string, scope: GitScope, path: string): Promise<ScmFileDiff> {
     return p4FileDiff(this.ctx(wt), wt, scope, path);
   }
@@ -162,14 +247,19 @@ export class PerforceProvider extends SourceControlProvider {
     const ctx = this.ctx(wt);
     await this.syncWatched(ctx, wt);
     const meta = readSlotMeta(wt);
+    let result: { sha: string };
     if (meta?.changelist) {
-      const res = await submitChangelist(ctx, wt, meta.changelist, message);
+      result = await submitChangelist(ctx, wt, meta.changelist, message);
       // Keep the chat going in a fresh changelist with the same name.
       const cl = await createChangelist(ctx, meta.changelistName ?? message);
       writeSlotMeta(wt, { ...meta, changelist: cl || undefined });
-      return res;
+    } else {
+      result = await p4SubmitFiles(ctx, wt, message, paths);
     }
-    return p4SubmitFiles(ctx, wt, message, paths);
+    // A new CL just landed — queue a non-blocking recent-changes refresh so the
+    // panel reflects it without waiting for the cache TTL.
+    queueRecentChangesRefresh(ctx, meta?.mainClient, meta?.depotPath);
+    return result;
   }
   /** Revert the selected files. PAUSE the slot watcher around it: `p4 revert`
    *  rewrites each file back to the depot version on disk, which fires OS
@@ -284,8 +374,12 @@ export class PerforceProvider extends SourceControlProvider {
       baseChangelist: p4.baseChangelist,
       host: hostname(),
     });
-    writeSlotMeta(opts.worktreePath, { depotPath: p4.depotPath, baseChangelist: p4.baseChangelist });
-    startSlotWatch(opts.worktreePath);
+    writeSlotMeta(opts.worktreePath, {
+      depotPath: p4.depotPath,
+      mainClient: p4.mainClient,
+      baseChangelist: p4.baseChangelist,
+    });
+    startSlotWatch(opts.worktreePath, this.spamIgnoreRels(opts.worktreePath));
   }
 
   /** Perforce has no branches; a freshly-allocated slot is reset to a clean
@@ -299,7 +393,7 @@ export class PerforceProvider extends SourceControlProvider {
     // depot for edit (thousands of "M" files in a fresh slot). The watcher's
     // `clearSlotChanges` alone is insufficient: ReadDirectoryChangesW delivers
     // events asynchronously, so writes recorded AFTER a clear still leak.
-    startSlotWatch(opts.worktreePath);
+    startSlotWatch(opts.worktreePath, this.spamIgnoreRels(opts.worktreePath));
     pauseSlotWatch(opts.worktreePath);
     try {
       await revertAll(ctx, opts.worktreePath);

@@ -31,6 +31,7 @@ import type { BasePreflightInfo } from '@shared/ipc';
 import { useSettings } from '../lib/useSettings';
 import { ConfigureSlotsPanel } from './ConfigureSlotsPanel';
 import { P4Glyph } from './P4Glyph';
+import { P4LoginModal } from './P4LoginModal';
 import {
   AGENT_EFFORT_DEFAULTS_SETTING,
   normalizeAgentEffortDefaults,
@@ -808,15 +809,6 @@ function PrefsGit(): JSX.Element {
               </p>
             }
           />
-          <h4 style={{ margin: '20px 0 6px', fontSize: 'var(--fs-sm)' }}>{t('prefs.p4.actionTemplates.title')}</h4>
-          <TemplatesGroup
-            fields={P4_ACTION_TEMPLATE_FIELDS}
-            intro={
-              <p className="pref-section-desc">
-                {t('prefs.p4.actionTemplates.intro', { macro: '${name}' })}
-              </p>
-            }
-          />
         </div>
       </div>
 
@@ -934,6 +926,15 @@ function PerforceConfigPanel(): JSX.Element {
             </div>
           </div>
         </div>
+        <h4 style={{ margin: '16px 0 6px', fontSize: 'var(--fs-sm)' }}>{t('prefs.p4.actionTemplates.title')}</h4>
+        <TemplatesGroup
+          fields={P4_ACTION_TEMPLATE_FIELDS}
+          intro={
+            <p className="pref-section-desc">
+              {t('prefs.p4.actionTemplates.intro', { macro: '${name}' })}
+            </p>
+          }
+        />
       </div>
     </div>
   );
@@ -3096,6 +3097,9 @@ function SlotSetupProgress({
                 port: draft.p4Port.trim(),
                 user: draft.p4User.trim(),
                 depotPath: draft.p4Depot.trim(),
+                // The detected main workspace client — its view holds the full
+                // (aggregate) include list used to scope "recent changes".
+                mainClient: draft.p4Client.trim() || undefined,
                 shadoBase: id,
                 baseChangelist: built.baseChangelist,
               }
@@ -3203,6 +3207,10 @@ function NewRepoWizard({
   // Folder SCM detection (repo step).
   const [detecting, setDetecting] = useState(false);
   const detectSeq = useRef(0);
+  // Ambient Perforce login prompt — shown when folder detection finds the p4
+  // session expired (the server probes would otherwise read a real workspace as
+  // "not Perforce"). On success we re-detect against the same folder.
+  const [p4LoginOpen, setP4LoginOpen] = useState(false);
   // Perforce base-build sub-flow + live progress for the long operations.
   const [preflight, setPreflight] = useState<BasePreflightInfo | null>(null);
   const [preflighting, setPreflighting] = useState(false);
@@ -3212,6 +3220,12 @@ function NewRepoWizard({
   // Lock the modal-dismiss while a long, side-effecting op is mid-flight so a
   // stray scrim click can't abandon a running measure.
   const locked = busy || preflighting;
+  // The 'init' and 'progress' steps run their own slot-setup with embedded
+  // footers (the shared footer below is hidden for them). The wizard's X + scrim
+  // must ALSO be blocked across those steps so the setup can't be abandoned
+  // mid-run — you exit via the panel's own Cancel/Close/Done, which appear at
+  // the right phase.
+  const chromeLocked = locked || step === 'init' || step === 'progress';
 
   // Uniqueness guards (also enforced server-side on create). Surface them on
   // the repo step so the user can't get all the way to submit before failing.
@@ -3263,6 +3277,15 @@ function NewRepoWizard({
     setDetecting(true);
     void (async () => {
       try {
+        // Perforce folder probes hit the server, so an expired ambient p4
+        // session would make a real workspace read as "not Perforce". Check the
+        // login first; if expired, prompt to log in and re-detect afterward.
+        const p4 = await window.popbot.git.p4LoginStatus().catch(() => 'unreachable' as const);
+        if (seq !== detectSeq.current) return;
+        if (p4 === 'expired') {
+          setP4LoginOpen(true);
+          return; // `finally` clears `detecting`; re-detect via the modal's onSuccess
+        }
         const scm = await window.popbot.repos.detectScm(newPath.trim());
         if (seq !== detectSeq.current) return; // a newer path won
         let upd: NewRepoDraft = { ...next, scm };
@@ -3368,6 +3391,7 @@ function NewRepoWizard({
               port: draft.p4Port.trim(),
               user: draft.p4User.trim(),
               depotPath: draft.p4Depot.trim(),
+              mainClient: draft.p4Client.trim() || undefined,
               shadoBase: draft.id.trim().toLowerCase(),
               baseChangelist: draft.baseChangelist,
             }
@@ -3423,7 +3447,8 @@ function NewRepoWizard({
   };
 
   return (
-    <div className="modal-scrim" onClick={locked ? undefined : onCancel}>
+    <>
+    <div className="modal-scrim" onClick={chromeLocked ? undefined : onCancel}>
       <div className="modal" onClick={(e) => e.stopPropagation()} style={{ width: 540, maxWidth: '92vw' }}>
         <div className="modal-head">
           <h3>
@@ -3436,7 +3461,7 @@ function NewRepoWizard({
                   : t('prefs.repos.wizard.step', { step: stepNum })}
             </span>
           </h3>
-          <button className="iconbtn" onClick={onCancel} disabled={locked} title={t('common.cancel')}>
+          <button className="iconbtn" onClick={onCancel} disabled={chromeLocked} title={t('common.cancel')}>
             <i className="fa-solid fa-xmark" />
           </button>
         </div>
@@ -3734,6 +3759,15 @@ function NewRepoWizard({
         )}
       </div>
     </div>
+    <P4LoginModal
+      open={p4LoginOpen}
+      onClose={() => setP4LoginOpen(false)}
+      onSuccess={() => {
+        setP4LoginOpen(false);
+        onPathChange(draft.repoPath); // re-detect now that we're logged in
+      }}
+    />
+    </>
   );
 }
 

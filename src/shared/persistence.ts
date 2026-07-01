@@ -163,6 +163,10 @@ export interface PerforceRepoConfig {
   user: string;
   /** Depot path this repo maps, e.g. "//depot/PopBotGame". */
   depotPath: string;
+  /** The user's main workspace client at add-time. Its view holds the full
+   *  (possibly aggregate) include list used to scope "recent changes" — the
+   *  per-slot clients only map the single base depot path. */
+  mainClient?: string;
   /** shado base (project) name — the frozen VHDX base backing the slots. */
   shadoBase: string;
   /** Changelist the shado base was synced to; slots `p4 flush @baseChangelist`. */

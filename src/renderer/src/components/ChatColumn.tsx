@@ -1081,7 +1081,7 @@ export function EmptyColumn({
             the setup checklist disappears — just show the create buttons.
             Until then, show the checklist (with a re-check button) and a
             guidance line instead of dead create buttons. */}
-        {r.ready ? (
+        {!blocked ? (
           <>
             <div className="options">
               <button className="btn primary" onClick={onNewChat}>{t('chat.empty.newChatBtn')}</button>

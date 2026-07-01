@@ -52,6 +52,10 @@ export interface GitStatusResult {
   /** Perforce only — the chat's numbered pending changelist (from the opened
    *  files), if any are open in a named CL. Absent for git / default-only. */
   changeNumber?: string;
+  /** Perforce only — a folder the watcher just auto-muted for runaway churn,
+   *  as a worktree-relative path. The panel surfaces a dialog to ignore or
+   *  reconcile it. Null/absent when there's nothing pending. */
+  spamSuggestion?: string | null;
 }
 export type GitStatusResultOrErr =
   | GitStatusResult

@@ -19,7 +19,7 @@
  * as a user-installed agent and report it "online" even when the user
  * hasn't installed the CLI — falsely satisfying the readiness gate.
  */
-import { execFile } from 'node:child_process';
+import { execFile, type ExecFileOptionsWithStringEncoding } from 'node:child_process';
 import { promisify } from 'node:util';
 import { delimiter } from 'node:path';
 
@@ -62,12 +62,20 @@ export async function resolveCliPath(name: string): Promise<string> {
     const exe = matches.find((m) => m.toLowerCase().endsWith('.exe'));
     return exe ?? matches[0];
   }
-  const shell = process.env.SHELL || '/bin/zsh';
+  const shell = process.env.SHELL || (process.platform === 'darwin' ? '/bin/zsh' : '/bin/bash');
   const { stdout } = await execFileP(shell, ['-ilc', `command -v ${name}`], {
     timeout: 5000,
     encoding: 'utf8',
     env,
-  });
+    // Run the probe shell in its OWN session (detached → setsid on POSIX). An
+    // interactive shell (`-i`) opens /dev/tty and does job-control init
+    // (tcsetpgrp); if it shared our process group the kernel would send SIGTTOU
+    // to the whole group, SUSPENDING the Electron app on Linux dev launches
+    // ("[1]+ Stopped", requires `fg`). With no controlling terminal it can't.
+    // (`detached` is forwarded to spawn at runtime; Node's execFile type omits
+    // it, so we cast — stdout stays a string under the string-encoding overload.)
+    detached: true,
+  } as ExecFileOptionsWithStringEncoding);
   const binaryPath = stdout.trim().split('\n').pop()?.trim() || '';
   if (!binaryPath || isNodeModulesBin(binaryPath)) {
     throw new Error(`${name} not found on user shell PATH`);

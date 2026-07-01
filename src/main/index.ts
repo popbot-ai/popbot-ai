@@ -66,6 +66,7 @@ import { registerSlackHandlers } from './ipc/slack';
 import { startSlackPoller, stopSlackPoller } from './slack/poll';
 import { pruneOlderThan } from './persistence/notifications';
 import { attachWebContents as attachTermWindow, disposeAll as disposeAllPtys } from './term/ptyManager';
+import { disposeAllWatches } from './p4/watcher';
 import { checkForUpdates } from './updates/check';
 import { startAutoUpdater, stopAutoUpdater, quitAndInstallUpdate } from './updates/autoUpdate';
 
@@ -539,8 +540,25 @@ app.on('before-quit', (event) => {
   stopSentryPoller();
   stopSlackPoller();
   disposeAllPtys();
-  void AgentHost.disposeAll().finally(() => {
+  void Promise.allSettled([AgentHost.disposeAll(), disposeAllWatches()]).finally(() => {
     closeDb();
     app.quit();
   });
 });
+
+// In dev, Ctrl+C delivers SIGINT to the main process. Do NOT route it through
+// the graceful `before-quit` above — that awaits an SDK-session flush that can
+// stall and wedge the dev process. Instead just unsubscribe @parcel/watcher's
+// native threads (the napi_throw culprit on abrupt teardown) and exit, bounded
+// so a stuck disposal can't hang the terminal. (Production ⌘Q still goes through
+// before-quit for the graceful SDK flush.)
+let forcedExit = false;
+for (const sig of ['SIGINT', 'SIGTERM'] as const) {
+  process.on(sig, () => {
+    if (forcedExit) return;
+    forcedExit = true;
+    const bail = (): never => process.exit(0);
+    setTimeout(bail, 1500).unref();
+    void disposeAllWatches().finally(bail);
+  });
+}

@@ -5,7 +5,8 @@
 //
 // Source defaults to the sibling repo (../shado); override with SHADO_SRC.
 // Requires the Go toolchain on PATH. Safe to run on any platform — if the source
-// or Go is missing it warns and skips (the bundle is Windows-only for now).
+// or Go is missing it warns and skips. Windows and Linux ship a committed binary
+// today (native/shado/bin/<platform>/); macOS is planned.
 import { execFileSync } from 'node:child_process'
 import { existsSync, mkdirSync } from 'node:fs'
 import { join, resolve, dirname } from 'node:path'

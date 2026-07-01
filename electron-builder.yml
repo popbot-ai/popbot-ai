@@ -79,6 +79,16 @@ linux:
   artifactName: ${productName}-${version}-linux-amd64.${ext}
   # electron-builder derives the Linux icon set from build/icon.png
   # (1024x1024) automatically — no platform-specific icon needed.
+  #
+  # Bundle the shado shadow-workspace controller (Linux XFS/btrfs reflink COW
+  # backend; built by scripts/build-shado.mjs into native/shado/bin/linux/).
+  # Lands at resources/shado/shado in the installed app; src/main/shado/client.ts
+  # resolves it via process.resourcesPath. The committed binary MUST keep its
+  # executable bit (git mode 100755) so the copy in the .deb stays runnable —
+  # electron-builder preserves the source file mode. No code signing on Linux.
+  extraResources:
+    - from: native/shado/bin/linux/shado
+      to: shado/shado
 deb:
   # Modern Ubuntu (24.04/26) runtime deps. The t64 names are the 64-bit
   # time_t packages; the "| old-name" alternatives keep it installable on

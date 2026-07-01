@@ -490,7 +490,11 @@ export function BaseBranchDialog({
           )}
           {repos && (repos.length > 0 || allowNoRepo) && (
             <>
-              {!lockedRepoId && (repos.length > 1 || allowNoRepo) && (
+              {/* Show the repo selector whenever there's a repo to pick — even a
+                  single one. Hiding it for exactly one repo (the old `> 1`)
+                  auto-selected behind the scenes but rendered an empty-looking
+                  step; a pre-selected 1-item list reads clearly. */}
+              {!lockedRepoId && (repos.length >= 1 || allowNoRepo) && (
                 <div style={{ marginBottom: 12 }}>
                   <div style={{ fontSize: 11, color: 'var(--fg-3)', marginBottom: 4 }}>{t('branch.dialog.repoLabel')}</div>
                   <div className="base-branch-list">
@@ -548,19 +552,24 @@ export function BaseBranchDialog({
               ) : (
                 <>
                   <div style={{ fontSize: 11, color: 'var(--fg-3)', marginBottom: 4 }}>{t('branch.dialog.baseBranchLabel')}</div>
-                  {!branches && !error && <div>{t('branch.dialog.disabled.loadingBranches')}</div>}
-                  {error && <div className="diff-overlay-status error">{t('branch.dialog.loadBranchesError', { error })}</div>}
-                  {branches && (
-                    <BaseBranchPicker
-                      branches={allBranches}
-                      recents={recentBases}
-                      value={picked}
-                      onChange={setPicked}
-                      defaultBase={currentRepo?.defaultBase}
-                      allowRepoRoot={allowRepoRoot}
-                      freeChatValue={FREE_CHAT_VALUE}
-                    />
-                  )}
+                  {/* Reserve the picker-trigger height (~33px) so swapping
+                      between the "loading branches" line and the dropdown
+                      doesn't resize the dialog. */}
+                  <div style={{ minHeight: 34, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+                    {!branches && !error && <div>{t('branch.dialog.disabled.loadingBranches')}</div>}
+                    {error && <div className="diff-overlay-status error">{t('branch.dialog.loadBranchesError', { error })}</div>}
+                    {branches && (
+                      <BaseBranchPicker
+                        branches={allBranches}
+                        recents={recentBases}
+                        value={picked}
+                        onChange={setPicked}
+                        defaultBase={currentRepo?.defaultBase}
+                        allowRepoRoot={allowRepoRoot}
+                        freeChatValue={FREE_CHAT_VALUE}
+                      />
+                    )}
+                  </div>
                   {isFreeChat && (
                     <div style={{ color: 'var(--fg-2)', fontSize: 12, marginTop: 8 }}>
                       {t('branch.dialog.freeChatDesc', { repo: pickedRepoId })}

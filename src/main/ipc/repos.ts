@@ -156,16 +156,18 @@ export function registerReposHandlers(): void {
         // folder remove retries. Removing the row on a partial failure would
         // leave an un-deletable half-repo, so we don't. Only the perforce client
         // cleanup switches on `repo.scm`.
-        if (repo && repo.mode === 'slots' && process.platform === 'win32') {
+        if (repo && repo.mode === 'slots') {
           const baseName = repo.scm === 'perforce' ? repo.p4?.shadoBase : repo.id;
           const wsDir = join(popbotRootForRepo(repo.repoPath), 'workspaces', repo.id);
 
-          // 1. Best-effort shado teardown: this mainly UNMOUNTS the clones so
-          //    the folder removal below can delete the (otherwise mounted/
-          //    locked) VHDX files. NOT fatal — removing the workspaces/<id>
-          //    folder is what actually gates the delete; if that succeeds we're
-          //    done regardless of how the shado teardown went. Skipped entirely
-          //    when the project is already gone from the registry.
+          // 1. Best-effort shado teardown (destroyBase): on Windows it UNMOUNTS
+          //    the VHDX clones so the folder removal below can delete the
+          //    otherwise-locked images; on macOS/Linux it removes the reflink/
+          //    clonefile base + clones from the store/registry (nothing to
+          //    unmount). NOT fatal — removing the workspaces/<id> folder is what
+          //    actually gates the delete; if that succeeds we're done regardless
+          //    of how the shado teardown went. Skipped when the project is
+          //    already gone from the registry.
           if (baseName && shadoProjectExists(repo.repoPath, repo.id, baseName)) {
             const res = await destroyBase({ repoPath: repo.repoPath, repoId: repo.id, baseName });
             if (!res.ok) dlog('repos.delete.teardownFailed', { id, baseName, error: res.log });
@@ -280,9 +282,11 @@ export function registerReposHandlers(): void {
     async (_e, repoId: string, toCount: number): Promise<{ ok: true } | { ok: false; message: string }> => {
       const repo = getRepo(repoId);
       if (!repo) return { ok: false, message: 'Repo not found' };
-      // Only a grow on a slot repo needs new clones; shrink/no-op/non-Windows
-      // need no privileged step.
-      if (repo.mode !== 'slots' || process.platform !== 'win32' || toCount <= repo.slotCount) {
+      // Only a GROW on a slot repo needs new clones (shrink/no-op need none).
+      // growSlotClones is privileged on Windows (UAC) and unprivileged on
+      // macOS/Linux (reflink/clonefile) — it selects the right path internally,
+      // so this must run on every platform, not just Windows.
+      if (repo.mode !== 'slots' || toCount <= repo.slotCount) {
         return { ok: true };
       }
       const baseName = repo.scm === 'perforce' ? repo.p4?.shadoBase : repo.id;

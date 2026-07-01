@@ -157,6 +157,11 @@ const api: PopBotApi = {
     revert: (input: GitRevertInput) => ipcRenderer.invoke(IpcChannel.GitRevert, input),
     p4Login: (input: { chatId: string; password: string }) =>
       ipcRenderer.invoke(IpcChannel.P4Login, input),
+    p4LoginStatus: () => ipcRenderer.invoke(IpcChannel.P4LoginStatus),
+    p4LoginAmbient: (input: { password: string }) =>
+      ipcRenderer.invoke(IpcChannel.P4LoginAmbient, input),
+    p4SpamAction: (input: { chatId: string; path: string; action: 'p4ignore' | 'prefs' | 'session' | 'reconcile' }) =>
+      ipcRenderer.invoke(IpcChannel.P4SpamAction, input),
     shelve: (input: { chatId: string; paths: string[]; message?: string; keepWorking?: boolean }) =>
       ipcRenderer.invoke(IpcChannel.GitShelve, input),
     unshelve: (input: { chatId: string; items: import('@shared/perforce').P4ShelfItem[] }) =>

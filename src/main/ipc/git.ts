@@ -33,6 +33,7 @@ import { getSetting } from '../persistence/settings';
 import { worktreePathForChat } from '../git/chatPaths';
 import { getSourceControlProvider, sourceControlIdFor } from '../scm';
 import { p4Login } from '../p4/workspace';
+import { ambientP4LoginStatus, ambientP4Login } from '../scm/detect';
 
 /** The source-control provider backing a chat's repo (git today). */
 function providerForChat(chatId: string) {
@@ -186,6 +187,35 @@ export function registerGitHandlers(): void {
       const repo = chat?.repoId ? getRepo(chat.repoId) : null;
       if (repo?.scm !== 'perforce' || !repo.p4) return { ok: false, error: 'Not a Perforce chat.' };
       return p4Login({ port: repo.p4.port, user: repo.p4.user }, input.password);
+    },
+  );
+
+  /** Perforce: ambient login status (machine `p4 set` connection, no repo) —
+   *  used at startup and before Add-Repository folder detection so an expired
+   *  session doesn't make a real P4 workspace read as "not Perforce". */
+  ipcMain.handle(IpcChannel.P4LoginStatus, () => ambientP4LoginStatus());
+
+  /** Perforce: log in the ambient connection from a typed password. */
+  ipcMain.handle(
+    IpcChannel.P4LoginAmbient,
+    (_e, input: { password: string }): Promise<{ ok: boolean; error?: string }> =>
+      ambientP4Login(input.password),
+  );
+
+  /** Perforce: act on an auto-muted spam folder for a chat's slot. */
+  ipcMain.handle(
+    IpcChannel.P4SpamAction,
+    async (
+      _e,
+      input: { chatId: string; path: string; action: 'p4ignore' | 'prefs' | 'session' | 'reconcile' },
+    ): Promise<{ ok: boolean }> => {
+      const wt = resolveWorktree(input.chatId);
+      if (typeof wt !== 'string') return { ok: false };
+      const prov = providerForChat(input.chatId) as {
+        spamAction?: (wt: string, path: string, action: string) => Promise<void>;
+      };
+      await prov.spamAction?.(wt, input.path, input.action).catch(() => {});
+      return { ok: true };
     },
   );
 
