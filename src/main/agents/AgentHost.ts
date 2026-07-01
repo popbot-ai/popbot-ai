@@ -41,7 +41,7 @@ import { getClaudeBinaryPath } from './claudeProbe';
 import { getSetting, setSetting } from '../persistence/settings';
 import { appendMessage, getMessage, listMessages, updateMessageBody } from '../persistence/messages';
 import { listSessions, type SDKSessionInfo } from '@anthropic-ai/claude-agent-sdk';
-import { worktreePathForChat } from '../git/chatPaths';
+import { applyPerforceAgentCwd, worktreePathForChat } from '../git/chatPaths';
 import { sqliteSessionStore } from './sqliteSessionStore';
 import { looksLikeQuestion } from '@shared/questionDetect';
 import type { AgentBackend, AgentSession } from './types';
@@ -402,9 +402,10 @@ class AgentHostImpl {
   > {
     const chat = getChat(chatId);
     if (!chat) return { ok: false, reason: 'no-worktree' };
-    const cwd = worktreePathForChat(chat)
-      ?? getSetting<{ repoPath?: string }>('git')?.repoPath
-      ?? null;
+    const cwd = applyPerforceAgentCwd(
+      worktreePathForChat(chat) ?? getSetting<{ repoPath?: string }>('git')?.repoPath ?? null,
+      chat,
+    );
     if (!cwd) return { ok: false, reason: 'no-worktree' };
     try {
       // Same `includeWorktrees: false` rationale as discoverSessionId
@@ -493,16 +494,6 @@ class AgentHostImpl {
     // identity is (id, branch). Settings can change (slotPrefix,
     // worktreesDir, repoName) and we want every chat to follow.
     const liveWorktree = worktreePathForChat(chat);
-    if (!isCodex && !sessionId && liveWorktree) {
-      const hasPriorAgent = listMessages(chatId).some((m) => m.role === 'agent');
-      if (hasPriorAgent) {
-        sessionId = await this.discoverSessionId(liveWorktree, chatId, chat?.branch ?? null);
-        if (sessionId) {
-          setChatSessionId(chatId, sessionId);
-          discoverySource = 'jsonl-discovery';
-        }
-      }
-    }
     // Slot-bound + ephemeral chats use their derived worktree. Slot-less
     // chats (CR / Slack) deliberately run in the repo root so `gh`
     // and other repo-aware tools have a sensible cwd. Raw chats are the
@@ -513,7 +504,25 @@ class AgentHostImpl {
       const repo = chat?.repoId ? getRepo(chat.repoId) : null;
       repoFallback = repo?.repoPath ?? getSetting<{ repoPath?: string }>('git')?.repoPath ?? null;
     }
-    const cwd = liveWorktree ?? repoFallback ?? (isRawChat ? rawChatCwd() : null);
+    // The AGENT cwd: a Perforce repo may start the agent in a configured subdir
+    // of the mount root (so repo-committed `.claude/skills` are discoverable).
+    // Applied here — and at every other session-cwd site — so the SDK's per-cwd
+    // session store stays consistent across spawn/resume/recover.
+    const cwd = applyPerforceAgentCwd(
+      liveWorktree ?? repoFallback ?? (isRawChat ? rawChatCwd() : null),
+      chat,
+    );
+    // Session discovery must use the SAME cwd we'll spawn in.
+    if (!isCodex && !sessionId && liveWorktree && cwd) {
+      const hasPriorAgent = listMessages(chatId).some((m) => m.role === 'agent');
+      if (hasPriorAgent) {
+        sessionId = await this.discoverSessionId(cwd, chatId, chat?.branch ?? null);
+        if (sessionId) {
+          setChatSessionId(chatId, sessionId);
+          discoverySource = 'jsonl-discovery';
+        }
+      }
+    }
     if (!cwd) {
       // No worktree AND no configured repo path. There's nowhere we
       // can spawn — surface clearly instead of letting the SDK throw
@@ -662,7 +671,7 @@ class AgentHostImpl {
     const { text: lastText, attachments } = this.lastUserTurn(all);
 
     let nextSessionId: string | null = null;
-    const liveWorktreeForRecovery = worktreePathForChat(chat);
+    const liveWorktreeForRecovery = applyPerforceAgentCwd(worktreePathForChat(chat), chat);
     if (hasPriorAgent && liveWorktreeForRecovery) {
       const candidate = await this.discoverSessionId(liveWorktreeForRecovery, chatId, chat.branch);
       if (candidate && !this.badSessionIds.get(chatId)?.has(candidate)) {
@@ -842,7 +851,10 @@ class AgentHostImpl {
     if (!chat) return { state: 'unknown', details: 'chat not found' };
     if (chat.agent === 'codex') return { state: 'ok' };
     if (!chat.sessionId) return { state: 'ok' };
-    const cwd = worktreePathForChat(chat) ?? getSetting<{ repoPath?: string }>('git')?.repoPath ?? null;
+    const cwd = applyPerforceAgentCwd(
+      worktreePathForChat(chat) ?? getSetting<{ repoPath?: string }>('git')?.repoPath ?? null,
+      chat,
+    );
     if (!cwd) return { state: 'unknown', details: 'no cwd' };
     const jsonl = sdkSessionJsonlPath(cwd, chat.sessionId);
     const present = jsonl ? existsSync(jsonl) : false;

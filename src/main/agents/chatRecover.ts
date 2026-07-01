@@ -46,7 +46,7 @@ import { listOpenChats, setChatSessionId } from '../persistence/chats';
 import { getSetting } from '../persistence/settings';
 import { appendMessage, countAgentOrUserMessages, listMessages } from '../persistence/messages';
 import { sqliteSessionStore } from './sqliteSessionStore';
-import { worktreePathForChat } from '../git/chatPaths';
+import { applyPerforceAgentCwd, worktreePathForChat } from '../git/chatPaths';
 import type { ChatRecord, MessageBodyText } from '@shared/persistence';
 
 /** Append a system-note to the chat transcript so the user can see
@@ -288,7 +288,13 @@ function candidateCwdsForChat(
 ): string[] {
   const out: string[] = [];
   const live = worktreePathForChat(chat);
-  if (live) out.push(live);
+  if (live) {
+    out.push(live);
+    // Perforce agent-cwd subpath: sessions are stored under the subdir the
+    // agent actually runs in, so scan that too.
+    const agentCwd = applyPerforceAgentCwd(live, chat);
+    if (agentCwd && agentCwd !== live) out.push(agentCwd);
+  }
   const repoName = gitCfg.repoName?.trim() || 'app';
   const slotPrefix = gitCfg.slotPrefix?.trim() || 'slot';
   const worktreesDir = gitCfg.worktreesDir || join(homedir(), 'popbot', 'workspaces', repoName);

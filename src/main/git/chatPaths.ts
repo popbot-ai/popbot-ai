@@ -15,6 +15,7 @@
  * Returns null for chats without a slot (CR / slot-less chats use the
  * repo root as their cwd — that fallback lives in each consumer).
  */
+import { existsSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { basename, join } from 'node:path';
 import type { ChatRecord, RepoRecord } from '@shared/persistence';
@@ -88,6 +89,37 @@ export function worktreePathForChat(
   const stored = (chat as Pick<ChatRecord, 'worktreePath'>).worktreePath;
   if (stored && stored.length > 0) return stored;
   return null;
+}
+
+/**
+ * Apply a Perforce repo's configured `agentCwd` subpath to a resolved base cwd
+ * (slot worktree root, or repo root for slot-less CR chats). Perforce maps the
+ * depot under a subfolder of the mount root, so the agent starts in that subdir
+ * so repo-committed `.claude/skills` are at the cwd (Claude only auto-loads
+ * skills at the cwd + ancestors, never child folders). This is the AGENT cwd
+ * only — p4 operations keep using the mount root via {@link worktreePathForChat}
+ * (that's where `.p4config` lives).
+ *
+ * Falls back to `baseCwd` when the repo isn't Perforce, has no `agentCwd`, or
+ * the subpath doesn't exist on disk — so a stray config can't brick every spawn.
+ * MUST be applied at EVERY agent/session cwd site (spawn, resume, recover,
+ * pin-repair, validate) so the SDK's per-cwd session store stays consistent.
+ */
+export function applyPerforceAgentCwd(
+  baseCwd: string | null,
+  chat: Pick<ChatRecord, 'repoId'> | null | undefined,
+): string | null {
+  if (!baseCwd) return baseCwd;
+  const repo = chat?.repoId ? getRepo(chat.repoId) : null;
+  if (repo?.scm !== 'perforce' || !repo.p4) return baseCwd;
+  // The configured subpath, else derive it from the depot path (the view maps
+  // //depot/X under `<root>/depot/X`, so the subpath is the depot path minus
+  // its leading `//`). Existing repos (no agentCwd set) thus still land in the
+  // right subdir without a migration.
+  const sub = (repo.p4.agentCwd?.trim() || repo.p4.depotPath?.replace(/^\/+/, '').replace(/\/+$/, '')) ?? '';
+  if (!sub) return baseCwd;
+  const resolved = join(baseCwd, sub);
+  return existsSync(resolved) ? resolved : baseCwd;
 }
 
 /** Path for a given slot id directly, without a chat record. Used by

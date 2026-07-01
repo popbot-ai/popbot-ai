@@ -171,6 +171,13 @@ export interface PerforceRepoConfig {
   shadoBase: string;
   /** Changelist the shado base was synced to; slots `p4 flush @baseChangelist`. */
   baseChangelist: number;
+  /** Subpath under the workspace/slot root where the AGENT starts (its cwd),
+   *  as a forward-slashed relative path. The depot maps under a subfolder of
+   *  the mount root (the view puts //depot/PopBotGame at `<root>/depot/
+   *  PopBotGame`), so the agent — and repo-committed `.claude/skills` — live in
+   *  a child dir, not the mount root. Blank/undefined → the mount root itself.
+   *  p4 operations still use the mount root (that's where `.p4config` lives). */
+  agentCwd?: string;
 }
 
 /**

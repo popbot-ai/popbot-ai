@@ -3,7 +3,7 @@ import { dlog } from '../diagLog';
 import { listOpenChats, clearChatSessionId } from '../persistence/chats';
 import { getSetting } from '../persistence/settings';
 import { sdkSessionJsonlPath } from './AgentHost';
-import { worktreePathForChat } from '../git/chatPaths';
+import { applyPerforceAgentCwd, worktreePathForChat } from '../git/chatPaths';
 
 /**
  * One-shot boot-time sweep: clear `chat.sessionId` for any open chat
@@ -32,7 +32,7 @@ export function repairBrokenSessionPins(): void {
     // Slot chats use their worktree as cwd; slot-less chats (CR chats)
     // fall back to the configured repo root, matching what AgentHost
     // would pass to the SDK on spawn.
-    const cwd = worktreePathForChat(chat) ?? repoPath;
+    const cwd = applyPerforceAgentCwd(worktreePathForChat(chat) ?? repoPath, chat);
     if (!cwd) continue;
     const jsonlPath = sdkSessionJsonlPath(cwd, chat.sessionId);
     if (!jsonlPath) continue;
