@@ -159,7 +159,7 @@ export async function buildBase(
   },
   onProgress?: ProgressFn,
 ): Promise<BaseBuildResult> {
-  if (process.platform !== 'win32') {
+  if (process.platform === 'linux') {
     return buildBaseUnix(opts, onProgress);
   }
   // These names go UNQUOTED into an ELEVATED .bat — validate before building it.
@@ -276,7 +276,7 @@ export async function remountSlots(
   opts: { repoPath: string; repoId: string; baseName: string },
   onProgress?: ProgressFn,
 ): Promise<BaseBuildResult> {
-  if (process.platform !== 'win32') {
+  if (process.platform === 'linux') {
     return remountSlotsUnix(opts, onProgress);
   }
   const nameErr = badShadoName(opts.baseName, 'base name');
@@ -341,7 +341,7 @@ export async function destroyBase(
   opts: { repoPath: string; repoId: string; baseName: string },
   onProgress?: ProgressFn,
 ): Promise<BaseBuildResult> {
-  if (process.platform !== 'win32') {
+  if (process.platform === 'linux') {
     return destroyBaseUnix(opts, onProgress);
   }
   const nameErr = badShadoName(opts.baseName, 'base name');
@@ -415,7 +415,7 @@ export async function growSlotClones(
   },
   onProgress?: ProgressFn,
 ): Promise<BaseBuildResult> {
-  if (process.platform !== 'win32') {
+  if (process.platform === 'linux') {
     return growSlotClonesUnix(opts, onProgress);
   }
   if (opts.toCount <= opts.fromCount) return { ok: true, log: '' };
@@ -488,7 +488,7 @@ export async function remountReposElevated(
   onProgress?: ProgressFn,
 ): Promise<BaseBuildResult> {
   if (repos.length === 0) return { ok: true, log: '' };
-  if (process.platform !== 'win32') return remountReposUnix(repos, onProgress);
+  if (process.platform === 'linux') return remountReposUnix(repos, onProgress);
   const shado = shadoExePath();
   const stamp = `${Date.now()}-${Math.floor(process.hrtime()[1] % 1e6)}`;
   const log = join(tmpdir(), `shado-remount-all-${stamp}.log`);
@@ -679,19 +679,26 @@ async function growSlotClonesUnix(
   if (nameErr) return { ok: false, log: nameErr };
   const home = shadoHomeForRepo(opts.repoPath, opts.repoId);
   const worktreesDir = join(popbotRootForRepo(opts.repoPath), 'workspaces', opts.repoId);
-  const results: Array<{ stdout: string; stderr: string }> = [];
+  const results: Array<{ stdout: string; stderr: string; ok: boolean; code: number }> = [];
   onProgress?.(`Creating slots ${opts.fromCount + 1}–${opts.toCount}…`);
   for (let k = opts.fromCount + 1; k <= opts.toCount; k += 1) {
     const slot = `${opts.slotPrefix}-${k}`;
     const mount = join(worktreesDir, slot);
-    // Don't bail if a clone already exists (re-running expand) — mirror the
-    // Windows batch, which omits `exit /b` here. A genuinely-missing clone is
-    // caught later when its per-slot VCS init tries to use it.
-    results.push(
-      await shadoAt(home, [
-        'clone', 'create', '--name', opts.baseName, '--slot', slot, '--mount', mount,
-      ]),
-    );
+    // Tolerate an already-existing clone (re-running expand) — mirror the
+    // Windows batch, which omits `exit /b` here. But a REAL failure
+    // (ENOSPC / permission / bad path) must abort: unlike a benign
+    // already-exists, a missing clone would only surface much later in the
+    // per-slot VCS init, so fail the grow now.
+    const clone = await shadoAt(home, [
+      'clone', 'create', '--name', opts.baseName, '--slot', slot, '--mount', mount,
+    ]);
+    results.push(clone);
+    if (!clone.ok && !/already exists/i.test(shadoLog(clone))) {
+      return {
+        ok: false,
+        log: shadoLog(...results) || `shado clone create failed (exit ${clone.code}).`,
+      };
+    }
   }
   return { ok: true, log: shadoLog(...results) };
 }

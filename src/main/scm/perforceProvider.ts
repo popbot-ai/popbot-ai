@@ -182,8 +182,10 @@ export class PerforceProvider extends SourceControlProvider {
    *  the session (stops the live spam); then optionally persists an ignore or
    *  recovers the real changes via a bounded reconcile. */
   async spamAction(wt: string, path: string, action: 'p4ignore' | 'prefs' | 'session' | 'reconcile'): Promise<void> {
-    const rel = path.replace(/^\/+|\/+$/g, '');
-    if (!rel) return;
+    // Normalize the user-editable path: unify Windows separators, strip leading/
+    // trailing slashes, and reject any `..` segment so it can't escape the slot.
+    const rel = path.replace(/\\/g, '/').replace(/^\/+|\/+$/g, '');
+    if (!rel || rel.split('/').some((s) => s === '..')) return;
     if (action === 'p4ignore' || action === 'prefs') {
       if (action === 'p4ignore') {
         // Team-shared, p4-native: append the dir to the slot's .p4ignore.
@@ -211,14 +213,17 @@ export class PerforceProvider extends SourceControlProvider {
       return;
     }
     // session / reconcile: mute for this run; reconcile also recovers the real
-    // edits the mute dropped — bounded to this folder, into the chat's CL.
-    muteSubtree(wt, rel);
-    clearSpamSuggestion(wt);
+    // edits the mute dropped — bounded to this folder, into the chat's CL. For
+    // reconcile, RUN IT FIRST (non-tolerant so a genuine failure throws) and
+    // only mute + clear the suggestion on success — otherwise a failed recover
+    // would drop the real changes AND lose the prompt to retry.
     if (action === 'reconcile') {
       const cl = readSlotMeta(wt)?.changelist;
       const args = ['reconcile', ...(cl ? ['-c', String(cl)] : []), `${rel}/...`];
-      await p4exec(this.ctx(wt), args, { cwd: wt, tolerant: true, maxBuffer: 64 * 1024 * 1024 });
+      await p4exec(this.ctx(wt), args, { cwd: wt, maxBuffer: 64 * 1024 * 1024 });
     }
+    muteSubtree(wt, rel);
+    clearSpamSuggestion(wt);
   }
 
   /** Persisted per-folder ignores for a slot — the @parcel prune set passed to

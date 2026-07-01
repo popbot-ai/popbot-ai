@@ -46,7 +46,7 @@ export function fixShellPath(): void {
     shellPath =
       process.platform === 'darwin'
         ? '/opt/homebrew/bin:/usr/local/bin'
-        : `${homedir()}/.local/bin:/usr/local/bin:/snap/bin`;
+        : `${homedir()}/.local/bin:${homedir()}/.linuxbrew/bin:/home/linuxbrew/.linuxbrew/bin:/usr/local/bin:/snap/bin`;
   }
 
   if (!shellPath) return;

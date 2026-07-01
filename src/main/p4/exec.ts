@@ -48,6 +48,10 @@ export interface P4ExecOpts {
    *  instead of rejecting — for commands whose "failure" is a normal
    *  answer (e.g. `opened` with nothing open exits 1). */
   tolerant?: boolean;
+  /** Kill the child after this many ms (bounds a call against a hung/slow
+   *  server). A timeout surfaces as an error (or, with `tolerant`, a non-zero
+   *  code) like any other failure. */
+  timeout?: number;
 }
 
 export interface P4ExecResult {
@@ -81,6 +85,7 @@ export function p4exec(ctx: P4Context, args: string[], opts: P4ExecOpts = {}): P
         env: envFor(ctx),
         windowsHide: true,
         maxBuffer: opts.maxBuffer ?? 16 * 1024 * 1024,
+        timeout: opts.timeout,
       },
       (err, stdout, stderr) => {
         const out = stdout?.toString() ?? '';

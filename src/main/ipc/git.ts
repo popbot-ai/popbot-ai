@@ -214,8 +214,13 @@ export function registerGitHandlers(): void {
       const prov = providerForChat(input.chatId) as {
         spamAction?: (wt: string, path: string, action: string) => Promise<void>;
       };
-      await prov.spamAction?.(wt, input.path, input.action).catch(() => {});
-      return { ok: true };
+      if (!prov.spamAction) return { ok: false };
+      try {
+        await prov.spamAction(wt, input.path, input.action);
+        return { ok: true };
+      } catch {
+        return { ok: false };
+      }
     },
   );
 

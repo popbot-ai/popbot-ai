@@ -267,7 +267,16 @@ function recordEvent(state: SlotState, rel: string, type: ParcelEvent['type']): 
     // The spam root = common ancestor of the genuinely-hot dirs (legit sparse
     // edits elsewhere are excluded by HOT_DIR_MIN so they can't widen it).
     const hot = [...state.churnByDir.entries()].filter(([, c]) => c >= HOT_DIR_MIN).map(([d]) => d);
-    const root = commonPathPrefix(hot.length ? hot : [...state.churnByDir.keys()]);
+    let root = commonPathPrefix(hot.length ? hot : [...state.churnByDir.keys()]);
+    // A '' common prefix (multi-root churn sharing no leading segment) would flow
+    // into the mute/suggestion/UI as a confusing empty root — fall back to the
+    // single HOTTEST dir so the suggested root is always a concrete path.
+    if (root === '') {
+      let hottest = '';
+      let max = -1;
+      for (const [d, c] of state.churnByDir) if (c > max) { max = c; hottest = d; }
+      root = hottest;
+    }
     state.spam = root; // pending the user's decision (pre-fills the dialog)
     muteSubtreeState(state, root);
     // Reset so a DIFFERENT folder spamming later re-trips detection.
@@ -310,7 +319,10 @@ export function startSlotWatch(worktreePath: string, extraIgnoreRels: string[] =
     (err, events) => {
       if (err) return handleWatchError(worktreePath, err);
       const st = slots.get(worktreePath);
-      if (!st) return;
+      // Stale callback: a pending subscribe() can fire AFTER reloadSlotWatch()
+      // replaced this slot's state (or it was cleared). Only record into the
+      // EXACT state instance this subscribe() was created for.
+      if (st !== state) return;
       for (const ev of events) {
         const rel = relative(worktreePath, ev.path).split(sep).join('/');
         // Secondary fine-grained filter (leaf suffix/prefix/metadata) — the
@@ -327,14 +339,18 @@ export function startSlotWatch(worktreePath: string, extraIgnoreRels: string[] =
     {
       ignore: [
         ...pruneGlobs(),
-        ...extraIgnoreRels.map((r) => (r.includes('/') ? join(worktreePath, r) : `**/${r}`)),
+        ...extraIgnoreRels.flatMap((r) =>
+          r.includes('/') ? [join(worktreePath, r)] : [`**/${r}`, `**/${r}/**`],
+        ),
       ],
     },
   ).then(
     (sub) => {
-      const st = slots.get(worktreePath);
-      if (st) st.subscription = sub;
-      else void sub.unsubscribe().catch(() => {}); // stopped before subscribe resolved
+      // Only adopt the subscription if THIS state is still the live slot —
+      // reloadSlotWatch()/disposeAllWatches() may have replaced or cleared it
+      // while subscribe() was in flight; if so, tear the orphan watch down.
+      if (slots.get(worktreePath) === state) state.subscription = sub;
+      else void sub.unsubscribe().catch(() => {}); // stopped/replaced before subscribe resolved
     },
     (err) => handleWatchError(worktreePath, err),
   );

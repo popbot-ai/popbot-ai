@@ -82,7 +82,7 @@ export type P4AmbientStatus = 'no-p4' | 'logged-in' | 'expired' | 'unreachable';
 export async function ambientP4LoginStatus(): Promise<P4AmbientStatus> {
   const conn = await ambientP4Conn();
   if (!conn) return 'no-p4';
-  const res = await p4exec(conn, ['login', '-s'], { tolerant: true });
+  const res = await p4exec(conn, ['login', '-s'], { tolerant: true, timeout: 8000 });
   if (res.code === 0 && /expires/i.test(res.stdout)) return 'logged-in';
   if (isP4AuthError(`${res.stdout}\n${res.stderr}`)) return 'expired';
   return 'unreachable';

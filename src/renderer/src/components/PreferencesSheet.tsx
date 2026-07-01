@@ -3207,6 +3207,9 @@ function NewRepoWizard({
   // Folder SCM detection (repo step).
   const [detecting, setDetecting] = useState(false);
   const detectSeq = useRef(0);
+  // Debounce the folder detection run so we don't fire server probes (SCM
+  // detection + the ambient `p4 login -s` preflight) on every keystroke.
+  const detectTimer = useRef<number | null>(null);
   // Ambient Perforce login prompt — shown when folder detection finds the p4
   // session expired (the server probes would otherwise read a real workspace as
   // "not Perforce"). On success we re-detect against the same folder.
@@ -3269,58 +3272,63 @@ function NewRepoWizard({
       if (!prefixTouched) next.slotPrefix = derived;
     }
     onChange(next);
+    if (detectTimer.current != null) window.clearTimeout(detectTimer.current);
     if (!newPath.trim()) {
       setDetecting(false);
       return;
     }
     const seq = ++detectSeq.current;
     setDetecting(true);
-    void (async () => {
-      try {
-        // Perforce folder probes hit the server, so an expired ambient p4
-        // session would make a real workspace read as "not Perforce". Check the
-        // login first; if expired, prompt to log in and re-detect afterward.
-        const p4 = await window.popbot.git.p4LoginStatus().catch(() => 'unreachable' as const);
-        if (seq !== detectSeq.current) return;
-        if (p4 === 'expired') {
-          setP4LoginOpen(true);
-          return; // `finally` clears `detecting`; re-detect via the modal's onSuccess
-        }
-        const scm = await window.popbot.repos.detectScm(newPath.trim());
-        if (seq !== detectSeq.current) return; // a newer path won
-        let upd: NewRepoDraft = { ...next, scm };
-        if (scm === 'perforce') {
-          // Auto-fill the connection from the folder's P4 client workspace —
-          // we already know the port/user/depot/changelist, so don't ask.
-          const info = await window.popbot.repos.detectP4Workspace(newPath.trim());
+    // Debounce the actual detection run — including the `p4 login -s` preflight
+    // below — so typing a path doesn't spam server probes on each keystroke.
+    detectTimer.current = window.setTimeout(() => {
+      void (async () => {
+        try {
+          // Perforce folder probes hit the server, so an expired ambient p4
+          // session would make a real workspace read as "not Perforce". Check the
+          // login first; if expired, prompt to log in and re-detect afterward.
+          const p4 = await window.popbot.git.p4LoginStatus().catch(() => 'unreachable' as const);
           if (seq !== detectSeq.current) return;
-          if (info) {
-            upd = {
-              ...upd,
-              p4Port: info.port,
-              p4User: info.user,
-              p4Depot: info.depotPath,
-              baseChangelist: info.baseChangelist,
-              p4Discovered: true,
-              p4Client: info.client,
-            };
-          } else {
-            // No mapping client — manual entry, prefilled from saved defaults.
-            const p4s = get<PerforceSettings>('perforce', {}) ?? {};
-            upd = {
-              ...upd,
-              p4Port: upd.p4Port || p4s.defaultPort || '',
-              p4User: upd.p4User || p4s.defaultUser || '',
-            };
+          if (p4 === 'expired') {
+            setP4LoginOpen(true);
+            return; // `finally` clears `detecting`; re-detect via the modal's onSuccess
           }
+          const scm = await window.popbot.repos.detectScm(newPath.trim());
+          if (seq !== detectSeq.current) return; // a newer path won
+          let upd: NewRepoDraft = { ...next, scm };
+          if (scm === 'perforce') {
+            // Auto-fill the connection from the folder's P4 client workspace —
+            // we already know the port/user/depot/changelist, so don't ask.
+            const info = await window.popbot.repos.detectP4Workspace(newPath.trim());
+            if (seq !== detectSeq.current) return;
+            if (info) {
+              upd = {
+                ...upd,
+                p4Port: info.port,
+                p4User: info.user,
+                p4Depot: info.depotPath,
+                baseChangelist: info.baseChangelist,
+                p4Discovered: true,
+                p4Client: info.client,
+              };
+            } else {
+              // No mapping client — manual entry, prefilled from saved defaults.
+              const p4s = get<PerforceSettings>('perforce', {}) ?? {};
+              upd = {
+                ...upd,
+                p4Port: upd.p4Port || p4s.defaultPort || '',
+                p4User: upd.p4User || p4s.defaultUser || '',
+              };
+            }
+          }
+          onChange(upd);
+        } catch {
+          if (seq === detectSeq.current) onChange({ ...next, scm: null });
+        } finally {
+          if (seq === detectSeq.current) setDetecting(false);
         }
-        onChange(upd);
-      } catch {
-        if (seq === detectSeq.current) onChange({ ...next, scm: null });
-      } finally {
-        if (seq === detectSeq.current) setDetecting(false);
-      }
-    })();
+      })();
+    }, 400);
   };
 
   // Run the disk preflight when the user reaches the setup step (re-runs on retry).

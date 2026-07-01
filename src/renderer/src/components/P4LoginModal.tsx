@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useTranslation } from '../lib/i18n';
 
 interface P4LoginModalProps {
@@ -20,6 +20,9 @@ export function P4LoginModal({ open, onClose, onSuccess }: P4LoginModalProps): J
   const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Set when the modal is dismissed while a login await is in flight, so a
+  // late resolve can't touch state / call onSuccess() after we're gone.
+  const dismissedRef = useRef(false);
 
   if (!open) return null;
 
@@ -27,17 +30,27 @@ export function P4LoginModal({ open, onClose, onSuccess }: P4LoginModalProps): J
     if (!password.trim() || busy) return;
     setBusy(true);
     setError(null);
-    const res = await window.popbot.git.p4LoginAmbient({ password });
-    setBusy(false);
-    if (res.ok) {
-      setPassword('');
-      onSuccess();
-    } else {
-      setError(res.error || 'Perforce login failed');
+    dismissedRef.current = false;
+    try {
+      const res = await window.popbot.git.p4LoginAmbient({ password });
+      if (dismissedRef.current) return;
+      if (res.ok) {
+        setPassword('');
+        onSuccess();
+      } else {
+        setError(res.error || 'Perforce login failed');
+      }
+    } catch (err) {
+      if (dismissedRef.current) return;
+      setError(err instanceof Error ? err.message : 'Perforce login failed');
+    } finally {
+      setBusy(false);
     }
   };
 
   const close = (): void => {
+    if (busy) return; // don't allow dismissal mid-login
+    dismissedRef.current = true;
     setPassword('');
     setError(null);
     onClose();

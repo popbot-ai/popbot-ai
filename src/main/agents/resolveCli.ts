@@ -44,6 +44,7 @@ function userPath(): string {
 }
 
 export async function resolveCliPath(name: string): Promise<string> {
+  if (!/^[A-Za-z0-9._-]+$/.test(name)) throw new Error(`Invalid CLI name: ${name}`);
   const env = { ...process.env, PATH: userPath() };
   if (process.platform === 'win32') {
     const { stdout } = await execFileP('where.exe', [name], {
@@ -63,10 +64,10 @@ export async function resolveCliPath(name: string): Promise<string> {
     return exe ?? matches[0];
   }
   const shell = process.env.SHELL || (process.platform === 'darwin' ? '/bin/zsh' : '/bin/bash');
-  const { stdout } = await execFileP(shell, ['-ilc', `command -v ${name}`], {
+  const { stdout } = await execFileP(shell, ['-ilc', 'command -v "$POPBOT_CLI_NAME"'], {
     timeout: 5000,
     encoding: 'utf8',
-    env,
+    env: { ...env, POPBOT_CLI_NAME: name },
     // Run the probe shell in its OWN session (detached → setsid on POSIX). An
     // interactive shell (`-i`) opens /dev/tty and does job-control init
     // (tcsetpgrp); if it shared our process group the kernel would send SIGTTOU

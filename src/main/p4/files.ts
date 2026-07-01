@@ -72,6 +72,12 @@ function changesScopeFor(viewClient?: string, depotPath?: string): string | null
   return null;
 }
 
+/** Cache key for a scope, namespaced by the connection identity so different
+ *  Perforce servers/users with an identically-named client/depot don't collide. */
+function recentCacheKey(ctx: P4Context, scope: string): string {
+  return `${ctx.port}\t${ctx.user}\t${scope}`;
+}
+
 function parseChanges(stdout: string): GitCommitSummary[] {
   const out: GitCommitSummary[] = [];
   for (const rec of parseZtag(stdout)) {
@@ -90,7 +96,8 @@ function parseChanges(stdout: string): GitCommitSummary[] {
 /** Background refresh of the recent-changes cache for `scope`. Coalesces
  *  concurrent refreshes; never rejects. */
 function refreshRecentChanges(ctx: P4Context, scope: string): Promise<void> {
-  const cur = recentCache.get(scope);
+  const key = recentCacheKey(ctx, scope);
+  const cur = recentCache.get(key);
   if (cur?.inFlight) return cur.inFlight;
   const p = (async () => {
     const r = await p4exec(ctx, ['-ztag', 'changes', '-m', '20', '-s', 'submitted', '-t', scope], {
@@ -99,15 +106,15 @@ function refreshRecentChanges(ctx: P4Context, scope: string): Promise<void> {
     });
     // Overwrite only on a usable result; on error keep the old commits but stamp
     // the time so we back off rather than hammer a failing/slow server.
-    const commits = r.code === 0 ? parseChanges(r.stdout) : recentCache.get(scope)?.commits ?? [];
-    recentCache.set(scope, { commits, fetchedAt: Date.now() });
+    const commits = r.code === 0 ? parseChanges(r.stdout) : recentCache.get(key)?.commits ?? [];
+    recentCache.set(key, { commits, fetchedAt: Date.now() });
   })()
     .catch(() => {})
     .finally(() => {
-      const e = recentCache.get(scope);
+      const e = recentCache.get(key);
       if (e) e.inFlight = undefined;
     });
-  recentCache.set(scope, { commits: cur?.commits ?? [], fetchedAt: cur?.fetchedAt ?? 0, inFlight: p });
+  recentCache.set(key, { commits: cur?.commits ?? [], fetchedAt: cur?.fetchedAt ?? 0, inFlight: p });
   return p;
 }
 
@@ -115,7 +122,7 @@ function refreshRecentChanges(ctx: P4Context, scope: string): Promise<void> {
  *  background refresh when the entry is missing or stale. Never blocks. */
 function recentChangesCached(ctx: P4Context, scope: string | null): GitCommitSummary[] {
   if (!scope) return [];
-  const e = recentCache.get(scope);
+  const e = recentCache.get(recentCacheKey(ctx, scope));
   if (!e || (!e.inFlight && Date.now() - e.fetchedAt > RECENT_TTL_MS)) {
     void refreshRecentChanges(ctx, scope);
   }

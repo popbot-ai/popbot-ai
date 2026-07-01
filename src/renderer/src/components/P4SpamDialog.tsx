@@ -24,9 +24,20 @@ export function P4SpamDialog({ chatId, suggestion, onDone }: P4SpamDialogProps):
     const p = path.trim();
     if (!p || busy) return;
     setBusy(action);
-    await window.popbot.git.p4SpamAction({ chatId, path: p, action }).catch(() => {});
-    setBusy(null);
-    onDone();
+    try {
+      const res = await window.popbot.git.p4SpamAction({ chatId, path: p, action });
+      // Only close on success; on failure keep the dialog open so the user can
+      // retry (and re-enable the buttons via the finally below).
+      if (res?.ok === true) {
+        onDone();
+      } else {
+        alert('Perforce action failed. Please try again.');
+      }
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Perforce action failed. Please try again.');
+    } finally {
+      setBusy(null);
+    }
   };
 
   return (

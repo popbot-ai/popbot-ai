@@ -63,7 +63,17 @@ function record(rel, type) {
   churnByDir.set(d, (churnByDir.get(d) ?? 0) + 1);
   if (++churnTotal > CHURN_CAP) {
     const hot = [...churnByDir.entries()].filter(([, c]) => c >= HOT_DIR_MIN).map(([k]) => k);
-    const root = commonPathPrefix(hot.length ? hot : [...churnByDir.keys()]);
+    let root = commonPathPrefix(hot.length ? hot : [...churnByDir.keys()]);
+    // A '' common prefix (multi-root churn sharing no leading segment) would mute
+    // nothing (isMuted never matches an empty prefix) yet still log "auto-muted".
+    // Fall back to the single HOTTEST dir so the root is always a concrete path
+    // that actually suppresses the burst — mirrors src/main/p4/watcher.ts.
+    if (root === '') {
+      let hottest = '';
+      let max = -1;
+      for (const [k, c] of churnByDir) if (c > max) { max = c; hottest = k; }
+      root = hottest;
+    }
     mutedPrefixes.push(root);
     const pre = root ? root + '/' : '';
     let dropped = 0;

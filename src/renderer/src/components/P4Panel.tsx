@@ -677,7 +677,7 @@ export function P4Panel({ chatId, chatName, diffPath, onOpenDiff }: SourceContro
         </>
       )}
 
-      {ok?.spamSuggestion != null && (
+      {ok?.spamSuggestion && (
         <P4SpamDialog
           chatId={chatId}
           suggestion={ok.spamSuggestion}
