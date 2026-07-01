@@ -113,7 +113,14 @@ describe('slot watcher (real @parcel/watcher backend)', () => {
     expect(changes.some((c) => c.path.startsWith('Saved/'))).toBe(false);
   }, 20000);
 
-  it('trips spam detection on an unpredicted exploder and auto-mutes it', async () => {
+  // Skipped on Windows: the volume of churn this drives to reach CHURN_CAP
+  // destabilizes @parcel/watcher's ReadDirectoryChangesW native thread on the CI
+  // runner and crashes the vitest worker on teardown (the assertions themselves
+  // pass). The spam-detection logic is platform-agnostic and covered on macOS +
+  // Linux; the lighter watcher tests still exercise RDCW on Windows.
+  it.skipIf(process.platform === 'win32')(
+    'trips spam detection on an unpredicted exploder and auto-mutes it',
+    async () => {
     const slot = makeSlot();
     // A dir NOT in the built-in prune list, so it reaches the handler and must
     // be caught dynamically (CHURN_CAP, or a drop-overflow — both route through
