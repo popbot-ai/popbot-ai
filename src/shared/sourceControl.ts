@@ -111,7 +111,10 @@ export const SOURCE_CONTROL_PROVIDERS: Record<SourceControlProviderId, SourceCon
       worktrees: true,
       branches: true,
       stash: true,
-      pullRequests: false,
+      // Helix Swarm reviews surface in the Reviews panel via the Perforce
+      // provider's listPendingReviews (Swarm REST). Per-changelist detectPr
+      // is still a no-op; the panel + manual "+" pin are the live paths.
+      pullRequests: true,
       baseRefSelection: true,
       // Changelists + Swarm don't fit the git sidebar — Perforce gets its
       // own client window.

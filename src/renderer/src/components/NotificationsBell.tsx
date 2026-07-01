@@ -5,6 +5,7 @@ import { useNotifications } from '../lib/useNotifications';
 import { useTranslation } from '../lib/i18n';
 import githubIcon from '../assets/notif/github.png';
 import linearIcon from '../assets/notif/linear.png';
+import jiraIcon from '../assets/notif/jira.png';
 import slackIcon from '../assets/notif/slack.png';
 
 const URGENCY_META: Record<NotificationUrgency, { labelKey: MessageKey; color: string; bg: string; border: string; dot: string }> = {
@@ -31,6 +32,12 @@ const KIND_META: Record<string, KindMeta> = {
   'claude-missing':{ icon: 'fa-robot', bg: '#f0883e', label: 'PopBot' },
 };
 const KIND_FALLBACK: KindMeta = { icon: 'fa-bell', bg: '#5d6678', label: '' };
+
+/** Ticket notifications share the `ticket`/`linear-issue` kind across providers;
+ *  the icon is resolved from the record's `source` (the provider label) so a
+ *  Jira/GitHub issue doesn't render with the Linear logo. */
+const TICKET_ICON: Record<string, string> = { Linear: linearIcon, Jira: jiraIcon, GitHub: githubIcon };
+const isTicketKind = (kind: string): boolean => kind === 'ticket' || kind === 'linear-issue';
 
 const ACTION_ICON: Record<string, string> = {
   internal: 'fa-arrow-right',
@@ -84,12 +91,13 @@ function NotifItem({ n, onAct }: { n: NotificationRecord; onAct: (a: Notificatio
   // record didn't include one (or as a prefix for Sentry's "Sentry ·
   // project" style). Actor is shown inline below to preserve "who".
   const sourceLabel = n.source || k.label;
+  const img = isTicketKind(n.kind) ? (TICKET_ICON[n.source] ?? k.img) : k.img;
   return (
     <div className={`notif-item u-${n.urgency} k-${n.kind}`}>
       <div className="notif-rail" style={{ background: u.dot }} />
-      <div className="notif-avatar src" style={{ background: k.bg }} title={k.label}>
-        {k.img
-          ? <img src={k.img} alt={k.label} className="notif-avatar-img" />
+      <div className="notif-avatar src" style={{ background: k.bg }} title={sourceLabel}>
+        {img
+          ? <img src={img} alt={sourceLabel} className="notif-avatar-img" />
           : <i className={`fa-solid ${k.icon}`} />
         }
       </div>

@@ -3,8 +3,28 @@
  * these via the `gh` CLI; the renderer polls + diffs to fire alerts.
  */
 
+import type { SourceControlProviderId } from './sourceControl';
+
+/** Which review system surfaced an item — GitHub PRs vs Helix Swarm reviews.
+ *  The Reviews panel renders both in one list and branches on this for the
+ *  per-item action (open PR / open Swarm review, spawn review-pr / review-cl). */
+export type ReviewSystem = 'github' | 'swarm';
+
+/** A review-capable provider the panel should poll — on its OWN cadence, so
+ *  GitHub and Swarm are polled independently (Swarm slower, to protect p4d). */
+export interface ReviewProviderInfo {
+  /** The SourceControl provider id backing this review source. */
+  id: SourceControlProviderId;
+  /** Review-system tag (matches {@link ReviewItem.scm}). */
+  system: ReviewSystem;
+  /** This provider's poll interval in ms. */
+  pollIntervalMs: number;
+}
+
 export interface ReviewItem {
-  /** PR number within the repo. */
+  /** Which review system this came from. */
+  scm: ReviewSystem;
+  /** PR number (GitHub) or review id (Swarm) within the repo/server. */
   number: number;
   title: string;
   url: string;
@@ -32,6 +52,21 @@ export interface ReviewItem {
   };
 }
 
+/** Shared failure reasons across review systems. `gh-*` are GitHub-specific
+ *  (kept for the renderer's existing status handling); Swarm maps its own
+ *  failures onto `no-repo` (not configured / not logged in) and `error`. */
+export type ReviewFailReason = 'gh-not-found' | 'gh-not-authed' | 'no-repo' | 'error';
+
 export type ListReviewsResult =
   | { ok: true; reviews: ReviewItem[] }
-  | { ok: false; reason: 'gh-not-found' | 'gh-not-authed' | 'no-repo' | 'error'; error?: string };
+  | { ok: false; reason: ReviewFailReason; error?: string };
+
+/** Result of listing recent open reviews — the WorkItemSearch picker. */
+export type ListRecentReviewsResult =
+  | { ok: true; prs: ReviewItem[] }
+  | { ok: false; reason: ReviewFailReason; error?: string };
+
+/** Result of fetching one review by number/id — the manual "+" pin flow. */
+export type GetReviewResult =
+  | { ok: true; pr: ReviewItem }
+  | { ok: false; reason: 'not-found' | ReviewFailReason; error?: string };

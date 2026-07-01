@@ -40,6 +40,10 @@ mac:
   # popbot-windowmover native helper not yet built — re-add the
   # extraResources block when the binary lands under
   # `native/popbot-windowmover/build/`.
+  extraResources:
+    # Sample review skills — see win.extraResources note. resources/SampleSkills/.
+    - from: SampleSkills
+      to: SampleSkills
 win:
   target:
     - nsis
@@ -50,6 +54,10 @@ win:
   extraResources:
     - from: native/shado/bin/win/shado.exe
       to: shado/shado.exe
+    # Sample review skills (review-pr / review-cl) shipped for users to copy into
+    # ~/.claude/skills and ~/.codex/skills. Lands at resources/SampleSkills/.
+    - from: SampleSkills
+      to: SampleSkills
   # Windows code signing = Azure Trusted Signing (Public Trust), injected by
   # the release workflow via -c.win.azureSignOptions.* (account popbotsigning,
   # profile popbot-public) so local/dev builds stay unsigned. The bundled
@@ -89,6 +97,9 @@ linux:
   extraResources:
     - from: native/shado/bin/linux/shado
       to: shado/shado
+    # Sample review skills — see win.extraResources note. resources/SampleSkills/.
+    - from: SampleSkills
+      to: SampleSkills
 deb:
   # Modern Ubuntu (24.04/26) runtime deps. The t64 names are the 64-bit
   # time_t packages; the "| old-name" alternatives keep it installable on

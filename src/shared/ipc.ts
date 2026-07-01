@@ -31,7 +31,12 @@ import type {
   NotificationRecord,
   NotifyInput,
 } from './notifications';
-import type { ListReviewsResult } from './reviews';
+import type {
+  GetReviewResult,
+  ListRecentReviewsResult,
+  ListReviewsResult,
+  ReviewProviderInfo,
+} from './reviews';
 import type { GithubTestResult, JiraSettings } from './ticketProvider';
 import type { SentryTestResult } from './sentry';
 import type { SlackTestResult } from './slack';
@@ -121,6 +126,11 @@ export const IpcChannel = {
    *  review-rule filtering). Runs on refresh; the WorkItemSearch
    *  picker fuzzy-matches against this cache. */
   ReviewsListRecent: 'pb:reviews:list-recent',
+  /** The review-capable providers to poll (git PRs / perforce Swarm), each
+   *  with its OWN poll interval so the panel polls them independently. */
+  ReviewsProviders: 'pb:reviews:providers',
+  /** Pending reviews for ONE provider — the per-provider poll path. */
+  ReviewsListFor: 'pb:reviews:list-for',
 
   /** Find the 1-based line number of `needle` in a file, or null. */
   FilesLineOfText: 'pb:files:line-of-text',
@@ -452,6 +462,9 @@ export interface UpdateRepoInput {
   slotPrefix: string;
   defaultBase: string;
   slotCount: number;
+  /** Perforce only — agent working dir (path under the mount root; `/` = the
+   *  mount root). Merged into the existing p4 config; omitted for git repos. */
+  agentCwd?: string;
 }
 
 export type RepoCreateResult =
@@ -631,6 +644,9 @@ export interface PopBotApi {
     open(
       kind: 'terminal' | 'editor' | 'git' | 'unity',
       worktreePath: string,
+      /** Chat id — lets the terminal open in the chat's agent cwd (a Perforce
+       *  repo's configured subdir), matching where the agent runs. */
+      chatId?: string,
     ): Promise<{ ok: true } | { ok: false; error: string; reason?: 'unity-not-configured' }>;
     /** Snapshot of which apps are currently open for which slots, for
      *  the slot icon row's running indicator. Each kind maps to a Set
@@ -644,18 +660,19 @@ export interface PopBotApi {
     }>;
   };
   reviews: {
+    /** Merged pending reviews across all providers (back-compat / one-shot). */
     list(): Promise<ListReviewsResult>;
-    /** Fetch one PR by number for the manual-pin flow. */
-    getPr(prNumber: number): Promise<
-      | { ok: true; pr: import('./reviews').ReviewItem }
-      | { ok: false; reason: 'not-found' | 'gh-not-found' | 'gh-not-authed' | 'no-repo' | 'error'; error?: string }
-    >;
+    /** Review-capable providers + their independent poll intervals. The
+     *  renderer runs one poll timer per provider. */
+    providers(): Promise<ReviewProviderInfo[]>;
+    /** Pending reviews for ONE provider — the per-provider poll path. */
+    listFor(scm: SourceControlProviderId): Promise<ListReviewsResult>;
+    /** Fetch one review by number/id for the manual-pin flow. `scm` selects
+     *  the review system (git PRs / perforce Swarm); defaults to git. */
+    getPr(prNumber: number, scm?: SourceControlProviderId): Promise<GetReviewResult>;
     /** Pull recent open PRs for the WorkItemSearch cache.
      *  Window is read from `settings.panela.search.recentDays`. */
-    listRecent(): Promise<
-      | { ok: true; prs: import('./reviews').ReviewItem[] }
-      | { ok: false; reason: 'gh-not-found' | 'gh-not-authed' | 'no-repo' | 'error'; error?: string }
-    >;
+    listRecent(): Promise<ListRecentReviewsResult>;
   };
   repos: {
     list(): Promise<RepoRecord[]>;

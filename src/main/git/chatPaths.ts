@@ -15,8 +15,9 @@
  * Returns null for chats without a slot (CR / slot-less chats use the
  * repo root as their cwd — that fallback lives in each consumer).
  */
+import { existsSync } from 'node:fs';
 import { homedir } from 'node:os';
-import { basename, join } from 'node:path';
+import { basename, isAbsolute, join, relative } from 'node:path';
 import type { ChatRecord, RepoRecord } from '@shared/persistence';
 import { getSetting } from '../persistence/settings';
 import { getRepo } from '../persistence/repos';
@@ -88,6 +89,39 @@ export function worktreePathForChat(
   const stored = (chat as Pick<ChatRecord, 'worktreePath'>).worktreePath;
   if (stored && stored.length > 0) return stored;
   return null;
+}
+
+/**
+ * Apply a Perforce repo's configured `agentCwd` subpath to a resolved base cwd
+ * (slot worktree root, or repo root for slot-less CR chats). Perforce maps the
+ * depot under a subfolder of the mount root, so the agent starts in that subdir
+ * so repo-committed `.claude/skills` are at the cwd (Claude only auto-loads
+ * skills at the cwd + ancestors, never child folders). This is the AGENT cwd
+ * only — p4 operations keep using the mount root via {@link worktreePathForChat}
+ * (that's where `.p4config` lives).
+ *
+ * Falls back to `baseCwd` when the repo isn't Perforce, has no `agentCwd`, or
+ * the subpath doesn't exist on disk — so a stray config can't brick every spawn.
+ * MUST be applied at EVERY agent/session cwd site (spawn, resume, recover,
+ * pin-repair, validate) so the SDK's per-cwd session store stays consistent.
+ */
+export function applyPerforceAgentCwd(
+  baseCwd: string | null,
+  chat: Pick<ChatRecord, 'repoId'> | null | undefined,
+): string | null {
+  if (!baseCwd) return baseCwd;
+  const repo = chat?.repoId ? getRepo(chat.repoId) : null;
+  if (repo?.scm !== 'perforce' || !repo.p4) return baseCwd;
+  // `agentCwd` is a path relative to the mount root; `/` (or blank/undefined)
+  // means the mount root itself. Strip surrounding slashes → subpath segments.
+  const sub = (repo.p4.agentCwd ?? '').trim().replace(/^\/+/, '').replace(/\/+$/, '');
+  if (!sub) return baseCwd;
+  const resolved = join(baseCwd, sub);
+  // Reject anything that escapes the mount root (e.g. `../other-repo`) — it must
+  // be a subpath, and existsSync alone would happily accept an escape.
+  const rel = relative(baseCwd, resolved);
+  if (rel === '' || rel.startsWith('..') || isAbsolute(rel)) return baseCwd;
+  return existsSync(resolved) ? resolved : baseCwd;
 }
 
 /** Path for a given slot id directly, without a chat record. Used by

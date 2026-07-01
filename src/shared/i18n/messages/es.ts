@@ -181,6 +181,7 @@ export const es = {
   // Notifications (App.tsx dispatch, NotificationsBell.tsx, NotificationToast.tsx).
   // ---------------------------------------------------------------------------
   'notify.action.openInLinear': 'Abrir en Linear',
+  'notify.action.openIn': 'Abrir en {provider}',
   'notify.action.openOnGitHub': 'Abrir en GitHub',
   'notify.action.showInPopBot': 'Mostrar en PopBot',
   'notify.ticket.new': 'Nuevo ticket',
@@ -1169,4 +1170,10 @@ export const es = {
   'prefs.perforce.revertUnchanged.desc': 'Descarta los archivos idénticos byte a byte de un changelist antes del submit.',
   'prefs.perforce.revertUnchanged.toggle': 'Revertir archivos idénticos byte a byte al hacer submit',
   'prefs.repos.error.duplicatePath': 'Esa carpeta ya está añadida como repo "{id}".',
+  'prefs.perforce.reviewPoll.title': 'Intervalo de sondeo de revisiones de Swarm',
+  'prefs.perforce.reviewPoll.desc': 'Con qué frecuencia el panel de Revisiones sondea Helix Swarm. Independiente de GitHub. Mayor = menos carga en un servidor Perforce compartido (mínimo 30s).',
+  'prefs.perforce.reviewPoll.unit': 'segundos',
+  'work.reviewNumber': 'Revisión de Swarm n.º {number}',
+  'prefs.repos.wizard.agentCwd.title': 'Directorio de trabajo del agente',
+  'prefs.repos.wizard.agentCwd.desc': 'Ruta bajo la raíz del área de trabajo donde arranca el agente (/ = la propia raíz). Una subruta como /depot/PopBotGame permite a Claude descubrir allí los .claude/skills del repositorio.',
 } satisfies PartialMessages;

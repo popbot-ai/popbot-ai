@@ -22,12 +22,18 @@
 import { hostname } from 'node:os';
 import type { GitBaseBranches, GitFileChange, GitScope } from '@shared/git';
 import type { P4ShelfItem } from '@shared/perforce';
-import type { PerforceRepoConfig, RepoRecord } from '@shared/persistence';
+import type { PerforceRepoConfig, PerforceSettings, RepoRecord } from '@shared/persistence';
+import type { GetReviewResult, ListReviewsResult } from '@shared/reviews';
 import {
   type SourceControlCapabilities,
   SOURCE_CONTROL_PROVIDERS,
 } from '@shared/sourceControl';
 import { listRepos } from '../persistence/repos';
+import {
+  DEFAULT_SWARM_POLL_MS,
+  getSwarmReviewById,
+  listSwarmPendingReviews,
+} from '../p4/swarmReviews';
 import { ensureSlot, removeSlot } from '../shado/slots';
 import { readP4Config, type P4Context } from '../p4/exec';
 import {
@@ -340,8 +346,9 @@ export class PerforceProvider extends SourceControlProvider {
   listBaseBranches(_wt: string): Promise<GitBaseBranches> {
     return Promise.resolve({ branches: [] });
   }
-  // No PR/review integration (Swarm) yet — pullRequests capability is off,
-  // so this is never reached; answer "no PR" defensively.
+  // Per-changelist review detection isn't wired yet (would query Swarm for a
+  // review whose changelist is this slot's pending CL). The Reviews panel does
+  // work (listPendingReviews below); answer "no PR" here for now.
   detectPr(_wt: string): Promise<ScmDetectPrResult> {
     return Promise.resolve({ ok: true, pr: null });
   }
@@ -351,6 +358,22 @@ export class PerforceProvider extends SourceControlProvider {
     } catch {
       return '';
     }
+  }
+
+  /* ---------- code review (Helix Swarm) ---------- */
+
+  listPendingReviews(repoPaths: string[]): Promise<ListReviewsResult> {
+    return listSwarmPendingReviews(repoPaths);
+  }
+  getReview(repoPaths: string[], reviewId: number): Promise<GetReviewResult> {
+    return getSwarmReviewById(repoPaths, reviewId);
+  }
+  /** Swarm poll cadence — the configurable `perforce.reviewPollIntervalMs`,
+   *  clamped to a floor so a shared p4d can't be hammered. */
+  reviewPollIntervalMs(): number {
+    const FLOOR_MS = 30_000;
+    const configured = getSetting<PerforceSettings>('perforce')?.reviewPollIntervalMs;
+    return Math.max(FLOOR_MS, configured ?? DEFAULT_SWARM_POLL_MS);
   }
 
   /* ---------- workspace lifecycle (slots) ---------- */

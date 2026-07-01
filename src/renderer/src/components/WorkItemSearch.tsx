@@ -20,7 +20,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { LinearIssueDto } from '@shared/linear';
-import type { ReviewItem } from '@shared/reviews';
+import type { ReviewItem, ReviewSystem } from '@shared/reviews';
 import type { ChatRecord } from '@shared/persistence';
 import { LinearStateIcon } from '../lib/linearIcons';
 import { useTranslation } from '../lib/i18n';
@@ -37,7 +37,7 @@ interface WorkItemSearchProps {
    *  parent decides what `pin` means (PanelA: persist; new-chat:
    *  pin + spawn). */
   onPinTicket: (id: string) => Promise<{ ok: true } | { ok: false; reason: string; error?: string }>;
-  onPinPr: (n: number) => Promise<{ ok: true } | { ok: false; reason: string; error?: string }>;
+  onPinPr: (n: number, system?: ReviewSystem) => Promise<{ ok: true } | { ok: false; reason: string; error?: string }>;
   /** Click on a known ticket/PR (the user wants to act on it). The
    *  parent may focus its chat, scroll to it in the list, or spawn
    *  a new chat — picker is policy-free. */
@@ -49,19 +49,24 @@ interface WorkItemSearchProps {
 
 type FreeForm =
   | { kind: 'ticket'; identifier: string }
-  | { kind: 'pr'; number: number }
+  | { kind: 'pr'; number: number; system: ReviewSystem }
   | null;
 
-/** Parse the user's query for a free-form ticket id / PR number that
+/** Parse the user's query for a free-form ticket id / review number that
  *  doesn't match anything already in the lists. Returns the parsed
- *  form when the query unambiguously names one. */
+ *  form when the query unambiguously names one. A `swarm`/`sw`/`review`
+ *  prefix (e.g. "swarm 27", "sw#27") names a Helix Swarm review BY REVIEW ID
+ *  (the /reviews/<id> path — NOT a changelist number); a bare number or
+ *  `PR #123` names a GitHub PR. */
 function parseFreeForm(raw: string): FreeForm {
   const s = raw.trim();
   if (!s) return null;
   const tm = /^([A-Z]{2,5})-(\d+)$/i.exec(s);
   if (tm) return { kind: 'ticket', identifier: `${tm[1].toUpperCase()}-${tm[2]}` };
+  const sm = /^(?:swarm|sw|review)\s*#?\s*(\d+)$/i.exec(s);
+  if (sm) return { kind: 'pr', number: Number(sm[1]), system: 'swarm' };
   const pm = /^(?:PR\s*)?#?\s*(\d+)$/i.exec(s);
-  if (pm) return { kind: 'pr', number: Number(pm[1]) };
+  if (pm) return { kind: 'pr', number: Number(pm[1]), system: 'github' };
   return null;
 }
 
@@ -89,19 +94,23 @@ function filterTickets(tickets: LinearIssueDto[], q: string): LinearIssueDto[] {
   return out;
 }
 
+/** Namespace review identity by system — a GitHub PR #27 and a Swarm review #27
+ *  are distinct rows. */
+const prKey = (p: ReviewItem): string => `${p.scm}:${p.number}`;
+
 function filterPrs(prs: ReviewItem[], q: string): ReviewItem[] {
   if (!q) return [];
   const needle = q.toLowerCase();
   const asNumber = /^(?:pr\s*)?#?\s*(\d+)$/i.exec(q);
-  const seen = new Set<number>();
+  const seen = new Set<string>();
   const out: ReviewItem[] = [];
   for (const p of prs) {
-    if (seen.has(p.number)) continue;
+    if (seen.has(prKey(p))) continue;
     if (
       p.title.toLowerCase().includes(needle)
       || (asNumber ? p.number === Number(asNumber[1]) : false)
     ) {
-      seen.add(p.number);
+      seen.add(prKey(p));
       out.push(p);
       if (out.length >= 8) break;
     }
@@ -147,9 +156,11 @@ export function WorkItemSearch({
     // Hide the "pin new" row when the item is already in the list —
     // the existing row already shows up under "Tickets" / "PRs".
     if (ff.kind === 'ticket' && knownTickets.some((t) => t.identifier === ff.identifier)) return null;
-    if (ff.kind === 'pr' && knownPrs.some((p) => p.number === ff.number)) return null;
+    // NB: reviews are intentionally NOT suppressed when already listed — manually
+    // re-adding a review is how you pull it back to active (un-ignore / re-pin,
+    // even if its linked chat was closed), so always offer the add action.
     return ff;
-  }, [query, knownTickets, knownPrs]);
+  }, [query, knownTickets]);
 
   const pinNew = async (): Promise<void> => {
     if (!freeForm) return;
@@ -158,7 +169,7 @@ export function WorkItemSearch({
     try {
       const res = freeForm.kind === 'ticket'
         ? await onPinTicket(freeForm.identifier)
-        : await onPinPr(freeForm.number);
+        : await onPinPr(freeForm.number, freeForm.system);
       if (!res.ok) {
         setError(
           res.reason === 'not-found' ? t('work.error.notFound')
@@ -220,7 +231,11 @@ export function WorkItemSearch({
               >
                 <i className="fa-solid fa-thumbtack" />
                 <span className="mono">
-                  {freeForm.kind === 'ticket' ? freeForm.identifier : t('work.prNumber', { number: freeForm.number })}
+                  {freeForm.kind === 'ticket'
+                    ? freeForm.identifier
+                    : freeForm.system === 'swarm'
+                      ? t('work.reviewNumber', { number: freeForm.number })
+                      : t('work.prNumber', { number: freeForm.number })}
                 </span>
                 <span style={{ flex: 1 }} />
                 <span className="work-item-search-row-hint">
@@ -253,13 +268,17 @@ export function WorkItemSearch({
               <div className="work-item-search-head">{t('work.prs')}</div>
               {prHits.map((p) => (
                 <button
-                  key={p.number}
+                  key={prKey(p)}
                   type="button"
                   className="work-item-search-row"
                   onClick={() => { onSelectPr?.(p); onCancel(); }}
                 >
                   <i className="fa-solid fa-code-pull-request" style={{ color: 'var(--fg-3)' }} />
-                  <span className="mono">{t('work.prNumber', { number: p.number })}</span>
+                  <span className="mono">
+                    {p.scm === 'swarm'
+                      ? t('work.reviewNumber', { number: p.number })
+                      : t('work.prNumber', { number: p.number })}
+                  </span>
                   <span className="work-item-search-row-title">{p.title}</span>
                 </button>
               ))}
@@ -287,7 +306,7 @@ export function WorkItemSearch({
 
           {empty && (
             <div style={{ padding: '14px 4px 4px', fontSize: 12, color: 'var(--fg-3)' }}>
-              {t('work.emptyHint', { id: 'ENG-12345', pr: 'PR #1234' })}
+              {t('work.emptyHint', { id: 'ENG-12345', pr: 'PR #1234', swarm: 'swarm 27' })}
             </div>
           )}
 

@@ -170,11 +170,24 @@ export async function listStatus(
   // Capture the chat's numbered pending changelist from the opened files (some
   // files may sit in 'default'; the named CL is the one the panel header shows).
   let changeNumber: string | undefined;
-  for (const rec of parseZtag(openedR.stdout)) {
-    const depotFile = rec.depotFile;
-    if (!depotFile) continue;
+  const opened = parseZtag(openedR.stdout).filter((r) => r.depotFile);
+  // A move surfaces as a PAIR of opened files — move/delete (old path) and
+  // move/add (new path) — each carrying `movedFile` (its partner). Fold the
+  // pair into a single 'renamed' row on the new path (with oldPath) and hide
+  // the standalone delete, so the viewer shows a move, not a delete+add.
+  const moveAddKeys = new Set(
+    opened.filter((r) => r.action === 'move/add').map((r) => depotToKey(r.depotFile!)),
+  );
+  for (const rec of opened) {
+    const key = depotToKey(rec.depotFile!);
     if (rec.change && rec.change !== 'default') changeNumber = rec.change;
-    files.push({ path: depotToKey(depotFile), status: actionToStatus(rec.action ?? 'edit') });
+    const action = rec.action ?? 'edit';
+    // Its partner move/add row carries this path as oldPath — don't list twice.
+    if (action === 'move/delete' && rec.movedFile && moveAddKeys.has(depotToKey(rec.movedFile))) {
+      continue;
+    }
+    const oldPath = action === 'move/add' && rec.movedFile ? depotToKey(rec.movedFile) : undefined;
+    files.push({ path: key, status: actionToStatus(action), oldPath });
   }
 
   // Served from the cache (instant); a stale entry refreshes in the background.
@@ -205,7 +218,16 @@ export async function fileDiff(
   let newBuf: Buffer | null;
 
   if (scope.kind === 'wip') {
-    oldBuf = await p4execRaw(ctx, ['print', '-q', `${depot}#have`], { cwd: wt });
+    // A moved/renamed file has no have-revision at the NEW path — its "before"
+    // lives at the old depot path. Resolve the move source (fstat movedFile) so
+    // the diff shows the rename delta instead of a whole-file add.
+    const moved = await p4exec(ctx, ['-ztag', 'fstat', '-T', 'movedFile', depot], {
+      cwd: wt,
+      tolerant: true,
+    });
+    const src = parseZtag(moved.stdout)[0]?.movedFile;
+    const oldSpec = src ? `//${depotToKey(src)}#have` : `${depot}#have`;
+    oldBuf = await p4execRaw(ctx, ['print', '-q', oldSpec], { cwd: wt });
     newBuf = readWorking(wt, path);
   } else {
     // Two newest revisions up to this change → diff the change against its

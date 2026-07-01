@@ -39,6 +39,13 @@ export const CODE_REVIEW_TEMPLATE_VARS = [
   { name: 'slot',    desc: 'Workspace slot number' },
 ] as const;
 
+/** Macros for the start-changelist-review template (Helix Swarm reviews). */
+export const CL_REVIEW_TEMPLATE_VARS = [
+  { name: 'reviewid',    desc: 'Swarm review id' },
+  { name: 'reviewtitle', desc: 'Swarm review title (its description)' },
+  { name: 'reviewurl',   desc: 'Direct link to the Swarm review' },
+] as const;
+
 export const DEFAULT_START_TICKET_TEMPLATE = `Please review and, if possible, directly fix the issue described in Linear ticket **\${ticketid}: \${tickettitle}**.
 
 ## Ticket
@@ -115,6 +122,27 @@ export const DEFAULT_RE_REVIEW_TEMPLATE = `The author pushed fixes to PR **#\${p
 
 ## Scope
 Read-only review chat — no \`git checkout\`, no edits, no commits.`;
+
+/** Spawned when the user clicks a Helix Swarm review in the Reviews panel.
+ *  The Perforce analog of DEFAULT_START_CODE_REVIEW_TEMPLATE — drives the
+ *  \`review-cl\` skill against a shelved changelist's Swarm review. */
+export const DEFAULT_START_CL_REVIEW_TEMPLATE = `Please review Helix Swarm review **#\${reviewid}: \${reviewtitle}** (\${reviewurl}).
+
+**Make sure you use the \`review-cl\` skill when reviewing this changelist.** Out-of-spec reviews happen when the skill isn't picked up — engage it explicitly before doing anything else.
+
+This is a read-only review chat — inspect the shelved changelist, flag issues, post your review comments to Swarm, and tell me about anything red-flag here. Do NOT submit, unshelve, or modify the changelist.
+
+## How to review
+**Presume there ARE issues — your job is to find them.** A "looks good" pass is rarely correct on the first read. Read the surrounding code for every diff hunk, trace callers and touched state, and check consistency with the existing patterns.
+
+## What to do
+- Pull the review + its files from Swarm's REST API (auth with a \`p4 login -p\` ticket) and the shelved diff (\`p4 describe -S <cl>\`).
+- Post inline comments on the specific lines in Swarm, plus a summary comment on the review.
+
+## Tell me directly
+Call out red flags here — anything risky, surprising, or suggesting the author misunderstood the system — even if you also posted them on Swarm.
+
+When done, reply with a one-line verdict + the top 1-3 red flags (or "none").`;
 
 /* ===== Git-action templates (used by the GitPanel action button) ===== */
 

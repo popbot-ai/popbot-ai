@@ -832,6 +832,7 @@ function PerforceConfigPanel(): JSX.Element {
   const [defaultUser, setDefaultUser] = useState(initial.defaultUser ?? '');
   const [parallelThreads, setParallelThreads] = useState<number>(initial.parallelThreads ?? 4);
   const [revertUnchanged, setRevertUnchanged] = useState<boolean>(initial.revertUnchanged !== false);
+  const [reviewPollSec, setReviewPollSec] = useState<number>(Math.round((initial.reviewPollIntervalMs ?? 120_000) / 1000));
   const [saved, setSaved] = useState(false);
 
   useEffect(() => { setP4Path(initial.p4Path ?? ''); }, [initial.p4Path]);
@@ -839,6 +840,7 @@ function PerforceConfigPanel(): JSX.Element {
   useEffect(() => { setDefaultUser(initial.defaultUser ?? ''); }, [initial.defaultUser]);
   useEffect(() => { setParallelThreads(initial.parallelThreads ?? 4); }, [initial.parallelThreads]);
   useEffect(() => { setRevertUnchanged(initial.revertUnchanged !== false); }, [initial.revertUnchanged]);
+  useEffect(() => { setReviewPollSec(Math.round((initial.reviewPollIntervalMs ?? 120_000) / 1000)); }, [initial.reviewPollIntervalMs]);
 
   if (loading) return <></>;
 
@@ -904,6 +906,18 @@ function PerforceConfigPanel(): JSX.Element {
             </div>
           </div>
           <div className="pref-row">
+            <div className="pref-label">
+              <div className="pref-label-title">{t('prefs.perforce.reviewPoll.title')}</div>
+              <div className="pref-label-desc">{t('prefs.perforce.reviewPoll.desc')}</div>
+            </div>
+            <div className="pref-control" style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+              <input type="number" className="pref-input mono" min={30} max={3600} value={reviewPollSec}
+                     onChange={(e) => setReviewPollSec(Math.max(30, Math.min(3600, Number(e.target.value) || 30)))}
+                     style={{ width: 100 }} />
+              <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--fg-2)' }}>{t('prefs.perforce.reviewPoll.unit')}</span>
+            </div>
+          </div>
+          <div className="pref-row">
             <div className="pref-label" />
             <div className="pref-control" style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
               <button
@@ -916,6 +930,7 @@ function PerforceConfigPanel(): JSX.Element {
                     defaultUser: defaultUser.trim() || undefined,
                     parallelThreads,
                     revertUnchanged,
+                    reviewPollIntervalMs: Math.min(3600, Math.max(30, reviewPollSec)) * 1000,
                   } satisfies PerforceSettings);
                   setSaved(true);
                 }}
@@ -2819,6 +2834,10 @@ interface NewRepoDraft {
   p4Discovered: boolean;
   /** The discovered client name (for the read-only summary). */
   p4Client: string;
+  /** Path (relative to the slot/workspace root) where the agent starts (its
+   *  cwd). `/` = the mount root itself; a subpath like `/depot/PopBotGame`
+   *  starts the agent there so repo-committed `.claude/skills` are discovered. */
+  p4AgentCwd: string;
 }
 
 function emptyDraft(): NewRepoDraft {
@@ -2837,6 +2856,7 @@ function emptyDraft(): NewRepoDraft {
     baseChangelist: 0,
     p4Discovered: false,
     p4Client: '',
+    p4AgentCwd: '/',
   };
 }
 
@@ -3102,6 +3122,7 @@ function SlotSetupProgress({
                 mainClient: draft.p4Client.trim() || undefined,
                 shadoBase: id,
                 baseChangelist: built.baseChangelist,
+                agentCwd: draft.p4AgentCwd.trim() || undefined,
               }
             : undefined,
         });
@@ -3402,6 +3423,7 @@ function NewRepoWizard({
               mainClient: draft.p4Client.trim() || undefined,
               shadoBase: draft.id.trim().toLowerCase(),
               baseChangelist: draft.baseChangelist,
+              agentCwd: draft.p4AgentCwd.trim() || undefined,
             }
           : undefined,
       });
@@ -3638,6 +3660,17 @@ function NewRepoWizard({
                 </div>
               </>
             )}
+            <div className="pref-row">
+              <div className="pref-label">
+                <div className="pref-label-title">{t('prefs.repos.wizard.agentCwd.title')}</div>
+                <div className="pref-label-desc">{t('prefs.repos.wizard.agentCwd.desc')}</div>
+              </div>
+              <div className="pref-control">
+                <input className="pref-input mono narrow" placeholder="/"
+                       value={draft.p4AgentCwd}
+                       onChange={(e) => onChange({ ...draft, p4AgentCwd: e.target.value })} style={{ width: 240 }} />
+              </div>
+            </div>
 
             <h4 style={{ margin: '18px 0 6px', fontSize: 'var(--fs-sm)' }}>{t('prefs.repos.wizard.setup.slotsHead')}</h4>
             <div className="pref-row">
@@ -3799,7 +3832,9 @@ function EditRepoModal({
   const [draft, setDraft] = useState({
     color: repo.color,
     defaultBase: repo.defaultBase,
+    agentCwd: repo.p4?.agentCwd ?? '/',
   });
+  const isP4 = repo.scm === 'perforce';
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [resizeOpen, setResizeOpen] = useState(false);
@@ -3818,6 +3853,7 @@ function EditRepoModal({
         color: draft.color,
         defaultBase: draft.defaultBase,
         slotCount: repo.slotCount,
+        ...(isP4 ? { agentCwd: draft.agentCwd.trim() } : {}),
       });
       if (!res.ok) {
         setError(t('prefs.repos.error.notFound'));
@@ -3894,6 +3930,19 @@ function EditRepoModal({
               />
             </div>
           </div>
+          {isP4 && (
+            <div className="pref-row">
+              <div className="pref-label">
+                <div className="pref-label-title">{t('prefs.repos.wizard.agentCwd.title')}</div>
+                <div className="pref-label-desc">{t('prefs.repos.wizard.agentCwd.desc')}</div>
+              </div>
+              <div className="pref-control">
+                <input className="pref-input mono narrow" placeholder="/"
+                       value={draft.agentCwd}
+                       onChange={(e) => setDraft({ ...draft, agentCwd: e.target.value })} style={{ width: 240 }} />
+              </div>
+            </div>
+          )}
           {repo.mode === 'slots' && (
             <div className="pref-row">
               <div className="pref-label">

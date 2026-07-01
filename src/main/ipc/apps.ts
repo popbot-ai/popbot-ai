@@ -15,6 +15,8 @@ import { homedir, tmpdir } from 'node:os';
 import { promisify } from 'node:util';
 import { IpcChannel } from '@shared/ipc';
 import { getSetting } from '../persistence/settings';
+import { getChat } from '../persistence/chats';
+import { applyPerforceAgentCwd } from '../git/chatPaths';
 
 const execFileP = promisify(execFile);
 
@@ -426,16 +428,23 @@ export function registerAppsHandlers(): void {
 
   ipcMain.handle(
     IpcChannel.AppsOpen,
-    async (_e, kind: 'terminal' | 'editor' | 'git' | 'unity', worktreePath: string) => {
+    async (_e, kind: 'terminal' | 'editor' | 'git' | 'unity', worktreePath: string, chatId?: string) => {
       if (!worktreePath || !existsSync(worktreePath)) {
         return { ok: false as const, error: 'Worktree path not found' };
       }
       const cfg = getSetting<AppsSettings>('apps') ?? {};
+      // The TERMINAL opens where the AGENT runs — for a Perforce repo that's a
+      // configured subdir of the mount root. Editor/git keep the mount root
+      // (that's where .git/.p4config live). cwd === worktreePath for non-p4.
+      const termCwd =
+        kind === 'terminal' && chatId
+          ? applyPerforceAgentCwd(worktreePath, getChat(chatId)) ?? worktreePath
+          : worktreePath;
       // Windows: terminal/editor/git map to native launchers. Unity on
       // Windows isn't wired up yet, so it falls through to the macOS
       // path below (which returns a clear "not configured" error).
       if (isWindows && (kind === 'terminal' || kind === 'editor' || kind === 'git')) {
-        return openAppWindows(kind, cfg, worktreePath);
+        return openAppWindows(kind, cfg, kind === 'terminal' ? termCwd : worktreePath);
       }
       try {
         switch (kind) {
@@ -443,9 +452,9 @@ export function registerAppsHandlers(): void {
             const term = cfg.terminalApp || 'iTerm';
             const title = basename(worktreePath); // e.g. 'slot-3'
             if (term === 'iTerm') {
-              await openITermWithTitle(worktreePath, title);
+              await openITermWithTitle(termCwd, title);
             } else {
-              await openApp(term, worktreePath);
+              await openApp(term, termCwd);
             }
             return { ok: true as const };
           }

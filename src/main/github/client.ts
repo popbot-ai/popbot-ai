@@ -1,7 +1,7 @@
 /**
  * GitHub Issues client for the popbot Tickets queue.
  *
- * Like the Reviews tab (`main/reviews/list.ts`), we shell out to the `gh`
+ * Like the Reviews tab (`main/git/reviews.ts`), we shell out to the `gh`
  * CLI rather than hitting the API directly: auth is already configured for
  * the same `gh` used elsewhere in popbot (Open PR link, address-CR
  * templates, PR review polling), which sidesteps token plumbing entirely.

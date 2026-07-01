@@ -8,6 +8,7 @@ import type {
   GitFilesInCommitInput,
   GitRevertInput,
 } from '@shared/git';
+import type { SourceControlProviderId } from '@shared/sourceControl';
 import {
   IpcChannel,
   type ApprovePermissionInput,
@@ -77,8 +78,8 @@ const api: PopBotApi = {
       ipcRenderer.invoke(IpcChannel.FilesPickDirectory, opts),
   },
   apps: {
-    open: (kind: 'terminal' | 'editor' | 'git' | 'unity', worktreePath: string) =>
-      ipcRenderer.invoke(IpcChannel.AppsOpen, kind, worktreePath),
+    open: (kind: 'terminal' | 'editor' | 'git' | 'unity', worktreePath: string, chatId?: string) =>
+      ipcRenderer.invoke(IpcChannel.AppsOpen, kind, worktreePath, chatId),
     running: () => ipcRenderer.invoke(IpcChannel.AppsRunning),
   },
   unity: {
@@ -87,7 +88,10 @@ const api: PopBotApi = {
   },
   reviews: {
     list: () => ipcRenderer.invoke(IpcChannel.ReviewsList),
-    getPr: (prNumber: number) => ipcRenderer.invoke(IpcChannel.ReviewsGetPr, prNumber),
+    providers: () => ipcRenderer.invoke(IpcChannel.ReviewsProviders),
+    listFor: (scm: SourceControlProviderId) => ipcRenderer.invoke(IpcChannel.ReviewsListFor, scm),
+    getPr: (prNumber: number, scm?: SourceControlProviderId) =>
+      ipcRenderer.invoke(IpcChannel.ReviewsGetPr, prNumber, scm),
     listRecent: () => ipcRenderer.invoke(IpcChannel.ReviewsListRecent),
   },
   repos: {

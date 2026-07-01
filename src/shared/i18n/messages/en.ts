@@ -142,6 +142,7 @@ export const en = {
   // Notifications (App.tsx dispatch, NotificationsBell.tsx, NotificationToast.tsx).
   // ---------------------------------------------------------------------------
   'notify.action.openInLinear': 'Open in Linear',
+  'notify.action.openIn': 'Open in {provider}',
   'notify.action.openOnGitHub': 'Open on GitHub',
   'notify.action.showInPopBot': 'Show in PopBot',
   'notify.ticket.new': 'New ticket',
@@ -296,16 +297,17 @@ export const en = {
   'work.error.noRepo': 'No repo configured.',
   'work.error.duplicate': 'Already in your list.',
   'work.error.generic': 'Could not pin.',
-  'work.searchPlaceholder': 'Search tickets, PRs, chats — or paste ENG-12345 / PR #1234',
+  'work.searchPlaceholder': 'Search tickets, PRs, chats — or paste ENG-12345 / PR #1234 / swarm 27',
   'work.addNew': 'Add new',
   'work.prNumber': 'PR #{number}',
+  'work.reviewNumber': 'Swarm review #{number}',
   'work.lookingUp': 'Looking up…',
   'work.pinKind': 'Pin {kind}',
   'work.tickets': 'Tickets',
   'work.prs': 'PRs',
   'work.chats': 'Chats',
   'work.emptyHint':
-    'No matches. Try a Linear id like {id} or a PR number like {pr} to pin a new one.',
+    'No matches. Pin a new one: a Linear id like {id}, a PR number like {pr}, or a Swarm review like {swarm}.',
 
   // ---------------------------------------------------------------------------
   // Monitor card (MonitorCard.tsx).
@@ -1097,6 +1099,8 @@ export const en = {
   'prefs.repos.wizard.connect.user.desc': 'Your Perforce user. Auth uses your existing p4 login ticket.',
   'prefs.repos.wizard.connect.depot.title': 'Depot path',
   'prefs.repos.wizard.connect.depot.desc': 'The depot path this folder maps, e.g. //depot/MyGame.',
+  'prefs.repos.wizard.agentCwd.title': 'Agent working dir',
+  'prefs.repos.wizard.agentCwd.desc': 'Path under the workspace root where the agent starts (/ = the root itself). A subpath like /depot/PopBotGame lets Claude discover repo-committed .claude/skills there.',
   'prefs.repos.wizard.connect.baseName.title': 'Base name',
   'prefs.repos.wizard.connect.baseName.desc': 'Name of the frozen shado base. Slots clone from it.',
   'prefs.repos.wizard.connect.discovered': 'These are the values that will be used to set up this repository, read from your Perforce workspace ({client}).',
@@ -1143,6 +1147,9 @@ export const en = {
   'prefs.perforce.revertUnchanged.title': 'Revert unchanged files',
   'prefs.perforce.revertUnchanged.desc': 'Drop byte-identical files from a changelist before submit.',
   'prefs.perforce.revertUnchanged.toggle': 'Revert byte-identical files on submit',
+  'prefs.perforce.reviewPoll.title': 'Swarm review poll interval',
+  'prefs.perforce.reviewPoll.desc': 'How often the Reviews panel polls Helix Swarm. Independent of GitHub. Higher = lighter load on a shared Perforce server (minimum 30s).',
+  'prefs.perforce.reviewPoll.unit': 'seconds',
   'prefs.repos.error.duplicateId': 'A repo with id "{id}" already exists.',
   'prefs.repos.error.duplicatePath': 'That folder is already added as repo "{id}".',
   'prefs.repos.error.generic': 'Could not create repo.',

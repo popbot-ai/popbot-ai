@@ -1,5 +1,8 @@
 /**
- * GitHub PR-review polling for the popbot Reviews tab.
+ * GitHub PR-review polling — the git provider's review source (colocated
+ * with the git platform code; the Perforce/Swarm equivalent lives under
+ * `../p4/`). The provider-agnostic Reviews orchestrator + panel consume
+ * these through the common review interface.
  *
  * We shell out to the `gh` CLI rather than hitting the API directly
  * because (a) auth is already configured for the same `gh` we use
@@ -12,41 +15,20 @@
  * Their results are unioned and tagged with which rule matched.
  */
 import { execFile } from 'node:child_process';
-import { existsSync } from 'node:fs';
 import { promisify } from 'node:util';
-import type { ListReviewsResult, ReviewItem } from '@shared/reviews';
+import type {
+  GetReviewResult,
+  ListRecentReviewsResult,
+  ListReviewsResult,
+  ReviewItem,
+} from '@shared/reviews';
 import { getSetting } from '../persistence/settings';
-import { listRepos } from '../persistence/repos';
 
 const execFileP = promisify(execFile);
 
-interface GitSettingsLite { repoPath?: string }
-
-/**
- * All configured repo paths the Reviews tab spans — every repo in the
- * multi-repo store (the "Add Repository" flow writes there), plus the
- * legacy single-repo `git` setting for back-compat. Deduped, existing on
- * disk. Empty → 'no-repo'.
- *
- * The Reviews panel aggregates PRs across ALL of these, not just one
- * (GitHub search accepts multiple `repo:` qualifiers in a single query).
- */
-function configuredRepoPaths(): string[] {
-  const paths: string[] = [];
-  for (const r of listRepos()) {
-    if (r.repoPath && existsSync(r.repoPath) && !paths.includes(r.repoPath)) {
-      paths.push(r.repoPath);
-    }
-  }
-  const legacy = getSetting<GitSettingsLite>('git')?.repoPath;
-  if (legacy && existsSync(legacy) && !paths.includes(legacy)) paths.push(legacy);
-  return paths;
-}
-
-/** First configured repo (single-repo call sites like get-PR-by-number). */
-function resolveReviewRepoPath(): string | null {
-  return configuredRepoPaths()[0] ?? null;
-}
+// Repo enumeration (which paths to span, deduped/existing) is owned by the
+// provider-agnostic orchestrator in `../reviews`; every function here takes
+// the git repo paths to query as an argument.
 
 interface ReviewsSettings {
   /** Substrings (case-insensitive) — any match in the PR title drops
@@ -196,11 +178,7 @@ function searchSinceIsoDate(): string {
  * fuzzy-match PRs the current user isn't asked to review. Filtered
  * by `updated:>YYYY-MM-DD` per the configurable cutoff.
  */
-export async function listRecentOpenPrs(): Promise<
-  | { ok: true; prs: ReviewItem[] }
-  | { ok: false; reason: 'gh-not-found' | 'gh-not-authed' | 'no-repo' | 'error'; error?: string }
-> {
-  const paths = configuredRepoPaths();
+export async function listRecentOpenPrs(paths: string[]): Promise<ListRecentReviewsResult> {
   if (!paths.length) return { ok: false, reason: 'no-repo' };
   const qualifier = await reposQualifier(paths);
   if (!qualifier) return { ok: false, reason: 'no-repo' };
@@ -208,6 +186,7 @@ export async function listRecentOpenPrs(): Promise<
   try {
     const rows = await ghPrSearch(qualifier, search, paths[0]);
     const prs: ReviewItem[] = rows.map((pr) => ({
+      scm: 'github',
       number: pr.number,
       title: pr.title,
       url: pr.url,
@@ -238,11 +217,8 @@ export async function listRecentOpenPrs(): Promise<
  *  renderer can render pinned + queued items identically. The `flags`
  *  bitmap is conservative — we set neither flag, since manual pins
  *  aren't surfaced because of either rule; they're just user-curated. */
-export async function getReviewByNumber(prNumber: number): Promise<
-  | { ok: true; pr: ReviewItem }
-  | { ok: false; reason: 'not-found' | 'gh-not-found' | 'gh-not-authed' | 'no-repo' | 'error'; error?: string }
-> {
-  const repoPath = resolveReviewRepoPath();
+export async function getReviewByNumber(paths: string[], prNumber: number): Promise<GetReviewResult> {
+  const repoPath = paths[0];
   if (!repoPath) return { ok: false, reason: 'no-repo' };
   try {
     const { stdout } = await execFileP(
@@ -252,6 +228,7 @@ export async function getReviewByNumber(prNumber: number): Promise<
     );
     const data = JSON.parse(stdout) as GhPr;
     const pr: ReviewItem = {
+      scm: 'github',
       number: data.number,
       title: data.title,
       url: data.url,
@@ -278,8 +255,7 @@ export async function getReviewByNumber(prNumber: number): Promise<
   }
 }
 
-export async function listPendingReviews(): Promise<ListReviewsResult> {
-  const paths = configuredRepoPaths();
+export async function listPendingReviews(paths: string[]): Promise<ListReviewsResult> {
   if (!paths.length) return { ok: false, reason: 'no-repo' };
   const qualifier = await reposQualifier(paths);
   if (!qualifier) return { ok: false, reason: 'no-repo' };
@@ -322,6 +298,7 @@ export async function listPendingReviews(): Promise<ListReviewsResult> {
       return;
     }
     byNumber.set(pr.number, {
+      scm: 'github',
       number: pr.number,
       title: pr.title,
       url: pr.url,
