@@ -462,13 +462,19 @@ async function detectMoves(
   if (addInfo.size === 0) return [];
 
   // Deleted files are gone from disk — ask the depot for size (fstat -Ol) and
-  // submit-time mtime (headModTime), batched into one call.
+  // submit-time mtime (headModTime). Feed the specs via stdin (`-x -`), not
+  // argv, so a large watcher batch can't blow the OS arg limit and silently
+  // disable rename detection.
   const delInfo = new Map<string, { size: number; mtime: number }>();
-  const specs = dels.map((d) => `//${d.path}`);
   const r = await p4exec(
     ctx,
-    ['-ztag', 'fstat', '-Ol', '-T', 'depotFile,fileSize,headModTime', ...specs],
-    { cwd: wt, tolerant: true, maxBuffer: 64 * 1024 * 1024 },
+    ['-ztag', '-x', '-', 'fstat', '-Ol', '-T', 'depotFile,fileSize,headModTime'],
+    {
+      cwd: wt,
+      input: dels.map((d) => `//${d.path}`).join('\n') + '\n',
+      tolerant: true,
+      maxBuffer: 64 * 1024 * 1024,
+    },
   );
   for (const rec of parseZtag(r.stdout)) {
     if (!rec.depotFile || rec.fileSize == null) continue;
@@ -494,27 +500,35 @@ async function detectMoves(
   const pairs: MovePair[] = [];
   const MTIME_TOL = 2; // seconds
   for (const bucket of bySize.values()) {
-    if (bucket.adds.length === 0) continue;
+    if (bucket.adds.length === 0 || bucket.dels.length === 0) continue;
+    // A batch-UNIQUE size (exactly one deleted and one added file of that exact
+    // byte size) is a strong "same file" signal on its own — pair it. mtime is
+    // NOT required here: the slot clients are `nomodtime`, so a moved file's
+    // on-disk mtime tracks the base tree, not the depot's headModTime, and the
+    // two aren't comparable. Content is safe regardless — move/add submits the
+    // NEW file's bytes — so a rare coincidental size collision only mislabels
+    // history, never loses work.
     if (bucket.dels.length === 1 && bucket.adds.length === 1) {
       pairs.push({ old: bucket.dels[0], new: bucket.adds[0] });
       continue;
     }
-    // Size collision — match by mtime, greedily and uniquely.
-    const freeAdds = new Set(bucket.adds);
+    // Several files share this size — only pair a delete/add that are each
+    // other's UNIQUE mtime match (best-effort; simply won't fire when the
+    // nomodtime mtimes don't line up). Anything still ambiguous is left as
+    // delete+add rather than risk a wrong move link.
+    const matchesFor = new Map<string, string[]>();
+    const addRefs = new Map<string, number>();
     for (const d of bucket.dels) {
       const dm = delInfo.get(d)?.mtime ?? Number.NaN;
       if (Number.isNaN(dm)) continue;
-      let match: string | null = null;
-      for (const a of freeAdds) {
-        if (Math.abs((addInfo.get(a)?.mtime ?? Number.NaN) - dm) <= MTIME_TOL) {
-          match = a;
-          break;
-        }
-      }
-      if (match) {
-        pairs.push({ old: d, new: match });
-        freeAdds.delete(match);
-      }
+      const ms = bucket.adds.filter(
+        (a) => Math.abs((addInfo.get(a)?.mtime ?? Number.NaN) - dm) <= MTIME_TOL,
+      );
+      matchesFor.set(d, ms);
+      for (const a of ms) addRefs.set(a, (addRefs.get(a) ?? 0) + 1);
+    }
+    for (const [d, ms] of matchesFor) {
+      if (ms.length === 1 && (addRefs.get(ms[0]) ?? 0) === 1) pairs.push({ old: d, new: ms[0] });
     }
   }
   return pairs;
