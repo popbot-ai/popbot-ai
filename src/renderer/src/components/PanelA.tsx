@@ -1,7 +1,15 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { LinearIssueDto, LinearWorkflowStateDto } from '@shared/linear';
-import type { ReviewItem } from '@shared/reviews';
+import type { ReviewItem, ReviewSystem } from '@shared/reviews';
+import type { SourceControlProviderId } from '@shared/sourceControl';
+
+/** A manually-pinned review, namespaced by system so a GitHub PR #27 and a
+ *  Swarm review #27 don't collide. */
+type PinnedReview = { scm: ReviewSystem; number: number };
+/** Map a review system to the SCM provider id the reviews IPC expects. */
+const providerIdFor = (scm: ReviewSystem): SourceControlProviderId =>
+  scm === 'swarm' ? 'perforce' : 'git';
 import { TICKET_PROVIDERS, type TicketProviderId } from '@shared/ticketProvider';
 import type { MessageKey, Translator } from '@shared/i18n';
 import { useTranslation } from '../lib/i18n';
@@ -144,7 +152,7 @@ export function PanelA({
   // visible across launches). IDs persist in settings; the fetched
   // data is held in memory and refreshed alongside the auto-list.
   const [pinnedTicketIds, setPinnedTicketIds] = useState<string[]>([]);
-  const [pinnedPrNumbers, setPinnedPrNumbers] = useState<number[]>([]);
+  const [pinnedPrNumbers, setPinnedPrNumbers] = useState<PinnedReview[]>([]);
   const [pinnedTicketsData, setPinnedTicketsData] = useState<LinearIssueDto[]>([]);
   const [pinnedPrsData, setPinnedPrsData] = useState<ReviewItem[]>([]);
   const [addPinOpen, setAddPinOpen] = useState(false);
@@ -185,8 +193,12 @@ export function PanelA({
       .get<string[]>('panela.pinned.tickets')
       .then((v) => { if (Array.isArray(v)) setPinnedTicketIds(v); });
     void window.popbot.settings
-      .get<number[]>('panela.pinned.prs')
-      .then((v) => { if (Array.isArray(v)) setPinnedPrNumbers(v); });
+      .get<Array<number | PinnedReview>>('panela.pinned.prs')
+      .then((v) => {
+        if (!Array.isArray(v)) return;
+        // Migrate the legacy number[] (all GitHub) to the {scm, number} shape.
+        setPinnedPrNumbers(v.map((e) => (typeof e === 'number' ? { scm: 'github', number: e } : e)));
+      });
   }, []);
   const ignorePr = useCallback(async (n: number) => {
     setIgnoredPrs((prev) => {
@@ -214,13 +226,13 @@ export function PanelA({
     setPinnedTicketsData(next);
   }, []);
 
-  const refreshPinnedPrs = useCallback(async (numbers: number[]) => {
-    if (numbers.length === 0) {
+  const refreshPinnedPrs = useCallback(async (pins: PinnedReview[]) => {
+    if (pins.length === 0) {
       setPinnedPrsData([]);
       return;
     }
     const results = await Promise.all(
-      numbers.map((n) => window.popbot.reviews.getPr(n)),
+      pins.map((p) => window.popbot.reviews.getPr(p.number, providerIdFor(p.scm))),
     );
     const next: ReviewItem[] = [];
     for (const res of results) if (res.ok) next.push(res.pr);
@@ -286,15 +298,17 @@ export function PanelA({
     return { ok: true };
   }, [pinnedTicketIds, ticketProvider]);
 
-  const pinPr = useCallback(async (prNumber: number): Promise<
+  const pinPr = useCallback(async (prNumber: number, system: ReviewSystem = 'github'): Promise<
     | { ok: true }
     | { ok: false; reason: 'not-found' | 'gh-not-found' | 'gh-not-authed' | 'no-repo' | 'duplicate' | 'error'; error?: string }
   > => {
-    if (pinnedPrNumbers.includes(prNumber)) return { ok: false, reason: 'duplicate' };
-    const res = await window.popbot.reviews.getPr(prNumber);
+    if (pinnedPrNumbers.some((p) => p.scm === system && p.number === prNumber)) {
+      return { ok: false, reason: 'duplicate' };
+    }
+    const res = await window.popbot.reviews.getPr(prNumber, providerIdFor(system));
     if (!res.ok) return res;
     setPinnedPrNumbers((prev) => {
-      const next = [...prev, prNumber];
+      const next = [...prev, { scm: system, number: prNumber }];
       void window.popbot.settings.set('panela.pinned.prs', next);
       return next;
     });
@@ -312,14 +326,14 @@ export function PanelA({
     setPinnedTicketsData((prev) => prev.filter((t) => t.identifier !== identifier));
   }, []);
 
-  const unpinPr = useCallback((prNumber: number) => {
+  const unpinPr = useCallback((prNumber: number, system: ReviewSystem = 'github') => {
     setPinnedPrNumbers((prev) => {
-      if (!prev.includes(prNumber)) return prev;
-      const next = prev.filter((x) => x !== prNumber);
+      if (!prev.some((p) => p.scm === system && p.number === prNumber)) return prev;
+      const next = prev.filter((p) => !(p.scm === system && p.number === prNumber));
       void window.popbot.settings.set('panela.pinned.prs', next);
       return next;
     });
-    setPinnedPrsData((prev) => prev.filter((p) => p.number !== prNumber));
+    setPinnedPrsData((prev) => prev.filter((p) => !(p.scm === system && p.number === prNumber)));
   }, []);
   const ignoreTicket = useCallback(async (identifier: string) => {
     setIgnoredTickets((prev) => {
@@ -791,12 +805,12 @@ export function PanelA({
             }}
             onContextMenu={(review, x, y) => setRowMenu({
               x, y,
-              label: `PR #${review.number} · ${review.title.slice(0, 60)}`,
+              label: `${review.scm === 'swarm' ? 'Review' : 'PR'} #${review.number} · ${review.title.slice(0, 60)}`,
               url: review.url,
-              onIgnore: pinnedPrNumbers.includes(review.number)
-                ? () => unpinPr(review.number)
+              onIgnore: pinnedPrNumbers.some((p) => p.scm === review.scm && p.number === review.number)
+                ? () => unpinPr(review.number, review.scm)
                 : () => void ignorePr(review.number),
-              isUnpin: pinnedPrNumbers.includes(review.number),
+              isUnpin: pinnedPrNumbers.some((p) => p.scm === review.scm && p.number === review.number),
             })}
           />
         )}

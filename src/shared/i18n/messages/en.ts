@@ -296,16 +296,17 @@ export const en = {
   'work.error.noRepo': 'No repo configured.',
   'work.error.duplicate': 'Already in your list.',
   'work.error.generic': 'Could not pin.',
-  'work.searchPlaceholder': 'Search tickets, PRs, chats — or paste ENG-12345 / PR #1234',
+  'work.searchPlaceholder': 'Search tickets, PRs, chats — or paste ENG-12345 / PR #1234 / swarm 27',
   'work.addNew': 'Add new',
   'work.prNumber': 'PR #{number}',
+  'work.reviewNumber': 'Swarm review #{number}',
   'work.lookingUp': 'Looking up…',
   'work.pinKind': 'Pin {kind}',
   'work.tickets': 'Tickets',
   'work.prs': 'PRs',
   'work.chats': 'Chats',
   'work.emptyHint':
-    'No matches. Try a Linear id like {id} or a PR number like {pr} to pin a new one.',
+    'No matches. Pin a new one: a Linear id like {id}, a PR number like {pr}, or a Swarm review like {swarm}.',
 
   // ---------------------------------------------------------------------------
   // Monitor card (MonitorCard.tsx).

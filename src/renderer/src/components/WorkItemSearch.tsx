@@ -20,7 +20,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { LinearIssueDto } from '@shared/linear';
-import type { ReviewItem } from '@shared/reviews';
+import type { ReviewItem, ReviewSystem } from '@shared/reviews';
 import type { ChatRecord } from '@shared/persistence';
 import { LinearStateIcon } from '../lib/linearIcons';
 import { useTranslation } from '../lib/i18n';
@@ -37,7 +37,7 @@ interface WorkItemSearchProps {
    *  parent decides what `pin` means (PanelA: persist; new-chat:
    *  pin + spawn). */
   onPinTicket: (id: string) => Promise<{ ok: true } | { ok: false; reason: string; error?: string }>;
-  onPinPr: (n: number) => Promise<{ ok: true } | { ok: false; reason: string; error?: string }>;
+  onPinPr: (n: number, system?: ReviewSystem) => Promise<{ ok: true } | { ok: false; reason: string; error?: string }>;
   /** Click on a known ticket/PR (the user wants to act on it). The
    *  parent may focus its chat, scroll to it in the list, or spawn
    *  a new chat — picker is policy-free. */
@@ -49,19 +49,23 @@ interface WorkItemSearchProps {
 
 type FreeForm =
   | { kind: 'ticket'; identifier: string }
-  | { kind: 'pr'; number: number }
+  | { kind: 'pr'; number: number; system: ReviewSystem }
   | null;
 
-/** Parse the user's query for a free-form ticket id / PR number that
+/** Parse the user's query for a free-form ticket id / review number that
  *  doesn't match anything already in the lists. Returns the parsed
- *  form when the query unambiguously names one. */
+ *  form when the query unambiguously names one. A `swarm`/`sw`/`cl`/`review`
+ *  prefix (e.g. "swarm 27", "sw#27") names a Helix Swarm review; a bare
+ *  number or `PR #123` names a GitHub PR. */
 function parseFreeForm(raw: string): FreeForm {
   const s = raw.trim();
   if (!s) return null;
   const tm = /^([A-Z]{2,5})-(\d+)$/i.exec(s);
   if (tm) return { kind: 'ticket', identifier: `${tm[1].toUpperCase()}-${tm[2]}` };
+  const sm = /^(?:swarm|sw|cl|review)\s*#?\s*(\d+)$/i.exec(s);
+  if (sm) return { kind: 'pr', number: Number(sm[1]), system: 'swarm' };
   const pm = /^(?:PR\s*)?#?\s*(\d+)$/i.exec(s);
-  if (pm) return { kind: 'pr', number: Number(pm[1]) };
+  if (pm) return { kind: 'pr', number: Number(pm[1]), system: 'github' };
   return null;
 }
 
@@ -158,7 +162,7 @@ export function WorkItemSearch({
     try {
       const res = freeForm.kind === 'ticket'
         ? await onPinTicket(freeForm.identifier)
-        : await onPinPr(freeForm.number);
+        : await onPinPr(freeForm.number, freeForm.system);
       if (!res.ok) {
         setError(
           res.reason === 'not-found' ? t('work.error.notFound')
@@ -220,7 +224,11 @@ export function WorkItemSearch({
               >
                 <i className="fa-solid fa-thumbtack" />
                 <span className="mono">
-                  {freeForm.kind === 'ticket' ? freeForm.identifier : t('work.prNumber', { number: freeForm.number })}
+                  {freeForm.kind === 'ticket'
+                    ? freeForm.identifier
+                    : freeForm.system === 'swarm'
+                      ? t('work.reviewNumber', { number: freeForm.number })
+                      : t('work.prNumber', { number: freeForm.number })}
                 </span>
                 <span style={{ flex: 1 }} />
                 <span className="work-item-search-row-hint">
@@ -287,7 +295,7 @@ export function WorkItemSearch({
 
           {empty && (
             <div style={{ padding: '14px 4px 4px', fontSize: 12, color: 'var(--fg-3)' }}>
-              {t('work.emptyHint', { id: 'ENG-12345', pr: 'PR #1234' })}
+              {t('work.emptyHint', { id: 'ENG-12345', pr: 'PR #1234', swarm: 'swarm 27' })}
             </div>
           )}
 
