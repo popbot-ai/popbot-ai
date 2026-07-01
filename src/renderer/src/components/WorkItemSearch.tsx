@@ -156,11 +156,11 @@ export function WorkItemSearch({
     // Hide the "pin new" row when the item is already in the list —
     // the existing row already shows up under "Tickets" / "PRs".
     if (ff.kind === 'ticket' && knownTickets.some((t) => t.identifier === ff.identifier)) return null;
-    // Match on system + number so a Swarm review #27 isn't hidden by a GitHub
-    // PR #27 already in the list (and vice versa).
-    if (ff.kind === 'pr' && knownPrs.some((p) => p.number === ff.number && p.scm === ff.system)) return null;
+    // NB: reviews are intentionally NOT suppressed when already listed — manually
+    // re-adding a review is how you pull it back to active (un-ignore / re-pin,
+    // even if its linked chat was closed), so always offer the add action.
     return ff;
-  }, [query, knownTickets, knownPrs]);
+  }, [query, knownTickets]);
 
   const pinNew = async (): Promise<void> => {
     if (!freeForm) return;

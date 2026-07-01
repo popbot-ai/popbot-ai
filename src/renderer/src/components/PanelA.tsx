@@ -302,17 +302,29 @@ export function PanelA({
     | { ok: true }
     | { ok: false; reason: 'not-found' | 'gh-not-found' | 'gh-not-authed' | 'no-repo' | 'duplicate' | 'error'; error?: string }
   > => {
-    if (pinnedPrNumbers.some((p) => p.scm === system && p.number === prNumber)) {
-      return { ok: false, reason: 'duplicate' };
-    }
+    // Manual add always REACTIVATES: validate it exists, un-ignore it, and
+    // ensure it's pinned — even if it already exists (ignored, or linked to a
+    // closed chat). Re-adding is how you pull a review back to active, so this
+    // never errors as a "duplicate".
     const res = await window.popbot.reviews.getPr(prNumber, providerIdFor(system));
     if (!res.ok) return res;
-    setPinnedPrNumbers((prev) => {
-      const next = [...prev, { scm: system, number: prNumber }];
-      void window.popbot.settings.set('panela.pinned.prs', next);
+    // Un-ignore so it's no longer filtered out of the active list.
+    setIgnoredPrs((prev) => {
+      if (!prev.includes(prNumber)) return prev;
+      const next = prev.filter((n) => n !== prNumber);
+      void window.popbot.settings.set('reviews.ignored', next);
       return next;
     });
-    setPinnedPrsData((prev) => [res.pr, ...prev]);
+    const alreadyPinned = pinnedPrNumbers.some((p) => p.scm === system && p.number === prNumber);
+    if (!alreadyPinned) {
+      setPinnedPrNumbers((prev) => {
+        const next = [...prev, { scm: system, number: prNumber }];
+        void window.popbot.settings.set('panela.pinned.prs', next);
+        return next;
+      });
+    }
+    // Refresh (or insert) the pinned row's data at the top.
+    setPinnedPrsData((prev) => [res.pr, ...prev.filter((p) => !(p.scm === system && p.number === prNumber))]);
     return { ok: true };
   }, [pinnedPrNumbers]);
 
