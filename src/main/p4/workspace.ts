@@ -706,9 +706,15 @@ export async function unshelvePop(
  * =========================================================================== */
 
 /** Per-repo root client name that OWNS chat WIP shelves (parallels the slot
- *  clients `popbot_<repo>_slot<N>`). Never synced — it only owns shelves. */
-export function rootClientName(repoId: string): string {
-  return `popbot_${repoId}_root`;
+ *  clients `<mainClient>_slot<N>`). Never synced — it only owns shelves.
+ *
+ *  Like the slot clients, this name is GLOBAL on the server, so it must be
+ *  unique per machine — derive it from the machine-specific root workspace
+ *  (`mainClient`) when known (`popbotgame_osx` → `popbotgame_osx_root`), else
+ *  fall back to the old repo-scoped name. */
+export function rootClientName(repoId: string, mainClient?: string): string {
+  const base = mainClient?.trim();
+  return base ? `${base}_root` : `popbot_${repoId}_root`;
 }
 
 /** Ensure the root client SPEC exists (Root + depot View). Unlike a slot

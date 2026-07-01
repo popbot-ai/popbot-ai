@@ -236,14 +236,24 @@ export const P4_ACTION_TEMPLATE_VARS = [
   { name: 'client',     desc: 'Perforce workspace (client) for this slot' },
 ] as const;
 
-export const DEFAULT_P4_CODE_REVIEW_TEMPLATE = `Please submit this changelist to a Helix Swarm code review using the Swarm command-line tools.
+export const DEFAULT_P4_NEW_CR_TEMPLATE = `Please open a NEW Helix Swarm code review for this changelist.
 
 Steps:
 1. Review the pending changes first (\`p4 opened\`, \`p4 diff\`) and find the pending changelist number for this work (\`${'${changelist}'}\`).
 2. Give the changelist a clear description — what changed and why.
-3. Shelve the changelist so its files are available to Swarm: \`p4 shelve -c <cl#>\` (re-shelve with \`-f\` when updating an existing review).
-4. Use the Swarm command-line tools to create the review from this changelist. Discover the exact command first (e.g. \`swarm --help\`), then create a NEW review for changelist <cl#> — or, if you're updating an existing review, target it by its review id.
-5. If no \`swarm\` CLI is available in this environment, fall back to the p4-native path: add \`#review\` to the changelist description (keep \`#review-<id>\` to update an existing one) and shelve so Swarm picks it up.
+3. Shelve the changelist so its files are available to Swarm: \`p4 shelve -c <cl#>\`.
+4. Create the review from the shelved changelist. Prefer the Swarm command-line tools (discover the exact command first, e.g. \`swarm --help\`); if no \`swarm\` CLI is available, fall back to the p4-native path: add \`#review\` to the changelist description and re-shelve so Swarm opens a new review.
+
+Do NOT \`p4 submit\` — the change goes through Swarm review first.
+When done, reply with the new Swarm review URL or id.`;
+
+export const DEFAULT_P4_ADDRESS_CR_TEMPLATE = `This changelist (\`${'${changelist}'}\`) already has an open Helix Swarm code review with feedback. Please address it.
+
+Steps:
+1. Find the existing review for this work and read its open comments — prefer the Swarm command-line tools (discover them first, e.g. \`swarm --help\`). The changelist description carries \`#review-<id>\` linking it to the review.
+2. Address each actionable comment with code changes in this workspace.
+3. Update the changelist description if needed, then re-shelve so Swarm picks up the new files: \`p4 shelve -c <cl#> -f\` (this updates the SAME review via its \`#review-<id>\`).
+4. Reply to the comments you addressed and request re-review.
 
 Do NOT \`p4 submit\` — the change goes through Swarm review first.
 When done, reply with the Swarm review URL or id.`;

@@ -159,7 +159,7 @@ export async function buildBase(
   },
   onProgress?: ProgressFn,
 ): Promise<BaseBuildResult> {
-  if (process.platform === 'linux') {
+  if (process.platform !== 'win32') {
     return buildBaseUnix(opts, onProgress);
   }
   // These names go UNQUOTED into an ELEVATED .bat — validate before building it.
@@ -276,7 +276,7 @@ export async function remountSlots(
   opts: { repoPath: string; repoId: string; baseName: string },
   onProgress?: ProgressFn,
 ): Promise<BaseBuildResult> {
-  if (process.platform === 'linux') {
+  if (process.platform !== 'win32') {
     return remountSlotsUnix(opts, onProgress);
   }
   const nameErr = badShadoName(opts.baseName, 'base name');
@@ -341,7 +341,7 @@ export async function destroyBase(
   opts: { repoPath: string; repoId: string; baseName: string },
   onProgress?: ProgressFn,
 ): Promise<BaseBuildResult> {
-  if (process.platform === 'linux') {
+  if (process.platform !== 'win32') {
     return destroyBaseUnix(opts, onProgress);
   }
   const nameErr = badShadoName(opts.baseName, 'base name');
@@ -415,7 +415,7 @@ export async function growSlotClones(
   },
   onProgress?: ProgressFn,
 ): Promise<BaseBuildResult> {
-  if (process.platform === 'linux') {
+  if (process.platform !== 'win32') {
     return growSlotClonesUnix(opts, onProgress);
   }
   if (opts.toCount <= opts.fromCount) return { ok: true, log: '' };
@@ -488,7 +488,7 @@ export async function remountReposElevated(
   onProgress?: ProgressFn,
 ): Promise<BaseBuildResult> {
   if (repos.length === 0) return { ok: true, log: '' };
-  if (process.platform === 'linux') return remountReposUnix(repos, onProgress);
+  if (process.platform !== 'win32') return remountReposUnix(repos, onProgress);
   const shado = shadoExePath();
   const stamp = `${Date.now()}-${Math.floor(process.hrtime()[1] % 1e6)}`;
   const log = join(tmpdir(), `shado-remount-all-${stamp}.log`);
@@ -569,6 +569,20 @@ function shadoLog(...results: Array<{ stdout: string; stderr: string }>): string
     .trim();
 }
 
+/** A diagnosable failure line for a shado step: the sub-command, the exit code,
+ *  the SHADO_HOME it ran against, and whatever shado wrote — or, for a spawn
+ *  failure, the reason runShado surfaced (missing/none-executable binary).
+ *  Beats a bare "shado create failed (exit 1)" the wizard can't act on. */
+function shadoStepFailure(
+  step: string,
+  home: string,
+  r: { code: number; stdout: string; stderr: string },
+): string {
+  const detail = shadoLog(r);
+  const suffix = detail ? `:\n${detail}` : '';
+  return `shado ${step} failed (exit ${r.code}) [SHADO_HOME=${home}]${suffix}`;
+}
+
 /** {@link buildBase} for macOS/Linux: freeze the base, then mount every slot
  *  clone — direct shado calls, no elevation. */
 async function buildBaseUnix(
@@ -607,7 +621,7 @@ async function buildBaseUnix(
   if (timer) clearInterval(timer);
   results.push(create);
   if (!create.ok) {
-    return { ok: false, log: shadoLog(...results) || `shado create failed (exit ${create.code}).` };
+    return { ok: false, log: shadoStepFailure(`create ${opts.repoPath}`, home, create) };
   }
 
   // Mount each slot clone off the frozen base. Reflink/clonefile clones are
@@ -622,10 +636,7 @@ async function buildBaseUnix(
     ]);
     results.push(clone);
     if (!clone.ok) {
-      return {
-        ok: false,
-        log: shadoLog(...results) || `shado clone create failed (exit ${clone.code}).`,
-      };
+      return { ok: false, log: shadoStepFailure(`clone create --slot ${slot}`, home, clone) };
     }
   }
   return { ok: true, log: shadoLog(...results) };
@@ -656,7 +667,7 @@ async function destroyBaseUnix(
   if (!r.ok) {
     // Already gone (a prior partial delete) → nothing to tear down, treat as ok.
     if (/no project/i.test(log)) return { ok: true, log };
-    return { ok: false, log: log || `shado restore failed (exit ${r.code}).` };
+    return { ok: false, log: shadoStepFailure('restore', home, r) };
   }
   return { ok: true, log };
 }
@@ -694,10 +705,7 @@ async function growSlotClonesUnix(
     ]);
     results.push(clone);
     if (!clone.ok && !/already exists/i.test(shadoLog(clone))) {
-      return {
-        ok: false,
-        log: shadoLog(...results) || `shado clone create failed (exit ${clone.code}).`,
-      };
+      return { ok: false, log: shadoStepFailure(`clone create --slot ${slot}`, home, clone) };
     }
   }
   return { ok: true, log: shadoLog(...results) };

@@ -248,7 +248,15 @@ export function registerReposHandlers(): void {
         },
         (msg) => e.sender.send(IpcChannel.ReposBaseProgress, msg),
       );
-      if (!built.ok) return { ok: false, error: built.log };
+      if (!built.ok) {
+        dlog('repo.buildBase.fail', {
+          repoId: input.repoId,
+          baseName: input.baseName,
+          repoPath: input.repoPath,
+          error: built.log,
+        });
+        return { ok: false, error: built.log };
+      }
       // The frozen base reflects the warm folder's synced state; capture the
       // changelist so every slot can `p4 flush @baseChangelist` (0-byte). Fall
       // back to the changelist the wizard already discovered from the

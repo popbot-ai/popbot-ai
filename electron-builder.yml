@@ -37,13 +37,23 @@ mac:
   # (APPLE_TEAM_ID, APPLE_ID, APPLE_APP_SPECIFIC_PASSWORD). Passing
   # teamId here is rejected by the current electron-builder.
   notarize: true
-  # popbot-windowmover native helper not yet built — re-add the
-  # extraResources block when the binary lands under
-  # `native/popbot-windowmover/build/`.
+  # Bundle the shado shadow-workspace controller (macOS APFS clonefile COW
+  # backend; built by scripts/build-shado.mjs into native/shado/bin/mac/). Lands
+  # at resources/shado/shado in the installed .app; src/main/shado/client.ts
+  # resolves it via process.resourcesPath. The committed binary keeps its
+  # executable bit (git mode 100755) so the bundled copy stays runnable. Unlike
+  # Windows extraResources, electron-builder DEEP-SIGNS nested Mach-O binaries as
+  # part of app signing, so this shado picks up the Developer ID signature +
+  # hardened runtime and passes notarization — no separate signing step needed.
   extraResources:
+    - from: native/shado/bin/mac/shado
+      to: shado/shado
     # Sample review skills — see win.extraResources note. resources/SampleSkills/.
     - from: SampleSkills
       to: SampleSkills
+  # popbot-windowmover native helper not yet built — add another
+  # extraResources entry when the binary lands under
+  # `native/popbot-windowmover/build/`.
 win:
   target:
     - nsis
