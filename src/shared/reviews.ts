@@ -3,10 +3,23 @@
  * these via the `gh` CLI; the renderer polls + diffs to fire alerts.
  */
 
+import type { SourceControlProviderId } from './sourceControl';
+
 /** Which review system surfaced an item — GitHub PRs vs Helix Swarm reviews.
  *  The Reviews panel renders both in one list and branches on this for the
  *  per-item action (open PR / open Swarm review, spawn review-pr / review-cl). */
 export type ReviewSystem = 'github' | 'swarm';
+
+/** A review-capable provider the panel should poll — on its OWN cadence, so
+ *  GitHub and Swarm are polled independently (Swarm slower, to protect p4d). */
+export interface ReviewProviderInfo {
+  /** The SourceControl provider id backing this review source. */
+  id: SourceControlProviderId;
+  /** Review-system tag (matches {@link ReviewItem.scm}). */
+  system: ReviewSystem;
+  /** This provider's poll interval in ms. */
+  pollIntervalMs: number;
+}
 
 export interface ReviewItem {
   /** Which review system this came from. */

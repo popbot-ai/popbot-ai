@@ -15,6 +15,8 @@ import type {
   ListRecentReviewsResult,
   ListReviewsResult,
   ReviewItem,
+  ReviewProviderInfo,
+  ReviewSystem,
 } from '@shared/reviews';
 import { getSetting } from '../persistence/settings';
 import { listRepos } from '../persistence/repos';
@@ -51,6 +53,33 @@ function reviewGroups(): Array<{ scm: SourceControlProviderId; paths: string[] }
   return out;
 }
 
+/** Review-system tag for a provider id (matches ReviewItem.scm). */
+const REVIEW_SYSTEM: Partial<Record<SourceControlProviderId, ReviewSystem>> = {
+  git: 'github',
+  perforce: 'swarm',
+};
+
+/**
+ * The review-capable providers to poll, each with its OWN cadence — the panel
+ * polls them on independent timers (Swarm slower than GitHub, to protect p4d).
+ */
+export function reviewProviders(): ReviewProviderInfo[] {
+  return reviewGroups().map(({ scm }) => ({
+    id: scm,
+    system: REVIEW_SYSTEM[scm] ?? 'github',
+    pollIntervalMs: getSourceControlProvider(scm).reviewPollIntervalMs(),
+  }));
+}
+
+/** Pending reviews for ONE provider (the per-provider poll path). */
+export async function listPendingReviewsFor(
+  scm: SourceControlProviderId,
+): Promise<ListReviewsResult> {
+  const group = reviewGroups().find((g) => g.scm === scm);
+  if (!group) return { ok: false, reason: 'no-repo' };
+  return getSourceControlProvider(scm).listPendingReviews(group.paths);
+}
+
 /**
  * Pending reviews across every review-capable provider, merged into one list.
  * A provider's `no-repo` is ignored (it just has nothing configured); a real
@@ -83,11 +112,14 @@ export async function listRecentOpenPrs(): Promise<ListRecentReviewsResult> {
 }
 
 /**
- * One review by number/id — the manual "+" pin. GitHub-only for now; a
- * scm-aware pin (so Swarm reviews can be pinned by id) lands with the renderer
- * changes that make the "+" flow pick a review system.
+ * One review by number/id — the manual "+" pin. `scm` selects the review
+ * system (defaults to git/GitHub for back-compat); the renderer passes
+ * 'perforce' to pin a Swarm review by id.
  */
-export async function getReviewByNumber(prNumber: number): Promise<GetReviewResult> {
-  const paths = reposByScm().get('git') ?? [];
-  return getSourceControlProvider('git').getReview(paths, prNumber);
+export async function getReviewByNumber(
+  prNumber: number,
+  scm: SourceControlProviderId = 'git',
+): Promise<GetReviewResult> {
+  const paths = reposByScm().get(scm) ?? [];
+  return getSourceControlProvider(scm).getReview(paths, prNumber);
 }
