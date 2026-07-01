@@ -1177,4 +1177,10 @@ export const ja = {
     'submit の前に、バイト単位で同一のファイルを changelist から除外します。',
   'prefs.perforce.revertUnchanged.toggle': 'submit 時にバイト単位で同一のファイルを revert',
   'prefs.repos.error.duplicatePath': 'そのフォルダは既にリポジトリ "{id}" として追加されています。',
+  'prefs.perforce.reviewPoll.title': 'Swarm レビューのポーリング間隔',
+  'prefs.perforce.reviewPoll.desc': 'レビューパネルが Helix Swarm をポーリングする頻度。GitHub とは独立しています。値が大きいほど共有 Perforce サーバーの負荷が軽くなります（最小 30 秒）。',
+  'prefs.perforce.reviewPoll.unit': '秒',
+  'work.reviewNumber': 'Swarm レビュー #{number}',
+  'prefs.repos.wizard.agentCwd.title': 'エージェントの作業ディレクトリ',
+  'prefs.repos.wizard.agentCwd.desc': 'エージェントが起動するワークスペースルート配下のパス（/ はルート自体）。/depot/PopBotGame のようなサブパスにすると、リポジトリにコミットされた .claude/skills を Claude が検出できます。',
 } satisfies PartialMessages;

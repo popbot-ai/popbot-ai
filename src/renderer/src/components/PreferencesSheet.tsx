@@ -2834,10 +2834,9 @@ interface NewRepoDraft {
   p4Discovered: boolean;
   /** The discovered client name (for the read-only summary). */
   p4Client: string;
-  /** Subpath under the slot/workspace root where the agent starts (its cwd).
-   *  Defaults to the depot path minus the leading `//` (the view maps the
-   *  depot under `<root>/<agentCwd>`), so repo-committed `.claude/skills` are
-   *  at the agent's cwd. Editable. */
+  /** Path (relative to the slot/workspace root) where the agent starts (its
+   *  cwd). `/` = the mount root itself; a subpath like `/depot/PopBotGame`
+   *  starts the agent there so repo-committed `.claude/skills` are discovered. */
   p4AgentCwd: string;
 }
 
@@ -2857,14 +2856,8 @@ function emptyDraft(): NewRepoDraft {
     baseChangelist: 0,
     p4Discovered: false,
     p4Client: '',
-    p4AgentCwd: '',
+    p4AgentCwd: '/',
   };
-}
-
-/** Default agent cwd subpath for a Perforce depot: the depot path minus the
- *  leading `//` (the client view maps //depot/X under `<root>/depot/X`). */
-function defaultAgentCwd(depotPath: string): string {
-  return depotPath.trim().replace(/^\/+/, '').replace(/\/+$/, '');
 }
 
 /** Twelve-swatch color picker — replaces a freeform color input
@@ -3129,7 +3122,7 @@ function SlotSetupProgress({
                 mainClient: draft.p4Client.trim() || undefined,
                 shadoBase: id,
                 baseChangelist: built.baseChangelist,
-                agentCwd: (draft.p4AgentCwd.trim() || defaultAgentCwd(draft.p4Depot)) || undefined,
+                agentCwd: draft.p4AgentCwd.trim() || undefined,
               }
             : undefined,
         });
@@ -3338,9 +3331,6 @@ function NewRepoWizard({
                 baseChangelist: info.baseChangelist,
                 p4Discovered: true,
                 p4Client: info.client,
-                // Default the agent cwd to the depot subpath unless the user
-                // already typed one.
-                p4AgentCwd: upd.p4AgentCwd || defaultAgentCwd(info.depotPath),
               };
             } else {
               // No mapping client — manual entry, prefilled from saved defaults.
@@ -3433,7 +3423,7 @@ function NewRepoWizard({
               mainClient: draft.p4Client.trim() || undefined,
               shadoBase: draft.id.trim().toLowerCase(),
               baseChangelist: draft.baseChangelist,
-              agentCwd: (draft.p4AgentCwd.trim() || defaultAgentCwd(draft.p4Depot)) || undefined,
+              agentCwd: draft.p4AgentCwd.trim() || undefined,
             }
           : undefined,
       });
@@ -3676,7 +3666,7 @@ function NewRepoWizard({
                 <div className="pref-label-desc">{t('prefs.repos.wizard.agentCwd.desc')}</div>
               </div>
               <div className="pref-control">
-                <input className="pref-input mono narrow" placeholder="depot/MyGame"
+                <input className="pref-input mono narrow" placeholder="/"
                        value={draft.p4AgentCwd}
                        onChange={(e) => onChange({ ...draft, p4AgentCwd: e.target.value })} style={{ width: 240 }} />
               </div>
@@ -3842,7 +3832,9 @@ function EditRepoModal({
   const [draft, setDraft] = useState({
     color: repo.color,
     defaultBase: repo.defaultBase,
+    agentCwd: repo.p4?.agentCwd ?? '/',
   });
+  const isP4 = repo.scm === 'perforce';
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [resizeOpen, setResizeOpen] = useState(false);
@@ -3861,6 +3853,7 @@ function EditRepoModal({
         color: draft.color,
         defaultBase: draft.defaultBase,
         slotCount: repo.slotCount,
+        ...(isP4 ? { agentCwd: draft.agentCwd.trim() } : {}),
       });
       if (!res.ok) {
         setError(t('prefs.repos.error.notFound'));
@@ -3937,6 +3930,19 @@ function EditRepoModal({
               />
             </div>
           </div>
+          {isP4 && (
+            <div className="pref-row">
+              <div className="pref-label">
+                <div className="pref-label-title">{t('prefs.repos.wizard.agentCwd.title')}</div>
+                <div className="pref-label-desc">{t('prefs.repos.wizard.agentCwd.desc')}</div>
+              </div>
+              <div className="pref-control">
+                <input className="pref-input mono narrow" placeholder="/"
+                       value={draft.agentCwd}
+                       onChange={(e) => setDraft({ ...draft, agentCwd: e.target.value })} style={{ width: 240 }} />
+              </div>
+            </div>
+          )}
           {repo.mode === 'slots' && (
             <div className="pref-row">
               <div className="pref-label">

@@ -1171,4 +1171,10 @@ export const zhCN = {
   'prefs.perforce.revertUnchanged.desc': '在提交前从 changelist 中剔除字节完全相同的文件。',
   'prefs.perforce.revertUnchanged.toggle': '提交时还原字节完全相同的文件',
   'prefs.repos.error.duplicatePath': '该文件夹已作为仓库 "{id}" 添加。',
+  'prefs.perforce.reviewPoll.title': 'Swarm 审查轮询间隔',
+  'prefs.perforce.reviewPoll.desc': '“审查”面板轮询 Helix Swarm 的频率。独立于 GitHub。值越大，对共享 Perforce 服务器的负载越小（最低 30 秒）。',
+  'prefs.perforce.reviewPoll.unit': '秒',
+  'work.reviewNumber': 'Swarm 审查 #{number}',
+  'prefs.repos.wizard.agentCwd.title': '代理工作目录',
+  'prefs.repos.wizard.agentCwd.desc': '代理启动所在的工作区根目录下的路径（/ 表示根目录本身）。设为 /depot/PopBotGame 之类的子路径可让 Claude 找到仓库中提交的 .claude/skills。',
 } satisfies PartialMessages;

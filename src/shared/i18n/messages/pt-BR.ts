@@ -1169,4 +1169,10 @@ export const ptBR = {
     'Descarta arquivos byte a byte idênticos de um changelist antes do submit.',
   'prefs.perforce.revertUnchanged.toggle': 'Reverter arquivos byte a byte idênticos no submit',
   'prefs.repos.error.duplicatePath': 'Essa pasta já foi adicionada como repositório "{id}".',
+  'prefs.perforce.reviewPoll.title': 'Intervalo de sondagem de revisões do Swarm',
+  'prefs.perforce.reviewPoll.desc': 'Com que frequência o painel de Revisões consulta o Helix Swarm. Independente do GitHub. Maior = menos carga em um servidor Perforce compartilhado (mínimo 30s).',
+  'prefs.perforce.reviewPoll.unit': 'segundos',
+  'work.reviewNumber': 'Revisão do Swarm nº {number}',
+  'prefs.repos.wizard.agentCwd.title': 'Diretório de trabalho do agente',
+  'prefs.repos.wizard.agentCwd.desc': 'Caminho sob a raiz do espaço de trabalho onde o agente inicia (/ = a própria raiz). Um subcaminho como /depot/PopBotGame permite que o Claude descubra ali os .claude/skills do repositório.',
 } satisfies PartialMessages;

@@ -112,11 +112,9 @@ export function applyPerforceAgentCwd(
   if (!baseCwd) return baseCwd;
   const repo = chat?.repoId ? getRepo(chat.repoId) : null;
   if (repo?.scm !== 'perforce' || !repo.p4) return baseCwd;
-  // The configured subpath, else derive it from the depot path (the view maps
-  // //depot/X under `<root>/depot/X`, so the subpath is the depot path minus
-  // its leading `//`). Existing repos (no agentCwd set) thus still land in the
-  // right subdir without a migration.
-  const sub = (repo.p4.agentCwd?.trim() || repo.p4.depotPath?.replace(/^\/+/, '').replace(/\/+$/, '')) ?? '';
+  // `agentCwd` is a path relative to the mount root; `/` (or blank/undefined)
+  // means the mount root itself. Strip surrounding slashes → subpath segments.
+  const sub = (repo.p4.agentCwd ?? '').trim().replace(/^\/+/, '').replace(/\/+$/, '');
   if (!sub) return baseCwd;
   const resolved = join(baseCwd, sub);
   return existsSync(resolved) ? resolved : baseCwd;

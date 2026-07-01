@@ -134,9 +134,17 @@ export function registerReposHandlers(): void {
       // Preserve scm + the Perforce connection config — neither is in the
       // update input. Omitting p4 here would NULL p4_config on the UPDATE leg
       // (excluded.p4_config) while scm stayed 'perforce' (scm is insert-only),
-      // leaving an unusable "perforce with no config" row.
+      // leaving an unusable "perforce with no config" row. The one editable
+      // p4 field is agentCwd (the agent's working dir) — merge it when sent.
       scm: existing.scm,
-      ...(existing.p4 ? { p4: existing.p4 } : {}),
+      ...(existing.p4
+        ? {
+            p4: {
+              ...existing.p4,
+              ...(input.agentCwd !== undefined ? { agentCwd: input.agentCwd.trim() || undefined } : {}),
+            },
+          }
+        : {}),
     });
     return { ok: true, repo };
   });

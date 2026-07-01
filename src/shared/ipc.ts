@@ -462,6 +462,9 @@ export interface UpdateRepoInput {
   slotPrefix: string;
   defaultBase: string;
   slotCount: number;
+  /** Perforce only — agent working dir (path under the mount root; `/` = the
+   *  mount root). Merged into the existing p4 config; omitted for git repos. */
+  agentCwd?: string;
 }
 
 export type RepoCreateResult =

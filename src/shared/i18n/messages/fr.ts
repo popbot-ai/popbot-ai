@@ -1171,4 +1171,10 @@ export const fr = {
     'Choisissez la langue utilisée par PopBot pour son interface. La plupart des textes et les menus sont mis à jour immédiatement ; quelques chaînes système se mettent à jour après un redémarrage.',
   'language.label': 'Langue d’affichage',
   'language.systemNote': 'Les nouvelles fenêtres et le menu de l’application utilisent aussi cette langue.',
+  'prefs.perforce.reviewPoll.title': 'Intervalle d’interrogation des revues Swarm',
+  'prefs.perforce.reviewPoll.desc': 'Fréquence à laquelle le panneau Revues interroge Helix Swarm. Indépendant de GitHub. Plus élevé = charge plus légère sur un serveur Perforce partagé (minimum 30s).',
+  'prefs.perforce.reviewPoll.unit': 'secondes',
+  'work.reviewNumber': 'Revue Swarm n° {number}',
+  'prefs.repos.wizard.agentCwd.title': 'Répertoire de travail de l’agent',
+  'prefs.repos.wizard.agentCwd.desc': 'Chemin sous la racine de l’espace de travail où l’agent démarre (/ = la racine elle-même). Un sous-chemin comme /depot/PopBotGame permet à Claude d’y découvrir les .claude/skills du dépôt.',
 } satisfies PartialMessages;

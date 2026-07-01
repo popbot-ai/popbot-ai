@@ -1169,4 +1169,10 @@ export const de = {
     'Wählen Sie die Sprache, die PopBot für seine Oberfläche verwendet. Die meisten Texte und die Menüs werden sofort aktualisiert; einige Systemtexte werden erst nach einem Neustart vollständig aktualisiert.',
   'language.label': 'Anzeigesprache',
   'language.systemNote': 'Neue Fenster und das App-Menü verwenden ebenfalls diese Sprache.',
+  'prefs.perforce.reviewPoll.title': 'Swarm-Review-Abrufintervall',
+  'prefs.perforce.reviewPoll.desc': 'Wie oft das Reviews-Panel Helix Swarm abfragt. Unabhängig von GitHub. Höher = geringere Last auf einem gemeinsamen Perforce-Server (mindestens 30s).',
+  'prefs.perforce.reviewPoll.unit': 'Sekunden',
+  'work.reviewNumber': 'Swarm-Review #{number}',
+  'prefs.repos.wizard.agentCwd.title': 'Agent-Arbeitsverzeichnis',
+  'prefs.repos.wizard.agentCwd.desc': 'Pfad unter dem Arbeitsbereich-Stammverzeichnis, in dem der Agent startet (/ = das Stammverzeichnis selbst). Ein Unterpfad wie /depot/PopBotGame lässt Claude dort eingecheckte .claude/skills finden.',
 } satisfies PartialMessages;

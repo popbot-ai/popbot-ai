@@ -1099,7 +1099,7 @@ export const en = {
   'prefs.repos.wizard.connect.depot.title': 'Depot path',
   'prefs.repos.wizard.connect.depot.desc': 'The depot path this folder maps, e.g. //depot/MyGame.',
   'prefs.repos.wizard.agentCwd.title': 'Agent working dir',
-  'prefs.repos.wizard.agentCwd.desc': 'Subpath under the workspace root where the agent starts, so repo-committed .claude/skills are discovered (the depot maps under this subfolder). Blank = the workspace root.',
+  'prefs.repos.wizard.agentCwd.desc': 'Path under the workspace root where the agent starts (/ = the root itself). A subpath like /depot/PopBotGame lets Claude discover repo-committed .claude/skills there.',
   'prefs.repos.wizard.connect.baseName.title': 'Base name',
   'prefs.repos.wizard.connect.baseName.desc': 'Name of the frozen shado base. Slots clone from it.',
   'prefs.repos.wizard.connect.discovered': 'These are the values that will be used to set up this repository, read from your Perforce workspace ({client}).',

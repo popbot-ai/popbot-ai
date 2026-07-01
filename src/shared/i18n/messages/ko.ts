@@ -1165,4 +1165,10 @@ export const ko = {
     'PopBot 인터페이스에 사용할 언어를 선택하세요. 대부분의 텍스트와 메뉴는 즉시 업데이트되며, 일부 시스템 문자열은 다시 시작한 후 업데이트가 완료됩니다.',
   'language.label': '표시 언어',
   'language.systemNote': '새 창과 앱 메뉴에도 이 언어가 적용됩니다.',
+  'prefs.perforce.reviewPoll.title': 'Swarm 리뷰 폴링 간격',
+  'prefs.perforce.reviewPoll.desc': '리뷰 패널이 Helix Swarm을 폴링하는 빈도입니다. GitHub와 독립적입니다. 값이 클수록 공유 Perforce 서버의 부하가 줄어듭니다(최소 30초).',
+  'prefs.perforce.reviewPoll.unit': '초',
+  'work.reviewNumber': 'Swarm 리뷰 #{number}',
+  'prefs.repos.wizard.agentCwd.title': '에이전트 작업 디렉터리',
+  'prefs.repos.wizard.agentCwd.desc': '에이전트가 시작하는 작업 공간 루트 아래 경로입니다(/ = 루트 자체). /depot/PopBotGame 같은 하위 경로로 지정하면 저장소에 커밋된 .claude/skills를 Claude가 찾을 수 있습니다.',
 } satisfies PartialMessages;
