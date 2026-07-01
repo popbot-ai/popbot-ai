@@ -15,17 +15,23 @@ import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import {
   startSlotWatch,
-  stopSlotWatch,
   getSlotChanges,
   getSpamSuggestion,
+  disposeAllWatches,
   type SlotChange,
 } from './watcher';
 
 const watched: string[] = [];
 
-afterEach(() => {
+afterEach(async () => {
+  // AWAIT the native unsubscribe before removing dirs / letting the worker exit.
+  // @parcel/watcher tears its watch down off-thread; if the process (a vitest
+  // worker) exits while a native callback is still in flight — likely after the
+  // heavy-churn spam test — it fires into a torn-down context and crashes the
+  // worker (seen on Windows: "Worker exited unexpectedly"). disposeAllWatches
+  // awaits every unsubscribe, so teardown is clean.
+  await disposeAllWatches();
   for (const w of watched.splice(0)) {
-    stopSlotWatch(w);
     try {
       rmSync(w, { recursive: true, force: true });
     } catch {
