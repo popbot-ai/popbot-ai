@@ -378,9 +378,20 @@ export class PerforceProvider extends SourceControlProvider {
 
   /* ---------- workspace lifecycle (slots) ---------- */
 
-  /** The slot's stable P4 client name — the parking-branch analog. */
+  /** The slot's stable P4 client name — the parking-branch analog.
+   *
+   *  P4 client names are GLOBAL on the server, so slot clients MUST be unique
+   *  per machine — otherwise the mac/PC/Linux checkouts of the same repo all
+   *  resolve the SAME client name and stomp each other's Root+Host (the mac
+   *  ends up pointing at the PC's `D:\…` slot roots). Derive the name from the
+   *  machine-specific ROOT workspace (the repo's `mainClient`), e.g.
+   *  `popbotgame_osx` → `popbotgame_osx_slot1`. Fall back to the old repo-scoped
+   *  name only when the root client isn't known yet (e.g. pre-config). */
   parkingBranch(repoName: string, slotId: number): string {
-    return `popbot_${repoName}_slot${slotId}`;
+    const mainClient = listRepos()
+      .find((r) => r.id === repoName)
+      ?.p4?.mainClient?.trim();
+    return mainClient ? `${mainClient}_slot${slotId}` : `popbot_${repoName}_slot${slotId}`;
   }
 
   async ensureSlotWorktree(opts: EnsureSlotWorktreeOpts): Promise<void> {
@@ -566,7 +577,7 @@ export class PerforceProvider extends SourceControlProvider {
   private rootCtx(repoPath: string): { ctx: P4Context; depotPath: string } {
     const { repo, p4 } = this.repoFor(repoPath);
     return {
-      ctx: { port: p4.port, user: p4.user, client: rootClientName(repo.id) },
+      ctx: { port: p4.port, user: p4.user, client: rootClientName(repo.id, p4.mainClient) },
       depotPath: p4.depotPath,
     };
   }

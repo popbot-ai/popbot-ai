@@ -239,6 +239,39 @@ function loadIgnore(wt: string): IgnoreMatcher {
   return { dirs, endsWith, startsWith, exceptions };
 }
 
+/** Trip spam detection from the current churn tally: pick the spam root (common
+ *  ancestor of the genuinely-hot dirs, HOT_DIR_MIN excluding legit sparse edits
+ *  so they can't widen it), record it as the pending suggestion, mute it, and
+ *  reset the tally so a DIFFERENT folder spamming later can re-trip. No-op when
+ *  no churn was tallied (nothing concrete to suggest — e.g. an FSEvents drop that
+ *  landed before any event did). Shared by CHURN_CAP and the macOS overflow path. */
+function tripSpam(state: SlotState): void {
+  if (state.churnByDir.size === 0) {
+    state.churnTotal = 0;
+    return;
+  }
+  const hot = [...state.churnByDir.entries()].filter(([, c]) => c >= HOT_DIR_MIN).map(([d]) => d);
+  let root = commonPathPrefix(hot.length ? hot : [...state.churnByDir.keys()]);
+  // A '' common prefix (multi-root churn sharing no leading segment, e.g. slot-
+  // root dir-create events tallied under the '' bucket) would flow into the
+  // mute/suggestion/UI as a confusing empty root — fall back to the single
+  // HOTTEST *concrete* dir (skip the '' bucket) so the suggested root is always
+  // an actionable path.
+  if (root === '') {
+    let hottest = '';
+    let max = -1;
+    for (const [d, c] of state.churnByDir) if (d && c > max) { max = c; hottest = d; }
+    root = hottest;
+  }
+  state.churnByDir.clear();
+  state.churnTotal = 0;
+  // Couldn't localize below the slot root (only root-level churn) — nothing
+  // actionable to suggest; the watch stays live and a later burst can re-trip.
+  if (!root) return;
+  state.spam = root; // pending the user's decision (pre-fills the dialog)
+  muteSubtreeState(state, root);
+}
+
 /**
  * TRADEOFF: this watch is FAST but LOSSY. `ReadDirectoryChangesW` has a fixed
  * internal buffer; a bulk write (a checkout/generate of thousands of files, a
@@ -264,24 +297,7 @@ function recordEvent(state: SlotState, rel: string, type: ParcelEvent['type']): 
   const dir = lastSlash === -1 ? '' : rel.slice(0, lastSlash);
   state.churnByDir.set(dir, (state.churnByDir.get(dir) ?? 0) + 1);
   if (++state.churnTotal > CHURN_CAP && !state.spam) {
-    // The spam root = common ancestor of the genuinely-hot dirs (legit sparse
-    // edits elsewhere are excluded by HOT_DIR_MIN so they can't widen it).
-    const hot = [...state.churnByDir.entries()].filter(([, c]) => c >= HOT_DIR_MIN).map(([d]) => d);
-    let root = commonPathPrefix(hot.length ? hot : [...state.churnByDir.keys()]);
-    // A '' common prefix (multi-root churn sharing no leading segment) would flow
-    // into the mute/suggestion/UI as a confusing empty root — fall back to the
-    // single HOTTEST dir so the suggested root is always a concrete path.
-    if (root === '') {
-      let hottest = '';
-      let max = -1;
-      for (const [d, c] of state.churnByDir) if (c > max) { max = c; hottest = d; }
-      root = hottest;
-    }
-    state.spam = root; // pending the user's decision (pre-fills the dialog)
-    muteSubtreeState(state, root);
-    // Reset so a DIFFERENT folder spamming later re-trips detection.
-    state.churnByDir.clear();
-    state.churnTotal = 0;
+    tripSpam(state);
     return;
   }
   const prev = state.changes.get(rel);
@@ -356,9 +372,30 @@ export function startSlotWatch(worktreePath: string, extraIgnoreRels: string[] =
   );
 }
 
+/** macOS FSEvents (and the kernel) DROP events under extreme churn and ask for a
+ *  re-scan instead of delivering them; @parcel/watcher surfaces this as an error.
+ *  Crucially the subscription STAYS LIVE (only a fatal backend error clears the
+ *  callbacks) — so this is recoverable and must NOT tear the slot down. */
+function isRecoverableOverflow(err: unknown): boolean {
+  const msg = (err as Error)?.message ?? String(err);
+  return /re-scanned|were dropped|too many events/i.test(msg);
+}
+
 function handleWatchError(worktreePath: string, err: unknown): void {
+  const msg = (err as Error)?.message ?? String(err);
+  // A dropped-events overflow is the macOS shape of a spam burst: FSEvents can
+  // emit this INSTEAD of the 4000+ discrete events CHURN_CAP counts, so if we
+  // treated it as fatal here (slots.delete) we'd orphan the still-running native
+  // watch and silently stop tracking the slot forever. Keep the watch and trip
+  // spam from whatever churn we tallied before the drop.
+  if (isRecoverableOverflow(err)) {
+    const st = slots.get(worktreePath);
+    if (st && !st.spam) tripSpam(st);
+    console.warn(`[p4/watcher] churn overflow for ${worktreePath}: ${msg} — watch kept, spam surfaced.`);
+    return;
+  }
   const code = (err as NodeJS.ErrnoException)?.code;
-  console.error(`[p4/watcher] watch failed for ${worktreePath}: ${(err as Error)?.message ?? String(err)}`);
+  console.error(`[p4/watcher] watch failed for ${worktreePath}: ${msg}`);
   if (code === 'ENOSPC' || code === 'EMFILE') {
     console.error(
       `[p4/watcher] system watch limit hit — exclude build/output folders via ` +

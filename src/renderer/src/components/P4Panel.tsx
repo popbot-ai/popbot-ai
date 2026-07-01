@@ -20,7 +20,8 @@ import { useTranslation } from '../lib/i18n';
 import type { MessageKey } from '@shared/i18n';
 import {
   expandTemplate,
-  DEFAULT_P4_CODE_REVIEW_TEMPLATE,
+  DEFAULT_P4_NEW_CR_TEMPLATE,
+  DEFAULT_P4_ADDRESS_CR_TEMPLATE,
   DEFAULT_RUN_TESTS_TEMPLATE,
   DEFAULT_P4_REVIEW_COMMIT_TEMPLATE,
 } from '../lib/templates';
@@ -34,7 +35,7 @@ function clamp(n: number, lo: number, hi: number): number {
 /** Footer modes, mirroring the git panel: a manual `submit` plus AI actions
  *  that send a templated prompt to the chat agent (which does the real
  *  p4 / Helix Swarm work). */
-type P4Mode = 'submit' | 'cr' | 'tests' | 'reviewCommit';
+type P4Mode = 'submit' | 'newCr' | 'addressCr' | 'tests' | 'reviewCommit';
 
 interface P4ModeMeta {
   labelKey: MessageKey; // full label (big button)
@@ -45,19 +46,26 @@ interface P4ModeMeta {
 
 const P4_MODE_META: Record<P4Mode, P4ModeMeta> = {
   submit:       { labelKey: 'p4.mode.submit.label',       shortKey: 'p4.mode.submit.short',       icon: 'fa-check',               isAi: false },
-  cr:           { labelKey: 'p4.mode.cr.label',           shortKey: 'p4.mode.cr.short',           icon: 'fa-code-pull-request',   isAi: true  },
+  newCr:        { labelKey: 'p4.mode.newCr.label',        shortKey: 'p4.mode.newCr.short',        icon: 'fa-code-pull-request',   isAi: true  },
+  addressCr:    { labelKey: 'p4.mode.addressCr.label',    shortKey: 'p4.mode.addressCr.short',    icon: 'fa-comment-dots',        isAi: true  },
   tests:        { labelKey: 'p4.mode.tests.label',        shortKey: 'p4.mode.tests.short',        icon: 'fa-flask',               isAi: true  },
   reviewCommit: { labelKey: 'p4.mode.reviewCommit.label', shortKey: 'p4.mode.reviewCommit.short', icon: 'fa-wand-magic-sparkles', isAi: true  },
 };
 
 interface P4TemplatesBlob {
-  p4CodeReview?: string;
+  p4NewCr?: string;
+  p4AddressCr?: string;
   runTests?: string;
   p4ReviewCommit?: string;
+  /** @deprecated pre-split single "code review" template — still read as a
+   *  fallback for {@link P4TemplatesBlob.p4NewCr} so an existing user override
+   *  isn't silently dropped. */
+  p4CodeReview?: string;
 }
 
 const P4_TEMPLATE_FOR_MODE: Record<Exclude<P4Mode, 'submit'>, { key: keyof P4TemplatesBlob; fallback: string }> = {
-  cr:           { key: 'p4CodeReview',   fallback: DEFAULT_P4_CODE_REVIEW_TEMPLATE },
+  newCr:        { key: 'p4NewCr',        fallback: DEFAULT_P4_NEW_CR_TEMPLATE },
+  addressCr:    { key: 'p4AddressCr',    fallback: DEFAULT_P4_ADDRESS_CR_TEMPLATE },
   tests:        { key: 'runTests',       fallback: DEFAULT_RUN_TESTS_TEMPLATE },
   reviewCommit: { key: 'p4ReviewCommit', fallback: DEFAULT_P4_REVIEW_COMMIT_TEMPLATE },
 };
@@ -165,7 +173,10 @@ export function P4Panel({ chatId, chatName, diffPath, onOpenDiff }: SourceContro
     if (m === 'submit') return null;
     const cfg = P4_TEMPLATE_FOR_MODE[m];
     const blob = await window.popbot.settings.get<P4TemplatesBlob>('templates');
-    const tmpl = (blob?.[cfg.key] ?? cfg.fallback).trim();
+    // Back-compat: a user who customized the old combined "code review" template
+    // keeps it as their NEW CR override until they edit the split templates.
+    const legacy = m === 'newCr' ? blob?.p4CodeReview : undefined;
+    const tmpl = (blob?.[cfg.key] ?? legacy ?? cfg.fallback).trim();
     const st = data?.ok ? data : null;
     return expandTemplate(tmpl, { changelist: st?.branch ?? '', client: st?.client ?? '' });
   };

@@ -138,9 +138,10 @@ export function shadoHomeForRepo(repoPath: string, repoId: string): string {
 /** Run shado with the given args. Never throws; returns a structured
  *  result. `opts.env` is merged over the process env (e.g. SHADO_HOME). */
 export function runShado(args: string[], opts: { env?: NodeJS.ProcessEnv } = {}): Promise<ShadoResult> {
+  const exe = shadoExePath()
   return new Promise((resolvePromise) => {
     execFile(
-      shadoExePath(),
+      exe,
       args,
       {
         windowsHide: true,
@@ -148,13 +149,19 @@ export function runShado(args: string[], opts: { env?: NodeJS.ProcessEnv } = {})
         env: opts.env ? { ...process.env, ...opts.env } : process.env,
       },
       (err, stdout, stderr) => {
-        const code =
-          err && typeof (err as NodeJS.ErrnoException & { code?: number }).code === 'number'
-            ? (err as unknown as { code: number }).code
-            : err
-              ? 1
-              : 0
-        resolvePromise({ ok: !err, code, stdout: stdout?.toString() ?? '', stderr: stderr?.toString() ?? '' })
+        const e = err as (NodeJS.ErrnoException & { code?: number | string }) | null
+        // execFile puts the process EXIT code in `err.code` (a number). But a
+        // SPAWN failure puts an errno STRING there instead (ENOENT = binary not
+        // found, EACCES = not executable) and yields NO stdio — so without this
+        // branch the caller only sees a blank "exit 1". Surface the real reason
+        // plus which binary we tried, so failures are diagnosable.
+        const numeric = e && typeof e.code === 'number' ? e.code : undefined
+        const code = numeric ?? (err ? 1 : 0)
+        let errText = stderr?.toString() ?? ''
+        if (err && numeric === undefined && !errText.trim()) {
+          errText = `could not run shado at "${exe}": ${e?.message ?? 'spawn failed'}`
+        }
+        resolvePromise({ ok: !err, code, stdout: stdout?.toString() ?? '', stderr: errText })
       },
     )
   })

@@ -2622,6 +2622,19 @@ input.input.mono, select.input.mono { font-family: var(--font-mono); font-size: 
 .modal-body li { margin: 4px 0; }
 .modal-foot { padding: 14px 22px; display: flex; justify-content: flex-end; gap: 8px; border-top: 1px solid var(--line-1); margin-top: 8px; }
 .modal-foot.spread { justify-content: space-between; }
+
+/* The Add-Repository wizard can get tall (Perforce setup fields + the disk
+   step), which on a short window pushed the footer buttons off-screen. Cap the
+   modal to the viewport as a flex column so the header + footer stay pinned and
+   only the step content scrolls. */
+.wizard-modal { display: flex; flex-direction: column; max-height: calc(100vh - 48px); }
+.wizard-modal-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
+/* Portaled to <body> to escape the Preferences frame's transform/overflow — but
+   that also drops it out of `.prefs`'s stacking context, so lift the whole
+   wizard layer (its scrim + modal + the nested P4-login modal) above `.prefs`
+   (z-index 100). position:relative + z-index makes this a stacking context that
+   contains the fixed scrim/modal without becoming their positioning parent. */
+.wizard-portal { position: relative; z-index: 200; }
 /* Used by modals that title with h3 (e.g. the per-feature dialogs in
    Preferences). Mirrors the .modal-head h2 rule above. */
 .modal-head h3 { margin: 0; font-size: 14px; font-weight: 600; display: flex; align-items: center; gap: 6px; }

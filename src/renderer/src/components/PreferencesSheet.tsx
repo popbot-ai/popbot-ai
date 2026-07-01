@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import { hotkey } from '../lib/hotkeys';
 import { useTranslation } from '../lib/i18n';
 import { LOCALES, type Locale, type MessageKey } from '@shared/i18n';
@@ -50,7 +51,8 @@ import {
   DEFAULT_RE_REVIEW_TEMPLATE,
   DEFAULT_START_CODE_REVIEW_TEMPLATE,
   DEFAULT_START_TICKET_TEMPLATE,
-  DEFAULT_P4_CODE_REVIEW_TEMPLATE,
+  DEFAULT_P4_NEW_CR_TEMPLATE,
+  DEFAULT_P4_ADDRESS_CR_TEMPLATE,
   DEFAULT_RUN_TESTS_TEMPLATE,
   DEFAULT_P4_REVIEW_COMMIT_TEMPLATE,
   GIT_ACTION_TEMPLATE_VARS,
@@ -1302,9 +1304,13 @@ interface TemplatesSettings {
   addressCr?: string;
   rebaseBase?: string;
   // Perforce panel action templates.
-  p4CodeReview?: string;
+  p4NewCr?: string;
+  p4AddressCr?: string;
   runTests?: string;
   p4ReviewCommit?: string;
+  /** @deprecated pre-split combined "code review" template (kept so an existing
+   *  override still round-trips; P4Panel reads it as a p4NewCr fallback). */
+  p4CodeReview?: string;
 }
 
 interface TemplateField {
@@ -1390,9 +1396,16 @@ const GIT_ACTION_TEMPLATE_FIELDS: TemplateField[] = [
  *  control" alongside the git ones. */
 const P4_ACTION_TEMPLATE_FIELDS: TemplateField[] = [
   {
-    key: 'p4CodeReview',
-    labelKey: 'prefs.templates.p4.codeReview.label',
-    fallback: DEFAULT_P4_CODE_REVIEW_TEMPLATE,
+    key: 'p4NewCr',
+    labelKey: 'prefs.templates.p4.newCr.label',
+    fallback: DEFAULT_P4_NEW_CR_TEMPLATE,
+    vars: P4_ACTION_TEMPLATE_VARS,
+    rows: 10,
+  },
+  {
+    key: 'p4AddressCr',
+    labelKey: 'prefs.templates.p4.addressCr.label',
+    fallback: DEFAULT_P4_ADDRESS_CR_TEMPLATE,
     vars: P4_ACTION_TEMPLATE_VARS,
     rows: 10,
   },
@@ -3476,10 +3489,15 @@ function NewRepoWizard({
     }
   };
 
-  return (
-    <>
+  // Portal to <body>: the Preferences sheet (`.prefs`) sets `transform` +
+  // `overflow: hidden`, which makes any `position: fixed` descendant resolve
+  // against — and get CLIPPED by — the Preferences frame instead of the
+  // viewport. Rendering outside that subtree lets the wizard overlay the whole
+  // window (and centers correctly), so the footer is never clipped.
+  return createPortal(
+    <div className="wizard-portal">
     <div className="modal-scrim" onClick={chromeLocked ? undefined : onCancel}>
-      <div className="modal" onClick={(e) => e.stopPropagation()} style={{ width: 540, maxWidth: '92vw' }}>
+      <div className="modal wizard-modal" onClick={(e) => e.stopPropagation()} style={{ width: 540, maxWidth: '92vw' }}>
         <div className="modal-head">
           <h3>
             {t('prefs.repos.wizard.title')}
@@ -3496,6 +3514,7 @@ function NewRepoWizard({
           </button>
         </div>
 
+        <div className="wizard-modal-body">
         {/* Repository: folder → detect → identity (shared by git + perforce) */}
         {step === 'repo' && (
           <div className="modal-body">
@@ -3779,6 +3798,7 @@ function NewRepoWizard({
         )}
 
         {error && <div className="pref-error" style={{ margin: '0 16px' }}>{error}</div>}
+        </div>
 
         {/* 'init' (git) and 'progress' (perforce) embed their own footer.
             Footer is locked while a measure runs so it can't be abandoned. */}
@@ -3808,7 +3828,8 @@ function NewRepoWizard({
         onPathChange(draft.repoPath); // re-detect now that we're logged in
       }}
     />
-    </>
+    </div>,
+    document.body,
   );
 }
 
