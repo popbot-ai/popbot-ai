@@ -331,6 +331,10 @@ export interface PerforceSettings {
    *  unset (the correct value for a non-unicode server). When blank, P4CHARSET
    *  is still inherited from the environment/P4CONFIG if present. */
   charset?: string;
+  /** How often the Reviews panel polls Helix Swarm, in ms. Independent of the
+   *  GitHub poll rate. Clamped to a floor (>=30s) so a shared p4d isn't
+   *  hammered; blank → a conservative default. */
+  reviewPollIntervalMs?: number;
 }
 
 export interface MessageBodyTool {
