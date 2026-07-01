@@ -181,6 +181,7 @@ export const ptBR = {
   // Notifications (App.tsx dispatch, NotificationsBell.tsx, NotificationToast.tsx).
   // ---------------------------------------------------------------------------
   'notify.action.openInLinear': 'Abrir no Linear',
+  'notify.action.openIn': 'Abrir no {provider}',
   'notify.action.openOnGitHub': 'Abrir no GitHub',
   'notify.action.showInPopBot': 'Mostrar no PopBot',
   'notify.ticket.new': 'Novo ticket',

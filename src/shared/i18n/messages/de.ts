@@ -181,6 +181,7 @@ export const de = {
   // Notifications (App.tsx dispatch, NotificationsBell.tsx, NotificationToast.tsx).
   // ---------------------------------------------------------------------------
   'notify.action.openInLinear': 'In Linear öffnen',
+  'notify.action.openIn': 'In {provider} öffnen',
   'notify.action.openOnGitHub': 'Auf GitHub öffnen',
   'notify.action.showInPopBot': 'In PopBot anzeigen',
   'notify.ticket.new': 'Neues Ticket',

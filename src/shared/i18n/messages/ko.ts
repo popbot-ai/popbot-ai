@@ -181,6 +181,7 @@ export const ko = {
   // Notifications (App.tsx dispatch, NotificationsBell.tsx, NotificationToast.tsx).
   // ---------------------------------------------------------------------------
   'notify.action.openInLinear': 'Linear에서 열기',
+  'notify.action.openIn': '{provider}에서 열기',
   'notify.action.openOnGitHub': 'GitHub에서 열기',
   'notify.action.showInPopBot': 'PopBot에서 보기',
   'notify.ticket.new': '새 티켓',

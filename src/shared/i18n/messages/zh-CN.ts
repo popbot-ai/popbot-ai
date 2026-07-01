@@ -181,6 +181,7 @@ export const zhCN = {
   // Notifications (App.tsx dispatch, NotificationsBell.tsx, NotificationToast.tsx).
   // ---------------------------------------------------------------------------
   'notify.action.openInLinear': '在 Linear 中打开',
+  'notify.action.openIn': '在 {provider} 中打开',
   'notify.action.openOnGitHub': '在 GitHub 上打开',
   'notify.action.showInPopBot': '在 PopBot 中显示',
   'notify.ticket.new': '新工单',

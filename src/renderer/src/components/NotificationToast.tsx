@@ -4,6 +4,7 @@ import type { MessageKey } from '@shared/i18n';
 import { useTranslation } from '../lib/i18n';
 import githubIcon from '../assets/notif/github.png';
 import linearIcon from '../assets/notif/linear.png';
+import jiraIcon from '../assets/notif/jira.png';
 import slackIcon from '../assets/notif/slack.png';
 
 const URGENCY_META: Record<NotificationUrgency, { labelKey: MessageKey; color: string; bg: string; border: string; dot: string }> = {
@@ -25,6 +26,12 @@ const KIND_META: Record<string, KindMeta> = {
 };
 const KIND_FALLBACK: KindMeta = { icon: 'fa-bell', bg: '#5d6678', label: '' };
 
+/** Ticket notifications share one kind across providers; resolve the icon from
+ *  the record's `source` (provider label) so Jira/GitHub issues don't show the
+ *  Linear logo. */
+const TICKET_ICON: Record<string, string> = { Linear: linearIcon, Jira: jiraIcon, GitHub: githubIcon };
+const isTicketKind = (kind: string): boolean => kind === 'ticket' || kind === 'linear-issue';
+
 interface ToastProps {
   notification: NotificationRecord;
   onAction: (a: NotificationAction) => void;
@@ -40,6 +47,7 @@ function NotificationToastItem({ notification: n, onAction, onDismiss, centerFly
   const u = URGENCY_META[n.urgency];
   const k = KIND_META[n.kind] ?? KIND_FALLBACK;
   const sourceLabel = n.source || k.label;
+  const img = isTicketKind(n.kind) ? (TICKET_ICON[n.source] ?? k.img) : k.img;
   const [leaving, setLeaving] = useState(false);
   const rootRef = useRef<HTMLDivElement | null>(null);
 
@@ -81,9 +89,9 @@ function NotificationToastItem({ notification: n, onAction, onDismiss, centerFly
   return (
     <div ref={rootRef} className={`toast u-${n.urgency} k-${n.kind} ${leaving ? 'leaving' : ''}`}>
       <div className="toast-rail" style={{ background: u.dot }} />
-      <div className="toast-avatar src" style={{ background: k.bg }} title={k.label}>
-        {k.img
-          ? <img src={k.img} alt={k.label} className="notif-avatar-img" />
+      <div className="toast-avatar src" style={{ background: k.bg }} title={sourceLabel}>
+        {img
+          ? <img src={img} alt={sourceLabel} className="notif-avatar-img" />
           : <i className={`fa-solid ${k.icon}`} />
         }
       </div>

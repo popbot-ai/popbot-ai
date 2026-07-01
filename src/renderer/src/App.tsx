@@ -28,6 +28,7 @@ import { DEFAULT_SOURCE_CONTROL, SOURCE_CONTROL_PROVIDERS } from '@shared/source
 import type { SourceControlProviderId } from '@shared/sourceControl';
 import type { ReviewItem } from '@shared/reviews';
 import type { LinearIssueDto } from '@shared/linear';
+import { TICKET_PROVIDERS, type TicketProviderId } from '@shared/ticketProvider';
 import { useLinearIssues } from './lib/useLinearIssues';
 import { usePrStatusByChat } from './lib/usePrStatusByChat';
 import { Toast } from './components/Toast';
@@ -142,22 +143,29 @@ export default function App(): JSX.Element {
   // baseline on first load, so users don't get spammed by their
   // existing queue on app start — only newly-arrived tickets fire.
   const onNewLinearIssues = useCallback((fresh: LinearIssueDto[]) => {
-    for (const issue of fresh) {
-      void window.popbot.notifications.dispatch({
-        kind: 'ticket',
-        urgency: issue.priority === 1 ? 'high' : 'med',
-        source: 'Linear',
-        title: `${issue.identifier} · ${issue.title}`,
-        subtitle: issue.project?.name ? t('notify.ticket.newWithProject', { project: issue.project.name }) : t('notify.ticket.new'),
-        summary: '',
-        actor: { name: 'Linear', avatar: 'LI', color: '#5e6ad2' },
-        actions: [
-          { kind: 'external', label: t('notify.action.openInLinear'), url: issue.url, primary: true },
-          { kind: 'internal', label: t('notify.action.showInPopBot'), targetKind: 'linear-issue', targetId: issue.id },
-        ],
-        dedupKey: `ticket:${issue.id}`,
-      });
-    }
+    // Notifications must name the CONFIGURED ticket provider (Linear / Jira /
+    // GitHub), not "Linear" — the renderer always polls the `linear` IPC, but
+    // main routes it by the `ticketSource` setting.
+    void window.popbot.settings.get<string>('ticketSource').then((raw) => {
+      const provider: TicketProviderId = raw === 'jira' || raw === 'github' ? raw : 'linear';
+      const label = TICKET_PROVIDERS[provider].label;
+      for (const issue of fresh) {
+        void window.popbot.notifications.dispatch({
+          kind: 'ticket',
+          urgency: issue.priority === 1 ? 'high' : 'med',
+          source: label,
+          title: `${issue.identifier} · ${issue.title}`,
+          subtitle: issue.project?.name ? t('notify.ticket.newWithProject', { project: issue.project.name }) : t('notify.ticket.new'),
+          summary: '',
+          actor: { name: label, avatar: label.slice(0, 2).toUpperCase(), color: '#5e6ad2' },
+          actions: [
+            { kind: 'external', label: t('notify.action.openIn', { provider: label }), url: issue.url, primary: true },
+            { kind: 'internal', label: t('notify.action.showInPopBot'), targetKind: 'linear-issue', targetId: issue.id },
+          ],
+          dedupKey: `ticket:${issue.id}`,
+        });
+      }
+    });
   }, [t]);
   // Lifted out of PanelA so the same poll feeds the ticket list AND
   // the per-chat status chip on every column. PanelA still drives the
