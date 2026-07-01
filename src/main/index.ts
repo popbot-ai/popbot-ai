@@ -1,4 +1,4 @@
-import { app, BrowserWindow, Menu, ipcMain, screen, shell, type Rectangle } from 'electron';
+import { app, BrowserWindow, Menu, ipcMain, screen, shell, type MenuItemConstructorOptions, type Rectangle } from 'electron';
 import { execFile } from 'node:child_process';
 import { join } from 'node:path';
 import { dlog } from './diagLog';
@@ -273,6 +273,27 @@ function createMainWindow(): BrowserWindow {
   window.webContents.setWindowOpenHandler(({ url }) => {
     void openUrlInPreferredBrowser(url);
     return { action: 'deny' };
+  });
+
+  // Native right-click context menu — Electron ships none by default, so
+  // inputs had no cut/copy/paste on Windows. `role: 'paste'` runs
+  // webContents.paste(), which fires the DOM paste event, so pasting an image
+  // into the chat composer works through its existing onPaste handler too.
+  window.webContents.on('context-menu', (_e, params) => {
+    const { isEditable, editFlags, selectionText } = params;
+    const items: MenuItemConstructorOptions[] = [];
+    if (isEditable) {
+      items.push(
+        { role: 'cut', enabled: editFlags.canCut },
+        { role: 'copy', enabled: editFlags.canCopy },
+        { role: 'paste', enabled: editFlags.canPaste },
+        { type: 'separator' },
+        { role: 'selectAll' },
+      );
+    } else if (selectionText.trim().length > 0) {
+      items.push({ role: 'copy' }, { type: 'separator' }, { role: 'selectAll' });
+    }
+    if (items.length > 0) Menu.buildFromTemplate(items).popup({ window });
   });
 
   if (isDev && process.env.ELECTRON_RENDERER_URL) {
