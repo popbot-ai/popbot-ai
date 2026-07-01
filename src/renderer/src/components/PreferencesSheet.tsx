@@ -832,6 +832,7 @@ function PerforceConfigPanel(): JSX.Element {
   const [defaultUser, setDefaultUser] = useState(initial.defaultUser ?? '');
   const [parallelThreads, setParallelThreads] = useState<number>(initial.parallelThreads ?? 4);
   const [revertUnchanged, setRevertUnchanged] = useState<boolean>(initial.revertUnchanged !== false);
+  const [reviewPollSec, setReviewPollSec] = useState<number>(Math.round((initial.reviewPollIntervalMs ?? 120_000) / 1000));
   const [saved, setSaved] = useState(false);
 
   useEffect(() => { setP4Path(initial.p4Path ?? ''); }, [initial.p4Path]);
@@ -839,6 +840,7 @@ function PerforceConfigPanel(): JSX.Element {
   useEffect(() => { setDefaultUser(initial.defaultUser ?? ''); }, [initial.defaultUser]);
   useEffect(() => { setParallelThreads(initial.parallelThreads ?? 4); }, [initial.parallelThreads]);
   useEffect(() => { setRevertUnchanged(initial.revertUnchanged !== false); }, [initial.revertUnchanged]);
+  useEffect(() => { setReviewPollSec(Math.round((initial.reviewPollIntervalMs ?? 120_000) / 1000)); }, [initial.reviewPollIntervalMs]);
 
   if (loading) return <></>;
 
@@ -904,6 +906,18 @@ function PerforceConfigPanel(): JSX.Element {
             </div>
           </div>
           <div className="pref-row">
+            <div className="pref-label">
+              <div className="pref-label-title">{t('prefs.perforce.reviewPoll.title')}</div>
+              <div className="pref-label-desc">{t('prefs.perforce.reviewPoll.desc')}</div>
+            </div>
+            <div className="pref-control" style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+              <input type="number" className="pref-input mono" min={30} max={3600} value={reviewPollSec}
+                     onChange={(e) => setReviewPollSec(Math.max(30, Math.min(3600, Number(e.target.value) || 30)))}
+                     style={{ width: 100 }} />
+              <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--fg-2)' }}>{t('prefs.perforce.reviewPoll.unit')}</span>
+            </div>
+          </div>
+          <div className="pref-row">
             <div className="pref-label" />
             <div className="pref-control" style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
               <button
@@ -916,6 +930,7 @@ function PerforceConfigPanel(): JSX.Element {
                     defaultUser: defaultUser.trim() || undefined,
                     parallelThreads,
                     revertUnchanged,
+                    reviewPollIntervalMs: Math.max(30, reviewPollSec) * 1000,
                   } satisfies PerforceSettings);
                   setSaved(true);
                 }}

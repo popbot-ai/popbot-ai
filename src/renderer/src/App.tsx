@@ -23,7 +23,7 @@ import {
   type AgentCreateConfig,
   type AgentEffortDefaultsSettings,
 } from './components/AgentCreateControls';
-import { DEFAULT_RE_REVIEW_TEMPLATE, DEFAULT_START_CODE_REVIEW_TEMPLATE, DEFAULT_START_TICKET_TEMPLATE, expandTemplate } from './lib/templates';
+import { DEFAULT_RE_REVIEW_TEMPLATE, DEFAULT_START_CL_REVIEW_TEMPLATE, DEFAULT_START_CODE_REVIEW_TEMPLATE, DEFAULT_START_TICKET_TEMPLATE, expandTemplate } from './lib/templates';
 import { DEFAULT_SOURCE_CONTROL, SOURCE_CONTROL_PROVIDERS } from '@shared/sourceControl';
 import type { SourceControlProviderId } from '@shared/sourceControl';
 import type { ReviewItem } from '@shared/reviews';
@@ -835,8 +835,12 @@ export default function App(): JSX.Element {
     if (!requireReady()) return;
     // Review chats are read-only against the configured repo: no slot,
     // no worktree, no branch checkout. The agent gets the repo as cwd
-    // (via AgentHost's repo-fallback) so `gh` works.
+    // (via AgentHost's repo-fallback) so `gh` / `p4` works.
     const reviewAgentConfig = agentConfig ?? codeReviewAgentConfig();
+    const isSwarm = r.scm === 'swarm';
+    // Swarm reviews live on the Perforce server — target a Perforce repo (its
+    // cwd + connection) rather than the default (likely git) repo.
+    const repoId = isSwarm ? await firstPerforceRepoId() : defaultRepoId();
     await createWithSlot(
       {
         // `[CR]` prefix so review chats are obvious in the column
@@ -844,26 +848,40 @@ export default function App(): JSX.Element {
         name: t('app.chat.reviewName', { number: r.number, title: r.title.slice(0, 80) }),
         pr: r.number,
         type: 'lite',
-        repoId: defaultRepoId(),
+        repoId,
         ...reviewAgentConfig,
       },
       {
         onCreated: (chatId) => {
-          const tmpl = (
-            getSetting<{ startCodeReview?: string }>('templates', {})?.startCodeReview
-            ?? DEFAULT_START_CODE_REVIEW_TEMPLATE
-          ).trim();
+          // GitHub PRs → review-pr skill; Swarm reviews → review-cl skill.
+          const tmpl = isSwarm
+            ? (
+                getSetting<{ startClReview?: string }>('templates', {})?.startClReview
+                ?? DEFAULT_START_CL_REVIEW_TEMPLATE
+              ).trim()
+            : (
+                getSetting<{ startCodeReview?: string }>('templates', {})?.startCodeReview
+                ?? DEFAULT_START_CODE_REVIEW_TEMPLATE
+              ).trim();
           if (!tmpl) return;
-          const text = expandTemplate(tmpl, {
-            prnum: r.number,
-            prtitle: r.title,
-            branch: r.headRefName,
-            slot: '',
-          });
+          const text = isSwarm
+            ? expandTemplate(tmpl, { reviewid: r.number, reviewtitle: r.title, reviewurl: r.url })
+            : expandTemplate(tmpl, { prnum: r.number, prtitle: r.title, branch: r.headRefName, slot: '' });
           void window.popbot.agent.send({ chatId, text });
         },
       },
     );
+  };
+
+  /** First configured Perforce repo id (for Swarm review chats), or the
+   *  default repo when none is Perforce. */
+  const firstPerforceRepoId = async (): Promise<string> => {
+    try {
+      const repos = await window.popbot.repos.list();
+      return repos.find((repo) => repo.scm === 'perforce')?.id ?? defaultRepoId();
+    } catch {
+      return defaultRepoId();
+    }
   };
 
   // Legacy single-toast slot used by the update-checker (the rich
