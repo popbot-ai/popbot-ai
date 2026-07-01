@@ -508,6 +508,9 @@ export function P4Panel({ chatId, chatName, diffPath, onOpenDiff }: SourceContro
                 key={f.path}
                 className={`git-file-row ${diffPath === f.path ? 'open' : ''}`}
                 onClick={() => onOpenDiff({ kind: 'wip' }, f.path)}
+                title={f.oldPath
+                  ? t('git.file.rowTitleRenamed', { label: t('git.status.renamed'), oldPath: f.oldPath })
+                  : undefined}
               >
                 <input
                   type="checkbox"

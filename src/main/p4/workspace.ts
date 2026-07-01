@@ -9,7 +9,7 @@
  * base changelist, never a transfer — see the shado+P4 design.
  */
 import { spawn } from 'node:child_process';
-import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { clampP4ParallelThreads, type PerforceSettings } from '@shared/persistence';
 import type { P4Shelf } from '@shared/perforce';
@@ -17,7 +17,8 @@ import type { GitFileStatus } from '@shared/git';
 
 /** Map a Perforce file action to the shared status enum (for shelf file rows). */
 function p4ActionToStatus(action: string): GitFileStatus {
-  if (action === 'add' || action === 'branch' || action === 'move/add' || action === 'import') return 'added';
+  if (action === 'move/add') return 'renamed';
+  if (action === 'add' || action === 'branch' || action === 'import') return 'added';
   if (action === 'delete' || action === 'move/delete' || action === 'purge') return 'deleted';
   return 'modified';
 }
@@ -419,6 +420,106 @@ export async function findLatestShelf(ctx: P4Context, prefix: string): Promise<s
   return best == null ? null : String(best);
 }
 
+interface MovePair {
+  old: string;
+  new: string;
+}
+
+/**
+ * Detect renames among the watcher's raw add/delete set so Perforce records a
+ * true `p4 move` instead of an unrelated delete+add.
+ *
+ * A move on disk reaches the watcher as delete(old)+add(new). We can't hash
+ * big game assets to prove sameness (moves can be huge), so we confirm it
+ * cheaply: the added file is on disk (stat its size + mtime); the deleted file
+ * is gone, so we ask the depot for its size (`fstat -Ol`) and submit-time mtime
+ * (`headModTime`). Same SIZE is our proxy for "same file"; when several files
+ * share a size we disambiguate by mtime (a move preserves it). Only unambiguous
+ * matches are paired — anything else falls back to delete+add.
+ *
+ * A false positive is harmless: `move/add` submits the NEW file's on-disk
+ * content, so the worst case is a slightly-wrong history link, never lost work.
+ */
+async function detectMoves(
+  ctx: P4Context,
+  wt: string,
+  changes: { path: string; kind: 'modify' | 'add' | 'delete' }[],
+): Promise<MovePair[]> {
+  const adds = changes.filter((c) => c.kind === 'add');
+  const dels = changes.filter((c) => c.kind === 'delete');
+  if (adds.length === 0 || dels.length === 0) return [];
+
+  // Added files are present — stat them (size + mtime in whole seconds).
+  const addInfo = new Map<string, { size: number; mtime: number }>();
+  for (const a of adds) {
+    try {
+      const s = statSync(join(wt, a.path));
+      addInfo.set(a.path, { size: s.size, mtime: Math.round(s.mtimeMs / 1000) });
+    } catch {
+      /* vanished again — not a move candidate */
+    }
+  }
+  if (addInfo.size === 0) return [];
+
+  // Deleted files are gone from disk — ask the depot for size (fstat -Ol) and
+  // submit-time mtime (headModTime), batched into one call.
+  const delInfo = new Map<string, { size: number; mtime: number }>();
+  const specs = dels.map((d) => `//${d.path}`);
+  const r = await p4exec(
+    ctx,
+    ['-ztag', 'fstat', '-Ol', '-T', 'depotFile,fileSize,headModTime', ...specs],
+    { cwd: wt, tolerant: true, maxBuffer: 64 * 1024 * 1024 },
+  );
+  for (const rec of parseZtag(r.stdout)) {
+    if (!rec.depotFile || rec.fileSize == null) continue;
+    delInfo.set(rec.depotFile.replace(/^\/+/, ''), {
+      size: Number(rec.fileSize),
+      mtime: rec.headModTime ? Number(rec.headModTime) : Number.NaN,
+    });
+  }
+  if (delInfo.size === 0) return [];
+
+  // Bucket candidates by size; within a size, pair 1:1, else disambiguate by
+  // mtime and leave anything still ambiguous as delete+add.
+  const bySize = new Map<number, { dels: string[]; adds: string[] }>();
+  for (const [p, i] of delInfo) {
+    const b = bySize.get(i.size) ?? { dels: [], adds: [] };
+    b.dels.push(p);
+    bySize.set(i.size, b);
+  }
+  for (const [p, i] of addInfo) {
+    bySize.get(i.size)?.adds.push(p);
+  }
+
+  const pairs: MovePair[] = [];
+  const MTIME_TOL = 2; // seconds
+  for (const bucket of bySize.values()) {
+    if (bucket.adds.length === 0) continue;
+    if (bucket.dels.length === 1 && bucket.adds.length === 1) {
+      pairs.push({ old: bucket.dels[0], new: bucket.adds[0] });
+      continue;
+    }
+    // Size collision — match by mtime, greedily and uniquely.
+    const freeAdds = new Set(bucket.adds);
+    for (const d of bucket.dels) {
+      const dm = delInfo.get(d)?.mtime ?? Number.NaN;
+      if (Number.isNaN(dm)) continue;
+      let match: string | null = null;
+      for (const a of freeAdds) {
+        if (Math.abs((addInfo.get(a)?.mtime ?? Number.NaN) - dm) <= MTIME_TOL) {
+          match = a;
+          break;
+        }
+      }
+      if (match) {
+        pairs.push({ old: d, new: match });
+        freeAdds.delete(match);
+      }
+    }
+  }
+  return pairs;
+}
+
 /**
  * Open filesystem changes (from the slot watcher) in Perforce with targeted
  * `p4 edit/add/delete` — the bridge that makes p4 track an agent's free
@@ -426,6 +527,10 @@ export async function findLatestShelf(ctx: P4Context, prefix: string): Promise<s
  * BOTH `edit` and `add`: `edit` opens the ones already in the depot, `add`
  * opens the ones that aren't, and each is a tolerated no-op for the other
  * category — so we never have to probe per file. Batched via `p4 -x -`.
+ *
+ * A disk move arrives as delete(old)+add(new); {@link detectMoves} pairs them
+ * so we reopen a real `p4 move` (edit -k + move -k: the file is already where
+ * it belongs on disk) and the file viewer shows a rename, not a delete+add.
  */
 export async function openChanges(
   ctx: P4Context,
@@ -433,19 +538,66 @@ export async function openChanges(
   changes: { path: string; kind: 'modify' | 'add' | 'delete' }[],
   changelist?: number,
 ): Promise<void> {
-  const present = changes.filter((c) => c.kind !== 'delete').map((c) => `//${c.path}`);
-  const removed = changes.filter((c) => c.kind === 'delete').map((c) => `//${c.path}`);
+  if (changes.length === 0) return;
   // Open into the chat's named changelist when there is one (else the default).
   const clArgs = changelist ? ['-c', String(changelist)] : [];
-  const total = present.length + removed.length;
-  if (total === 0) return;
 
   // SCALE: a game export can be tens of thousands of files. Chunk so no single
   // `p4` call / stdin is unbounded, AND run the chunks as PARALLEL p4 processes
   // (bounded pool) so the server-bound opens overlap. Progress is streamed so
-  // the panel isn't frozen.
+  // the panel isn't frozen. Shared by the move + edit/add/delete passes.
   const CHUNK = 4000;
   const POOL = Math.max(2, Math.min(16, clampP4ParallelThreads(getSetting<PerforceSettings>('perforce')?.parallelThreads)));
+
+  const presentAll = changes.filter((c) => c.kind !== 'delete');
+  const removedAll = changes.filter((c) => c.kind === 'delete');
+  const total = presentAll.length + removedAll.length;
+  if (total === 0) return;
+
+  let done = 0;
+  const showProgress = total > CHUNK; // only worth it for big sets
+  const tick = (n: number): void => {
+    done += n;
+    if (showProgress) emitP4Progress(`Opening ${done.toLocaleString()} / ${total.toLocaleString()} files…`);
+  };
+
+  // --- Rename pass ----------------------------------------------------------
+  // Best-effort: any failure reverts the source's edit-open and falls back to a
+  // plain delete+add below, so a move never drops a file from the change.
+  const moves = await detectMoves(ctx, wt, changes).catch(() => [] as MovePair[]);
+  const movedPaths = new Set<string>();
+  if (moves.length) {
+    let mi = 0;
+    await Promise.all(
+      Array.from({ length: Math.min(POOL, moves.length) }, async () => {
+        while (mi < moves.length) {
+          const pair = moves[mi++];
+          const oldSpec = `//${pair.old}`;
+          const newSpec = `//${pair.new}`;
+          // -k: the file is already at the new path on disk; only reopen the
+          // Perforce bookkeeping (source must be open for edit first).
+          await p4exec(ctx, ['edit', '-k', ...clArgs, oldSpec], { cwd: wt, tolerant: true });
+          const res = await p4exec(ctx, ['move', '-k', ...clArgs, oldSpec, newSpec], {
+            cwd: wt,
+            tolerant: true,
+          });
+          if (res.code === 0 && /moved from/i.test(res.stdout)) {
+            movedPaths.add(pair.old);
+            movedPaths.add(pair.new);
+            tick(2);
+          } else {
+            // Undo the edit-open (keep the workspace file) so the fallback
+            // delete/add stays clean.
+            await p4exec(ctx, ['revert', '-k', oldSpec], { cwd: wt, tolerant: true });
+          }
+        }
+      }),
+    );
+  }
+
+  const present = presentAll.filter((c) => !movedPaths.has(c.path)).map((c) => `//${c.path}`);
+  const removed = removedAll.filter((c) => !movedPaths.has(c.path)).map((c) => `//${c.path}`);
+
   const open1 = (action: string, batch: string[]): Promise<P4ExecResult> =>
     p4exec(ctx, ['-x', '-', action, ...clArgs], {
       cwd: wt,
@@ -454,12 +606,6 @@ export async function openChanges(
       maxBuffer: 64 * 1024 * 1024,
     });
 
-  let done = 0;
-  const showProgress = total > CHUNK; // only worth it for big sets
-  const tick = (n: number): void => {
-    done += n;
-    if (showProgress) emitP4Progress(`Opening ${done.toLocaleString()} / ${total.toLocaleString()} files…`);
-  };
   // Each task is one chunk. Present files run edit+add (p4 sorts depot vs new);
   // removed run delete. Tasks are independent → safe to run concurrently.
   const tasks: Array<() => Promise<void>> = [];
