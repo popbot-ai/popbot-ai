@@ -19,11 +19,13 @@ type Action = 'p4ignore' | 'prefs' | 'session' | 'reconcile';
 export function P4SpamDialog({ chatId, suggestion, onDone }: P4SpamDialogProps): JSX.Element {
   const [path, setPath] = useState(suggestion);
   const [busy, setBusy] = useState<Action | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   const act = async (action: Action): Promise<void> => {
     const p = path.trim();
     if (!p || busy) return;
     setBusy(action);
+    setError(null);
     try {
       const res = await window.popbot.git.p4SpamAction({ chatId, path: p, action });
       // Only close on success; on failure keep the dialog open so the user can
@@ -31,10 +33,10 @@ export function P4SpamDialog({ chatId, suggestion, onDone }: P4SpamDialogProps):
       if (res?.ok === true) {
         onDone();
       } else {
-        alert('Perforce action failed. Please try again.');
+        setError('Perforce action failed. Please try again.');
       }
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Perforce action failed. Please try again.');
+      setError(err instanceof Error ? err.message : 'Perforce action failed. Please try again.');
     } finally {
       setBusy(null);
     }
@@ -65,6 +67,11 @@ export function P4SpamDialog({ chatId, suggestion, onDone }: P4SpamDialogProps):
             (no repo edit). <b>this session</b> — mute until restart. <b>Reconcile</b> — these are real:
             recover them into the changelist.
           </p>
+          {error && (
+            <div className="p4-error" role="alert" style={{ marginTop: 8 }}>
+              {error}
+            </div>
+          )}
         </div>
         <div className="modal-foot" style={{ flexDirection: 'column', alignItems: 'stretch', gap: 6 }}>
           <button className="btn primary" disabled={!!busy} onClick={() => void act('p4ignore')}>
