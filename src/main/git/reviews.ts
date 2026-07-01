@@ -1,5 +1,8 @@
 /**
- * GitHub PR-review polling for the popbot Reviews tab.
+ * GitHub PR-review polling — the git provider's review source (colocated
+ * with the git platform code; the Perforce/Swarm equivalent lives under
+ * `../p4/`). The provider-agnostic Reviews orchestrator + panel consume
+ * these through the common review interface.
  *
  * We shell out to the `gh` CLI rather than hitting the API directly
  * because (a) auth is already configured for the same `gh` we use
@@ -208,6 +211,7 @@ export async function listRecentOpenPrs(): Promise<
   try {
     const rows = await ghPrSearch(qualifier, search, paths[0]);
     const prs: ReviewItem[] = rows.map((pr) => ({
+      scm: 'github',
       number: pr.number,
       title: pr.title,
       url: pr.url,
@@ -252,6 +256,7 @@ export async function getReviewByNumber(prNumber: number): Promise<
     );
     const data = JSON.parse(stdout) as GhPr;
     const pr: ReviewItem = {
+      scm: 'github',
       number: data.number,
       title: data.title,
       url: data.url,
@@ -322,6 +327,7 @@ export async function listPendingReviews(): Promise<ListReviewsResult> {
       return;
     }
     byNumber.set(pr.number, {
+      scm: 'github',
       number: pr.number,
       title: pr.title,
       url: pr.url,

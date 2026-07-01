@@ -3,8 +3,15 @@
  * these via the `gh` CLI; the renderer polls + diffs to fire alerts.
  */
 
+/** Which review system surfaced an item — GitHub PRs vs Helix Swarm reviews.
+ *  The Reviews panel renders both in one list and branches on this for the
+ *  per-item action (open PR / open Swarm review, spawn review-pr / review-cl). */
+export type ReviewSystem = 'github' | 'swarm';
+
 export interface ReviewItem {
-  /** PR number within the repo. */
+  /** Which review system this came from. */
+  scm: ReviewSystem;
+  /** PR number (GitHub) or review id (Swarm) within the repo/server. */
   number: number;
   title: string;
   url: string;
