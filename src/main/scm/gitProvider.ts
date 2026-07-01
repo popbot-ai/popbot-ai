@@ -11,6 +11,11 @@ import { execFile } from 'node:child_process';
 import { homedir } from 'node:os';
 import { promisify } from 'node:util';
 import type { GitBaseBranches, GitFileChange, GitScope } from '@shared/git';
+import type {
+  GetReviewResult,
+  ListRecentReviewsResult,
+  ListReviewsResult,
+} from '@shared/reviews';
 import type { RepoRecord } from '@shared/persistence';
 import { listRepos } from '../persistence/repos';
 import { ensureSlot, removeSlot } from '../shado/slots';
@@ -41,6 +46,11 @@ import {
   listStatus,
   revertFiles,
 } from '../git/files';
+import {
+  getReviewByNumber as ghGetReview,
+  listPendingReviews as ghListPendingReviews,
+  listRecentOpenPrs as ghListRecentOpenPrs,
+} from '../git/reviews';
 import {
   chatStashPrefix,
   checkoutBranch,
@@ -107,6 +117,18 @@ export class GitProvider extends SourceControlProvider {
   }
   deriveUsername(cwd: string = homedir()): Promise<string> {
     return deriveGitUsername(cwd);
+  }
+
+  /* ---------- code review (GitHub PRs via gh) ---------- */
+
+  listPendingReviews(repoPaths: string[]): Promise<ListReviewsResult> {
+    return ghListPendingReviews(repoPaths);
+  }
+  listRecentReviews(repoPaths: string[]): Promise<ListRecentReviewsResult> {
+    return ghListRecentOpenPrs(repoPaths);
+  }
+  getReview(repoPaths: string[], prNumber: number): Promise<GetReviewResult> {
+    return ghGetReview(repoPaths, prNumber);
   }
 
   /* ---------- workspace lifecycle ---------- */

@@ -34,6 +34,11 @@ import type {
 } from '@shared/git';
 import type { SourceControlProviderId, SourceControlCapabilities } from '@shared/sourceControl';
 import type {
+  GetReviewResult,
+  ListRecentReviewsResult,
+  ListReviewsResult,
+} from '@shared/reviews';
+import type {
   CheckoutBranchOpts,
   EnsureChatWorktreeOpts,
   EnsureSlotWorktreeOpts,
@@ -137,6 +142,33 @@ export abstract class SourceControlProvider {
   abstract detectPr(wt: string, opts?: { prNumber?: number }): Promise<ScmDetectPrResult>;
   /** Branch-name username (gh login / git identity / Perforce user). */
   abstract deriveUsername(cwd: string): Promise<string>;
+
+  /* ---------- code review (the Reviews panel) ----------
+   *
+   * Reviews are account/server-scoped, not worktree-scoped: GitHub PRs across
+   * the user's repos, Swarm reviews across the p4 server. The provider-agnostic
+   * orchestrator (`../reviews`) groups configured repos by scm and hands each
+   * provider ITS repo paths. All gated by `capabilities.pullRequests`; base
+   * class answers "no reviews" so a provider without review support is inert. */
+
+  /** Reviews awaiting the user across this provider's `repoPaths`. */
+  listPendingReviews(_repoPaths: string[]): Promise<ListReviewsResult> {
+    return Promise.resolve({ ok: true, reviews: [] });
+  }
+  /** Recent open reviews for the WorkItemSearch picker (unfiltered). */
+  listRecentReviews(_repoPaths: string[]): Promise<ListRecentReviewsResult> {
+    return Promise.resolve({ ok: true, prs: [] });
+  }
+  /** One review by number/id — the manual "+" pin (bypasses queue filters). */
+  getReview(_repoPaths: string[], _number: number): Promise<GetReviewResult> {
+    return Promise.resolve({ ok: false, reason: 'not-found' });
+  }
+  /** How often the Reviews panel polls THIS provider (ms). Each provider owns
+   *  its cadence — Perforce/Swarm runs slower than GitHub to protect a shared
+   *  p4d; a provider may read a user setting to override. */
+  reviewPollIntervalMs(): number {
+    return 60_000;
+  }
 
   /* ---------- workspace lifecycle (the slot system) ---------- */
 

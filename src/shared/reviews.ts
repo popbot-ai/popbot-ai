@@ -39,6 +39,21 @@ export interface ReviewItem {
   };
 }
 
+/** Shared failure reasons across review systems. `gh-*` are GitHub-specific
+ *  (kept for the renderer's existing status handling); Swarm maps its own
+ *  failures onto `no-repo` (not configured / not logged in) and `error`. */
+export type ReviewFailReason = 'gh-not-found' | 'gh-not-authed' | 'no-repo' | 'error';
+
 export type ListReviewsResult =
   | { ok: true; reviews: ReviewItem[] }
-  | { ok: false; reason: 'gh-not-found' | 'gh-not-authed' | 'no-repo' | 'error'; error?: string };
+  | { ok: false; reason: ReviewFailReason; error?: string };
+
+/** Result of listing recent open reviews — the WorkItemSearch picker. */
+export type ListRecentReviewsResult =
+  | { ok: true; prs: ReviewItem[] }
+  | { ok: false; reason: ReviewFailReason; error?: string };
+
+/** Result of fetching one review by number/id — the manual "+" pin flow. */
+export type GetReviewResult =
+  | { ok: true; pr: ReviewItem }
+  | { ok: false; reason: 'not-found' | ReviewFailReason; error?: string };
