@@ -153,8 +153,10 @@ export async function getSwarmReview(conn: SwarmConn, id: number): Promise<Swarm
   });
   if (resp.status === 404) return null;
   if (!resp.ok) throw new SwarmHttpError(resp.status, `Swarm review ${id} failed: HTTP ${resp.status}`);
-  const body = (await resp.json()) as { data?: { review?: SwarmReview } };
-  return body.data?.review ?? null;
+  // The single-review endpoint returns the SAME shape as the list —
+  // `data.reviews` is a one-element array — NOT a singular `data.review`.
+  const body = (await resp.json()) as { data?: { reviews?: SwarmReview[] } };
+  return body.data?.reviews?.[0] ?? null;
 }
 
 export class SwarmHttpError extends Error {
