@@ -118,21 +118,25 @@ describe('slot watcher (real @parcel/watcher backend)', () => {
     // add and are missed — so creating dirs after startSlotWatch would let the
     // churn slip past CHURN_CAP and never trip. FSEvents/RDCW watch the whole
     // tree and don't have this race, but pre-creating is correct everywhere.
-    const subs = 10;
+    // Spread across MANY subdirs, all pre-created before the watch: the wide
+    // spread defeats FSEvents' per-directory coalescing on macOS (batching into
+    // a few dirs delivered too few events to reach CHURN_CAP), while pre-creating
+    // avoids the Linux inotify new-subdir race.
+    const subs = 60;
     for (let d = 0; d < subs; d++) mkdirSync(join(exploder, `batch${d}`), { recursive: true });
     startSlotWatch(slot);
     await new Promise((r) => setTimeout(r, 400));
 
-    // Dump well past CHURN_CAP (4000) into the ALREADY-WATCHED subdirs, paced so
-    // every backend keeps up and delivers discrete per-file events (keeping
-    // churnByDir populated with concrete subdirs, so the suggested root resolves
-    // under the exploder). Stop early once detection trips.
-    for (let round = 0; round < 15 && !getSpamSuggestion(slot); round++) {
-      for (let d = 0; d < subs; d++) {
+    // Dump well past CHURN_CAP (4000) into the ALREADY-WATCHED subdirs, one dir
+    // per drain so every backend keeps up and delivers discrete per-file events
+    // (keeping churnByDir populated with concrete subdirs, so the suggested root
+    // resolves under the exploder). Loop until it trips, with a hard bound.
+    for (let round = 0; round < 3 && !getSpamSuggestion(slot); round++) {
+      for (let d = 0; d < subs && !getSpamSuggestion(slot); d++) {
         const sub = join(exploder, `batch${d}`);
-        for (let i = 0; i < 40; i++) writeFileSync(join(sub, `shader_${round}_${i}.gen`), 'x');
+        for (let i = 0; i < 100; i++) writeFileSync(join(sub, `shader_${round}_${i}.gen`), 'x');
+        await new Promise((r) => setTimeout(r, 20)); // let the watcher drain
       }
-      await new Promise((r) => setTimeout(r, 40)); // let the watcher drain
     }
 
     const suggestion = await waitFor(() => getSpamSuggestion(slot), 20000, 100);
