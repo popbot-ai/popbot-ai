@@ -54,15 +54,16 @@ type FreeForm =
 
 /** Parse the user's query for a free-form ticket id / review number that
  *  doesn't match anything already in the lists. Returns the parsed
- *  form when the query unambiguously names one. A `swarm`/`sw`/`cl`/`review`
- *  prefix (e.g. "swarm 27", "sw#27") names a Helix Swarm review; a bare
- *  number or `PR #123` names a GitHub PR. */
+ *  form when the query unambiguously names one. A `swarm`/`sw`/`review`
+ *  prefix (e.g. "swarm 27", "sw#27") names a Helix Swarm review BY REVIEW ID
+ *  (the /reviews/<id> path — NOT a changelist number); a bare number or
+ *  `PR #123` names a GitHub PR. */
 function parseFreeForm(raw: string): FreeForm {
   const s = raw.trim();
   if (!s) return null;
   const tm = /^([A-Z]{2,5})-(\d+)$/i.exec(s);
   if (tm) return { kind: 'ticket', identifier: `${tm[1].toUpperCase()}-${tm[2]}` };
-  const sm = /^(?:swarm|sw|cl|review)\s*#?\s*(\d+)$/i.exec(s);
+  const sm = /^(?:swarm|sw|review)\s*#?\s*(\d+)$/i.exec(s);
   if (sm) return { kind: 'pr', number: Number(sm[1]), system: 'swarm' };
   const pm = /^(?:PR\s*)?#?\s*(\d+)$/i.exec(s);
   if (pm) return { kind: 'pr', number: Number(pm[1]), system: 'github' };
@@ -151,7 +152,9 @@ export function WorkItemSearch({
     // Hide the "pin new" row when the item is already in the list —
     // the existing row already shows up under "Tickets" / "PRs".
     if (ff.kind === 'ticket' && knownTickets.some((t) => t.identifier === ff.identifier)) return null;
-    if (ff.kind === 'pr' && knownPrs.some((p) => p.number === ff.number)) return null;
+    // Match on system + number so a Swarm review #27 isn't hidden by a GitHub
+    // PR #27 already in the list (and vice versa).
+    if (ff.kind === 'pr' && knownPrs.some((p) => p.number === ff.number && p.scm === ff.system)) return null;
     return ff;
   }, [query, knownTickets, knownPrs]);
 
