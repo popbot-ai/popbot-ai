@@ -43,10 +43,105 @@ function bufToText(buf: Buffer | null): { text: string; isBinary: boolean } {
   return { text: buf.toString('utf8'), isBinary: false };
 }
 
+// ---- Recent-changes cache ----
+//
+// `p4 changes` over the whole client view (an aggregate include list) is a
+// server round-trip that can be slow, so it must NOT be awaited inside the
+// per-status path — doing so hung the app on startup. Instead the submitted-CL
+// list is cached per view-scope and refreshed in the BACKGROUND: status serves
+// whatever's cached instantly, a stale entry triggers a fire-and-forget refresh
+// (effectively periodic), and a commit queues an immediate refresh.
+
+interface RecentEntry {
+  commits: GitCommitSummary[];
+  fetchedAt: number;
+  inFlight?: Promise<void>;
+}
+const recentCache = new Map<string, RecentEntry>();
+const RECENT_TTL_MS = 90_000; // serve cached; refresh in bg at most this often
+
+/** REPO-LEVEL depot scope to list changes against. The team's recent CLs are
+ *  identical for every chat/slot of a repo, so this keys the cache so the fetch
+ *  happens ONCE PER REPO. Prefer the main workspace client's full view (the
+ *  aggregate include list), else the repo's depot path — both are repo-stable.
+ *  Returns null when neither is known; we deliberately do NOT fall back to the
+ *  per-slot client (that would key the cache per chat and fetch N times). */
+function changesScopeFor(viewClient?: string, depotPath?: string): string | null {
+  if (viewClient) return `//${viewClient}/...`;
+  if (depotPath) return `${depotPath.replace(/\/+$/, '')}/...`;
+  return null;
+}
+
+/** Cache key for a scope, namespaced by the connection identity so different
+ *  Perforce servers/users with an identically-named client/depot don't collide. */
+function recentCacheKey(ctx: P4Context, scope: string): string {
+  return `${ctx.port}\t${ctx.user}\t${scope}`;
+}
+
+function parseChanges(stdout: string): GitCommitSummary[] {
+  const out: GitCommitSummary[] = [];
+  for (const rec of parseZtag(stdout)) {
+    if (!rec.change) continue;
+    out.push({
+      sha: rec.change,
+      shortSha: rec.change,
+      author: rec.user ?? '',
+      date: rec.time ? Number(rec.time) * 1000 : 0,
+      subject: (rec.desc ?? '').split('\n')[0]?.trim() ?? '',
+    });
+  }
+  return out;
+}
+
+/** Background refresh of the recent-changes cache for `scope`. Coalesces
+ *  concurrent refreshes; never rejects. */
+function refreshRecentChanges(ctx: P4Context, scope: string): Promise<void> {
+  const key = recentCacheKey(ctx, scope);
+  const cur = recentCache.get(key);
+  if (cur?.inFlight) return cur.inFlight;
+  const p = (async () => {
+    const r = await p4exec(ctx, ['-ztag', 'changes', '-m', '20', '-s', 'submitted', '-t', scope], {
+      tolerant: true,
+      maxBuffer: 8 * 1024 * 1024,
+    });
+    // Overwrite only on a usable result; on error keep the old commits but stamp
+    // the time so we back off rather than hammer a failing/slow server.
+    const commits = r.code === 0 ? parseChanges(r.stdout) : recentCache.get(key)?.commits ?? [];
+    recentCache.set(key, { commits, fetchedAt: Date.now() });
+  })()
+    .catch(() => {})
+    .finally(() => {
+      const e = recentCache.get(key);
+      if (e) e.inFlight = undefined;
+    });
+  recentCache.set(key, { commits: cur?.commits ?? [], fetchedAt: cur?.fetchedAt ?? 0, inFlight: p });
+  return p;
+}
+
+/** Cached recent changes for `scope`; returns immediately and kicks off a
+ *  background refresh when the entry is missing or stale. Never blocks. */
+function recentChangesCached(ctx: P4Context, scope: string | null): GitCommitSummary[] {
+  if (!scope) return [];
+  const e = recentCache.get(recentCacheKey(ctx, scope));
+  if (!e || (!e.inFlight && Date.now() - e.fetchedAt > RECENT_TTL_MS)) {
+    void refreshRecentChanges(ctx, scope);
+  }
+  return e?.commits ?? [];
+}
+
+/** Queue a (non-blocking) recent-changes refresh — call after a commit so the
+ *  panel reflects the new CL without waiting for the TTL. */
+export function queueRecentChangesRefresh(ctx: P4Context, viewClient?: string, depotPath?: string): void {
+  const scope = changesScopeFor(viewClient, depotPath);
+  if (scope) void refreshRecentChanges(ctx, scope);
+}
+
 /** Files open in the slot's pending changelist + recent submitted changes. */
 export async function listStatus(
   ctx: P4Context,
   wt: string,
+  viewClient?: string,
+  depotPath?: string,
 ): Promise<{
   branch: string | null;
   ahead: number;
@@ -56,13 +151,12 @@ export async function listStatus(
   client?: string;
   changeNumber?: string;
 }> {
-  const [openedR, changesR] = await Promise.all([
-    p4exec(ctx, ['-ztag', 'opened'], { cwd: wt, tolerant: true }),
-    p4exec(ctx, ['-ztag', 'changes', '-m', '20', '-s', 'submitted', '-t', './...'], {
-      cwd: wt,
-      tolerant: true,
-    }),
-  ]);
+  // Only `p4 opened` is awaited here — it's fast and slot-local. "Recent
+  // changes" hits the server across the whole view (slow on a big aggregate
+  // include list), so it's served from a background-refreshed cache and never
+  // blocks status (awaiting it inline was hanging the app on startup).
+  const changesScope = changesScopeFor(viewClient, depotPath);
+  const openedR = await p4exec(ctx, ['-ztag', 'opened'], { cwd: wt, tolerant: true });
 
   // `tolerant` swallows a failed `p4 opened`, which on an expired/missing login
   // ticket would otherwise render as an empty "no open files" workspace and
@@ -83,17 +177,8 @@ export async function listStatus(
     files.push({ path: depotToKey(depotFile), status: actionToStatus(rec.action ?? 'edit') });
   }
 
-  const recentCommits: GitCommitSummary[] = [];
-  for (const rec of parseZtag(changesR.stdout)) {
-    if (!rec.change) continue;
-    recentCommits.push({
-      sha: rec.change,
-      shortSha: rec.change,
-      author: rec.user ?? '',
-      date: rec.time ? Number(rec.time) * 1000 : 0,
-      subject: (rec.desc ?? '').split('\n')[0]?.trim() ?? '',
-    });
-  }
+  // Served from the cache (instant); a stale entry refreshes in the background.
+  const recentCommits = recentChangesCached(ctx, changesScope);
 
   // Perforce has no branch/ahead/behind; surface the client name as the
   // "branch" label for the panel header, and also as `client` so the panel can

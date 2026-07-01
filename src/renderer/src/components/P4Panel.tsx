@@ -12,6 +12,7 @@
  * `p4 opened` honest, so this panel just renders provider output.
  */
 import { useEffect, useRef, useState } from 'react';
+import { P4SpamDialog } from './P4SpamDialog';
 import type { GitFileChange, GitFileStatus } from '@shared/git';
 import { isP4AuthError } from '@shared/perforce';
 import { useGitStatus } from '../lib/useGitStatus';
@@ -674,6 +675,14 @@ export function P4Panel({ chatId, chatName, diffPath, onOpenDiff }: SourceContro
             </div>
           </div>
         </>
+      )}
+
+      {ok?.spamSuggestion && (
+        <P4SpamDialog
+          chatId={chatId}
+          suggestion={ok.spamSuggestion}
+          onDone={() => void refresh()}
+        />
       )}
 
       {confirmAction && (

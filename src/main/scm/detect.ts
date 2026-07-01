@@ -14,7 +14,9 @@ import { execFile } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { promisify } from 'node:util';
-import { p4bin } from '../p4/exec';
+import { p4bin, p4exec } from '../p4/exec';
+import { p4Login } from '../p4/workspace';
+import { isP4AuthError } from '@shared/perforce';
 import type { P4WorkspaceInfo } from '@shared/ipc';
 
 const execFileP = promisify(execFile);
@@ -35,9 +37,12 @@ function hasP4Config(folder: string): boolean {
 }
 
 /** Normalize a path for root comparison (trim, unify slashes, drop trailing
- *  slash, lowercase — Windows roots are case-insensitive). */
+ *  slash). Case-folded on case-insensitive filesystems (Windows, macOS) but NOT
+ *  on Linux, where `/Foo` and `/foo` are distinct directories — lowercasing
+ *  there could match the wrong Perforce client root. */
 function pathKey(p: string): string {
-  return p.trim().replace(/[\\/]+$/, '').replace(/\\/g, '/').toLowerCase();
+  const k = p.trim().replace(/[\\/]+$/, '').replace(/\\/g, '/');
+  return process.platform === 'linux' ? k : k.toLowerCase();
 }
 
 /** A local `p4 set <NAME>` value (env/registry, no server hit). */
@@ -51,6 +56,44 @@ async function p4Set(name: string): Promise<string> {
 }
 const p4User = (): Promise<string> => p4Set('P4USER');
 const p4Port = (): Promise<string> => p4Set('P4PORT');
+
+// ---- Ambient Perforce login (no repo context) ----
+//
+// At startup and during Add-Repository folder detection there's no configured
+// repo yet, so we use the machine's ambient connection from `p4 set`
+// (P4PORT/P4USER). A live login ticket is required for the server-side folder
+// probes; without one they read as "not Perforce", so callers check the status
+// first and prompt for a login when it's expired.
+
+/** The machine's ambient P4 connection, or null when P4PORT isn't set (i.e.
+ *  Perforce isn't configured on this machine — nothing to log into). */
+export async function ambientP4Conn(): Promise<{ port: string; user: string } | null> {
+  const port = await p4Port();
+  if (!port) return null;
+  return { port, user: await p4User() };
+}
+
+export type P4AmbientStatus = 'no-p4' | 'logged-in' | 'expired' | 'unreachable';
+
+/** Ambient `p4 login -s`. 'no-p4' when unconfigured, 'logged-in' when the ticket
+ *  is valid, 'expired' on an auth error (the prompt-for-login case), or
+ *  'unreachable' when the server can't be contacted. Note: `p4 login -s` exits 0
+ *  even when expired (the message is on stdout), so we classify by content. */
+export async function ambientP4LoginStatus(): Promise<P4AmbientStatus> {
+  const conn = await ambientP4Conn();
+  if (!conn) return 'no-p4';
+  const res = await p4exec(conn, ['login', '-s'], { tolerant: true, timeout: 8000 });
+  if (res.code === 0 && /expires/i.test(res.stdout)) return 'logged-in';
+  if (isP4AuthError(`${res.stdout}\n${res.stderr}`)) return 'expired';
+  return 'unreachable';
+}
+
+/** Mint a ticket for the ambient connection from a typed password. */
+export async function ambientP4Login(password: string): Promise<{ ok: boolean; error?: string }> {
+  const conn = await ambientP4Conn();
+  if (!conn) return { ok: false, error: 'No Perforce connection configured (P4PORT is unset).' };
+  return p4Login(conn, password);
+}
 
 type ClientMatch = { kind: 'found'; client: string } | { kind: 'none' } | { kind: 'unknown' };
 

@@ -57,7 +57,10 @@ function resolveShell(): { file: string; args: string[] } {
         return { file: 'powershell.exe', args: ['-NoLogo'] };
     }
   }
-  return { file: process.env.SHELL || '/bin/zsh', args: ['-l'] };
+  return {
+    file: process.env.SHELL || (process.platform === 'darwin' ? '/bin/zsh' : '/bin/bash'),
+    args: ['-l'],
+  };
 }
 
 export function attachWebContents(wc: WebContents): void {

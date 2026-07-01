@@ -11,7 +11,7 @@
 // are gated and surfaced to the user, not run silently as admin here.
 
 import { execFile, execFileSync } from 'node:child_process'
-import { existsSync } from 'node:fs'
+import { chmodSync, existsSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join, parse } from 'node:path'
 import { app } from 'electron'
@@ -49,6 +49,21 @@ const exeName = process.platform === 'win32' ? 'shado.exe' : 'shado'
 const platformDir =
   process.platform === 'win32' ? 'win' : process.platform === 'darwin' ? 'mac' : 'linux'
 
+// The bundled Linux/macOS binary must be executable. electron-builder preserves
+// the committed +x bit, but as defense-in-depth (and for dev checkouts) ensure
+// it once on first resolve — best-effort, since a root-owned /opt install can't
+// be chmod'd at runtime (there the packaged mode is what counts).
+let ensuredExec = false
+function ensureExecutable(p: string): void {
+  if (ensuredExec || process.platform === 'win32') return
+  ensuredExec = true
+  try {
+    chmodSync(p, 0o755)
+  } catch {
+    /* already +x, or a read-only/root-owned install — execFile surfaces any real failure */
+  }
+}
+
 /** Resolve the shado binary in both packaged and dev layouts. */
 export function shadoExePath(): string {
   const candidates = [
@@ -57,7 +72,10 @@ export function shadoExePath(): string {
     join(process.cwd(), 'native', 'shado', 'bin', platformDir, exeName), // dev (cwd)
   ]
   for (const c of candidates) {
-    if (c && existsSync(c)) return c
+    if (c && existsSync(c)) {
+      ensureExecutable(c)
+      return c
+    }
   }
   // Fall back to PATH (e.g. a user-installed shado), letting execFile resolve it.
   return exeName

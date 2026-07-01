@@ -13,3 +13,8 @@
 *.icns binary
 *.woff2 binary
 *.ttf  binary
+
+# Prebuilt shado binaries (incl. the extensionless Linux/macOS ELF/Mach-O).
+# Mark binary so `* text=auto eol=lf` can never normalize line endings and
+# corrupt the executable.
+native/shado/bin/** binary

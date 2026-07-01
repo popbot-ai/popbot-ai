@@ -6,6 +6,7 @@ import { PanelA } from './components/PanelA';
 import { PanelB } from './components/PanelB';
 import { MonitorCard } from './components/MonitorCard';
 import { ChatColumn, EmptyColumn, ReadinessGateModal } from './components/ChatColumn';
+import { P4LoginModal } from './components/P4LoginModal';
 import { PanelD } from './components/PanelD';
 import { SourceControlPanel } from './components/SourceControlPanel';
 import { DiffOverlay } from './components/DiffOverlay';
@@ -116,6 +117,17 @@ export default function App(): JSX.Element {
   // When the user tries to start a chat any other way before setup is
   // done, we pop the same checklist as the center pane.
   const [gateOpen, setGateOpen] = useState(false);
+  // Perforce: on startup, if the machine's ambient p4 session is expired, pop a
+  // re-login prompt up front — detection + slot ops need a live ticket.
+  const [p4LoginOpen, setP4LoginOpen] = useState(false);
+  useEffect(() => {
+    void window.popbot.git
+      .p4LoginStatus()
+      .then((s) => {
+        if (s === 'expired') setP4LoginOpen(true);
+      })
+      .catch(() => {});
+  }, []);
   /** Returns true when a chat can be created; otherwise pops the
    *  "finish setup" gate modal and returns false. Probe-in-flight is
    *  treated as ready so we never block on a transient null. */
@@ -1440,6 +1452,11 @@ export default function App(): JSX.Element {
           onClose={() => setGateOpen(false)}
         />
       )}
+      <P4LoginModal
+        open={p4LoginOpen}
+        onClose={() => setP4LoginOpen(false)}
+        onSuccess={() => setP4LoginOpen(false)}
+      />
       {busy && (
         <BusyOverlay
           message={busy.message}

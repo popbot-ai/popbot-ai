@@ -160,6 +160,13 @@ export const IpcChannel = {
   GitRevert: 'pb:git:revert',
   /** Perforce: authenticate (mint a login ticket from a typed password). */
   P4Login: 'pb:p4:login',
+  /** Perforce: ambient login status (machine `p4 set` conn, no repo) — used at
+   *  startup and before Add-Repository folder detection. */
+  P4LoginStatus: 'pb:p4:login-status',
+  /** Perforce: log in the ambient connection from a typed password. */
+  P4LoginAmbient: 'pb:p4:login-ambient',
+  /** Perforce: act on an auto-muted spam folder (ignore / session / reconcile). */
+  P4SpamAction: 'pb:p4:spam-action',
   /** Perforce: shelve checked files / unshelve / delete shelves. */
   GitShelve: 'pb:git:shelve',
   GitUnshelve: 'pb:git:unshelve',
@@ -799,6 +806,12 @@ export interface PopBotApi {
     revert(input: GitRevertInput): Promise<GitRevertResult>;
     /** Perforce: mint a login ticket from a typed password (in-app login). */
     p4Login(input: { chatId: string; password: string }): Promise<{ ok: boolean; error?: string }>;
+    /** Ambient (machine-level) Perforce login status — for startup + detection. */
+    p4LoginStatus(): Promise<'no-p4' | 'logged-in' | 'expired' | 'unreachable'>;
+    /** Log in the ambient Perforce connection from a typed password. */
+    p4LoginAmbient(input: { password: string }): Promise<{ ok: boolean; error?: string }>;
+    /** Act on an auto-muted spam folder: persist ignore / session-mute / reconcile. */
+    p4SpamAction(input: { chatId: string; path: string; action: 'p4ignore' | 'prefs' | 'session' | 'reconcile' }): Promise<{ ok: boolean }>;
     /** Perforce: shelve the checked (depot-key) paths into a new shelf.
      *  keepWorking = Copy to shelf (leave files opened); else Move to shelf. */
     shelve(input: { chatId: string; paths: string[]; message?: string; keepWorking?: boolean }): Promise<{ ok: true; change: string } | { ok: false; error: string }>;

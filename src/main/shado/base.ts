@@ -5,14 +5,16 @@
  * source folder (a p4-synced game tree, with its derived/intermediate state).
  * Slots are copy-on-write differencing children of it (see ./slots.ts).
  *
- * Building the base is a one-time, PRIVILEGED step (`shado create` needs an
- * elevated shell). This module:
+ * Building the base is a one-time step. On Windows `shado create` needs admin,
+ * so it runs through a UAC prompt; on macOS (APFS clonefile) and Linux
+ * (XFS/btrfs reflink) the backend is unprivileged, so the same flow runs shado
+ * directly — no elevation, no temp .bat (see the macOS/Linux section at the
+ * bottom of this file). This module:
  *   - measures the source folder + the repo drive's free space,
  *   - gates on free disk (block when free < folderSize × 1.05 — the user's
  *     rule; the source folder is left in place, so the base is purely
  *     additive disk),
- *   - launches `shado create` through a UAC prompt (manual-elevation path;
- *     the standing elevated service is future work), and
+ *   - launches `shado create` (elevated on Windows, direct on macOS/Linux), and
  *   - reports the resulting on-disk sizes via `shado du`.
  */
 import { execFile } from 'node:child_process';
@@ -157,8 +159,8 @@ export async function buildBase(
   },
   onProgress?: ProgressFn,
 ): Promise<BaseBuildResult> {
-  if (process.platform !== 'win32') {
-    return { ok: false, log: 'Base build is only supported on Windows.' };
+  if (process.platform === 'linux') {
+    return buildBaseUnix(opts, onProgress);
   }
   // These names go UNQUOTED into an ELEVATED .bat — validate before building it.
   const nameErr = badShadoName(opts.baseName, 'base name') ?? badShadoName(opts.slotPrefix, 'slot prefix');
@@ -274,8 +276,8 @@ export async function remountSlots(
   opts: { repoPath: string; repoId: string; baseName: string },
   onProgress?: ProgressFn,
 ): Promise<BaseBuildResult> {
-  if (process.platform !== 'win32') {
-    return { ok: false, log: 'Remount is only supported on Windows.' };
+  if (process.platform === 'linux') {
+    return remountSlotsUnix(opts, onProgress);
   }
   const nameErr = badShadoName(opts.baseName, 'base name');
   if (nameErr) return { ok: false, log: nameErr };
@@ -339,8 +341,8 @@ export async function destroyBase(
   opts: { repoPath: string; repoId: string; baseName: string },
   onProgress?: ProgressFn,
 ): Promise<BaseBuildResult> {
-  if (process.platform !== 'win32') {
-    return { ok: false, log: 'Base teardown is only supported on Windows.' };
+  if (process.platform === 'linux') {
+    return destroyBaseUnix(opts, onProgress);
   }
   const nameErr = badShadoName(opts.baseName, 'base name');
   if (nameErr) return { ok: false, log: nameErr };
@@ -413,8 +415,8 @@ export async function growSlotClones(
   },
   onProgress?: ProgressFn,
 ): Promise<BaseBuildResult> {
-  if (process.platform !== 'win32') {
-    return { ok: false, log: 'Slot resize is only supported on Windows.' };
+  if (process.platform === 'linux') {
+    return growSlotClonesUnix(opts, onProgress);
   }
   if (opts.toCount <= opts.fromCount) return { ok: true, log: '' };
   const nameErr = badShadoName(opts.baseName, 'base name') ?? badShadoName(opts.slotPrefix, 'slot prefix');
@@ -485,7 +487,8 @@ export async function remountReposElevated(
   repos: Array<{ repoPath: string; repoId: string; baseName: string }>,
   onProgress?: ProgressFn,
 ): Promise<BaseBuildResult> {
-  if (process.platform !== 'win32' || repos.length === 0) return { ok: true, log: '' };
+  if (repos.length === 0) return { ok: true, log: '' };
+  if (process.platform === 'linux') return remountReposUnix(repos, onProgress);
   const shado = shadoExePath();
   const stamp = `${Date.now()}-${Math.floor(process.hrtime()[1] % 1e6)}`;
   const log = join(tmpdir(), `shado-remount-all-${stamp}.log`);
@@ -541,4 +544,171 @@ export async function baseDiskUsage(repoPath: string, repoId: string, baseName: 
   const text = r.stdout || r.stderr || '';
   const m = /base\s*=\s*(\d+)\s*MB/i.exec(text);
   return { baseMb: m ? Number(m[1]) : 0, raw: text.trim() };
+}
+
+// ============================ macOS / Linux ============================
+//
+// shado is unprivileged on macOS (APFS clonefile) and Linux (XFS/btrfs reflink)
+// — a shadow is an ordinary user-space clone — so these mirror the Windows flows
+// above WITHOUT the UAC/.bat dance: each runs shado directly with SHADO_HOME
+// pinned to the repo's shado dir. Same {ok, log} contract; never throws.
+// Selected by the `process.platform !== 'win32'` branches in the functions above.
+
+/** Run shado with SHADO_HOME pinned to `home` (the repo's shado dir). */
+function shadoAt(home: string, args: string[]) {
+  return runShado(args, { env: { SHADO_HOME: home } });
+}
+
+/** Join shado results' stdout/stderr into one trimmed log blob. */
+function shadoLog(...results: Array<{ stdout: string; stderr: string }>): string {
+  return results
+    .flatMap((r) => [r.stdout, r.stderr])
+    .map((s) => s.trim())
+    .filter(Boolean)
+    .join('\n')
+    .trim();
+}
+
+/** {@link buildBase} for macOS/Linux: freeze the base, then mount every slot
+ *  clone — direct shado calls, no elevation. */
+async function buildBaseUnix(
+  opts: {
+    repoPath: string;
+    repoId: string;
+    baseName: string;
+    sizeGb: number;
+    slotPrefix: string;
+    slotCount: number;
+  },
+  onProgress?: ProgressFn,
+): Promise<BaseBuildResult> {
+  const nameErr =
+    badShadoName(opts.baseName, 'base name') ?? badShadoName(opts.slotPrefix, 'slot prefix');
+  if (nameErr) return { ok: false, log: nameErr };
+  const home = shadoHomeForRepo(opts.repoPath, opts.repoId);
+  const worktreesDir = join(popbotRootForRepo(opts.repoPath), 'workspaces', opts.repoId);
+  const results: Array<{ stdout: string; stderr: string; ok: boolean; code: number }> = [];
+
+  // Freeze the base from the warm folder — the long step (a reflink clone of the
+  // whole tree, or a full copy on a non-COW filesystem). Stream an elapsed timer
+  // so the wizard never shows a dead spinner. No --size-gb: that ceiling is
+  // advisory only to the image-based Windows backend; reflink/clonefile ignore it.
+  const startedMs = Date.now();
+  const timer = onProgress
+    ? setInterval(() => {
+        const secs = Math.floor((Date.now() - startedMs) / 1000);
+        const elapsed = secs >= 60 ? `${Math.floor(secs / 60)}m ${secs % 60}s` : `${secs}s`;
+        onProgress?.(`Building base — ${elapsed}`);
+      }, 1000)
+    : undefined;
+  const create = await shadoAt(home, [
+    'create', opts.repoPath, '--name', opts.baseName, '--count', '0', '--no-main',
+  ]);
+  if (timer) clearInterval(timer);
+  results.push(create);
+  if (!create.ok) {
+    return { ok: false, log: shadoLog(...results) || `shado create failed (exit ${create.code}).` };
+  }
+
+  // Mount each slot clone off the frozen base. Reflink/clonefile clones are
+  // instant, so a per-slot line is enough. Bail on the first failure (mirrors
+  // the Windows batch's `if errorlevel 1 exit`).
+  for (let k = 1; k <= opts.slotCount; k += 1) {
+    const slot = `${opts.slotPrefix}-${k}`;
+    const mount = join(worktreesDir, slot);
+    onProgress?.(`Creating slot ${k} of ${opts.slotCount}…`);
+    const clone = await shadoAt(home, [
+      'clone', 'create', '--name', opts.baseName, '--slot', slot, '--mount', mount,
+    ]);
+    results.push(clone);
+    if (!clone.ok) {
+      return {
+        ok: false,
+        log: shadoLog(...results) || `shado clone create failed (exit ${clone.code}).`,
+      };
+    }
+  }
+  return { ok: true, log: shadoLog(...results) };
+}
+
+/** {@link remountSlots} for macOS/Linux: nothing to do. A reflink/clonefile
+ *  shadow is a plain directory, not a kernel mount, so it persists across a
+ *  reboot intact — unlike a Windows VHDX, whose mount is dropped on restart and
+ *  must be re-attached. The startup reconcile can call this unconditionally. */
+async function remountSlotsUnix(
+  _opts: { repoPath: string; repoId: string; baseName: string },
+  _onProgress?: ProgressFn,
+): Promise<BaseBuildResult> {
+  return { ok: true, log: '' };
+}
+
+/** {@link destroyBase} for macOS/Linux: tear down the whole shado project. */
+async function destroyBaseUnix(
+  opts: { repoPath: string; repoId: string; baseName: string },
+  onProgress?: ProgressFn,
+): Promise<BaseBuildResult> {
+  const nameErr = badShadoName(opts.baseName, 'base name');
+  if (nameErr) return { ok: false, log: nameErr };
+  const home = shadoHomeForRepo(opts.repoPath, opts.repoId);
+  onProgress?.('Removing workspace base + slots…');
+  const r = await shadoAt(home, ['restore', '--name', opts.baseName, '--no-export', '--force']);
+  const log = shadoLog(r);
+  if (!r.ok) {
+    // Already gone (a prior partial delete) → nothing to tear down, treat as ok.
+    if (/no project/i.test(log)) return { ok: true, log };
+    return { ok: false, log: log || `shado restore failed (exit ${r.code}).` };
+  }
+  return { ok: true, log };
+}
+
+/** {@link growSlotClones} for macOS/Linux: create+mount slots fromCount+1..toCount. */
+async function growSlotClonesUnix(
+  opts: {
+    repoPath: string;
+    repoId: string;
+    baseName: string;
+    slotPrefix: string;
+    fromCount: number;
+    toCount: number;
+  },
+  onProgress?: ProgressFn,
+): Promise<BaseBuildResult> {
+  if (opts.toCount <= opts.fromCount) return { ok: true, log: '' };
+  const nameErr =
+    badShadoName(opts.baseName, 'base name') ?? badShadoName(opts.slotPrefix, 'slot prefix');
+  if (nameErr) return { ok: false, log: nameErr };
+  const home = shadoHomeForRepo(opts.repoPath, opts.repoId);
+  const worktreesDir = join(popbotRootForRepo(opts.repoPath), 'workspaces', opts.repoId);
+  const results: Array<{ stdout: string; stderr: string; ok: boolean; code: number }> = [];
+  onProgress?.(`Creating slots ${opts.fromCount + 1}–${opts.toCount}…`);
+  for (let k = opts.fromCount + 1; k <= opts.toCount; k += 1) {
+    const slot = `${opts.slotPrefix}-${k}`;
+    const mount = join(worktreesDir, slot);
+    // Tolerate an already-existing clone (re-running expand) — mirror the
+    // Windows batch, which omits `exit /b` here. But a REAL failure
+    // (ENOSPC / permission / bad path) must abort: unlike a benign
+    // already-exists, a missing clone would only surface much later in the
+    // per-slot VCS init, so fail the grow now.
+    const clone = await shadoAt(home, [
+      'clone', 'create', '--name', opts.baseName, '--slot', slot, '--mount', mount,
+    ]);
+    results.push(clone);
+    if (!clone.ok && !/already exists/i.test(shadoLog(clone))) {
+      return {
+        ok: false,
+        log: shadoLog(...results) || `shado clone create failed (exit ${clone.code}).`,
+      };
+    }
+  }
+  return { ok: true, log: shadoLog(...results) };
+}
+
+/** {@link remountReposElevated} for macOS/Linux: nothing to do — reflink/
+ *  clonefile clones are plain directories that persist across a reboot (see
+ *  {@link remountSlotsUnix}). */
+async function remountReposUnix(
+  _repos: Array<{ repoPath: string; repoId: string; baseName: string }>,
+  _onProgress?: ProgressFn,
+): Promise<BaseBuildResult> {
+  return { ok: true, log: '' };
 }

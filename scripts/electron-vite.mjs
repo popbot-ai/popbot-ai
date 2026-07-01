@@ -35,9 +35,38 @@ const pkg = require('electron-vite/package.json');
 const pkgRoot = dirname(require.resolve('electron-vite/package.json'));
 const cliPath = join(pkgRoot, pkg.bin['electron-vite']);
 
+const isWindows = process.platform === 'win32';
+
+// On POSIX, run the dev stack (electron-vite → vite → Electron) in its OWN
+// session via `detached` (setsid) so it has NO controlling terminal. Electron's
+// main process spawns child shells at runtime — notably the claude/codex PATH
+// probes (`$SHELL -ilc 'command -v …'`), which the renderer polls for the
+// agent-status indicator. An interactive shell runs terminal job-control
+// (tcsetpgrp), which delivers SIGTTOU to its entire process group; if the dev
+// stack shared our group that signal would SUSPEND `npm run dev` ("[1]+
+// Stopped", needing repeated `fg`). With no controlling terminal those shells
+// can't job-control us, so the launch can't be suspended. Signals are forwarded
+// below so Ctrl+C still tears everything down.
+// (Not on Windows: `detached` there spawns a separate console window.)
 const child = spawn(process.execPath, [cliPath, ...process.argv.slice(2)], {
   stdio: 'inherit',
+  detached: !isWindows,
 });
+
+// Ctrl+C / kill reach this foreground launcher, not the detached child's
+// session — forward them to the child's process group so the whole stack stops.
+if (!isWindows) {
+  for (const sig of ['SIGINT', 'SIGTERM', 'SIGHUP']) {
+    process.on(sig, () => {
+      try {
+        process.kill(-child.pid, sig);
+      } catch {
+        /* child already gone */
+      }
+    });
+  }
+}
+
 child.on('exit', (code, signal) => {
   if (signal) process.kill(process.pid, signal);
   else process.exit(code ?? 0);
