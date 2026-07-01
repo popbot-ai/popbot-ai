@@ -78,8 +78,8 @@ const api: PopBotApi = {
       ipcRenderer.invoke(IpcChannel.FilesPickDirectory, opts),
   },
   apps: {
-    open: (kind: 'terminal' | 'editor' | 'git' | 'unity', worktreePath: string) =>
-      ipcRenderer.invoke(IpcChannel.AppsOpen, kind, worktreePath),
+    open: (kind: 'terminal' | 'editor' | 'git' | 'unity', worktreePath: string, chatId?: string) =>
+      ipcRenderer.invoke(IpcChannel.AppsOpen, kind, worktreePath, chatId),
     running: () => ipcRenderer.invoke(IpcChannel.AppsRunning),
   },
   unity: {

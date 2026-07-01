@@ -526,7 +526,7 @@ export function ChatColumn({
         </span>
       </div>
       <div className="runtime-strip">
-        <SlotAppButtons worktreePath={chat.worktreePath ?? null} onOpenPrefs={onOpenPrefs} />
+        <SlotAppButtons worktreePath={chat.worktreePath ?? null} chatId={chat.id} onOpenPrefs={onOpenPrefs} />
         {/* Both chips render side-by-side when applicable so the user
             can jump to either Linear or GitHub from the chat header. */}
         {ticket && chat.ticket && (
@@ -731,9 +731,11 @@ const APP_BUTTONS: Array<{
 
 function SlotAppButtons({
   worktreePath,
+  chatId,
   onOpenPrefs,
 }: {
   worktreePath: string | null;
+  chatId?: string;
   onOpenPrefs?: (section?: string) => void;
 }): JSX.Element {
   const { t } = useTranslation();
@@ -745,7 +747,7 @@ function SlotAppButtons({
   const slotName = worktreePath ? worktreePath.split(/[/\\]/).pop() ?? '' : '';
   const open = async (kind: 'terminal' | 'editor' | 'git' | 'unity') => {
     if (!worktreePath) return;
-    const res = await window.popbot.apps.open(kind, worktreePath);
+    const res = await window.popbot.apps.open(kind, worktreePath, chatId);
     if (!res.ok) {
       // Specific routing: Unity-not-configured opens the prefs page
       // instead of nagging with an alert. Unity config now lives under

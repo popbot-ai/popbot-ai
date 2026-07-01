@@ -644,6 +644,9 @@ export interface PopBotApi {
     open(
       kind: 'terminal' | 'editor' | 'git' | 'unity',
       worktreePath: string,
+      /** Chat id — lets the terminal open in the chat's agent cwd (a Perforce
+       *  repo's configured subdir), matching where the agent runs. */
+      chatId?: string,
     ): Promise<{ ok: true } | { ok: false; error: string; reason?: 'unity-not-configured' }>;
     /** Snapshot of which apps are currently open for which slots, for
      *  the slot icon row's running indicator. Each kind maps to a Set
