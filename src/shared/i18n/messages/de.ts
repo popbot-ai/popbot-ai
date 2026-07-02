@@ -825,9 +825,26 @@ export const de = {
   'prefs.integ.ticketSource.title': 'Ticketquelle',
   'prefs.integ.ticketSource.desc':
     'Der Issue-Tracker, der die Ticket-Warteschlange in Panel A speist, sodass Sie Agenten direkt aus Ihrem Tracker starten können.',
-  'prefs.integ.gameEngine.title': 'Game-Engine',
+  'prefs.integ.gameEngine.title': 'Game-Engines',
   'prefs.integ.gameEngine.desc':
-    'Die Engine, die PopBot aus dem Worktree eines Chats startet (das Engine-Symbol in jeder Chat-Spalte).',
+    'Aktivieren Sie alle Engines, die Sie verwenden — jede fügt der Chat-Leiste eine Ausführen-Schaltfläche hinzu, die ihren Editor aus dem Worktree des Chats startet. Sie sind unabhängig voneinander, sodass Sie Unity, Unreal und eine benutzerdefinierte Engine gleichzeitig aktivieren können.',
+  'prefs.engine.enabled': 'Aktiviert',
+  'prefs.engine.enabledDesc': 'Eine Ausführen-Schaltfläche für diese Engine in der Chat-Leiste anzeigen.',
+  'prefs.engine.editorVersion.title': 'Erkannte Installationen',
+  'prefs.engine.scanning': 'Wird gesucht…',
+  'prefs.engine.installedCount': '{count} gefunden',
+  'prefs.engine.rescan': 'Erneut suchen',
+  'prefs.engine.selectVersion': '— Eine erkannte Version auswählen —',
+  'prefs.engine.noneFound': 'Keine Installationen erkannt. Geben Sie unten den Pfad zur Editor-Binärdatei ein.',
+  'prefs.engine.binary.title': 'Editor-Binärdatei',
+  'prefs.engine.binary.desc': 'Absoluter Pfad zur ausführbaren Editor-Datei. Überschreibt die Auswahlliste.',
+  'prefs.engine.subpath.title': 'Projekt-Unterpfad',
+  'prefs.engine.subpath.desc': 'Pfad zum Projekt relativ zum Worktree-Stammverzeichnis. Leer lassen, wenn das Worktree-Stammverzeichnis das Projekt ist.',
+  'prefs.engine.subpath.placeholder': 'z. B. game (leer = Worktree-Stammverzeichnis)',
+  'prefs.engine.custom.posix.title': 'Ausführungsbefehl (macOS / Linux)',
+  'prefs.engine.custom.posix.desc': 'Shell-Befehl, der (über bash) im Projektverzeichnis ausgeführt wird.',
+  'prefs.engine.custom.windows.title': 'Ausführungsbefehl (Windows)',
+  'prefs.engine.custom.windows.desc': 'Befehl, der (über cmd) im Projektverzeichnis ausgeführt wird.',
 
   // Preferences — Source control pane.
   'prefs.git.title': 'Versionsverwaltung',

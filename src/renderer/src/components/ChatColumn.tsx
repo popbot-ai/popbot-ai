@@ -21,11 +21,15 @@ import type { Readiness } from '../lib/useReadiness';
 import { hotkey } from '../lib/hotkeys';
 import { LiveChatBody } from './LiveChatBody';
 import { useAppsRunning } from '../lib/useAppsRunning';
+import { useSettings } from '../lib/useSettings';
 import { LinearStateIcon, isPausedState, PAUSED_COLOR } from '../lib/linearIcons';
 import { colAccentStyle } from '../lib/repoColor';
 import { ConfirmDialog } from './ConfirmDialog';
 import { useTranslation } from '../lib/i18n';
 import type { MessageKey, Translator } from '@shared/i18n';
+import { GAME_ENGINES, engineEnabled, type GameEngineId, type GameEnginesSettings } from '@shared/gameEngine';
+import unityEngineIcon from '../assets/engines/unity-white.png';
+import unrealEngineIcon from '../assets/engines/unreal-white.png';
 
 /** Build an `rgba(r,g,b,alpha)` from a `#rrggbb` color. Used by chips
  *  to derive their background + border tints from the state's primary
@@ -712,22 +716,38 @@ export function ChatColumn({
   );
 }
 
-/** Per-slot launcher row: terminal, editor, git client, unity. Buttons
- *  are gray + disabled when the chat has no worktree (e.g. ad-hoc
- *  Slack chats); colored + clickable otherwise. */
+/** Per-slot launcher row: terminal, editor, then a "Run editor" button for
+ *  each ENABLED game engine (Unity/Unreal/Custom). Buttons are gray +
+ *  disabled when the chat has no worktree (e.g. ad-hoc Slack chats); colored
+ *  + clickable otherwise. */
 // Git client deliberately omitted for now: GitHub Desktop doesn't
 // support worktrees, so launching it would point at the parent repo
 // instead of the slot. Re-add once we have a worktree-friendly client.
-const APP_BUTTONS: Array<{
-  kind: 'terminal' | 'editor' | 'unity';
-  icon: string;
-  labelKey: MessageKey;
+type AppButtonKind = 'terminal' | 'editor' | GameEngineId;
+interface AppButtonDef {
+  kind: AppButtonKind;
+  /** Exactly one of fa / img / emoji identifies the glyph. */
+  fa?: string;
+  img?: string;
+  emoji?: string;
+  /** i18n key (terminal/editor) or literal engine label (Unity/Unreal/…). */
+  labelKey?: MessageKey;
+  label?: string;
   color: string;
-}> = [
-  { kind: 'terminal', icon: 'fa-solid fa-terminal',         labelKey: 'chat.app.terminal', color: '#7fb676' },
-  { kind: 'editor',   icon: 'fa-solid fa-code',             labelKey: 'chat.app.editor',   color: '#4f8bff' },
-  { kind: 'unity',    icon: 'fa-solid fa-cube',             labelKey: 'chat.app.unity',    color: '#d6a13b' },
+}
+
+const STATIC_APP_BUTTONS: AppButtonDef[] = [
+  { kind: 'terminal', fa: 'fa-solid fa-terminal', labelKey: 'chat.app.terminal', color: '#7fb676' },
+  { kind: 'editor',   fa: 'fa-solid fa-code',     labelKey: 'chat.app.editor',   color: '#4f8bff' },
 ];
+
+/** Chat-bar glyph per engine: Unity/Unreal use their logo (white on the dark
+ *  bar), Custom uses the yellow-box emoji. */
+const ENGINE_GLYPH: Record<GameEngineId, { img?: string; emoji?: string }> = {
+  unity: { img: unityEngineIcon },
+  unreal: { img: unrealEngineIcon },
+  custom: { emoji: '📦' },
+};
 
 function SlotAppButtons({
   worktreePath,
@@ -739,26 +759,30 @@ function SlotAppButtons({
   onOpenPrefs?: (section?: string) => void;
 }): JSX.Element {
   const { t } = useTranslation();
+  const { get } = useSettings();
   const enabled = !!worktreePath;
   const running = useAppsRunning();
   // Main reports running state by slot basename (e.g. 'slot-3') so
   // we don't have to worry about per-app path conventions in the
-  // renderer (Unity's project-subpath setting, etc.).
+  // renderer (the engine's project-subpath setting, etc.).
   const slotName = worktreePath ? worktreePath.split(/[/\\]/).pop() ?? '' : '';
-  const open = async (kind: 'terminal' | 'editor' | 'git' | 'unity') => {
+
+  // Terminal + editor are always shown; each ENABLED engine adds a Run button.
+  const engines = (get<{ engines?: GameEnginesSettings }>('apps', {}) ?? {}).engines;
+  const buttons: AppButtonDef[] = [
+    ...STATIC_APP_BUTTONS,
+    ...GAME_ENGINES.filter((e) => engineEnabled(engines?.[e.id], e.id)).map(
+      (e): AppButtonDef => ({ kind: e.id, ...ENGINE_GLYPH[e.id], label: e.label, color: e.color }),
+    ),
+  ];
+
+  const open = async (kind: AppButtonKind) => {
     if (!worktreePath) return;
     const res = await window.popbot.apps.open(kind, worktreePath, chatId);
     if (!res.ok) {
-      // Specific routing: Unity-not-configured opens the prefs page
-      // instead of nagging with an alert. Unity config now lives under
-      // Integrations (the standalone Unity section was removed), so we
-      // deep-link there rather than the now-nonexistent 'unity' section.
-      if (
-        kind === 'unity' &&
-        'reason' in res &&
-        res.reason === 'unity-not-configured' &&
-        onOpenPrefs
-      ) {
+      // An unconfigured engine deep-links to Preferences → Integrations
+      // instead of nagging with an alert.
+      if ('reason' in res && res.reason === 'not-configured' && onOpenPrefs) {
         onOpenPrefs('integ');
         return;
       }
@@ -768,7 +792,7 @@ function SlotAppButtons({
   };
   const openAll = () => {
     if (!worktreePath) return;
-    APP_BUTTONS.forEach((b) => void open(b.kind));
+    buttons.forEach((b) => void open(b.kind));
   };
   return (
     <div
@@ -780,9 +804,9 @@ function SlotAppButtons({
         openAll();
       }}
     >
-      {APP_BUTTONS.map((b) => {
+      {buttons.map((b) => {
         const isRunning = !!slotName && running[b.kind].has(slotName);
-        const label = t(b.labelKey);
+        const label = b.labelKey ? t(b.labelKey) : b.label ?? '';
         return (
           <button
             key={b.kind}
@@ -798,7 +822,13 @@ function SlotAppButtons({
             }
             style={enabled ? { color: b.color } : undefined}
           >
-            <i className={b.icon} />
+            {b.img ? (
+              <img src={b.img} alt="" className="slot-app-img" />
+            ) : b.emoji ? (
+              <span className="slot-app-emoji">{b.emoji}</span>
+            ) : (
+              <i className={b.fa} />
+            )}
           </button>
         );
       })}

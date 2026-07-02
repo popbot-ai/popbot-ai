@@ -6,8 +6,17 @@ import { LOCALES, type Locale, type MessageKey } from '@shared/i18n';
 import linearIcon from '../assets/notif/linear.png';
 import jiraIcon from '../assets/notif/jira.png';
 import githubIcon from '../assets/notif/github.png';
+import unityEngineIcon from '../assets/engines/unity-white.png';
+import unrealEngineIcon from '../assets/engines/unreal-white.png';
 import type { LinearProjectDto } from '@shared/linear';
 import type { GithubTestResult, JiraSettings } from '@shared/ticketProvider';
+import {
+  GAME_ENGINES,
+  engineEnabled,
+  type GameEngineId,
+  type GameEngineConfig,
+  type GameEnginesSettings,
+} from '@shared/gameEngine';
 import {
   ATTACHMENT_TTL_DAYS_DEFAULT,
   ATTACHMENT_TTL_DAYS_MAX,
@@ -423,10 +432,12 @@ const TRACKERS: SelectChoice[] = [
   { id: 'github', label: 'GitHub', icon: <img src={githubIcon} alt="" className="tracker-dd-ico" /> },
 ];
 
-/** Game engines selectable as the launch target. Only Unity ships today. */
-const ENGINES: SelectChoice[] = [
-  { id: 'unity', label: 'Unity', icon: <i className="fa-solid fa-cube tracker-dd-ico-fa" /> },
-];
+/** Chat-bar / panel-header glyph per engine (white logo on dark, or emoji). */
+const ENGINE_ICON: Record<GameEngineId, ReactNode> = {
+  unity: <img src={unityEngineIcon} alt="" className="tracker-dd-ico" />,
+  unreal: <img src={unrealEngineIcon} alt="" className="tracker-dd-ico" />,
+  custom: <span className="engine-emoji-ico">📦</span>,
+};
 
 /** Custom (non-native) dropdown — square panels + an icon per option,
  *  which a native <select> can't render. Used for the ticket-source and
@@ -548,16 +559,12 @@ function PrefsIntegrations({ onLinearChanged }: { onLinearChanged?: () => void }
   // shared/ticketProvider.ts and slots in as another <option> when its
   // client + queue wiring land — no structural change here.
   const rawTracker = get<string>('ticketSource', 'linear') ?? 'linear';
-  // Game engine launched for a chat's worktree. Same always-shown,
-  // default-to-the-only-option model as the ticket source.
-  const rawEngine = get<string>('gameEngine', 'unity') ?? 'unity';
 
   // Validate the persisted value against the options that actually ship.
   // A stale/unsupported id (e.g. ticketSource:'jira' from an older build)
   // would otherwise render the fallback button with nothing selected while
   // the invalid value lingers in storage.
   const tracker = TRACKERS.some((t) => t.id === rawTracker) ? rawTracker : TRACKERS[0].id;
-  const engine = ENGINES.some((e) => e.id === rawEngine) ? rawEngine : ENGINES[0].id;
 
   // Heal a stale value in place so it stops being dead/invalid state. Only
   // writes when the stored value differs from the normalized one, so this
@@ -565,9 +572,6 @@ function PrefsIntegrations({ onLinearChanged }: { onLinearChanged?: () => void }
   useEffect(() => {
     if (!loading && rawTracker !== tracker) void set('ticketSource', tracker);
   }, [loading, rawTracker, tracker]);
-  useEffect(() => {
-    if (!loading && rawEngine !== engine) void set('gameEngine', engine);
-  }, [loading, rawEngine, engine]);
 
   if (loading) return <div className="pref-section"><h3>{t('prefs.integ.ticketSource.title')}</h3></div>;
 
@@ -632,24 +636,23 @@ function PrefsIntegrations({ onLinearChanged }: { onLinearChanged?: () => void }
         </div>
       </div>
 
-      {/* Game engine — same selector model as the ticket source. */}
+      {/* Game engines — INDEPENDENT panels (unlike the single-select ticket
+          source). Each engine can be enabled + configured on its own; every
+          enabled engine gets a Run button on the chat bar. */}
       <div className="pref-section">
-        <div className="tracker-select-row">
-          <h3 style={{ margin: 0 }}>{t('prefs.integ.gameEngine.title')}</h3>
-          <IconSelect value={engine} onChange={(v) => void set('gameEngine', v)} options={ENGINES} />
-        </div>
-        <p className="pref-section-desc">
-          {t('prefs.integ.gameEngine.desc')}
-        </p>
-        <div className="tracker-config">
-          <div className="tracker-config-head">
-            <i className="fa-solid fa-cube tracker-dd-ico-fa" />
-            <span>Unity</span>
+        <h3 style={{ margin: 0 }}>{t('prefs.integ.gameEngine.title')}</h3>
+        <p className="pref-section-desc">{t('prefs.integ.gameEngine.desc')}</p>
+        {GAME_ENGINES.map((e) => (
+          <div className="tracker-config" key={e.id} style={{ marginTop: 12 }}>
+            <div className="tracker-config-head">
+              {ENGINE_ICON[e.id]}
+              <span>{e.label}</span>
+            </div>
+            <div className="tracker-config-body">
+              <EngineConfigPanel engineId={e.id} />
+            </div>
           </div>
-          <div className="tracker-config-body">
-            <UnityConfig />
-          </div>
-        </div>
+        ))}
       </div>
 
       {/* Slack (chat / notifications source) is parked — it was never
@@ -967,11 +970,12 @@ interface AppsSettings {
   editorApp?: string;
   /** macOS app name for the git client. Defaults to 'GitHub Desktop'. */
   gitApp?: string;
-  /** Absolute path to the Unity Editor binary. When set, slot launches
-   *  go direct (no Unity Hub round-trip). */
+  /** Per-engine launch config (Unity / Unreal / Custom), independently
+   *  enable-able. See @shared/gameEngine. */
+  engines?: GameEnginesSettings;
+  /** @deprecated pre-multi-engine Unity binary — folded into engines.unity. */
   unityBinary?: string;
-  /** Path of the Unity project relative to the worktree root.
-   *  Defaults to blank (worktree root is the Unity project). */
+  /** @deprecated pre-multi-engine Unity subpath — folded into engines.unity. */
   unityProjectSubpath?: string;
   /** Chrome profile directory to route URL opens to (e.g. "Profile 1",
    *  "Default", "Person 2"). When set, popbot launches every URL via
@@ -1152,144 +1156,222 @@ function PrefsApps(): JSX.Element {
   );
 }
 
-function UnityConfig(): JSX.Element {
+/**
+ * One engine's config panel (Unity / Unreal / Custom). Independent from the
+ * others — its own enable toggle, detection, and setup fields. Unity/Unreal
+ * detect installs + take an editor binary; Custom takes a posix + a Windows
+ * run command. Persists under `apps.engines[engineId]`.
+ */
+function EngineConfigPanel({ engineId }: { engineId: GameEngineId }): JSX.Element {
   const { t } = useTranslation();
   const { get, set, loading } = useSettings();
-  const initial = get<AppsSettings>('apps', {}) ?? {};
+  const apps = get<AppsSettings>('apps', {}) ?? {};
+  const cfg: GameEngineConfig = apps.engines?.[engineId] ?? {};
+  const isCustom = engineId === 'custom';
+  // Legacy fallback for Unity's pre-multi-engine top-level fields.
+  const legacyBinary = engineId === 'unity' ? apps.unityBinary : undefined;
+  const legacySubpath = engineId === 'unity' ? apps.unityProjectSubpath : undefined;
+
   const [versions, setVersions] = useState<Array<{ version: string; binary: string }>>([]);
-  const [scanning, setScanning] = useState(true);
-  const [picked, setPicked] = useState<string>(initial.unityBinary ?? '');
-  const [subpath, setSubpath] = useState<string>(initial.unityProjectSubpath ?? '');
+  const [scanning, setScanning] = useState(!isCustom);
+  const [binary, setBinary] = useState(cfg.binary ?? legacyBinary ?? '');
+  const [subpath, setSubpath] = useState(cfg.projectSubpath ?? legacySubpath ?? '');
+  const [runPosix, setRunPosix] = useState(cfg.runPosix ?? '');
+  const [runWindows, setRunWindows] = useState(cfg.runWindows ?? '');
   const [savedAt, setSavedAt] = useState<number | null>(null);
 
+  const enabled = engineEnabled(cfg, engineId);
+
   const refresh = async () => {
+    if (isCustom) return;
     setScanning(true);
-    const list = await window.popbot.unity.listVersions();
-    setVersions(list);
+    setVersions(await window.popbot.engines.listVersions(engineId));
     setScanning(false);
   };
   useEffect(() => { void refresh(); }, []);
 
-  // useState captured initial.* on first render, but useSettings starts
-  // empty while loading — so without this the fields render blank and a
-  // Save would clobber the real apps.unityBinary/unityProjectSubpath with
-  // empty defaults. Re-sync once the persisted values land. Same
-  // sync-on-load pattern as PrefsApps/PrefsGit.
-  useEffect(() => { setPicked(initial.unityBinary ?? ''); }, [initial.unityBinary]);
-  useEffect(() => { setSubpath(initial.unityProjectSubpath ?? ''); }, [initial.unityProjectSubpath]);
+  // Re-sync from persisted values once they load (useSettings starts empty),
+  // so the fields don't render blank and a Save can't clobber real values.
+  useEffect(() => { setBinary(cfg.binary ?? legacyBinary ?? ''); }, [cfg.binary, legacyBinary]);
+  useEffect(() => { setSubpath(cfg.projectSubpath ?? legacySubpath ?? ''); }, [cfg.projectSubpath, legacySubpath]);
+  useEffect(() => { setRunPosix(cfg.runPosix ?? ''); }, [cfg.runPosix]);
+  useEffect(() => { setRunWindows(cfg.runWindows ?? ''); }, [cfg.runWindows]);
 
   if (loading) return <p className="pref-section-desc">{t('common.loading')}</p>;
 
-  const dirty =
-    picked !== (initial.unityBinary ?? '') ||
-    subpath !== (initial.unityProjectSubpath ?? '');
+  const dirty = isCustom
+    ? runPosix !== (cfg.runPosix ?? '') ||
+      runWindows !== (cfg.runWindows ?? '') ||
+      subpath !== (cfg.projectSubpath ?? legacySubpath ?? '')
+    : binary !== (cfg.binary ?? legacyBinary ?? '') ||
+      subpath !== (cfg.projectSubpath ?? legacySubpath ?? '');
+
+  // Merge a patch into apps.engines[engineId] (preserving other engines).
+  const writeEngine = async (patch: Partial<GameEngineConfig>): Promise<void> => {
+    const cur = get<AppsSettings>('apps', {}) ?? {};
+    const curEngines: GameEnginesSettings = cur.engines ?? {};
+    const nextCfg: GameEngineConfig = { ...(curEngines[engineId] ?? {}), ...patch };
+    await set('apps', { ...cur, engines: { ...curEngines, [engineId]: nextCfg } } satisfies AppsSettings);
+  };
+
+  const save = async (): Promise<void> => {
+    await writeEngine(
+      isCustom
+        ? {
+            projectSubpath: subpath.trim() || undefined,
+            runPosix: runPosix.trim() || undefined,
+            runWindows: runWindows.trim() || undefined,
+          }
+        : { binary: binary.trim() || undefined, projectSubpath: subpath.trim() || undefined },
+    );
+    setSavedAt(Date.now());
+  };
+
+  const binaryPlaceholder =
+    engineId === 'unity'
+      ? 'Unity.exe  /  Unity.app/Contents/MacOS/Unity'
+      : 'UnrealEditor.exe  /  UnrealEditor.app/Contents/MacOS/UnrealEditor';
 
   return (
-    <>
-      <p className="pref-section-desc">
-        {t('prefs.apps.unity.desc', { path: '/Applications/Unity/Hub/Editor' })}
-      </p>
-      <div className="pref-rows">
-        <div className="pref-row">
-          <div className="pref-label">
-            <div className="pref-label-title">{t('prefs.apps.unity.editorVersion.title')}</div>
-            <div className="pref-label-desc">
-              {scanning
-                ? t('prefs.apps.unity.scanning')
-                : t('prefs.apps.unity.installedCount', { count: versions.length })}{' '}
-              ·{' '}
-              <button
-                className="btn-link"
-                onClick={() => void refresh()}
-                style={{ background: 'none', border: 0, color: 'var(--acc-hi)', cursor: 'pointer', padding: 0 }}
-              >
-                {t('prefs.apps.unity.rescan')}
-              </button>
-            </div>
-          </div>
-          <div className="pref-control" style={{ flex: 1, minWidth: 280 }}>
-            <select
-              className="pref-input mono"
-              value={picked}
-              onChange={(e) => setPicked(e.target.value)}
-              style={{ width: '100%' }}
-              disabled={versions.length === 0}
-            >
-              <option value="">{t('prefs.apps.unity.selectVersion')}</option>
-              {versions.map((v) => (
-                <option key={v.binary} value={v.binary}>{v.version}</option>
-              ))}
-            </select>
-          </div>
+    <div className="pref-rows">
+      {/* Enable toggle — persists immediately so the chat bar reflects it. */}
+      <div className="pref-row">
+        <div className="pref-label">
+          <div className="pref-label-title">{t('prefs.engine.enabled')}</div>
+          <div className="pref-label-desc">{t('prefs.engine.enabledDesc')}</div>
         </div>
-        {versions.length === 0 && !scanning && (
-          <div className="pref-row wide">
-            <div className="pref-error">
-              <i className="fa-solid fa-circle-exclamation" />
-              <div>
-                {t('prefs.apps.unity.noneFound', { path: '/Applications/Unity/Hub/Editor' })}
-              </div>
-            </div>
-          </div>
-        )}
-        <div className="pref-row">
-          <div className="pref-label">
-            <div className="pref-label-title">{t('prefs.apps.unity.customBinary.title')}</div>
-            <div className="pref-label-desc">{t('prefs.apps.unity.customBinary.desc')}</div>
-          </div>
-          <div className="pref-control" style={{ flex: 1, minWidth: 280 }}>
-            <input
-              className="pref-input mono"
-              placeholder="/path/to/Unity.app/Contents/MacOS/Unity"
-              value={picked}
-              onChange={(e) => setPicked(e.target.value)}
-              style={{ width: '100%' }}
-            />
-          </div>
-        </div>
-        <div className="pref-row">
-          <div className="pref-label">
-            <div className="pref-label-title">{t('prefs.apps.unity.subpath.title')}</div>
-            <div className="pref-label-desc">
-              {t('prefs.apps.unity.subpath.desc')}
-            </div>
-          </div>
-          <div className="pref-control" style={{ minWidth: 240 }}>
-            <input
-              className="pref-input mono"
-              placeholder={t('prefs.apps.unity.subpath.placeholder')}
-              value={subpath}
-              onChange={(e) => setSubpath(e.target.value)}
-              style={{ width: 240 }}
-            />
-          </div>
-        </div>
-        <div className="pref-row">
-          <div className="pref-label" />
-          <div className="pref-control" style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-            <button
-              className="btn primary sm"
-              disabled={!dirty}
-              onClick={async () => {
-                // Merge into the apps blob; that's where the launcher reads from.
-                const cur = get<AppsSettings>('apps', {}) ?? {};
-                await set('apps', {
-                  ...cur,
-                  unityBinary: picked.trim() || undefined,
-                  unityProjectSubpath: subpath.trim() || undefined,
-                } satisfies AppsSettings);
-                setSavedAt(Date.now());
-              }}
-            >
-              {t('common.save')}
-            </button>
-            {savedAt && !dirty && (
-              <span style={{ color: 'var(--fg-3)', fontSize: 11 }}>{t('common.saved')}</span>
-            )}
-          </div>
+        <div className="pref-control">
+          <input
+            type="checkbox"
+            checked={enabled}
+            onChange={(e) => void writeEngine({ enabled: e.target.checked })}
+          />
         </div>
       </div>
-    </>
+
+      {!isCustom && (
+        <>
+          <div className="pref-row">
+            <div className="pref-label">
+              <div className="pref-label-title">{t('prefs.engine.editorVersion.title')}</div>
+              <div className="pref-label-desc">
+                {scanning
+                  ? t('prefs.engine.scanning')
+                  : t('prefs.engine.installedCount', { count: versions.length })}{' '}
+                ·{' '}
+                <button
+                  className="btn-link"
+                  onClick={() => void refresh()}
+                  style={{ background: 'none', border: 0, color: 'var(--acc-hi)', cursor: 'pointer', padding: 0 }}
+                >
+                  {t('prefs.engine.rescan')}
+                </button>
+              </div>
+            </div>
+            <div className="pref-control" style={{ flex: 1, minWidth: 280 }}>
+              <select
+                className="pref-input mono"
+                value={binary}
+                onChange={(e) => setBinary(e.target.value)}
+                style={{ width: '100%' }}
+                disabled={versions.length === 0}
+              >
+                <option value="">{t('prefs.engine.selectVersion')}</option>
+                {versions.map((v) => (
+                  <option key={v.binary} value={v.binary}>{v.version}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+          {versions.length === 0 && !scanning && (
+            <div className="pref-row wide">
+              <div className="pref-error">
+                <i className="fa-solid fa-circle-exclamation" />
+                <div>{t('prefs.engine.noneFound')}</div>
+              </div>
+            </div>
+          )}
+          <div className="pref-row">
+            <div className="pref-label">
+              <div className="pref-label-title">{t('prefs.engine.binary.title')}</div>
+              <div className="pref-label-desc">{t('prefs.engine.binary.desc')}</div>
+            </div>
+            <div className="pref-control" style={{ flex: 1, minWidth: 280 }}>
+              <input
+                className="pref-input mono"
+                placeholder={binaryPlaceholder}
+                value={binary}
+                onChange={(e) => setBinary(e.target.value)}
+                style={{ width: '100%' }}
+              />
+            </div>
+          </div>
+        </>
+      )}
+
+      {isCustom && (
+        <>
+          <div className="pref-row">
+            <div className="pref-label">
+              <div className="pref-label-title">{t('prefs.engine.custom.posix.title')}</div>
+              <div className="pref-label-desc">{t('prefs.engine.custom.posix.desc')}</div>
+            </div>
+            <div className="pref-control" style={{ flex: 1, minWidth: 280 }}>
+              <input
+                className="pref-input mono"
+                placeholder="./run-editor.sh"
+                value={runPosix}
+                onChange={(e) => setRunPosix(e.target.value)}
+                style={{ width: '100%' }}
+              />
+            </div>
+          </div>
+          <div className="pref-row">
+            <div className="pref-label">
+              <div className="pref-label-title">{t('prefs.engine.custom.windows.title')}</div>
+              <div className="pref-label-desc">{t('prefs.engine.custom.windows.desc')}</div>
+            </div>
+            <div className="pref-control" style={{ flex: 1, minWidth: 280 }}>
+              <input
+                className="pref-input mono"
+                placeholder="run-editor.bat"
+                value={runWindows}
+                onChange={(e) => setRunWindows(e.target.value)}
+                style={{ width: '100%' }}
+              />
+            </div>
+          </div>
+        </>
+      )}
+
+      <div className="pref-row">
+        <div className="pref-label">
+          <div className="pref-label-title">{t('prefs.engine.subpath.title')}</div>
+          <div className="pref-label-desc">{t('prefs.engine.subpath.desc')}</div>
+        </div>
+        <div className="pref-control" style={{ minWidth: 240 }}>
+          <input
+            className="pref-input mono"
+            placeholder={t('prefs.engine.subpath.placeholder')}
+            value={subpath}
+            onChange={(e) => setSubpath(e.target.value)}
+            style={{ width: 240 }}
+          />
+        </div>
+      </div>
+
+      <div className="pref-row">
+        <div className="pref-label" />
+        <div className="pref-control" style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <button className="btn primary sm" disabled={!dirty} onClick={() => void save()}>
+            {t('common.save')}
+          </button>
+          {savedAt && !dirty && (
+            <span style={{ color: 'var(--fg-3)', fontSize: 11 }}>{t('common.saved')}</span>
+          )}
+        </div>
+      </div>
+    </div>
   );
 }
 

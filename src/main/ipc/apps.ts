@@ -14,6 +14,12 @@ import { basename, join } from 'node:path';
 import { homedir, tmpdir } from 'node:os';
 import { promisify } from 'node:util';
 import { IpcChannel } from '@shared/ipc';
+import {
+  type GameEngineId,
+  type GameEngineConfig,
+  type GameEnginesSettings,
+  engineMeta,
+} from '@shared/gameEngine';
 import { getSetting } from '../persistence/settings';
 import { getChat } from '../persistence/chats';
 import { applyPerforceAgentCwd } from '../git/chatPaths';
@@ -27,15 +33,34 @@ interface AppsSettings {
   editorApp?: string;
   /** macOS app name for git client. Default 'GitHub Desktop'. */
   gitApp?: string;
-  /** Absolute path to the Unity Editor binary, e.g.
-   *  /Applications/Unity/Hub/Editor/6.3.0f1/Unity.app/Contents/MacOS/Unity
-   *  When set, slot-launch goes direct (with -projectPath /
-   *  -noprojectBrowser / per-slot -logFile). When unset, falls back
-   *  to Unity Hub so users without a configured version still work. */
+  /** Per-engine launch config (Unity / Unreal / Custom). Independently
+   *  enable-able — see @shared/gameEngine. */
+  engines?: GameEnginesSettings;
+  /** @deprecated pre-multi-engine Unity binary path. Still read as a fallback
+   *  for `engines.unity.binary` so an existing config isn't dropped. */
   unityBinary?: string;
-  /** Path of the Unity project relative to the worktree root.
-   *  Defaults to blank (the worktree root is the Unity project). */
+  /** @deprecated pre-multi-engine Unity project subpath. Fallback for
+   *  `engines.unity.projectSubpath`. */
   unityProjectSubpath?: string;
+}
+
+/** Result of a per-slot app/engine launch. `reason: 'not-configured'` tells
+ *  the renderer to deep-link the user to Preferences → Integrations instead of
+ *  showing an error alert. */
+type LaunchResult = { ok: true } | { ok: false; error: string; reason?: 'not-configured' };
+
+/** Resolve an engine's effective config from settings, folding the legacy
+ *  top-level Unity fields into `engines.unity` so old configs keep working. */
+function resolveEngineCfg(cfg: AppsSettings, id: GameEngineId): GameEngineConfig {
+  const e = cfg.engines?.[id] ?? {};
+  if (id === 'unity') {
+    return {
+      enabled: e.enabled ?? true,
+      binary: e.binary ?? cfg.unityBinary,
+      projectSubpath: e.projectSubpath ?? cfg.unityProjectSubpath,
+    };
+  }
+  return e;
 }
 
 const isMac = process.platform === 'darwin';
@@ -162,7 +187,19 @@ async function openITermWithTitle(cwd: string, title: string): Promise<void> {
   await execFileP('osascript', ['-e', script]);
 }
 
-const UNITY_HUB_EDITORS = '/Applications/Unity/Hub/Editor';
+/** Unity Hub's editor install root, per platform (null = unsupported). */
+function unityHubRoot(): string | null {
+  if (isMac) return '/Applications/Unity/Hub/Editor';
+  if (isWindows) return 'C:\\Program Files\\Unity\\Hub\\Editor';
+  return join(homedir(), 'Unity', 'Hub', 'Editor'); // Linux Hub default
+}
+
+/** Epic Games install root (holds `UE_5.x` version dirs), per platform. */
+function unrealInstallRoot(): string | null {
+  if (isMac) return '/Users/Shared/Epic Games';
+  if (isWindows) return 'C:\\Program Files\\Epic Games';
+  return null; // Linux Unreal is a manual build — no standard install path
+}
 
 /**
  * Find the PID of a running Unity instance with the given project path
@@ -229,6 +266,8 @@ interface RunningAppsByKind {
   editor: string[];
   git: string[];
   unity: string[];
+  unreal: string[];
+  custom: string[];
 }
 
 /**
@@ -287,7 +326,7 @@ async function listRunningAppsForSlots(): Promise<RunningAppsByKind> {
   // Detection uses `pgrep`/`lsof`/`ps` (Unix). On Windows we have no
   // per-slot running signal yet, so short-circuit to empty instead of
   // firing missing-binary spawns every poll tick.
-  if (!isMac) return { terminal: [], editor: [], git: [], unity: [] };
+  if (!isMac) return { terminal: [], editor: [], git: [], unity: [], unreal: [], custom: [] };
   const now = Date.now();
   if (appsCache && now - appsCache.ts < APPS_CACHE_MS) return appsCache.result;
 
@@ -321,6 +360,10 @@ async function listRunningAppsForSlots(): Promise<RunningAppsByKind> {
     editor: [],
     git: [],
     unity: [...unity],
+    // Unreal/custom per-slot running detection isn't wired up yet (the button
+    // still launches/focuses fine; it just won't show a "running" ring).
+    unreal: [],
+    custom: [],
   };
   appsCache = { ts: now, result };
   return result;
@@ -395,44 +438,202 @@ async function focusUnityWindowByProjectPath(projectPath: string): Promise<boole
   }
 }
 
+interface EngineVersion { version: string; binary: string }
+
 /**
- * List Unity Editor versions installed via Unity Hub. Each entry is
- * the directory name (e.g. '6.3.0f1') paired with the absolute path
- * of its Unity binary. Filters out anything missing the binary.
+ * List Unity Editor versions installed via Unity Hub. Each entry is the
+ * version dir (e.g. '6.3.0f1') + the absolute path of its Unity binary,
+ * resolved per platform (Unity.app on macOS, Unity.exe on Windows). Filters
+ * out anything whose binary is missing.
  */
-function listUnityVersions(): Array<{ version: string; binary: string }> {
-  if (!existsSync(UNITY_HUB_EDITORS)) return [];
+function listUnityVersions(): EngineVersion[] {
+  const root = unityHubRoot();
+  if (!root || !existsSync(root)) return [];
   let entries: string[] = [];
   try {
-    entries = readdirSync(UNITY_HUB_EDITORS);
+    entries = readdirSync(root);
   } catch {
     return [];
   }
-  const out: Array<{ version: string; binary: string }> = [];
+  const out: EngineVersion[] = [];
   for (const v of entries) {
     if (v.startsWith('.')) continue;
-    const binary = `${UNITY_HUB_EDITORS}/${v}/Unity.app/Contents/MacOS/Unity`;
+    const binary = isWindows
+      ? join(root, v, 'Editor', 'Unity.exe')
+      : isMac
+        ? `${root}/${v}/Unity.app/Contents/MacOS/Unity`
+        : join(root, v, 'Editor', 'Unity');
     if (existsSync(binary)) out.push({ version: v, binary });
   }
-  // Sort newest-looking first (Unity versions sort lexicographically
-  // close enough — '6.3.0f1' > '2022.3.45f1' isn't right but real
-  // installs are usually a single major-version family).
+  // Newest-looking first (lexicographic is close enough for a single
+  // major-version family, the common case).
   out.sort((a, b) => b.version.localeCompare(a.version));
   return out;
+}
+
+/**
+ * List Unreal Engine versions installed via the Epic Games Launcher. Version
+ * dirs are named `UE_5.4`, `UE_5.3`, …; the label strips the `UE_` prefix.
+ * The editor binary is UnrealEditor(.exe/.app) under Engine/Binaries.
+ */
+function listUnrealVersions(): EngineVersion[] {
+  const root = unrealInstallRoot();
+  if (!root || !existsSync(root)) return [];
+  let entries: string[] = [];
+  try {
+    entries = readdirSync(root);
+  } catch {
+    return [];
+  }
+  const out: EngineVersion[] = [];
+  for (const d of entries) {
+    if (!d.startsWith('UE_')) continue;
+    const binary = isWindows
+      ? join(root, d, 'Engine', 'Binaries', 'Win64', 'UnrealEditor.exe')
+      : `${root}/${d}/Engine/Binaries/Mac/UnrealEditor.app/Contents/MacOS/UnrealEditor`;
+    if (existsSync(binary)) out.push({ version: d.replace(/^UE_/, ''), binary });
+  }
+  out.sort((a, b) => b.version.localeCompare(a.version));
+  return out;
+}
+
+/** Auto-detected editor installs for an engine. Custom has none. */
+function listEngineVersions(id: GameEngineId): EngineVersion[] {
+  if (id === 'unity') return listUnityVersions();
+  if (id === 'unreal') return listUnrealVersions();
+  return [];
+}
+
+/** Locate the single `.uproject` in an Unreal project dir. */
+function findUproject(dir: string): string | null {
+  try {
+    const f = readdirSync(dir).find((n) => n.toLowerCase().endsWith('.uproject'));
+    return f ? join(dir, f) : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Spawn a detached editor process; resolve on successful spawn. */
+async function spawnDetachedEditor(binary: string, args: string[], label: string): Promise<LaunchResult> {
+  try {
+    await new Promise<void>((resolve, reject) => {
+      const child = spawn(binary, args, { detached: true, stdio: 'ignore' });
+      child.once('error', reject);
+      // Detached — outlives popbot. Resolve as soon as spawn succeeds.
+      child.once('spawn', () => {
+        child.unref();
+        resolve();
+      });
+    });
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: `${label} launch failed: ${(err as Error).message}` };
+  }
+}
+
+/**
+ * Launch (or focus) a game engine's editor for a slot's project.
+ *   - unity : direct `-projectPath` launch; on macOS focuses an already-running
+ *             instance for this project first (window-title, then PID).
+ *   - unreal: opens the project's `.uproject`; Unreal itself focuses an already-
+ *             open instance of the same project.
+ *   - custom: runs the configured shell command (posix vs Windows variant) in
+ *             the project directory.
+ */
+async function launchEngine(id: GameEngineId, cfg: AppsSettings, worktreePath: string): Promise<LaunchResult> {
+  const ec = resolveEngineCfg(cfg, id);
+  const subpath = (ec.projectSubpath ?? '').trim();
+  const proj = subpath ? join(worktreePath, subpath) : worktreePath;
+  if (!existsSync(proj)) {
+    return { ok: false, error: `Project path not found: ${proj}` };
+  }
+  const label = engineMeta(id).label;
+
+  if (id === 'custom') {
+    const command = (isWindows ? ec.runWindows : ec.runPosix)?.trim();
+    if (!command) {
+      return {
+        ok: false,
+        error: `${label} run command not set. Open Preferences → Integrations to configure it.`,
+        reason: 'not-configured',
+      };
+    }
+    try {
+      const child = isWindows
+        ? spawn('cmd', ['/c', command], { cwd: proj, detached: true, stdio: 'ignore' })
+        : spawn('bash', ['-lc', command], { cwd: proj, detached: true, stdio: 'ignore' });
+      child.once('error', () => { /* best-effort: detached */ });
+      child.unref();
+      return { ok: true };
+    } catch (err) {
+      return { ok: false, error: `${label} launch failed: ${(err as Error).message}` };
+    }
+  }
+
+  // unity | unreal — need a configured (or detected) editor binary.
+  if (!ec.binary) {
+    return {
+      ok: false,
+      error: `${label} editor not configured. Open Preferences → Integrations to set it up.`,
+      reason: 'not-configured',
+    };
+  }
+  if (!existsSync(ec.binary)) {
+    return { ok: false, error: `${label} binary not found: ${ec.binary}` };
+  }
+
+  if (id === 'unity') {
+    // Single-instance per project: focus an already-running one (macOS only —
+    // relies on AppleScript/ps), else spawn. -noprojectBrowser skips the
+    // picker; -logFile is per-slot so slots don't fight for the default log.
+    if (await focusUnityWindowByProjectPath(proj)) return { ok: true };
+    const existingPid = await findUnityPidForProject(proj);
+    if (existingPid) {
+      try { await focusPid(existingPid); } catch { /* best-effort */ }
+      return { ok: true };
+    }
+    const logPath = join(tmpdir(), `unity-${basename(worktreePath)}.log`);
+    return spawnDetachedEditor(ec.binary, ['-projectPath', proj, '-noprojectBrowser', '-logFile', logPath], label);
+  }
+
+  // unreal — open the .uproject; Unreal focuses an existing instance itself.
+  const uproject = findUproject(proj);
+  if (!uproject) {
+    return { ok: false, error: `No .uproject found in ${proj}` };
+  }
+  return spawnDetachedEditor(ec.binary, [uproject], label);
+}
+
+const ENGINE_KINDS: readonly GameEngineId[] = ['unity', 'unreal', 'custom'];
+function isEngineKind(kind: string): kind is GameEngineId {
+  return (ENGINE_KINDS as readonly string[]).includes(kind);
 }
 
 export function registerAppsHandlers(): void {
   ipcMain.handle(IpcChannel.UnityListVersions, () => listUnityVersions());
   ipcMain.handle(IpcChannel.UnityRunningProjects, () => listRunningUnityProjects());
   ipcMain.handle(IpcChannel.AppsRunning, () => listRunningAppsForSlots());
+  ipcMain.handle(IpcChannel.EngineListVersions, (_e, engineId: GameEngineId) => listEngineVersions(engineId));
 
   ipcMain.handle(
     IpcChannel.AppsOpen,
-    async (_e, kind: 'terminal' | 'editor' | 'git' | 'unity', worktreePath: string, chatId?: string) => {
+    async (
+      _e,
+      kind: 'terminal' | 'editor' | 'git' | GameEngineId,
+      worktreePath: string,
+      chatId?: string,
+    ) => {
       if (!worktreePath || !existsSync(worktreePath)) {
         return { ok: false as const, error: 'Worktree path not found' };
       }
       const cfg = getSetting<AppsSettings>('apps') ?? {};
+      // Game engines (Unity/Unreal/Custom) launch the same way on every
+      // platform (spawn the editor binary / run the command), so they route to
+      // launchEngine before the macOS-vs-Windows split below.
+      if (isEngineKind(kind)) {
+        return launchEngine(kind, cfg, worktreePath);
+      }
       // The TERMINAL opens where the AGENT runs — for a Perforce repo that's a
       // configured subdir of the mount root. Editor/git keep the mount root
       // (that's where .git/.p4config live). cwd === worktreePath for non-p4.
@@ -440,9 +641,7 @@ export function registerAppsHandlers(): void {
         kind === 'terminal' && chatId
           ? applyPerforceAgentCwd(worktreePath, getChat(chatId)) ?? worktreePath
           : worktreePath;
-      // Windows: terminal/editor/git map to native launchers. Unity on
-      // Windows isn't wired up yet, so it falls through to the macOS
-      // path below (which returns a clear "not configured" error).
+      // Windows: terminal/editor/git map to native launchers.
       if (isWindows && (kind === 'terminal' || kind === 'editor' || kind === 'git')) {
         return openAppWindows(kind, cfg, kind === 'terminal' ? termCwd : worktreePath);
       }
@@ -472,81 +671,6 @@ export function registerAppsHandlers(): void {
           case 'git':
             await openApp(cfg.gitApp || 'GitHub Desktop', worktreePath);
             return { ok: true as const };
-          case 'unity': {
-            // Unity project may live one level deeper than the
-            // worktree root, depending on repo layout. Configurable so
-            // other repos / layouts work; blank = worktree root.
-            const subpath = (cfg.unityProjectSubpath ?? '').trim();
-            const proj = subpath ? join(worktreePath, subpath) : worktreePath;
-            if (!existsSync(proj)) {
-              return { ok: false as const, error: `Not a Unity project: ${proj}` };
-            }
-            if (!cfg.unityBinary) {
-              return {
-                ok: false as const,
-                error: 'Unity Editor not configured. Open Preferences → Unity to pick a version.',
-                reason: 'unity-not-configured' as const,
-              };
-            }
-            // Unity is single-instance per project. If one is already
-            // running with this project path, bring its window to the
-            // front instead of launching a duplicate.
-            //
-            // Primary path: window-title match. Unity's title bar
-            // contains the full project path, so we can disambiguate
-            // concurrent slot instances exactly. AXRaise on the
-            // matched window forces the right one forward, even when
-            // multiple Unity processes share focus history.
-            if (await focusUnityWindowByProjectPath(proj)) {
-              return { ok: true as const };
-            }
-            // Fallback: PID-based focus. Catches the case where Unity
-            // is launched but the editor window hasn't opened yet
-            // (splash / project-load) so there's no titled window to
-            // match against. Path-equality is exact — Unity sometimes
-            // canonicalizes the path differently from us, which is
-            // why this is a fallback rather than the primary signal.
-            const existingPid = await findUnityPidForProject(proj);
-            if (existingPid) {
-              try { await focusPid(existingPid); } catch { /* best-effort */ }
-              return { ok: true as const };
-            }
-            if (cfg.unityBinary) {
-              if (!existsSync(cfg.unityBinary)) {
-                return {
-                  ok: false as const,
-                  error: `Unity binary not found: ${cfg.unityBinary}`,
-                };
-              }
-              // Direct launch — bypasses Unity Hub. -noprojectBrowser
-              // skips the project picker; -logFile is per-slot so we
-              // don't fight other slots for the default log path.
-              const slotName = basename(worktreePath); // e.g. 'slot-3'
-              const logPath = join(tmpdir(), `unity-${slotName}.log`);
-              try {
-                await new Promise<void>((resolve, reject) => {
-                  const child = spawn(
-                    cfg.unityBinary!,
-                    ['-projectPath', proj, '-noprojectBrowser', '-logFile', logPath],
-                    { detached: true, stdio: 'ignore' },
-                  );
-                  child.once('error', reject);
-                  // The process is detached — it'll outlive popbot.
-                  // Resolve as soon as spawn succeeds (next tick).
-                  child.once('spawn', () => { child.unref(); resolve(); });
-                });
-                return { ok: true as const };
-              } catch (err) {
-                return {
-                  ok: false as const,
-                  error: `Unity launch failed: ${(err as Error).message}`,
-                };
-              }
-            }
-            // Fall back to Unity Hub if no direct binary configured.
-            await openApp('Unity Hub', proj);
-            return { ok: true as const };
-          }
           default:
             return { ok: false as const, error: `Unknown app kind: ${kind}` };
         }

@@ -9,6 +9,7 @@ import type {
   GitRevertInput,
 } from '@shared/git';
 import type { SourceControlProviderId } from '@shared/sourceControl';
+import type { GameEngineId } from '@shared/gameEngine';
 import {
   IpcChannel,
   type ApprovePermissionInput,
@@ -78,13 +79,20 @@ const api: PopBotApi = {
       ipcRenderer.invoke(IpcChannel.FilesPickDirectory, opts),
   },
   apps: {
-    open: (kind: 'terminal' | 'editor' | 'git' | 'unity', worktreePath: string, chatId?: string) =>
-      ipcRenderer.invoke(IpcChannel.AppsOpen, kind, worktreePath, chatId),
+    open: (
+      kind: 'terminal' | 'editor' | 'git' | GameEngineId,
+      worktreePath: string,
+      chatId?: string,
+    ) => ipcRenderer.invoke(IpcChannel.AppsOpen, kind, worktreePath, chatId),
     running: () => ipcRenderer.invoke(IpcChannel.AppsRunning),
   },
   unity: {
     listVersions: () => ipcRenderer.invoke(IpcChannel.UnityListVersions),
     runningProjects: () => ipcRenderer.invoke(IpcChannel.UnityRunningProjects),
+  },
+  engines: {
+    listVersions: (engineId: GameEngineId) =>
+      ipcRenderer.invoke(IpcChannel.EngineListVersions, engineId),
   },
   reviews: {
     list: () => ipcRenderer.invoke(IpcChannel.ReviewsList),
