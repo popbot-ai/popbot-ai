@@ -160,6 +160,8 @@ export const IpcChannel = {
   UnityRunningProjects: 'pb:unity:running-projects',
   /** List detected editor installs for a game engine (unity/unreal). */
   EngineListVersions: 'pb:engine:list-versions',
+  /** Detect which engine a chat's worktree is (root or child project folder). */
+  AppsDetectEngine: 'pb:apps:detect-engine',
   /** Per-app status (terminal/editor/git/engines) for slot icon coloring. */
   AppsRunning: 'pb:apps:running',
 
@@ -642,6 +644,10 @@ export interface PopBotApi {
     /** Detected editor installs for a game engine (unity → Unity Hub,
      *  unreal → Epic Games). Empty for 'custom' (a freeform command). */
     listVersions(engineId: GameEngineId): Promise<Array<{ version: string; binary: string }>>;
+    /** Detect which engine a chat's worktree is — the worktree either IS the
+     *  project or HAS one in a child folder. Null when neither Unity nor
+     *  Unreal is found. Drives the chat bar's engine icon. */
+    detect(worktreePath: string): Promise<GameEngineId | null>;
   };
   apps: {
     /** Open / focus an external app pointed at `worktreePath`.

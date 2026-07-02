@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState, type CSSProperties, type KeyboardEvent, type MouseEvent } from 'react';
+import { useCallback, useEffect, useRef, useState, type CSSProperties, type KeyboardEvent, type MouseEvent } from 'react';
 import {
   CLAUDE_REASONING_EFFORTS,
   CODEX_REASONING_EFFORTS,
@@ -27,7 +27,7 @@ import { colAccentStyle } from '../lib/repoColor';
 import { ConfirmDialog } from './ConfirmDialog';
 import { useTranslation } from '../lib/i18n';
 import type { MessageKey, Translator } from '@shared/i18n';
-import { GAME_ENGINES, engineEnabled, type GameEngineId, type GameEnginesSettings } from '@shared/gameEngine';
+import { engineEnabled, engineMeta, type GameEngineId, type GameEnginesSettings } from '@shared/gameEngine';
 import unityEngineIcon from '../assets/engines/unity-white.png';
 import unrealEngineIcon from '../assets/engines/unreal-white.png';
 
@@ -767,13 +767,34 @@ function SlotAppButtons({
   // renderer (the engine's project-subpath setting, etc.).
   const slotName = worktreePath ? worktreePath.split(/[/\\]/).pop() ?? '' : '';
 
-  // Terminal + editor are always shown; each ENABLED engine adds a Run button.
+  // Detect the engine THIS chat's worktree belongs to (Unity vs Unreal — the
+  // worktree either IS the project or HAS one in a child folder). The chat bar
+  // shows that one engine's Run button + icon, so an Unreal project never shows
+  // the Unity logo. Custom (no project marker) is the catch-all when nothing is
+  // detected and the user has enabled it.
+  const [detected, setDetected] = useState<GameEngineId | null>(null);
+  useEffect(() => {
+    if (!worktreePath) { setDetected(null); return; }
+    let alive = true;
+    void window.popbot.engines.detect(worktreePath).then((id) => { if (alive) setDetected(id); });
+    return () => { alive = false; };
+  }, [worktreePath]);
+
   const engines = (get<{ engines?: GameEnginesSettings }>('apps', {}) ?? {}).engines;
+  let engineForChat: GameEngineId | null = null;
+  if (detected && engineEnabled(engines?.[detected], detected)) engineForChat = detected;
+  else if (!detected && engineEnabled(engines?.custom, 'custom')) engineForChat = 'custom';
+
   const buttons: AppButtonDef[] = [
     ...STATIC_APP_BUTTONS,
-    ...GAME_ENGINES.filter((e) => engineEnabled(engines?.[e.id], e.id)).map(
-      (e): AppButtonDef => ({ kind: e.id, ...ENGINE_GLYPH[e.id], label: e.label, color: e.color }),
-    ),
+    ...(engineForChat
+      ? [{
+          kind: engineForChat,
+          ...ENGINE_GLYPH[engineForChat],
+          label: engineMeta(engineForChat).label,
+          color: engineMeta(engineForChat).color,
+        } satisfies AppButtonDef]
+      : []),
   ];
 
   const open = async (kind: AppButtonKind) => {

@@ -514,6 +514,77 @@ function findUproject(dir: string): string | null {
   }
 }
 
+/** Which engine, if any, a SINGLE directory is the project root of. Unreal
+ *  wins (a `.uproject` is definitive); Unity is `ProjectSettings/
+ *  ProjectVersion.txt` (or the `Assets/` + `ProjectSettings/` pair). */
+function dirEngineMarker(dir: string): GameEngineId | null {
+  if (!existsSync(dir)) return null;
+  if (findUproject(dir)) return 'unreal';
+  if (existsSync(join(dir, 'ProjectSettings', 'ProjectVersion.txt'))) return 'unity';
+  if (existsSync(join(dir, 'Assets')) && existsSync(join(dir, 'ProjectSettings'))) return 'unity';
+  return null;
+}
+
+/** Heavy/irrelevant dirs skipped when scanning a worktree for a project. */
+const SCAN_IGNORE_DIRS = new Set([
+  '.git', '.vs', '.shado', 'node_modules', 'library', 'intermediate', 'saved',
+  'deriveddatacache', 'binaries', 'build', 'logs',
+]);
+
+/** Depth + total-dir bounds for the worktree scan. The project can be nested
+ *  a few levels deep (e.g. Perforce's `depot/PopBotGame/UnrealGame/`), so we
+ *  descend a bit, but prune heavy dirs and cap total visits so a big game tree
+ *  can't stall detection. */
+const MAX_SCAN_DEPTH = 4;
+const MAX_SCAN_DIRS = 500;
+
+/**
+ * Detect the game engine a chat's worktree belongs to. The worktree either IS
+ * the project (root has the marker) or HAS one nested inside (a child folder,
+ * possibly a few levels down — e.g. `depot/PopBotGame/UnrealGame/`). Returns
+ * the engine + the project's subpath (`''` = root) so the launcher can open it
+ * with no manual config. Breadth-first so the SHALLOWEST project wins; Unreal
+ * beats Unity within any single directory. Null when neither is found.
+ */
+function detectEngineForWorktree(worktreePath: string): { engine: GameEngineId; projectSubpath: string } | null {
+  if (!worktreePath || !existsSync(worktreePath)) return null;
+  const queue: Array<{ dir: string; rel: string; depth: number }> = [{ dir: worktreePath, rel: '', depth: 0 }];
+  let visited = 0;
+  while (queue.length) {
+    const { dir, rel, depth } = queue.shift()!;
+    if (++visited > MAX_SCAN_DIRS) break;
+    const marker = dirEngineMarker(dir);
+    if (marker) return { engine: marker, projectSubpath: rel };
+    if (depth >= MAX_SCAN_DEPTH) continue;
+    try {
+      for (const e of readdirSync(dir, { withFileTypes: true })) {
+        if (!e.isDirectory() || SCAN_IGNORE_DIRS.has(e.name.toLowerCase())) continue;
+        queue.push({ dir: join(dir, e.name), rel: rel ? `${rel}/${e.name}` : e.name, depth: depth + 1 });
+      }
+    } catch {
+      /* unreadable dir — skip */
+    }
+  }
+  return null;
+}
+
+/**
+ * The project directory to launch for `id` in `worktreePath`. Prefers the
+ * user's configured subpath when it actually looks like this engine; otherwise
+ * auto-detects (worktree root or a child project folder). Falls back to the
+ * configured/root path so the launcher can surface a clear error.
+ */
+function resolveEngineProjectDir(worktreePath: string, id: GameEngineId, cfg: AppsSettings): string {
+  const sub = (resolveEngineCfg(cfg, id).projectSubpath ?? '').trim();
+  const configured = sub ? join(worktreePath, sub) : worktreePath;
+  if (dirEngineMarker(configured) === id) return configured;
+  const det = detectEngineForWorktree(worktreePath);
+  if (det && det.engine === id) {
+    return det.projectSubpath ? join(worktreePath, det.projectSubpath) : worktreePath;
+  }
+  return configured;
+}
+
 /** Spawn a detached editor process; resolve on successful spawn. */
 async function spawnDetachedEditor(binary: string, args: string[], label: string): Promise<LaunchResult> {
   try {
@@ -543,8 +614,12 @@ async function spawnDetachedEditor(binary: string, args: string[], label: string
  */
 async function launchEngine(id: GameEngineId, cfg: AppsSettings, worktreePath: string): Promise<LaunchResult> {
   const ec = resolveEngineCfg(cfg, id);
-  const subpath = (ec.projectSubpath ?? '').trim();
-  const proj = subpath ? join(worktreePath, subpath) : worktreePath;
+  // Unity/Unreal auto-locate the project (root or a child folder); Custom runs
+  // in the configured subpath (or the worktree root).
+  const proj =
+    id === 'custom'
+      ? ((ec.projectSubpath ?? '').trim() ? join(worktreePath, (ec.projectSubpath ?? '').trim()) : worktreePath)
+      : resolveEngineProjectDir(worktreePath, id, cfg);
   if (!existsSync(proj)) {
     return { ok: false, error: `Project path not found: ${proj}` };
   }
@@ -615,6 +690,7 @@ export function registerAppsHandlers(): void {
   ipcMain.handle(IpcChannel.UnityRunningProjects, () => listRunningUnityProjects());
   ipcMain.handle(IpcChannel.AppsRunning, () => listRunningAppsForSlots());
   ipcMain.handle(IpcChannel.EngineListVersions, (_e, engineId: GameEngineId) => listEngineVersions(engineId));
+  ipcMain.handle(IpcChannel.AppsDetectEngine, (_e, worktreePath: string) => detectEngineForWorktree(worktreePath)?.engine ?? null);
 
   ipcMain.handle(
     IpcChannel.AppsOpen,

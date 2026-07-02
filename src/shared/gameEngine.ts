@@ -57,9 +57,11 @@ export function engineMeta(id: GameEngineId): GameEngineMeta {
   return GAME_ENGINES.find((e) => e.id === id) ?? GAME_ENGINES[0];
 }
 
-/** Whether an engine's Run button should appear / it counts as active. Unity
- *  defaults ON so the pre-multi-engine single-Unity behavior is preserved for
- *  users who already configured it; Unreal + Custom default OFF. */
+/** Whether an engine is allowed to surface on a chat (gates the detected
+ *  engine's Run button). Unity + Unreal default ON — the chat bar only shows
+ *  one when the chat's project is actually detected as that engine, so there
+ *  are no spurious buttons. Custom has no project marker (it's a freeform
+ *  command), so it defaults OFF and shows only when you opt in. */
 export function engineEnabled(cfg: GameEngineConfig | undefined, id: GameEngineId): boolean {
-  return cfg?.enabled ?? id === 'unity';
+  return cfg?.enabled ?? id !== 'custom';
 }

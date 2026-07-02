@@ -93,6 +93,7 @@ const api: PopBotApi = {
   engines: {
     listVersions: (engineId: GameEngineId) =>
       ipcRenderer.invoke(IpcChannel.EngineListVersions, engineId),
+    detect: (worktreePath: string) => ipcRenderer.invoke(IpcChannel.AppsDetectEngine, worktreePath),
   },
   reviews: {
     list: () => ipcRenderer.invoke(IpcChannel.ReviewsList),
