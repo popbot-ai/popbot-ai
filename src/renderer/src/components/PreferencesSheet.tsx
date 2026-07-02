@@ -3154,11 +3154,18 @@ function SlotSetupProgress({
   sizeGb,
   onDone,
   onBack,
+  onClose,
+  onSettled,
 }: {
   draft: NewRepoDraft;
   sizeGb: number;
   onDone: () => void;
   onBack: () => void;
+  /** Hard-close the wizard (discard) — the error state's Close button. */
+  onClose: () => void;
+  /** Fires once the run settles (done or error) so the wizard can re-enable its
+   *  X + scrim, which are locked only while a build is actively running. */
+  onSettled?: (settled: boolean) => void;
 }): JSX.Element {
   const { t } = useTranslation();
   const isP4 = draft.scm === 'perforce';
@@ -3167,6 +3174,12 @@ function SlotSetupProgress({
   const [slotDone, setSlotDone] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const ran = useRef(false);
+
+  // Tell the wizard when the run has settled (done/error) so it can unlock its
+  // X + scrim — otherwise a FAILED setup traps the modal (only Back worked).
+  useEffect(() => {
+    onSettled?.(phase === 'done' || phase === 'error');
+  }, [phase, onSettled]);
 
   useEffect(() => window.popbot.repos.onBaseProgress((m) => setProgress(m)), []);
 
@@ -3277,7 +3290,13 @@ function SlotSetupProgress({
       <div className="modal-foot">
         <button className="btn" onClick={onBack} disabled={phase !== 'error'}>{t('common.back')}</button>
         <span style={{ flex: 1 }} />
-        <button className="btn primary" onClick={onDone} disabled={phase !== 'done'}>{t('common.done')}</button>
+        {phase === 'error' ? (
+          // Setup failed — let the user bail out entirely (discard + back to
+          // Preferences), not just step Back. The frozen base stays on disk.
+          <button className="btn primary" onClick={onClose}>{t('common.close')}</button>
+        ) : (
+          <button className="btn primary" onClick={onDone} disabled={phase !== 'done'}>{t('common.done')}</button>
+        )}
       </div>
     </>
   );
@@ -3312,6 +3331,10 @@ function NewRepoWizard({
   const { t } = useTranslation();
   const { get } = useSettings();
   const [step, setStep] = useState<WizardStep>('repo');
+  // True while a build is ACTIVELY running on the 'progress' step; locks the
+  // wizard X + scrim so setup can't be abandoned mid-run. Cleared when the run
+  // settles (done/error) so a FAILED build can still be dismissed.
+  const [progressRunning, setProgressRunning] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   // Created repo record — populated once create() succeeds. Drives the SHARED
@@ -3344,7 +3367,7 @@ function NewRepoWizard({
   // must ALSO be blocked across those steps so the setup can't be abandoned
   // mid-run — you exit via the panel's own Cancel/Close/Done, which appear at
   // the right phase.
-  const chromeLocked = locked || step === 'init' || step === 'progress';
+  const chromeLocked = locked || step === 'init' || (step === 'progress' && progressRunning);
 
   // Uniqueness guards (also enforced server-side on create). Surface them on
   // the repo step so the user can't get all the way to submit before failing.
@@ -3551,6 +3574,7 @@ function NewRepoWizard({
       if (step === 'setup') {
         // Git-slots + perforce hand off to the orchestrated progress screen.
         setError(null);
+        setProgressRunning(true);
         setStep('progress');
         return;
       }
@@ -3830,6 +3854,8 @@ function NewRepoWizard({
             sizeGb={preflight?.sizeGb ?? 32}
             onDone={onCreated}
             onBack={() => setStep('setup')}
+            onClose={onCancel}
+            onSettled={(settled) => setProgressRunning(!settled)}
           />
         )}
 
