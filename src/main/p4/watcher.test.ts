@@ -107,7 +107,15 @@ describe('slot watcher (real @parcel/watcher backend)', () => {
     expect(changes.some((c) => c.path.startsWith('Saved/'))).toBe(false);
   }, 20000);
 
-  it('trips spam detection on an unpredicted exploder and auto-mutes it', async () => {
+  // Skipped on Windows: ReadDirectoryChangesW has a fixed internal buffer that
+  // OVERFLOWS and silently DROPS events on a burst this size (see watcher.ts'
+  // perf contract), so the CHURN_CAP counter can't be reliably driven to the
+  // spam trip from discrete per-file events — the burst also occasionally
+  // crashes the vitest worker (EPIPE). The result is flaky on Windows CI
+  // (~25% fail locally). The spam-detection logic is platform-agnostic and
+  // stays covered by the Linux + macOS runs; overflow-drop is itself the
+  // acceptable mitigation on Windows (the flood is dropped by the OS anyway).
+  it.skipIf(process.platform === 'win32')('trips spam detection on an unpredicted exploder and auto-mutes it', async () => {
     const slot = makeSlot();
     // A dir NOT in the built-in prune list, so it reaches the handler and must
     // be caught dynamically (CHURN_CAP, or a drop-overflow — both route through
