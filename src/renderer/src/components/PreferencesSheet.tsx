@@ -3761,17 +3761,22 @@ function NewRepoWizard({
                 </div>
               </>
             )}
-            <div className="pref-row">
-              <div className="pref-label">
-                <div className="pref-label-title">{t('prefs.repos.wizard.agentCwd.title')}</div>
-                <div className="pref-label-desc">{t('prefs.repos.wizard.agentCwd.desc')}</div>
+            {/* Agent working dir is Perforce-only — a depot subpath under the
+                mount root. Hidden for git repos (their worktree root is the
+                agent cwd). */}
+            {isP4 && (
+              <div className="pref-row">
+                <div className="pref-label">
+                  <div className="pref-label-title">{t('prefs.repos.wizard.agentCwd.title')}</div>
+                  <div className="pref-label-desc">{t('prefs.repos.wizard.agentCwd.desc')}</div>
+                </div>
+                <div className="pref-control">
+                  <input className="pref-input mono narrow" placeholder="/"
+                         value={draft.p4AgentCwd}
+                         onChange={(e) => onChange({ ...draft, p4AgentCwd: e.target.value })} style={{ width: 240 }} />
+                </div>
               </div>
-              <div className="pref-control">
-                <input className="pref-input mono narrow" placeholder="/"
-                       value={draft.p4AgentCwd}
-                       onChange={(e) => onChange({ ...draft, p4AgentCwd: e.target.value })} style={{ width: 240 }} />
-              </div>
-            </div>
+            )}
 
             <h4 style={{ margin: '18px 0 6px', fontSize: 'var(--fs-sm)' }}>{t('prefs.repos.wizard.setup.slotsHead')}</h4>
             <div className="pref-row">
