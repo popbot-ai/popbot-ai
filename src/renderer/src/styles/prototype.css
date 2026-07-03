@@ -4505,6 +4505,18 @@ input.input.mono, select.input.mono { font-family: var(--font-mono); font-size: 
   background: var(--st-done);
   box-shadow: 0 0 0 1px var(--bg-1);
 }
+/* Engine buttons render a logo image (Unity/Unreal) or an emoji (Custom)
+   instead of a FontAwesome glyph. The logos are monochrome white PNGs; dim
+   them slightly when idle to match the fa glyphs' "off" look. */
+.slot-app-img {
+  width: 15px;
+  height: 15px;
+  object-fit: contain;
+  opacity: 0.85;
+}
+.slot-app-btn:not(:disabled):hover .slot-app-img,
+.slot-app-btn.running .slot-app-img { opacity: 1; }
+.slot-app-emoji { font-size: 13px; line-height: 1; }
 
 /* Modern numeric stepper (replaces the OS-default <input type="number">). */
 .num-stepper {
@@ -4832,6 +4844,7 @@ input.input.mono, select.input.mono { font-family: var(--font-mono); font-size: 
 .tracker-dd-caret { margin-left: auto; font-size: 10px; color: var(--fg-2); }
 .tracker-dd-ico { width: 16px; height: 16px; border-radius: 3px; flex: 0 0 auto; }
 .tracker-dd-ico-fa { width: 16px; text-align: center; font-size: 13px; color: var(--fg-1); flex: 0 0 auto; }
+.engine-emoji-ico { width: 16px; text-align: center; font-size: 14px; line-height: 1; flex: 0 0 auto; }
 .tracker-dd-menu {
   position: absolute; top: calc(100% + 2px); left: 0;
   z-index: 30; padding: 2px;

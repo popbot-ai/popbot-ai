@@ -825,9 +825,27 @@ export const ptBR = {
   'prefs.integ.ticketSource.title': 'Fonte de tickets',
   'prefs.integ.ticketSource.desc':
     'O rastreador de issues que alimenta a fila de Tickets no Painel A, para que você possa iniciar agentes direto do seu rastreador.',
-  'prefs.integ.gameEngine.title': 'Motor de jogo',
+  'prefs.integ.gameEngine.title': 'Motores de jogo',
   'prefs.integ.gameEngine.desc':
-    'O motor que o PopBot inicia a partir do worktree de um chat (o ícone do motor em cada coluna de chat).',
+    'Ative os motores que você usa — cada um adiciona um botão Executar à barra de chat que abre o editor dele a partir do worktree do chat. Eles são independentes, então você pode ativar Unity, Unreal e um motor Personalizado ao mesmo tempo.',
+  'prefs.engine.enabled': 'Ativado',
+  'prefs.engine.enabledDesc': 'Mostrar um botão Executar para este motor na barra de chat.',
+  'prefs.engine.editorVersion.title': 'Instalações detectadas',
+  'prefs.engine.scanning': 'Verificando…',
+  'prefs.engine.installedCount': '{count} encontradas',
+  'prefs.engine.rescan': 'verificar novamente',
+  'prefs.engine.selectVersion': '— Selecione uma versão detectada —',
+  'prefs.engine.noneFound': 'Nenhuma instalação detectada. Informe o caminho do binário do editor abaixo.',
+  'prefs.engine.binary.title': 'Binário do editor',
+  'prefs.engine.binary.desc': 'Caminho absoluto para o executável do editor. Substitui a lista suspensa.',
+  'prefs.engine.subpath.title': 'Subcaminho do projeto',
+  'prefs.engine.subpath.desc':
+    'Caminho para o projeto relativo à raiz do worktree. Deixe em branco se a raiz do worktree for o projeto.',
+  'prefs.engine.subpath.placeholder': 'ex.: game (em branco = raiz do worktree)',
+  'prefs.engine.custom.posix.title': 'Comando de execução (macOS / Linux)',
+  'prefs.engine.custom.posix.desc': 'Comando de shell executado (via bash) no diretório do projeto.',
+  'prefs.engine.custom.windows.title': 'Comando de execução (Windows)',
+  'prefs.engine.custom.windows.desc': 'Comando executado (via cmd) no diretório do projeto.',
 
   // Preferences — Source control pane.
   'prefs.git.title': 'Controle de versão',

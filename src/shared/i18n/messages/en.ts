@@ -837,9 +837,27 @@ export const en = {
   'prefs.integ.ticketSource.title': 'Ticket source',
   'prefs.integ.ticketSource.desc':
     'The issue tracker that feeds the Tickets queue in Panel A, so you can spawn agents straight from your tracker.',
-  'prefs.integ.gameEngine.title': 'Game engine',
+  'prefs.integ.gameEngine.title': 'Game engines',
   'prefs.integ.gameEngine.desc':
-    'The engine PopBot launches from a chat’s worktree (the engine icon on each chat column).',
+    'Enable any engines you use — each one adds a Run button to the chat bar that launches its editor from the chat’s worktree. They’re independent, so you can enable Unity, Unreal, and a Custom engine at once.',
+  'prefs.engine.enabled': 'Enabled',
+  'prefs.engine.enabledDesc': 'Show a Run button for this engine on the chat bar.',
+  'prefs.engine.editorVersion.title': 'Detected installs',
+  'prefs.engine.scanning': 'Scanning…',
+  'prefs.engine.installedCount': '{count} found',
+  'prefs.engine.rescan': 'rescan',
+  'prefs.engine.selectVersion': '— Select a detected version —',
+  'prefs.engine.noneFound': 'No installs detected. Enter the editor binary path below.',
+  'prefs.engine.binary.title': 'Editor binary',
+  'prefs.engine.binary.desc': 'Absolute path to the editor executable. Overrides the dropdown.',
+  'prefs.engine.subpath.title': 'Project subpath',
+  'prefs.engine.subpath.desc':
+    'Path to the project relative to the worktree root. Leave blank if the worktree root is the project.',
+  'prefs.engine.subpath.placeholder': 'e.g. game (blank = worktree root)',
+  'prefs.engine.custom.posix.title': 'Run command (macOS / Linux)',
+  'prefs.engine.custom.posix.desc': 'Shell command run (via bash) in the project directory.',
+  'prefs.engine.custom.windows.title': 'Run command (Windows)',
+  'prefs.engine.custom.windows.desc': 'Command run (via cmd) in the project directory.',
 
   // Preferences — Source control pane.
   'prefs.git.title': 'Source control',

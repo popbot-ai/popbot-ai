@@ -825,9 +825,32 @@ export const fr = {
   'prefs.integ.ticketSource.title': 'Source de tickets',
   'prefs.integ.ticketSource.desc':
     'Le gestionnaire de tickets qui alimente la file Tickets du panneau A, afin que vous puissiez créer des agents directement depuis votre gestionnaire.',
-  'prefs.integ.gameEngine.title': 'Moteur de jeu',
+  'prefs.integ.gameEngine.title': 'Moteurs de jeu',
   'prefs.integ.gameEngine.desc':
-    'Le moteur que PopBot lance depuis le worktree d’un chat (l’icône de moteur sur chaque colonne de chat).',
+    'Activez les moteurs que vous utilisez — chacun ajoute un bouton Exécuter à la barre de chat qui lance son éditeur depuis le worktree du chat. Ils sont indépendants, vous pouvez donc activer Unity, Unreal et un moteur personnalisé en même temps.',
+  'prefs.engine.enabled': 'Activé',
+  'prefs.engine.enabledDesc':
+    'Afficher un bouton Exécuter pour ce moteur dans la barre de chat.',
+  'prefs.engine.editorVersion.title': 'Installations détectées',
+  'prefs.engine.scanning': 'Analyse…',
+  'prefs.engine.installedCount': '{count} trouvée(s)',
+  'prefs.engine.rescan': 'ré-analyser',
+  'prefs.engine.selectVersion': '— Sélectionnez une version détectée —',
+  'prefs.engine.noneFound':
+    'Aucune installation détectée. Saisissez ci-dessous le chemin du binaire de l’éditeur.',
+  'prefs.engine.binary.title': 'Binaire de l’éditeur',
+  'prefs.engine.binary.desc':
+    'Chemin absolu vers l’exécutable de l’éditeur. Prioritaire sur la liste déroulante.',
+  'prefs.engine.subpath.title': 'Sous-chemin du projet',
+  'prefs.engine.subpath.desc':
+    'Chemin du projet relatif à la racine du worktree. Laissez vide si la racine du worktree est le projet.',
+  'prefs.engine.subpath.placeholder': 'ex. game (vide = racine du worktree)',
+  'prefs.engine.custom.posix.title': 'Commande d’exécution (macOS / Linux)',
+  'prefs.engine.custom.posix.desc':
+    'Commande shell exécutée (via bash) dans le répertoire du projet.',
+  'prefs.engine.custom.windows.title': 'Commande d’exécution (Windows)',
+  'prefs.engine.custom.windows.desc':
+    'Commande exécutée (via cmd) dans le répertoire du projet.',
 
   // Preferences — Source control pane.
   'prefs.git.title': 'Gestion de versions',

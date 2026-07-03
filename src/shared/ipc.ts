@@ -38,6 +38,7 @@ import type {
   ReviewProviderInfo,
 } from './reviews';
 import type { GithubTestResult, JiraSettings } from './ticketProvider';
+import type { GameEngineId } from './gameEngine';
 import type { SentryTestResult } from './sentry';
 import type { SlackTestResult } from './slack';
 import type { UpdateInfo, UpdateCheckResult, UpdateProgress, UpdateReady } from './updates';
@@ -157,7 +158,11 @@ export const IpcChannel = {
   UnityListVersions: 'pb:unity:list-versions',
   /** List currently-running Unity projects (project path + pid). */
   UnityRunningProjects: 'pb:unity:running-projects',
-  /** Per-app status (terminal/editor/git/unity) for slot icon coloring. */
+  /** List detected editor installs for a game engine (unity/unreal). */
+  EngineListVersions: 'pb:engine:list-versions',
+  /** Detect which engine a chat's worktree is (root or child project folder). */
+  AppsDetectEngine: 'pb:apps:detect-engine',
+  /** Per-app status (terminal/editor/git/engines) for slot icon coloring. */
   AppsRunning: 'pb:apps:running',
 
   /** Working-tree status + recent commits for the focused chat's slot. */
@@ -635,19 +640,29 @@ export interface PopBotApi {
      *  decide whether the launcher should focus or spawn. */
     runningProjects(): Promise<Array<{ projectPath: string; pid: number }>>;
   };
+  engines: {
+    /** Detected editor installs for a game engine (unity → Unity Hub,
+     *  unreal → Epic Games). Empty for 'custom' (a freeform command). */
+    listVersions(engineId: GameEngineId): Promise<Array<{ version: string; binary: string }>>;
+    /** Detect which engine a chat's worktree is — the worktree either IS the
+     *  project or HAS one in a child folder. Null when neither Unity nor
+     *  Unreal is found. Drives the chat bar's engine icon. */
+    detect(worktreePath: string): Promise<GameEngineId | null>;
+  };
   apps: {
     /** Open / focus an external app pointed at `worktreePath`.
      *  - 'terminal' → user's preferred terminal (iTerm by default)
      *  - 'editor'   → VS Code / Cursor (per editor pref)
      *  - 'git'      → GitHub Desktop or configured git client
-     *  - 'unity'    → Unity Hub / Unity at `<worktreePath>/<unityProjectSubpath>` */
+     *  - 'unity' | 'unreal' | 'custom' → the game engine's editor / run
+     *    command at `<worktreePath>/<projectSubpath>` */
     open(
-      kind: 'terminal' | 'editor' | 'git' | 'unity',
+      kind: 'terminal' | 'editor' | 'git' | GameEngineId,
       worktreePath: string,
       /** Chat id — lets the terminal open in the chat's agent cwd (a Perforce
        *  repo's configured subdir), matching where the agent runs. */
       chatId?: string,
-    ): Promise<{ ok: true } | { ok: false; error: string; reason?: 'unity-not-configured' }>;
+    ): Promise<{ ok: true } | { ok: false; error: string; reason?: 'not-configured' }>;
     /** Snapshot of which apps are currently open for which slots, for
      *  the slot icon row's running indicator. Each kind maps to a Set
      *  of slot worktree basenames (e.g. 'slot-3') that the app
@@ -657,6 +672,8 @@ export interface PopBotApi {
       editor: string[];
       git: string[];
       unity: string[];
+      unreal: string[];
+      custom: string[];
     }>;
   };
   reviews: {

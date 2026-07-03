@@ -191,6 +191,12 @@ export async function buildBase(
     const slot = `${opts.slotPrefix}-${k}`;
     const mount = join(worktreesDir, slot);
     batBody +=
+      // shado's mount clears the target with `rmdir "$target"`, which fails
+      // fatally (PowerShell 5.1 treats the native rmdir's "file not found"
+      // stderr as terminating) when the target doesn't exist yet — the case on
+      // a fresh create / recreate. Pre-create the empty mount point so that
+      // rmdir has something to remove and the mount proceeds.
+      `if not exist "${mount}" md "${mount}"\r\n` +
       `"${shado}" clone create --name ${opts.baseName} --slot ${slot} --mount "${mount}" >> "${log}" 2>&1\r\n` +
       'if errorlevel 1 exit /b %errorlevel%\r\n';
   }
@@ -435,6 +441,9 @@ export async function growSlotClones(
     // the wizard where the base build already mounted them) must NOT abort the
     // batch. A genuinely-missing clone is caught later when its per-slot init
     // tries to use it.
+    // Pre-create the empty mount point (see buildBase): shado's `rmdir "$target"`
+    // is fatal on a missing dir under PowerShell 5.1.
+    batBody += `if not exist "${mount}" md "${mount}"\r\n`;
     batBody += `"${shado}" clone create --name ${opts.baseName} --slot ${slot} --mount "${mount}" >> "${log}" 2>&1\r\n`;
   }
   batBody += 'exit /b 0\r\n';

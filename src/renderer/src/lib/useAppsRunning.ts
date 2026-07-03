@@ -16,6 +16,8 @@ export interface AppsRunning {
   editor: ReadonlySet<string>;
   git: ReadonlySet<string>;
   unity: ReadonlySet<string>;
+  unreal: ReadonlySet<string>;
+  custom: ReadonlySet<string>;
 }
 
 const EMPTY: AppsRunning = {
@@ -23,6 +25,8 @@ const EMPTY: AppsRunning = {
   editor: new Set(),
   git: new Set(),
   unity: new Set(),
+  unreal: new Set(),
+  custom: new Set(),
 };
 
 let cache: AppsRunning = EMPTY;
@@ -37,6 +41,8 @@ async function tick(): Promise<void> {
       editor: new Set(res.editor),
       git: new Set(res.git),
       unity: new Set(res.unity),
+      unreal: new Set(res.unreal),
+      custom: new Set(res.custom),
     };
     for (const s of subs) s(cache);
   } catch {
