@@ -46,6 +46,8 @@
     'beta.dlOs': 'Download {os} beta',
     'beta.getStable': 'get the stable release instead',
     'beta.warn': 'Not for production work — expect bugs, and updates that overwrite it without notice.',
+    'beta.miniCta': 'new features to try',
+    'beta.miniOpen': 'Open',
     'common.also': 'Also:',
     // hero
     'hero.eyebrow': 'Multi-agent agentic coding workflow tool',
@@ -76,6 +78,10 @@
     'feat.git.h3': 'Worktree-aware git interface',
     'feat.git.p1': 'A built-in <strong>git panel</strong> scoped to <em>each chat\'s own worktree</em>: working-tree status, recent commits, and per-file diffs for exactly that branch — you\'re never guessing which checkout you\'re acting on.',
     'feat.git.p2': 'One-click, templated actions — <strong>Commit</strong>, <strong>Push PR</strong>, <strong>Make ready</strong>, <strong>Address CR</strong>, <strong>Rebase onto base</strong> — send a pre-filled instruction to the agent, with <code>\${branch}</code> / <code>\${ticket}</code> / <code>\${prnum}</code> filled in. Review the diff, click, ship.',
+    'feat.disk.h3': "Unlimited live copies of your repo, for one repo's disk",
+    'feat.disk.p1': 'Open a new chat and it gets a <strong>live, full copy of your repo — and its asset library</strong>, up to <strong>1&nbsp;TB</strong>: real files you can edit, build, and run, completely independent from every other chat.',
+    'feat.disk.p2': 'Each copy is a <strong>copy-on-write workspace folder</strong> — they all share one base image and keep only their own changes, so <strong>unlimited copies use the disk of a single repo</strong>. A fresh copy of a terabyte-scale Perforce or git tree is ready in <strong>seconds</strong>, and freed just as fast. It works the same on Windows, macOS, and Linux.',
+    'feat.disk.more': 'How virtual workspaces work',
     'feat.workflow.h3': 'End-to-end workflow',
     'feat.workflow.p1': 'The whole loop in one place: your <strong>inbox</strong> (assigned tickets + PRs awaiting review) → <strong>in-progress</strong> agent work in isolated slots → <strong>GitHub</strong> (commit, push, open the PR) → <strong>code review</strong> in instant repoless chats → <strong>archive</strong> a finished chat → <strong>reopen and restart</strong> later with full history.',
     'feat.workflow.p2': 'Click a ticket and PopBot names the branch, leases a slot, moves the ticket to <em>In Progress</em>, and seeds the agent — then carries it through to a merged PR and back.',
@@ -343,7 +349,13 @@
       "cta.p": "Si tu equipo está recurriendo a más de un agente de programación a la vez sin perder el hilo, este es un punto de partida funcional y con criterio.",
       "cta.github": "Ver en GitHub",
       "cta.getstarted": "Empezar",
-      "footer.tagline": "Programación agéntica que puedes ver."
+      "footer.tagline": "Programación agéntica que puedes ver.",
+      "feat.disk.h3": "Copias vivas ilimitadas de tu repo, con el disco de uno",
+      "feat.disk.p1": "Abre un chat nuevo y obtiene una <strong>copia viva y completa de tu repo — y de su biblioteca de assets</strong>, de hasta <strong>1&nbsp;TB</strong>: archivos reales que puedes editar, compilar y ejecutar, totalmente independientes de los demás chats.",
+      "feat.disk.p2": "Cada copia es una <strong>carpeta de trabajo copy-on-write</strong>: todas comparten una imagen base y guardan solo sus cambios, así que <strong>copias ilimitadas usan el disco de un solo repo</strong>. Una copia nueva de un árbol Perforce o git a escala de terabytes está lista en <strong>segundos</strong>, y se libera igual de rápido. Funciona igual en Windows, macOS y Linux.",
+      "feat.disk.more": "Cómo funcionan los espacios de trabajo virtuales",
+      "beta.miniCta": "novedades para probar",
+      "beta.miniOpen": "Abrir"
     },
     fr: {
       "meta.title": "PopBot — Le codage agentique que vous pouvez voir",
@@ -492,7 +504,13 @@
       "cta.p": "Si votre équipe se met à utiliser plus d'un agent de codage à la fois sans perdre le fil, voici un point de départ fonctionnel et affirmé.",
       "cta.github": "Voir sur GitHub",
       "cta.getstarted": "Commencer",
-      "footer.tagline": "Le codage agentique que vous pouvez voir."
+      "footer.tagline": "Le codage agentique que vous pouvez voir.",
+      "feat.disk.h3": "Des copies vivantes illimitées de votre dépôt, pour la place d'un seul",
+      "feat.disk.p1": "Ouvrez un nouveau chat et il obtient une <strong>copie vivante et complète de votre dépôt — et de sa bibliothèque d'assets</strong>, jusqu'à <strong>1&nbsp;To</strong> : de vrais fichiers que vous pouvez éditer, compiler et exécuter, totalement indépendants des autres chats.",
+      "feat.disk.p2": "Chaque copie est un <strong>dossier de travail copy-on-write</strong> : toutes partagent une image de base et ne conservent que leurs propres modifications, si bien que des <strong>copies illimitées occupent le disque d'un seul dépôt</strong>. Une nouvelle copie d'un arbre Perforce ou git à l'échelle du téraoctet est prête en <strong>quelques secondes</strong>, et libérée tout aussi vite. Cela fonctionne de la même façon sous Windows, macOS et Linux.",
+      "feat.disk.more": "Comment fonctionnent les espaces de travail virtuels",
+      "beta.miniCta": "nouveautés à essayer",
+      "beta.miniOpen": "Ouvrir"
     },
     de: {
       "meta.title": "PopBot — Agentisches Coding, das du siehst",
@@ -641,7 +659,13 @@
       "cta.p": "Wenn dein Team nach mehr als einem Coding-Agenten gleichzeitig greift, ohne den Faden zu verlieren, ist dies ein funktionierender, meinungsstarker Ausgangspunkt.",
       "cta.github": "Auf GitHub ansehen",
       "cta.getstarted": "Loslegen",
-      "footer.tagline": "Agentisches Coding, das du siehst."
+      "footer.tagline": "Agentisches Coding, das du siehst.",
+      "feat.disk.h3": "Unbegrenzte lebende Kopien deines Repos – für den Platz von einem",
+      "feat.disk.p1": "Öffne einen neuen Chat und er erhält eine <strong>lebende, vollständige Kopie deines Repos — samt Asset-Bibliothek</strong>, bis zu <strong>1&nbsp;TB</strong>: echte Dateien, die du bearbeiten, bauen und ausführen kannst, völlig unabhängig von jedem anderen Chat.",
+      "feat.disk.p2": "Jede Kopie ist ein <strong>copy-on-write-Workspace-Ordner</strong> — alle teilen sich ein Basis-Image und behalten nur ihre eigenen Änderungen, sodass <strong>unbegrenzt viele Kopien den Speicher eines einzigen Repos</strong> belegen. Eine frische Kopie eines Terabyte-großen Perforce- oder git-Baums ist in <strong>Sekunden</strong> bereit und ebenso schnell wieder frei. Es funktioniert gleich unter Windows, macOS und Linux.",
+      "feat.disk.more": "Wie virtuelle Workspaces funktionieren",
+      "beta.miniCta": "neue Features zum Ausprobieren",
+      "beta.miniOpen": "Öffnen"
     },
     ja: {
       "meta.title": "PopBot — 見えるエージェント型コーディング",
@@ -790,7 +814,13 @@
       "cta.p": "あなたのチームが筋道を見失うことなく一度に複数のコーディングエージェントに手を伸ばそうとしているなら、これは動作する、こだわりのある出発点です。",
       "cta.github": "GitHub で見る",
       "cta.getstarted": "はじめる",
-      "footer.tagline": "見えるエージェント型コーディング。"
+      "footer.tagline": "見えるエージェント型コーディング。",
+      "feat.disk.h3": "リポジトリのライブコピーを無制限に、1 つ分の容量で",
+      "feat.disk.p1": "新しいチャットを開くと、<strong>リポジトリとそのアセットライブラリまるごとのライブコピー</strong>（最大 <strong>1&nbsp;TB</strong>）が用意されます。編集・ビルド・実行できる本物のファイルで、他のどのチャットからも完全に独立しています。",
+      "feat.disk.p2": "各コピーは <strong>copy-on-write のワークスペースフォルダ</strong>です。すべてが 1 つのベースイメージを共有し、各自の変更分だけを保持するため、<strong>無制限のコピーでもリポジトリ 1 つ分の容量</strong>で収まります。テラバイト規模の Perforce や git ツリーでも、新しいコピーが<strong>数秒</strong>で用意でき、解放も同じ速さです。Windows、macOS、Linux で同じように動作します。",
+      "feat.disk.more": "仮想ワークスペースの仕組み",
+      "beta.miniCta": "試せる新機能",
+      "beta.miniOpen": "開く"
     },
     ko: {
       "meta.title": "PopBot — 눈으로 보는 에이전틱 코딩",
@@ -939,7 +969,13 @@
       "cta.p": "여러분의 팀이 흐름을 잃지 않으면서 한 번에 두 개 이상의 코딩 에이전트를 다루려 한다면, 이것이 작동하는, 확고한 방향성을 가진 출발점입니다.",
       "cta.github": "GitHub에서 보기",
       "cta.getstarted": "시작하기",
-      "footer.tagline": "눈으로 보는 에이전틱 코딩."
+      "footer.tagline": "눈으로 보는 에이전틱 코딩.",
+      "feat.disk.h3": "저장소의 라이브 복사본을 무제한으로, 하나의 용량으로",
+      "feat.disk.p1": "새 채팅을 열면 <strong>저장소와 에셋 라이브러리 전체의 라이브 복사본</strong>(최대 <strong>1&nbsp;TB</strong>)이 생성됩니다. 편집·빌드·실행할 수 있는 실제 파일이며, 다른 모든 채팅과 완전히 독립적입니다.",
+      "feat.disk.p2": "각 복사본은 <strong>copy-on-write 워크스페이스 폴더</strong>입니다. 모두 하나의 베이스 이미지를 공유하고 각자의 변경분만 저장하므로, <strong>무제한 복사본이 저장소 하나 분량의 디스크</strong>만 사용합니다. 테라바이트 규모의 Perforce나 git 트리도 새 복사본이 <strong>몇 초</strong> 만에 준비되고, 그만큼 빠르게 반환됩니다. Windows, macOS, Linux에서 동일하게 작동합니다.",
+      "feat.disk.more": "가상 워크스페이스 작동 방식",
+      "beta.miniCta": "사용해 볼 새 기능",
+      "beta.miniOpen": "열기"
     },
     'zh-CN': {
       "meta.title": "PopBot — 看得见的智能体编程",
@@ -1088,7 +1124,13 @@
       "cta.p": "如果你的团队正想同时使用多个编程智能体而又不想乱了头绪，这就是一个可用、有主见的起点。",
       "cta.github": "在 GitHub 上查看",
       "cta.getstarted": "开始使用",
-      "footer.tagline": "看得见的智能体编程。"
+      "footer.tagline": "看得见的智能体编程。",
+      "feat.disk.h3": "无限份仓库实时副本，只占一份的空间",
+      "feat.disk.p1": "打开一个新聊天，它就获得<strong>整个仓库及其素材库的实时副本</strong>（最多 <strong>1&nbsp;TB</strong>）——可以编辑、构建和运行的真实文件，与其他聊天完全独立。",
+      "feat.disk.p2": "每份副本都是一个 <strong>写时复制（copy-on-write）工作区文件夹</strong>：它们共享同一个基础镜像，只保存各自的改动，因此<strong>无限份副本只占用一个仓库的磁盘空间</strong>。即使是 TB 级的 Perforce 或 git 树，新副本也能在<strong>几秒</strong>内就绪，并同样快速释放。在 Windows、macOS 和 Linux 上表现一致。",
+      "feat.disk.more": "了解虚拟工作区的原理",
+      "beta.miniCta": "抢先体验的新功能",
+      "beta.miniOpen": "展开"
     },
     'pt-BR': {
       "meta.title": "PopBot — Programação Agêntica Que Você Pode Ver",
@@ -1237,7 +1279,13 @@
       "cta.p": "Se sua equipe está buscando mais de um agente de programação por vez sem perder o fio da meada, este é um ponto de partida funcional e opinativo.",
       "cta.github": "Ver no GitHub",
       "cta.getstarted": "Começar",
-      "footer.tagline": "Programação agêntica que você pode ver."
+      "footer.tagline": "Programação agêntica que você pode ver.",
+      "feat.disk.h3": "Cópias vivas ilimitadas do seu repo, no espaço de um",
+      "feat.disk.p1": "Abra um novo chat e ele ganha uma <strong>cópia viva e completa do seu repo — e da sua biblioteca de assets</strong>, de até <strong>1&nbsp;TB</strong>: arquivos reais que você pode editar, compilar e executar, totalmente independentes dos outros chats.",
+      "feat.disk.p2": "Cada cópia é uma <strong>pasta de trabalho copy-on-write</strong>: todas compartilham uma imagem base e guardam apenas as próprias alterações, então <strong>cópias ilimitadas usam o disco de um único repo</strong>. Uma nova cópia de uma árvore Perforce ou git em escala de terabytes fica pronta em <strong>segundos</strong>, e é liberada com a mesma rapidez. Funciona igual no Windows, macOS e Linux.",
+      "feat.disk.more": "Como funcionam os workspaces virtuais",
+      "beta.miniCta": "novidades para testar",
+      "beta.miniOpen": "Abrir"
     },
   };
 

@@ -1,26 +1,36 @@
 {
-  "//": "Authored beta release notes. Edit this when cutting a new beta, then run the Release workflow (channel: prerelease). scripts/gen-manifest.mjs bakes this into download.popbot.app/manifest.json, and the website renders it as the beta band. Icons are Font Awesome 6 names (already loaded by the site).",
-  "headline": "Game engines, Perforce & Swarm reviews — now in beta",
+  "//": "Authored beta release notes. Edit this when cutting a new beta, then run the Release workflow (channel: prerelease). scripts/gen-manifest.mjs bakes this into download.popbot.app/manifest.json, and the website renders it as the beta band. `icon` is a full Font Awesome 6 class incl. style prefix (e.g. 'fa-solid fa-clone' or 'fa-brands fa-jira').",
+  "headline": "The biggest PopBot update yet — now in beta",
   "highlights": [
     {
-      "icon": "fa-gamepad",
-      "title": "Game engines, built in",
-      "body": "Launch Unity, Unreal, or a custom engine straight from any chat. PopBot auto-detects the project in each slot and gives every agent a one-click Run-Editor button — all three engines configurable side by side."
+      "icon": "fa-solid fa-clone",
+      "title": "Unlimited copies of your repo",
+      "body": "Open new chats in unlimited live copies of your full repo + asset library — up to 1 TB — all using the disk space of a single repo, thanks to copy-on-write workspace folders."
     },
     {
-      "icon": "fa-code-branch",
-      "title": "Perforce & Helix Core",
-      "body": "First-class Perforce alongside Git — move-aware file status, and huge game depots handled by warm VHDX workspaces that spin up a slot from a terabyte-scale tree in seconds."
+      "icon": "fa-solid fa-code-pull-request",
+      "title": "Perforce & Helix Swarm reviews",
+      "body": "First-class Perforce alongside Git, with full Helix Swarm code-review integration — pin changelists into your Reviews inbox and review each in its own agent chat."
     },
     {
-      "icon": "fa-code-pull-request",
-      "title": "Helix Swarm reviews",
-      "body": "Review Swarm changelists the way you already review GitHub PRs — pinned into your Reviews inbox, each opened in its own repoless agent chat."
+      "icon": "fa-brands fa-jira",
+      "title": "Full Jira support",
+      "body": "Turn Jira issues into one-click agent sessions and drive them through your workflow — right alongside Linear and GitHub."
     },
     {
-      "icon": "fa-desktop",
-      "title": "Windows & Linux",
-      "body": "PopBot now runs natively on Windows and Linux, not just macOS — signed installers for all three platforms."
+      "icon": "fa-solid fa-gamepad",
+      "title": "Unreal Engine — plus Unity",
+      "body": "Full Unreal Engine integration: launch the editor from any chat so agents can run and test your game. Unity and custom engines stay fully supported."
+    },
+    {
+      "icon": "fa-brands fa-github",
+      "title": "GitHub Issues",
+      "body": "GitHub Issues join your inbox alongside pull requests — triage and fix them in a chat without leaving PopBot."
+    },
+    {
+      "icon": "fa-solid fa-language",
+      "title": "Speaks your language",
+      "body": "PopBot's entire interface — menus, settings, and more — is fully localized. Switch languages any time from the menu."
     }
   ]
 }

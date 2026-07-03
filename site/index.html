@@ -51,7 +51,14 @@
 <!-- BETA BAND — populated from manifest.json; stays hidden until a live beta
      newer than stable exists. Shows the newest features ahead of stable. -->
 <section class="betaband" id="beta" hidden>
+  <!-- Collapsed state: a thin animated bar that invites you to re-open the band. -->
+  <button class="beta-mini" id="beta-mini" type="button" aria-label="Show beta details">
+    <span class="beta-mini-chip"><span>B</span><span>E</span><span>T</span><span>A</span></span>
+    <span class="beta-mini-text"><span data-beta-version>v…</span> <span class="beta-dot">·</span> <span data-i18n="beta.miniCta">new features to try</span></span>
+    <span class="beta-mini-open"><i class="fa-solid fa-circle-chevron-down"></i> <span data-i18n="beta.miniOpen">Open</span></span>
+  </button>
   <div class="wrap betaband-inner">
+    <button class="beta-collapse" id="beta-collapse" type="button" aria-label="Collapse"><i class="fa-solid fa-chevron-up"></i></button>
     <div class="betaband-lead">
       <span class="beta-eyebrow"><span class="beta-chip">BETA</span><span data-beta-version>v…</span><span class="beta-dot">·</span><span data-i18n="beta.early">early access</span></span>
       <h2 class="beta-headline" data-beta-headline>New features, fresh off the branch</h2>
@@ -261,6 +268,43 @@
           <div class="flowstep" style="display:flex;align-items:center;gap:13px;padding:11px 0;"><span style="width:30px;height:30px;border-radius:8px;background:rgba(63,178,127,0.16);color:#7fd6aa;display:inline-flex;align-items:center;justify-content:center;font-size:13px;"><i class="fa-solid fa-code-pull-request"></i></span><span style="color:var(--fg-0);font-weight:600;font-size:14.5px;" data-i18n="flow.github">GitHub</span><span style="color:var(--fg-2);font-size:13px;" data-i18n="flow.github.sub">commit, push, open PR</span></div>
           <div style="margin-left:14px;width:2px;height:14px;background:var(--line-3);"></div>
           <div class="flowstep" style="display:flex;align-items:center;gap:13px;padding:11px 0;"><span style="width:30px;height:30px;border-radius:8px;background:rgba(210,75,214,0.16);color:#e89bec;display:inline-flex;align-items:center;justify-content:center;font-size:13px;"><i class="fa-solid fa-box-archive"></i></span><span style="color:var(--fg-0);font-weight:600;font-size:14.5px;" data-i18n="flow.archive">Archive&nbsp;&amp;&nbsp;reopen</span><span style="color:var(--fg-2);font-size:13px;" data-i18n="flow.archive.sub">resume with full history</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="feat">
+      <div class="feat-text">
+        <h3><span class="ic"><i class="fa-solid fa-hard-drive"></i></span><span data-i18n="feat.disk.h3">Unlimited live copies of your repo, for one repo's disk</span></h3>
+        <p data-i18n-html="feat.disk.p1">Open a new chat and it gets a <strong>live, full copy of your repo — and its asset library</strong>, up to <strong>1&nbsp;TB</strong>: real files you can edit, build, and run, completely independent from every other chat.</p>
+        <p data-i18n-html="feat.disk.p2">Each copy is a <strong>copy-on-write workspace folder</strong> — they all share one base image and keep only their own changes, so <strong>unlimited copies use the disk of a single repo</strong>. A fresh copy of a terabyte-scale Perforce or git tree is ready in <strong>seconds</strong>, and freed just as fast. It works the same on Windows, macOS, and Linux.</p>
+        <a class="more" href="#docs"><span data-i18n="feat.disk.more">How virtual workspaces work</span> <i class="fa-solid fa-arrow-right"></i></a>
+      </div>
+      <div class="feat-visual" style="padding:26px;">
+        <div style="width:100%;display:flex;flex-direction:column;gap:10px;">
+          <div style="display:flex;align-items:center;gap:12px;background:var(--bg-1);border:1px solid var(--line-2);border-left:3px solid var(--st-done);border-radius:8px;padding:13px 15px;">
+            <i class="fa-solid fa-database" style="color:#7fd6aa;"></i>
+            <div style="flex:1;"><div style="color:var(--fg-0);font-weight:600;font-size:14px;">autorpg · Perforce depot</div><div style="font-family:var(--font-mono);font-size:11px;color:var(--fg-2);">base image · shared, read-only</div></div>
+            <span style="font-family:var(--font-mono);font-size:12px;color:var(--fg-1);font-weight:600;">1.18 TB</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:12px;background:var(--bg-1);border:1px solid var(--line-2);border-left:3px solid var(--st-run);border-radius:8px;padding:11px 15px;">
+            <i class="fa-solid fa-fire" style="color:#ff8a4d;"></i>
+            <div style="flex:1;"><div style="color:var(--fg-0);font-weight:600;font-size:13.5px;">slot 1 · eng/20402-srv-ts</div><div style="font-family:var(--font-mono);font-size:11px;color:var(--fg-3);">copy-on-write clone</div></div>
+            <span style="font-family:var(--font-mono);font-size:11px;color:var(--st-done);">+ 240 MB</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:12px;background:var(--bg-1);border:1px solid var(--line-2);border-left:3px solid var(--st-wait);border-radius:8px;padding:11px 15px;">
+            <i class="fa-solid fa-fire" style="color:#ff8a4d;"></i>
+            <div style="flex:1;"><div style="color:var(--fg-0);font-weight:600;font-size:13.5px;">slot 2 · eng/20447-library</div><div style="font-family:var(--font-mono);font-size:11px;color:var(--fg-3);">copy-on-write clone</div></div>
+            <span style="font-family:var(--font-mono);font-size:11px;color:var(--st-done);">+ 190 MB</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:12px;background:var(--bg-1);border:1px dashed var(--line-3);border-radius:8px;padding:11px 15px;opacity:.7;">
+            <i class="fa-regular fa-snowflake" style="color:var(--fg-3);"></i>
+            <div style="flex:1;"><div style="color:var(--fg-1);font-weight:600;font-size:13.5px;">slot 3 · available</div></div>
+            <span style="font-family:var(--font-mono);font-size:11px;color:var(--fg-3);">+ 0 B</span>
+          </div>
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 15px 2px;">
+            <span style="font-family:var(--font-mono);font-size:11.5px;color:var(--fg-2);">6 slots on disk</span>
+            <span style="font-family:var(--font-mono);font-size:12px;color:#ffd9b0;font-weight:600;">1.18 TB&nbsp;&nbsp;+&nbsp;0.6 GB</span>
+          </div>
         </div>
       </div>
     </div>
@@ -574,8 +618,10 @@
     var ul=document.querySelector('[data-beta-highlights]');
     if(ul&&Array.isArray(beta.highlights)){
       ul.innerHTML=beta.highlights.map(function(h){
-        var ic=(h.icon||'fa-star').replace(/[^a-z0-9\- ]/gi,'');
-        return '<li><span class="ic"><i class="fa-solid '+ic+'"></i></span>'+
+        // Full Font Awesome class incl. style prefix, e.g. "fa-solid fa-clone"
+        // or "fa-brands fa-jira". Sanitized to letters/digits/dash/space.
+        var ic=(h.icon||'fa-solid fa-star').replace(/[^a-z0-9\- ]/gi,'');
+        return '<li><span class="ic"><i class="'+ic+'"></i></span>'+
           '<div><h4></h4><p></p></div></li>';
       }).join('');
       // Set text via DOM so titles/bodies can never inject markup.
@@ -585,6 +631,31 @@
         li.querySelector('p').textContent=h.body||'';});
     }
     var sec=document.getElementById('beta'); if(sec) sec.hidden=false;
+    betaArm();
+  }
+
+  // Beta band collapse/expand. Shows expanded on load, then auto-collapses to
+  // the thin animated bar after 15s (unless you hover it or collapse it first).
+  // Clicking the mini bar re-opens it; the manual chevron collapses it.
+  var betaArmed=false, betaTimer=null;
+  function betaSet(collapsed){
+    var s=document.getElementById('beta'); if(!s) return;
+    s.classList.toggle('collapsed', collapsed);
+    if(betaTimer){ clearTimeout(betaTimer); betaTimer=null; }
+  }
+  function betaArm(){
+    if(betaArmed) return; betaArmed=true;
+    var s=document.getElementById('beta');
+    var mini=document.getElementById('beta-mini');
+    var cb=document.getElementById('beta-collapse');
+    if(mini) mini.addEventListener('click',function(){ betaSet(false); });
+    if(cb) cb.addEventListener('click',function(){ betaSet(true); });
+    // Don't auto-collapse if the visitor is engaging with the open band.
+    if(s) s.addEventListener('mouseenter',function(){
+      if(betaTimer && !s.classList.contains('collapsed')){ clearTimeout(betaTimer); betaTimer=null; }
+    });
+    if(/[?&]betacollapsed(=|&|$)/.test(location.search)){ betaSet(true); return; } // preview aid
+    betaTimer=setTimeout(function(){ betaSet(true); }, 15000);
   }
 
   // Re-localize labels + restore the version when the language changes. The
