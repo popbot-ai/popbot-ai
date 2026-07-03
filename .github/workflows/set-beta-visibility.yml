@@ -1,0 +1,56 @@
+name: Set Beta Visibility
+
+# Flips just the "Show Beta on Website" flag on the live manifest — no build,
+# no upload of installers. Use it to reveal a beta after you've tested its
+# downloads/installs, or to hide one that turned out broken.
+#
+# (Cutting a real release via the Release workflow always turns this OFF, since
+# the new stable supersedes the beta.)
+
+on:
+  workflow_dispatch:
+    inputs:
+      show_beta_on_website:
+        description: Show Beta on Website (render the beta band on popbot.app)
+        type: boolean
+        default: true
+
+# Share the Release concurrency group so a toggle and a release can never race
+# on manifest.json.
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  AWS_DEFAULT_REGION: auto
+  R2_ENDPOINT: https://${{ secrets.R2_ACCOUNT_ID }}.r2.cloudflarestorage.com
+  R2_BUCKET: popbot
+
+jobs:
+  toggle:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Read-only job: only reads scripts/set-beta-visibility.mjs, never
+          # pushes. Don't leave GITHUB_TOKEN in git config for later steps.
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Flip beta visibility on the live manifest
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          BETA_VISIBLE: ${{ inputs.show_beta_on_website }}
+        run: |
+          aws s3 cp "s3://$R2_BUCKET/manifest.json" manifest.json --endpoint-url "$R2_ENDPOINT"
+          MANIFEST_IN=manifest.json MANIFEST_OUT=manifest.json node scripts/set-beta-visibility.mjs
+          cat manifest.json
+          # Re-upload the manifest last, with the right content-type.
+          aws s3 cp manifest.json "s3://$R2_BUCKET/manifest.json" \
+            --endpoint-url "$R2_ENDPOINT" --checksum-algorithm CRC32 --content-type application/json
+          echo "**Show Beta on Website** → \`${{ inputs.show_beta_on_website }}\`" >> "$GITHUB_STEP_SUMMARY"

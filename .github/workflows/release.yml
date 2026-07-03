@@ -29,6 +29,10 @@ on:
         type: choice
         options: [prerelease, release]
         default: prerelease
+      show_beta_on_website:
+        description: Show Beta on Website (render the beta band on popbot.app). A real release always turns this off.
+        type: boolean
+        default: false
 
 concurrency:
   group: release
@@ -212,6 +216,9 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
       # Tag first — if this fails the feed is never promoted, so R2 can't
       # advertise an untagged release. (Tags aren't branch-protected.)
       - name: Tag v${{ needs.version.outputs.version }}
@@ -253,3 +260,30 @@ jobs:
         run: |
           printf '{"version":"%s"}' "${{ needs.version.outputs.version }}" > version.json
           aws s3 cp version.json "s3://$R2_BUCKET/stable/version.json" --endpoint-url "$R2_ENDPOINT" --checksum-algorithm CRC32
+
+      # Update the site's build manifest (download.popbot.app/manifest.json).
+      # It carries BOTH channels; gen-manifest merges into the live manifest so
+      # this release only touches its own channel. beta releases bake in the
+      # feature bullets from beta-highlights.json for the site's beta band.
+      - name: Update site build manifest
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          DIR: ${{ needs.version.outputs.dir }}
+          VERSION: ${{ needs.version.outputs.version }}
+          # "Show Beta on Website" checkbox. gen-manifest forces false on a
+          # `release` regardless, so this only takes effect for a prerelease.
+          BETA_VISIBLE: ${{ inputs.show_beta_on_website }}
+        run: |
+          # Pull the current manifest (first release: none yet — ignore) and the
+          # live stable version, so a beta manifest still knows what stable is.
+          aws s3 cp "s3://$R2_BUCKET/manifest.json" manifest.prev.json \
+            --endpoint-url "$R2_ENDPOINT" || echo "no existing manifest.json"
+          STABLE_VERSION="$(aws s3 cp "s3://$R2_BUCKET/stable/version.json" - \
+            --endpoint-url "$R2_ENDPOINT" 2>/dev/null | node -pe 'JSON.parse(require("fs").readFileSync(0,"utf8")).version' 2>/dev/null || true)"
+          MANIFEST_IN=manifest.prev.json MANIFEST_OUT=manifest.json \
+          STABLE_VERSION="$STABLE_VERSION" UPDATED="$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            node scripts/gen-manifest.mjs
+          cat manifest.json
+          aws s3 cp manifest.json "s3://$R2_BUCKET/manifest.json" \
+            --endpoint-url "$R2_ENDPOINT" --checksum-algorithm CRC32 --content-type application/json

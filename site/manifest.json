@@ -1,0 +1,259 @@
+{
+  "stable": {
+    "version": "0.0.19",
+    "files": {
+      "mac": "PopBot-0.0.19-mac-arm64.dmg",
+      "win": "PopBot-0.0.19-win-x64.exe",
+      "linux": "PopBot-0.0.19-linux-amd64.deb"
+    }
+  },
+  "beta": {
+    "version": "0.1.0-rc.1",
+    "date": "2026-07-03",
+    "visible": true,
+    "headline": "The biggest PopBot update yet — now in beta",
+    "highlights": [
+      {
+        "icon": "fa-solid fa-clone",
+        "title": "Unlimited copies of your repo",
+        "body": "Open new chats in unlimited live copies of your full repo + asset library — up to 1 TB — all using the disk space of a single repo, thanks to copy-on-write workspace folders."
+      },
+      {
+        "icon": "fa-solid fa-code-pull-request",
+        "title": "Perforce & Helix Swarm reviews",
+        "body": "First-class Perforce alongside Git, with full Helix Swarm code-review integration — pin changelists into your Reviews inbox and review each in its own agent chat."
+      },
+      {
+        "icon": "fa-brands fa-jira",
+        "title": "Full Jira support",
+        "body": "Turn Jira issues into one-click agent sessions and drive them through your workflow — right alongside Linear and GitHub."
+      },
+      {
+        "icon": "fa-solid fa-gamepad",
+        "title": "Unreal Engine — plus Unity",
+        "body": "Full Unreal Engine integration: launch the editor from any chat so agents can run and test your game. Unity and custom engines stay fully supported."
+      },
+      {
+        "icon": "fa-brands fa-github",
+        "title": "GitHub Issues",
+        "body": "GitHub Issues join your inbox alongside pull requests — triage and fix them in a chat without leaving PopBot."
+      },
+      {
+        "icon": "fa-solid fa-language",
+        "title": "Now in 8 languages",
+        "body": "PopBot's entire interface — menus, settings, and everything else — is fully localized in 8 languages. Switch any time from the language menu."
+      }
+    ],
+    "files": {
+      "mac": "PopBot-0.1.0-rc.1-mac-arm64.dmg",
+      "win": "PopBot-0.1.0-rc.1-win-x64.exe",
+      "linux": "PopBot-0.1.0-rc.1-linux-amd64.deb"
+    },
+    "i18n": {
+      "es": {
+        "headline": "La mayor actualización de PopBot hasta ahora — ya en beta",
+        "highlights": [
+          {
+            "title": "Copias ilimitadas de tu repo",
+            "body": "Abre nuevos chats en copias activas e ilimitadas de tu repo completo y tu biblioteca de recursos — hasta 1 TB — usando el espacio en disco de un solo repo, gracias a las carpetas de espacio de trabajo copy-on-write."
+          },
+          {
+            "title": "Revisiones de Perforce y Helix Swarm",
+            "body": "Perforce de primera clase junto a Git, con integración completa de revisión de código de Helix Swarm — fija changelists en tu bandeja de Revisiones y revisa cada uno en su propio chat de agente."
+          },
+          {
+            "title": "Soporte completo de Jira",
+            "body": "Convierte incidencias de Jira en sesiones de agente con un solo clic y llévalas por tu flujo de trabajo — junto a Linear y GitHub."
+          },
+          {
+            "title": "Unreal Engine — y también Unity",
+            "body": "Integración completa con Unreal Engine: abre el editor desde cualquier chat para que los agentes ejecuten y prueben tu juego. Unity y los motores personalizados siguen totalmente soportados."
+          },
+          {
+            "title": "GitHub Issues",
+            "body": "Las GitHub Issues llegan a tu bandeja junto a los pull requests — clasifícalas y resuélvelas en un chat sin salir de PopBot."
+          },
+          {
+            "title": "Ahora en 8 idiomas",
+            "body": "Toda la interfaz de PopBot — menús, ajustes y todo lo demás — está completamente localizada en 8 idiomas. Cámbialo cuando quieras desde el menú de idioma."
+          }
+        ]
+      },
+      "fr": {
+        "headline": "La plus grande mise à jour de PopBot à ce jour — désormais en bêta",
+        "highlights": [
+          {
+            "title": "Des copies illimitées de votre dépôt",
+            "body": "Ouvrez de nouveaux chats dans un nombre illimité de copies vivantes de votre dépôt complet et de sa bibliothèque d’assets — jusqu’à 1 To — le tout occupant l’espace disque d’un seul dépôt, grâce aux dossiers d’espace de travail en copy-on-write."
+          },
+          {
+            "title": "Revues Perforce et Helix Swarm",
+            "body": "Perforce de premier plan aux côtés de Git, avec une intégration complète des revues de code Helix Swarm — épinglez des listes de modifications dans votre boîte Revues et examinez chacune dans son propre chat d’agent."
+          },
+          {
+            "title": "Prise en charge complète de Jira",
+            "body": "Transformez les tickets Jira en sessions d’agent en un clic et menez-les tout au long de votre workflow — juste à côté de Linear et GitHub."
+          },
+          {
+            "title": "Unreal Engine — et Unity",
+            "body": "Intégration complète d’Unreal Engine : lancez l’éditeur depuis n’importe quel chat pour que les agents exécutent et testent votre jeu. Unity et les moteurs personnalisés restent pleinement pris en charge."
+          },
+          {
+            "title": "GitHub Issues",
+            "body": "Les GitHub Issues rejoignent votre boîte de réception aux côtés des pull requests — triez-les et corrigez-les dans un chat sans quitter PopBot."
+          },
+          {
+            "title": "Désormais en 8 langues",
+            "body": "Toute l’interface de PopBot — menus, paramètres et tout le reste — est entièrement localisée en 8 langues. Changez à tout moment depuis le menu des langues."
+          }
+        ]
+      },
+      "de": {
+        "headline": "Das bisher größte PopBot-Update — jetzt in der Beta",
+        "highlights": [
+          {
+            "title": "Unbegrenzte Kopien deines Repos",
+            "body": "Öffne neue Chats in unbegrenzt vielen Live-Kopien deines kompletten Repos samt Asset-Bibliothek — bis zu 1 TB — und das alles im Speicherplatz eines einzigen Repos, dank copy-on-write Workspace-Ordnern."
+          },
+          {
+            "title": "Perforce- & Helix-Swarm-Reviews",
+            "body": "Perforce gleichberechtigt neben Git, mit voller Helix-Swarm-Integration für Code-Reviews — pinne Changelists in deinen Reviews-Posteingang und prüfe jede im eigenen Agent-Chat."
+          },
+          {
+            "title": "Volle Jira-Unterstützung",
+            "body": "Verwandle Jira-Issues per Klick in Agent-Sessions und treibe sie durch deinen Workflow — direkt neben Linear und GitHub."
+          },
+          {
+            "title": "Unreal Engine — plus Unity",
+            "body": "Volle Unreal-Engine-Integration: Starte den Editor aus jedem Chat, damit Agenten dein Spiel ausführen und testen. Unity und eigene Engines bleiben voll unterstützt."
+          },
+          {
+            "title": "GitHub Issues",
+            "body": "GitHub Issues landen neben Pull Requests in deinem Posteingang — sortiere und behebe sie im Chat, ganz ohne PopBot zu verlassen."
+          },
+          {
+            "title": "Jetzt in 8 Sprachen",
+            "body": "PopBots komplette Oberfläche — Menüs, Einstellungen und alles Weitere — ist vollständig in 8 Sprachen lokalisiert. Wechsle jederzeit über das Sprachmenü."
+          }
+        ]
+      },
+      "ja": {
+        "headline": "PopBot 史上最大のアップデート、ベータ版公開",
+        "highlights": [
+          {
+            "title": "リポジトリを無制限に複製",
+            "body": "リポジトリとアセットライブラリ全体（最大 1 TB）のライブコピーを無制限に開いて新しいチャットを開始。copy-on-write のワークスペースフォルダーにより、すべてがリポジトリ 1 つ分のディスク容量で動作します。"
+          },
+          {
+            "title": "Perforce と Helix Swarm のレビュー",
+            "body": "Git に加えて Perforce をフルサポートし、Helix Swarm のコードレビューと完全連携。チェンジリストをレビュー受信箱にピン留めし、それぞれを専用のエージェントチャットでレビューできます。"
+          },
+          {
+            "title": "Jira を完全サポート",
+            "body": "Jira の課題をワンクリックでエージェントセッションに変換し、ワークフローに沿って進行。Linear や GitHub と並んで扱えます。"
+          },
+          {
+            "title": "Unreal Engine、そして Unity",
+            "body": "Unreal Engine と完全連携。どのチャットからでもエディターを起動し、エージェントがゲームを実行・テストできます。Unity やカスタムエンジンも引き続き完全サポート。"
+          },
+          {
+            "title": "GitHub Issues",
+            "body": "GitHub Issues がプルリクエストと並んで受信箱に登場。PopBot を離れることなく、チャット内でトリアージして修正できます。"
+          },
+          {
+            "title": "8 言語に対応",
+            "body": "メニュー、設定をはじめ PopBot のインターフェース全体を 8 言語に完全ローカライズ。言語メニューからいつでも切り替えられます。"
+          }
+        ]
+      },
+      "ko": {
+        "headline": "역대 최대 규모의 PopBot 업데이트 — 이제 베타로 만나보세요",
+        "highlights": [
+          {
+            "title": "저장소를 무제한으로 복제",
+            "body": "전체 저장소와 에셋 라이브러리 — 최대 1 TB — 의 실시간 복제본을 무제한으로 열어 새 채팅을 시작하세요. copy-on-write 워크스페이스 폴더 덕분에 모두 저장소 하나의 디스크 공간만 사용합니다."
+          },
+          {
+            "title": "Perforce 및 Helix Swarm 리뷰",
+            "body": "Git과 함께 Perforce를 일급으로 지원하며, Helix Swarm 코드 리뷰를 완전히 통합했습니다. 체인지리스트를 리뷰 받은편지함에 고정하고 각각을 전용 에이전트 채팅에서 리뷰하세요."
+          },
+          {
+            "title": "Jira 완벽 지원",
+            "body": "Jira 이슈를 클릭 한 번으로 에이전트 세션으로 전환하고 워크플로를 따라 처리하세요 — Linear 및 GitHub와 나란히 사용할 수 있습니다."
+          },
+          {
+            "title": "Unreal Engine — 그리고 Unity까지",
+            "body": "Unreal Engine을 완전히 통합했습니다. 어느 채팅에서든 에디터를 실행해 에이전트가 게임을 구동하고 테스트할 수 있습니다. Unity와 커스텀 엔진도 계속 완벽하게 지원됩니다."
+          },
+          {
+            "title": "GitHub Issues",
+            "body": "GitHub Issues가 풀 리퀘스트와 함께 받은편지함에 표시됩니다 — PopBot을 벗어나지 않고 채팅에서 분류하고 해결하세요."
+          },
+          {
+            "title": "이제 8개 언어 지원",
+            "body": "메뉴, 설정을 비롯한 PopBot의 모든 인터페이스가 8개 언어로 완전히 현지화되었습니다. 언어 메뉴에서 언제든지 전환할 수 있습니다."
+          }
+        ]
+      },
+      "zh-CN": {
+        "headline": "PopBot 迄今最重大的更新——现已进入 Beta 测试",
+        "highlights": [
+          {
+            "title": "无限副本的仓库",
+            "body": "在完整仓库与资源库的无限实时副本中开启新对话——最大 1 TB——凭借写时复制（copy-on-write）工作区文件夹，全部只占用单个仓库的磁盘空间。"
+          },
+          {
+            "title": "Perforce 与 Helix Swarm 审查",
+            "body": "在 Git 之外一流支持 Perforce，并完整集成 Helix Swarm 代码审查——将更改列表固定到审查收件箱，在各自的智能体对话中逐一审查。"
+          },
+          {
+            "title": "全面支持 Jira",
+            "body": "一键将 Jira 问题转化为智能体会话，并按你的工作流推进——与 Linear 和 GitHub 并肩协作。"
+          },
+          {
+            "title": "Unreal Engine——同时支持 Unity",
+            "body": "完整集成 Unreal Engine：从任意对话启动编辑器，让智能体运行并测试你的游戏。Unity 与自定义引擎依然全面支持。"
+          },
+          {
+            "title": "GitHub Issues",
+            "body": "GitHub Issues 与拉取请求一同进入收件箱——无需离开 PopBot，即可在对话中分诊并修复。"
+          },
+          {
+            "title": "现支持 8 种语言",
+            "body": "PopBot 的整个界面——菜单、设置及其他一切——已完整本地化为 8 种语言。可随时从语言菜单切换。"
+          }
+        ]
+      },
+      "pt-BR": {
+        "headline": "A maior atualização do PopBot até hoje — agora em beta",
+        "highlights": [
+          {
+            "title": "Cópias ilimitadas do seu repositório",
+            "body": "Abra novos chats em cópias vivas ilimitadas do seu repositório completo + biblioteca de assets — até 1 TB — todas usando o espaço em disco de um único repositório, graças a pastas de workspace copy-on-write."
+          },
+          {
+            "title": "Revisões com Perforce e Helix Swarm",
+            "body": "Perforce de primeira classe ao lado do Git, com integração completa de revisão de código do Helix Swarm — fixe changelists na sua caixa de entrada de Revisões e revise cada um no seu próprio chat de agente."
+          },
+          {
+            "title": "Suporte completo ao Jira",
+            "body": "Transforme issues do Jira em sessões de agente com um clique e conduza-as pelo seu fluxo de trabalho — lado a lado com Linear e GitHub."
+          },
+          {
+            "title": "Unreal Engine — e também Unity",
+            "body": "Integração completa com a Unreal Engine: inicie o editor a partir de qualquer chat para que os agentes executem e testem seu jogo. Unity e engines personalizadas continuam totalmente suportadas."
+          },
+          {
+            "title": "GitHub Issues",
+            "body": "As GitHub Issues entram na sua caixa de entrada ao lado dos pull requests — faça a triagem e corrija-as em um chat sem sair do PopBot."
+          },
+          {
+            "title": "Agora em 8 idiomas",
+            "body": "Toda a interface do PopBot — menus, configurações e todo o resto — está totalmente localizada em 8 idiomas. Troque a qualquer momento no menu de idiomas."
+          }
+        ]
+      }
+    }
+  },
+  "updated": "2026-07-03T00:00:00Z"
+}
