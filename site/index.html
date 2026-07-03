@@ -36,6 +36,24 @@
   </div>
 </nav>
 
+<!-- BETA BAND — populated from manifest.json; stays hidden until a live beta
+     newer than stable exists. Shows the newest features ahead of stable. -->
+<section class="betaband" id="beta" hidden>
+  <div class="wrap betaband-inner">
+    <div class="betaband-lead">
+      <span class="beta-eyebrow"><span class="beta-chip">BETA</span><span data-beta-version>v…</span><span class="beta-dot">·</span>early access</span>
+      <h2 class="beta-headline" data-beta-headline>New features, fresh off the branch</h2>
+      <p class="beta-sub">Try our newest features before they reach stable. Beta builds are <strong>pre-release, unstable, and may be buggy</strong> — install one only if you're happy to hit rough edges and report them. It installs separately and is <strong>not</strong> the stable auto-update channel.</p>
+      <div class="beta-actions">
+        <a id="bdl-main" class="btn btn-beta btn-lg" href="#" rel="noopener"><i class="fa-solid fa-flask"></i> Download beta</a>
+        <span class="beta-alts">Also: <a id="bdl-alt1" href="#"></a> <span class="beta-dot">·</span> <a id="bdl-alt2" href="#"></a> <span class="beta-dot">·</span> <a href="#top" class="beta-stablelink">get the stable release instead</a></span>
+      </div>
+      <p class="beta-warn"><i class="fa-solid fa-triangle-exclamation"></i> Not for production work — expect bugs, and updates that overwrite it without notice.</p>
+    </div>
+    <ul class="beta-highlights" data-beta-highlights><!-- filled from manifest.beta.highlights --></ul>
+  </div>
+</section>
+
 <!-- HERO -->
 <header class="hero" id="top">
   <div class="grid-bg"></div>
@@ -456,10 +474,13 @@
 })();
 </script>
 <script>
-/* Pull the current stable version from R2, detect the visitor's OS, and
-   point the primary button at their installer (others become small links). */
+/* Download wiring, driven by download.popbot.app/manifest.json.
+   The manifest carries both channels (stable + beta). We detect the
+   visitor's OS, point the stable hero buttons at their installer, and — if
+   the manifest advertises a beta newer than stable — reveal the beta band
+   and wire its buttons the same way. */
 (function(){
-  var STABLE='https://download.popbot.app/stable/';
+  var DL='https://download.popbot.app/';
   var P={
     mac:  {name:'Mac',     icon:'fa-brands fa-apple',   file:function(v){return 'PopBot-'+v+'-mac-arm64.dmg';}},
     win:  {name:'Windows', icon:'fa-brands fa-windows', file:function(v){return 'PopBot-'+v+'-win-x64.exe';}},
@@ -473,38 +494,96 @@
   }
   var cur=detect();
   var alts=['mac','win','linux'].filter(function(k){return k!==cur;});
+
+  // Installer URL for a channel dir + version. Prefer an explicit filename
+  // from the manifest, else derive it (keeps working if naming ever changes).
+  function fileUrl(dir,v,k,files){
+    var name=(files&&files[k])||P[k].file(v);
+    return DL+dir+'/'+v+'/'+name;
+  }
+
+  // Compare two versions incl. `-rc.N` prereleases: a prerelease sorts BELOW
+  // the same core release (0.1.0-rc.1 < 0.1.0), so a beta hides once stable
+  // catches up. Returns -1 / 0 / 1.
+  function cmpVer(a,b){
+    function parse(x){var m=/^(\d+)\.(\d+)\.(\d+)(?:-(.+))?$/.exec(String(x||'').trim());
+      return m?{c:[+m[1],+m[2],+m[3]],pre:m[4]||''}:{c:[0,0,0],pre:''};}
+    var A=parse(a),B=parse(b);
+    for(var i=0;i<3;i++){ if(A.c[i]!==B.c[i]) return A.c[i]<B.c[i]?-1:1; }
+    if(A.pre===B.pre) return 0;
+    if(!A.pre) return 1;      // release > its own prerelease
+    if(!B.pre) return -1;
+    return A.pre<B.pre?-1:1;   // lexical is fine for rc.N ordering here
+  }
+
+  // ---- STABLE (hero) ----
   var main=document.getElementById('dl-main');
   var altEls=[['dl-alt1',alts[0]],['dl-alt2',alts[1]]];
-
-  // Set labels + folder-level links up front — no network needed, so the
-  // platform shows even if the version fetch is blocked (e.g. local preview).
-  if(main){ main.innerHTML='<i class="fa-solid fa-download"></i> '+P[cur].name+' Free Download'; main.href=STABLE; }
-  altEls.forEach(function(pair){
-    var a=document.getElementById(pair[0]), k=pair[1]; if(!a) return;
-    a.innerHTML='<i class="'+P[k].icon+'"></i> '+P[k].name; a.href=STABLE;
-  });
-
-  // Fill in the version number + exact installer URLs once we know the version.
-  function applyVersion(v){
+  // Folder-level links up front so the platform shows even offline.
+  if(main){ main.innerHTML='<i class="fa-solid fa-download"></i> '+P[cur].name+' Free Download'; main.href=DL+'stable/'; }
+  altEls.forEach(function(pair){var a=document.getElementById(pair[0]),k=pair[1];if(!a)return;
+    a.innerHTML='<i class="'+P[k].icon+'"></i> '+P[k].name; a.href=DL+'stable/';});
+  function applyStable(v,files){
     if(!v) return;
     document.querySelectorAll('[data-version]').forEach(function(el){el.textContent='v'+v;});
-    var base=STABLE+v+'/';
-    if(main) main.href=base+P[cur].file(v);
-    altEls.forEach(function(pair){
-      var a=document.getElementById(pair[0]), k=pair[1]; if(a) a.href=base+P[k].file(v);
-    });
+    if(main) main.href=fileUrl('stable',v,cur,files);
+    altEls.forEach(function(pair){var a=document.getElementById(pair[0]),k=pair[1];
+      if(a) a.href=fileUrl('stable',v,k,files);});
   }
-  // Authoritative source is R2; fall back to a same-origin version.json so
-  // local preview (where the cross-origin fetch is CORS-blocked) still shows it.
-  fetch(STABLE+'version.json',{cache:'no-store'})
-    .then(function(r){return r.json();})
-    .then(function(d){ applyVersion(d&&d.version); })
-    .catch(function(){
-      fetch('version.json',{cache:'no-store'})
-        .then(function(r){return r.json();})
-        .then(function(d){ applyVersion(d&&d.version); })
-        .catch(function(){});
-    });
+
+  // ---- BETA (band under the nav) ----
+  function applyBeta(beta,stableV){
+    if(!beta||!beta.version) return;
+    // Only advertise a beta that's actually ahead of stable.
+    if(stableV&&cmpVer(beta.version,stableV)<=0) return;
+    var v=beta.version, files=beta.files;
+    document.querySelectorAll('[data-beta-version]').forEach(function(el){el.textContent='v'+v;});
+    if(beta.headline){var h=document.querySelector('[data-beta-headline]');if(h)h.textContent=beta.headline;}
+    var bmain=document.getElementById('bdl-main');
+    if(bmain){bmain.innerHTML='<i class="fa-solid fa-flask"></i> Download '+P[cur].name+' beta'; bmain.href=fileUrl('beta',v,cur,files);}
+    [['bdl-alt1',alts[0]],['bdl-alt2',alts[1]]].forEach(function(pair){
+      var a=document.getElementById(pair[0]),k=pair[1];if(!a)return;
+      a.innerHTML='<i class="'+P[k].icon+'"></i> '+P[k].name; a.href=fileUrl('beta',v,k,files);});
+    var ul=document.querySelector('[data-beta-highlights]');
+    if(ul&&Array.isArray(beta.highlights)){
+      ul.innerHTML=beta.highlights.map(function(h){
+        var ic=(h.icon||'fa-star').replace(/[^a-z0-9\- ]/gi,'');
+        return '<li><span class="ic"><i class="fa-solid '+ic+'"></i></span>'+
+          '<div><h4></h4><p></p></div></li>';
+      }).join('');
+      // Set text via DOM so titles/bodies can never inject markup.
+      var items=ul.querySelectorAll('li');
+      beta.highlights.forEach(function(h,i){var li=items[i];if(!li)return;
+        li.querySelector('h4').textContent=h.title||'';
+        li.querySelector('p').textContent=h.body||'';});
+    }
+    var sec=document.getElementById('beta'); if(sec) sec.hidden=false;
+  }
+
+  function fromManifest(m){
+    if(!m) return false;
+    var sv=m.stable&&m.stable.version;
+    if(sv) applyStable(sv,m.stable.files);
+    applyBeta(m.beta,sv);
+    return !!sv;
+  }
+  function getJson(u){return fetch(u,{cache:'no-store'}).then(function(r){
+    if(!r.ok) throw new Error(r.status); return r.json();});}
+
+  // Preview hook: `?betapreview` reads the same-origin manifest.json first, so
+  // the beta band can be previewed locally without touching production R2.
+  var preview=/(^|[?&])betapreview(=|&|$)/.test(location.search);
+  var chain=preview?getJson('manifest.json').then(fromManifest):Promise.reject();
+
+  chain
+    .then(function(ok){ if(!ok) throw new Error('no stable'); })
+    // Authoritative source: the R2 manifest (both channels).
+    .catch(function(){ return getJson(DL+'manifest.json').then(fromManifest); })
+    // Fallbacks show the stable version even if the manifest is unreachable.
+    // Beta is only ever shown from a real manifest, so its links can't 404.
+    .catch(function(){ return getJson(DL+'stable/version.json').then(function(d){applyStable(d&&d.version);}); })
+    .catch(function(){ return getJson('version.json').then(function(d){applyStable(d&&d.version);}); })
+    .catch(function(){});
 })();
 </script>
 </body>

@@ -60,6 +60,53 @@ code{font-family:var(--font-mono);font-size:0.86em;background:rgba(255,255,255,0
 .btn-ghost:hover{background:rgba(255,255,255,0.12);}
 .btn-lg{padding:14px 26px;font-size:16px;border-radius:12px;}
 
+/* ============ BETA BAND ============ */
+/* Sits directly under the nav. Amber/beta accent so it never reads as the
+   stable release. Hidden until manifest.json advertises a live beta. */
+.betaband{position:relative;border-bottom:1px solid rgba(255,138,61,0.22);
+  background:
+    radial-gradient(90% 160% at 12% 0%, rgba(255,138,61,0.16) 0%, rgba(255,138,61,0) 55%),
+    linear-gradient(180deg,#14122a 0%,#0e0f22 100%);}
+.betaband::before{content:"";position:absolute;top:0;left:0;right:0;height:2px;
+  background:linear-gradient(90deg,transparent,var(--b-orange),var(--b-pink),transparent);}
+.betaband[hidden]{display:none;}
+.betaband-inner{display:grid;grid-template-columns:1fr 1fr;gap:38px;align-items:center;padding:30px 32px 32px;}
+.beta-eyebrow{display:inline-flex;align-items:center;gap:9px;font-size:12.5px;font-weight:600;
+  letter-spacing:0.14em;text-transform:uppercase;color:#ffcf9a;}
+.beta-chip{font-family:var(--font-mono);font-weight:700;letter-spacing:0.12em;font-size:11px;color:#1a1206;
+  background:linear-gradient(96deg,#ffb14d,#ff8a3d);padding:3px 9px;border-radius:5px;box-shadow:0 4px 14px rgba(255,138,61,0.35);}
+.beta-dot{color:var(--ink-3);}
+.beta-headline{font-size:26px;font-weight:800;color:#fff;margin:13px 0 0;letter-spacing:-0.02em;line-height:1.15;}
+.beta-sub{font-size:14.5px;color:var(--ink-1);margin:11px 0 0;max-width:560px;line-height:1.55;}
+.beta-sub strong{color:#ffd9b0;font-weight:700;}
+.beta-actions{display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin:18px 0 0;}
+.btn-beta{background:linear-gradient(96deg,#ff9a3d,#ff7a52);color:#1a1206;
+  box-shadow:0 8px 24px rgba(255,138,61,0.32);}
+.btn-beta:hover{box-shadow:0 10px 30px rgba(255,138,61,0.42);}
+.beta-alts{font-size:13px;color:var(--ink-2);}
+.beta-alts a{color:var(--ink-1);text-decoration:underline;text-underline-offset:2px;}
+.beta-alts a:hover{color:#fff;}
+.beta-stablelink{color:#ffd9b0 !important;}
+.beta-warn{display:flex;align-items:center;gap:8px;font-size:12.5px;color:#ffbfae;margin:14px 0 0;
+  background:rgba(214,90,90,0.10);border:1px solid rgba(214,90,90,0.28);border-radius:8px;padding:8px 12px;max-width:560px;}
+.beta-warn i{color:#ffb14d;}
+.beta-highlights{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:1fr 1fr;gap:13px;}
+.beta-highlights li{display:flex;gap:11px;padding:14px 15px;background:var(--panel);
+  border:1px solid var(--panel-line);border-radius:11px;}
+.beta-highlights .ic{width:32px;height:32px;border-radius:9px;flex:0 0 auto;display:inline-flex;
+  align-items:center;justify-content:center;font-size:14px;color:#ffd9b0;
+  background:rgba(255,138,61,0.14);border:1px solid rgba(255,138,61,0.28);}
+.beta-highlights h4{font-size:14.5px;font-weight:700;margin:1px 0 4px;color:var(--ink-0);}
+.beta-highlights p{font-size:12.8px;color:var(--ink-2);margin:0;line-height:1.5;}
+@media(max-width:980px){
+  .betaband-inner{grid-template-columns:1fr;gap:24px;}
+  .beta-highlights{grid-template-columns:1fr;}
+}
+@media(max-width:560px){
+  .betaband-inner{padding:24px 20px 26px;}
+  .beta-headline{font-size:22px;}
+}
+
 /* ============ HERO ============ */
 .hero{position:relative;overflow:hidden;padding:96px 0 90px;
   background:

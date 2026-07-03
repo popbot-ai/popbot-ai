@@ -1,0 +1,43 @@
+{
+  "stable": {
+    "version": "0.0.19",
+    "files": {
+      "mac": "PopBot-0.0.19-mac-arm64.dmg",
+      "win": "PopBot-0.0.19-win-x64.exe",
+      "linux": "PopBot-0.0.19-linux-amd64.deb"
+    }
+  },
+  "beta": {
+    "version": "0.1.0-rc.1",
+    "date": "2026-07-02",
+    "headline": "Game engines, Perforce & Swarm reviews — now in beta",
+    "highlights": [
+      {
+        "icon": "fa-gamepad",
+        "title": "Game engines, built in",
+        "body": "Launch Unity, Unreal, or a custom engine straight from any chat. PopBot auto-detects the project in each slot and gives every agent a one-click Run-Editor button — all three engines configurable side by side."
+      },
+      {
+        "icon": "fa-code-branch",
+        "title": "Perforce & Helix Core",
+        "body": "First-class Perforce alongside Git — move-aware file status, and huge game depots handled by warm VHDX workspaces that spin up a slot from a terabyte-scale tree in seconds."
+      },
+      {
+        "icon": "fa-code-pull-request",
+        "title": "Helix Swarm reviews",
+        "body": "Review Swarm changelists the way you already review GitHub PRs — pinned into your Reviews inbox, each opened in its own repoless agent chat."
+      },
+      {
+        "icon": "fa-desktop",
+        "title": "Windows & Linux",
+        "body": "PopBot now runs natively on Windows and Linux, not just macOS — signed installers for all three platforms."
+      }
+    ],
+    "files": {
+      "mac": "PopBot-0.1.0-rc.1-mac-arm64.dmg",
+      "win": "PopBot-0.1.0-rc.1-win-x64.exe",
+      "linux": "PopBot-0.1.0-rc.1-linux-amd64.deb"
+    }
+  },
+  "updated": "2026-07-02T18:00:00Z"
+}

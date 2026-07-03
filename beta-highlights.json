@@ -1,0 +1,26 @@
+{
+  "//": "Authored beta release notes. Edit this when cutting a new beta, then run the Release workflow (channel: prerelease). scripts/gen-manifest.mjs bakes this into download.popbot.app/manifest.json, and the website renders it as the beta band. Icons are Font Awesome 6 names (already loaded by the site).",
+  "headline": "Game engines, Perforce & Swarm reviews — now in beta",
+  "highlights": [
+    {
+      "icon": "fa-gamepad",
+      "title": "Game engines, built in",
+      "body": "Launch Unity, Unreal, or a custom engine straight from any chat. PopBot auto-detects the project in each slot and gives every agent a one-click Run-Editor button — all three engines configurable side by side."
+    },
+    {
+      "icon": "fa-code-branch",
+      "title": "Perforce & Helix Core",
+      "body": "First-class Perforce alongside Git — move-aware file status, and huge game depots handled by warm VHDX workspaces that spin up a slot from a terabyte-scale tree in seconds."
+    },
+    {
+      "icon": "fa-code-pull-request",
+      "title": "Helix Swarm reviews",
+      "body": "Review Swarm changelists the way you already review GitHub PRs — pinned into your Reviews inbox, each opened in its own repoless agent chat."
+    },
+    {
+      "icon": "fa-desktop",
+      "title": "Windows & Linux",
+      "body": "PopBot now runs natively on Windows and Linux, not just macOS — signed installers for all three platforms."
+    }
+  ]
+}
