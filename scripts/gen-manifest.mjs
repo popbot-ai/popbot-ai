@@ -56,11 +56,15 @@ const filesFor = (v) => ({
 });
 
 const readJson = (p) => {
+  // Missing file → null (first run / no highlights). But a PRESENT-yet-corrupt
+  // file must fail loudly: silently treating it as {} would drop the channel
+  // not being released from the merged manifest.
+  if (!p || !existsSync(p)) return null;
   try {
-    return p && existsSync(p) ? JSON.parse(readFileSync(p, 'utf8')) : null;
+    return JSON.parse(readFileSync(p, 'utf8'));
   } catch (e) {
-    console.error(`gen-manifest: could not read ${p}: ${e.message}`);
-    return null;
+    console.error(`gen-manifest: could not parse ${p}: ${e.message}`);
+    process.exit(1);
   }
 };
 

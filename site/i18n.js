@@ -1369,27 +1369,54 @@
     reflectPicker();
     applyDoc();
   }
-  // Tiny flag button in the nav that opens a flag + language menu. (A custom
-  // menu, not a native <select>, so the list can be padded/styled.)
+  // Tiny flag button in the nav that opens a flag + language menu. Custom menu
+  // (not a native <select>, so the list can be padded/styled), with full
+  // listbox keyboard support: arrows/Home/End move, Enter/Space select, Esc
+  // closes, and ArrowDown/Enter on the button opens.
   function buildPicker() {
     var root = document.getElementById('lang-float');
     var btn = document.getElementById('lang-btn');
     var menu = document.getElementById('lang-menu');
     if (!root || !btn || !menu) return;
+    // LOCALES is a trusted, hardcoded constant — safe to build via innerHTML.
     menu.innerHTML = LOCALES.map(function (l) {
-      return '<li role="option" data-code="' + l.code + '"><span class="flag">' + l.flag + '</span> ' + l.name + '</li>';
+      return '<li role="option" tabindex="-1" data-code="' + l.code + '"><span class="flag">' + l.flag + '</span> ' + l.name + '</li>';
     }).join('');
-    function openMenu() { menu.hidden = false; root.classList.add('open'); btn.setAttribute('aria-expanded', 'true'); }
-    function closeMenu() { menu.hidden = true; root.classList.remove('open'); btn.setAttribute('aria-expanded', 'false'); }
-    btn.addEventListener('click', function (e) { e.stopPropagation(); if (menu.hidden) openMenu(); else closeMenu(); });
-    menu.addEventListener('click', function (e) {
-      var li = e.target.closest('li[data-code]');
-      if (!li) return;
-      setLocale(li.getAttribute('data-code'), true);
-      closeMenu();
+    btn.setAttribute('aria-controls', 'lang-menu');
+    var options = Array.prototype.slice.call(menu.querySelectorAll('li'));
+    function isOpen() { return !menu.hidden; }
+    function indexOfActive() { return options.indexOf(document.activeElement); }
+    function selectedIndex() {
+      for (var i = 0; i < options.length; i++) if (options[i].getAttribute('data-code') === cur) return i;
+      return 0;
+    }
+    function focusAt(i) { options[(i + options.length) % options.length].focus(); }
+    function openMenu(focusIdx) {
+      menu.hidden = false; root.classList.add('open'); btn.setAttribute('aria-expanded', 'true');
+      if (focusIdx != null) focusAt(focusIdx);
+    }
+    function closeMenu(returnFocus) {
+      menu.hidden = true; root.classList.remove('open'); btn.setAttribute('aria-expanded', 'false');
+      if (returnFocus) btn.focus();
+    }
+    function choose(li) { if (!li) return; setLocale(li.getAttribute('data-code'), true); closeMenu(true); }
+    btn.addEventListener('click', function (e) { e.stopPropagation(); if (isOpen()) closeMenu(); else openMenu(); });
+    btn.addEventListener('keydown', function (e) {
+      if (e.key === 'ArrowDown' || e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openMenu(selectedIndex()); }
+      else if (e.key === 'ArrowUp') { e.preventDefault(); openMenu(options.length - 1); }
+    });
+    menu.addEventListener('click', function (e) { choose(e.target.closest('li[data-code]')); });
+    menu.addEventListener('keydown', function (e) {
+      var i = indexOfActive();
+      if (e.key === 'ArrowDown') { e.preventDefault(); focusAt(i + 1); }
+      else if (e.key === 'ArrowUp') { e.preventDefault(); focusAt(i - 1); }
+      else if (e.key === 'Home') { e.preventDefault(); focusAt(0); }
+      else if (e.key === 'End') { e.preventDefault(); focusAt(options.length - 1); }
+      else if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); choose(options[i] || options[selectedIndex()]); }
+      else if (e.key === 'Tab') { closeMenu(); }
     });
     document.addEventListener('click', function (e) { if (!root.contains(e.target)) closeMenu(); });
-    document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeMenu(); });
+    document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && isOpen()) closeMenu(true); });
     if (/[?&]menuopen(=|&|$)/.test(location.search)) openMenu(); // preview aid
     reflectPicker();
   }
