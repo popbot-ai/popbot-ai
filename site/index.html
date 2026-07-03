@@ -34,12 +34,16 @@
       <a href="#docs" data-i18n="nav.docs">Docs</a>
     </div>
     <div class="cta">
-      <label class="lang-pick" title="Language">
-        <i class="fa-solid fa-globe" aria-hidden="true"></i>
-        <select id="lang-select" data-i18n-attr="aria-label:lang.label" aria-label="Language"></select>
-      </label>
       <a class="btn btn-github" href="https://github.com/proofofplay/popbot-tool"><i class="fa-brands fa-github"></i> GitHub</a>
       <a class="btn btn-primary" href="#install" data-i18n="nav.getstarted">Get started</a>
+      <!-- Tiny flag button → opens a flag + language menu. Barely wider than an
+           icon, so it never squeezes the nav links. -->
+      <div class="lang-flag" id="lang-float">
+        <button type="button" class="lang-flag-btn" id="lang-btn" aria-haspopup="listbox" aria-expanded="false" data-i18n-attr="aria-label:lang.label" aria-label="Language">
+          <span class="flag" id="lang-cur-flag">🇺🇸</span>
+        </button>
+        <ul class="lang-menu" id="lang-menu" role="listbox" hidden></ul>
+      </div>
     </div>
   </div>
 </nav>

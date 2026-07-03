@@ -12,14 +12,14 @@
  */
 (function () {
   var LOCALES = [
-    { code: 'en', name: 'English' },
-    { code: 'es', name: 'Español' },
-    { code: 'fr', name: 'Français' },
-    { code: 'de', name: 'Deutsch' },
-    { code: 'ja', name: '日本語' },
-    { code: 'ko', name: '한국어' },
-    { code: 'zh-CN', name: '简体中文' },
-    { code: 'pt-BR', name: 'Português (Brasil)' },
+    { code: 'en', name: 'English', flag: '🇺🇸' },
+    { code: 'es', name: 'Español', flag: '🇪🇸' },
+    { code: 'fr', name: 'Français', flag: '🇫🇷' },
+    { code: 'de', name: 'Deutsch', flag: '🇩🇪' },
+    { code: 'ja', name: '日本語', flag: '🇯🇵' },
+    { code: 'ko', name: '한국어', flag: '🇰🇷' },
+    { code: 'zh-CN', name: '简体中文', flag: '🇨🇳' },
+    { code: 'pt-BR', name: 'Português (Brasil)', flag: '🇧🇷' },
   ];
   var SUPPORTED = {};
   LOCALES.forEach(function (l) { SUPPORTED[l.code] = 1; });
@@ -1295,21 +1295,47 @@
     });
     subs.forEach(function (fn) { try { fn(cur); } catch (e) {} });
   }
+  function flagFor(code) {
+    for (var i = 0; i < LOCALES.length; i++) if (LOCALES[i].code === code) return LOCALES[i].flag;
+    return '🌐';
+  }
+  function reflectPicker() {
+    var f = document.getElementById('lang-cur-flag');
+    if (f) f.textContent = flagFor(cur);
+    var menu = document.getElementById('lang-menu');
+    if (menu) menu.querySelectorAll('li').forEach(function (li) {
+      li.setAttribute('aria-selected', li.getAttribute('data-code') === cur ? 'true' : 'false');
+    });
+  }
   function setLocale(loc, persist) {
     cur = resolve(loc);
     if (persist !== false) { try { localStorage.setItem(STORE, cur); } catch (e) {} }
-    var sel = document.getElementById('lang-select');
-    if (sel) sel.value = cur;
+    reflectPicker();
     applyDoc();
   }
+  // Tiny flag button in the nav that opens a flag + language menu. (A custom
+  // menu, not a native <select>, so the list can be padded/styled.)
   function buildPicker() {
-    var sel = document.getElementById('lang-select');
-    if (!sel) return;
-    sel.innerHTML = LOCALES.map(function (l) {
-      return '<option value="' + l.code + '">' + l.name + '</option>';
+    var root = document.getElementById('lang-float');
+    var btn = document.getElementById('lang-btn');
+    var menu = document.getElementById('lang-menu');
+    if (!root || !btn || !menu) return;
+    menu.innerHTML = LOCALES.map(function (l) {
+      return '<li role="option" data-code="' + l.code + '"><span class="flag">' + l.flag + '</span> ' + l.name + '</li>';
     }).join('');
-    sel.value = cur;
-    sel.addEventListener('change', function () { setLocale(sel.value, true); });
+    function openMenu() { menu.hidden = false; root.classList.add('open'); btn.setAttribute('aria-expanded', 'true'); }
+    function closeMenu() { menu.hidden = true; root.classList.remove('open'); btn.setAttribute('aria-expanded', 'false'); }
+    btn.addEventListener('click', function (e) { e.stopPropagation(); if (menu.hidden) openMenu(); else closeMenu(); });
+    menu.addEventListener('click', function (e) {
+      var li = e.target.closest('li[data-code]');
+      if (!li) return;
+      setLocale(li.getAttribute('data-code'), true);
+      closeMenu();
+    });
+    document.addEventListener('click', function (e) { if (!root.contains(e.target)) closeMenu(); });
+    document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeMenu(); });
+    if (/[?&]menuopen(=|&|$)/.test(location.search)) openMenu(); // preview aid
+    reflectPicker();
   }
 
   cur = resolve(urlLang() || stored() || navigator.language || 'en');
