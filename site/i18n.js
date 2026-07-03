@@ -48,6 +48,7 @@
     'beta.warn': 'Not for production work — expect bugs, and updates that overwrite it without notice.',
     'beta.miniCta': 'new features to try',
     'beta.miniOpen': 'Open',
+    'beta.close': 'Close',
     'common.also': 'Also:',
     // hero
     'hero.eyebrow': 'Multi-agent agentic coding workflow tool',
@@ -355,7 +356,8 @@
       "feat.disk.p2": "Cada copia es una <strong>carpeta de trabajo copy-on-write</strong>: todas comparten una imagen base y guardan solo sus cambios, así que <strong>copias ilimitadas usan el disco de un solo repo</strong>. Una copia nueva de un árbol Perforce o git a escala de terabytes está lista en <strong>segundos</strong>, y se libera igual de rápido. Funciona igual en Windows, macOS y Linux.",
       "feat.disk.more": "Cómo funcionan los espacios de trabajo virtuales",
       "beta.miniCta": "novedades para probar",
-      "beta.miniOpen": "Abrir"
+      "beta.miniOpen": "Abrir",
+      "beta.close": "Cerrar"
     },
     fr: {
       "meta.title": "PopBot — Le codage agentique que vous pouvez voir",
@@ -510,7 +512,8 @@
       "feat.disk.p2": "Chaque copie est un <strong>dossier de travail copy-on-write</strong> : toutes partagent une image de base et ne conservent que leurs propres modifications, si bien que des <strong>copies illimitées occupent le disque d'un seul dépôt</strong>. Une nouvelle copie d'un arbre Perforce ou git à l'échelle du téraoctet est prête en <strong>quelques secondes</strong>, et libérée tout aussi vite. Cela fonctionne de la même façon sous Windows, macOS et Linux.",
       "feat.disk.more": "Comment fonctionnent les espaces de travail virtuels",
       "beta.miniCta": "nouveautés à essayer",
-      "beta.miniOpen": "Ouvrir"
+      "beta.miniOpen": "Ouvrir",
+      "beta.close": "Fermer"
     },
     de: {
       "meta.title": "PopBot — Agentisches Coding, das du siehst",
@@ -665,7 +668,8 @@
       "feat.disk.p2": "Jede Kopie ist ein <strong>copy-on-write-Workspace-Ordner</strong> — alle teilen sich ein Basis-Image und behalten nur ihre eigenen Änderungen, sodass <strong>unbegrenzt viele Kopien den Speicher eines einzigen Repos</strong> belegen. Eine frische Kopie eines Terabyte-großen Perforce- oder git-Baums ist in <strong>Sekunden</strong> bereit und ebenso schnell wieder frei. Es funktioniert gleich unter Windows, macOS und Linux.",
       "feat.disk.more": "Wie virtuelle Workspaces funktionieren",
       "beta.miniCta": "neue Features zum Ausprobieren",
-      "beta.miniOpen": "Öffnen"
+      "beta.miniOpen": "Öffnen",
+      "beta.close": "Schließen"
     },
     ja: {
       "meta.title": "PopBot — 見えるエージェント型コーディング",
@@ -820,7 +824,8 @@
       "feat.disk.p2": "各コピーは <strong>copy-on-write のワークスペースフォルダ</strong>です。すべてが 1 つのベースイメージを共有し、各自の変更分だけを保持するため、<strong>無制限のコピーでもリポジトリ 1 つ分の容量</strong>で収まります。テラバイト規模の Perforce や git ツリーでも、新しいコピーが<strong>数秒</strong>で用意でき、解放も同じ速さです。Windows、macOS、Linux で同じように動作します。",
       "feat.disk.more": "仮想ワークスペースの仕組み",
       "beta.miniCta": "試せる新機能",
-      "beta.miniOpen": "開く"
+      "beta.miniOpen": "開く",
+      "beta.close": "閉じる"
     },
     ko: {
       "meta.title": "PopBot — 눈으로 보는 에이전틱 코딩",
@@ -975,7 +980,8 @@
       "feat.disk.p2": "각 복사본은 <strong>copy-on-write 워크스페이스 폴더</strong>입니다. 모두 하나의 베이스 이미지를 공유하고 각자의 변경분만 저장하므로, <strong>무제한 복사본이 저장소 하나 분량의 디스크</strong>만 사용합니다. 테라바이트 규모의 Perforce나 git 트리도 새 복사본이 <strong>몇 초</strong> 만에 준비되고, 그만큼 빠르게 반환됩니다. Windows, macOS, Linux에서 동일하게 작동합니다.",
       "feat.disk.more": "가상 워크스페이스 작동 방식",
       "beta.miniCta": "사용해 볼 새 기능",
-      "beta.miniOpen": "열기"
+      "beta.miniOpen": "열기",
+      "beta.close": "닫기"
     },
     'zh-CN': {
       "meta.title": "PopBot — 看得见的智能体编程",
@@ -1130,7 +1136,8 @@
       "feat.disk.p2": "每份副本都是一个 <strong>写时复制（copy-on-write）工作区文件夹</strong>：它们共享同一个基础镜像，只保存各自的改动，因此<strong>无限份副本只占用一个仓库的磁盘空间</strong>。即使是 TB 级的 Perforce 或 git 树，新副本也能在<strong>几秒</strong>内就绪，并同样快速释放。在 Windows、macOS 和 Linux 上表现一致。",
       "feat.disk.more": "了解虚拟工作区的原理",
       "beta.miniCta": "抢先体验的新功能",
-      "beta.miniOpen": "展开"
+      "beta.miniOpen": "展开",
+      "beta.close": "收起"
     },
     'pt-BR': {
       "meta.title": "PopBot — Programação Agêntica Que Você Pode Ver",
@@ -1285,7 +1292,8 @@
       "feat.disk.p2": "Cada cópia é uma <strong>pasta de trabalho copy-on-write</strong>: todas compartilham uma imagem base e guardam apenas as próprias alterações, então <strong>cópias ilimitadas usam o disco de um único repo</strong>. Uma nova cópia de uma árvore Perforce ou git em escala de terabytes fica pronta em <strong>segundos</strong>, e é liberada com a mesma rapidez. Funciona igual no Windows, macOS e Linux.",
       "feat.disk.more": "Como funcionam os workspaces virtuais",
       "beta.miniCta": "novidades para testar",
-      "beta.miniOpen": "Abrir"
+      "beta.miniOpen": "Abrir",
+      "beta.close": "Fechar"
     },
   };
 

@@ -51,14 +51,19 @@
 <!-- BETA BAND — populated from manifest.json; stays hidden until a live beta
      newer than stable exists. Shows the newest features ahead of stable. -->
 <section class="betaband" id="beta" hidden>
-  <!-- Collapsed state: a thin animated bar that invites you to re-open the band. -->
-  <button class="beta-mini" id="beta-mini" type="button" aria-label="Show beta details">
-    <span class="beta-mini-chip"><span>B</span><span>E</span><span>T</span><span>A</span></span>
-    <span class="beta-mini-text"><span data-beta-version>v…</span> <span class="beta-dot">·</span> <span data-i18n="beta.miniCta">new features to try</span></span>
-    <span class="beta-mini-open"><i class="fa-solid fa-circle-chevron-down"></i> <span data-i18n="beta.miniOpen">Open</span></span>
-  </button>
-  <div class="wrap betaband-inner">
-    <button class="beta-collapse" id="beta-collapse" type="button" aria-label="Collapse"><i class="fa-solid fa-chevron-up"></i></button>
+  <!-- Persistent orange bar — always announcing the beta — with the expand /
+       collapse toggle on the bar itself (so it never overlaps the content). -->
+  <div class="beta-bar">
+    <div class="wrap beta-bar-inner">
+      <span class="beta-chip">BETA</span>
+      <span class="beta-bar-text"><span data-beta-version>v…</span> <span class="beta-sep">·</span> <span data-i18n="beta.miniCta">new features to try</span></span>
+      <button class="beta-toggle" id="beta-toggle" type="button" aria-expanded="true" aria-controls="beta-details">
+        <span class="beta-toggle-open"><i class="fa-solid fa-circle-chevron-down"></i> <span data-i18n="beta.miniOpen">Open</span></span>
+        <span class="beta-toggle-close"><i class="fa-solid fa-chevron-up"></i> <span data-i18n="beta.close">Close</span></span>
+      </button>
+    </div>
+  </div>
+  <div class="wrap betaband-inner" id="beta-details">
     <div class="betaband-lead">
       <span class="beta-eyebrow"><span class="beta-chip">BETA</span><span data-beta-version>v…</span><span class="beta-dot">·</span><span data-i18n="beta.early">early access</span></span>
       <h2 class="beta-headline" data-beta-headline>New features, fresh off the branch</h2>
@@ -634,24 +639,25 @@
     betaArm();
   }
 
-  // Beta band collapse/expand. Shows expanded on load, then auto-collapses to
-  // the thin animated bar after 15s (unless you hover it or collapse it first).
-  // Clicking the mini bar re-opens it; the manual chevron collapses it.
+  // The persistent BETA bar stays; only the details panel expands/collapses.
+  // Opens on load, then slides shut after 15s (unless you hover it first). The
+  // toggle on the bar reads Open when shut, Close when open.
   var betaArmed=false, betaTimer=null;
   function betaSet(collapsed){
     var s=document.getElementById('beta'); if(!s) return;
     s.classList.toggle('collapsed', collapsed);
+    var tg=document.getElementById('beta-toggle');
+    if(tg) tg.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
     if(betaTimer){ clearTimeout(betaTimer); betaTimer=null; }
   }
   function betaArm(){
     if(betaArmed) return; betaArmed=true;
     var s=document.getElementById('beta');
-    var mini=document.getElementById('beta-mini');
-    var cb=document.getElementById('beta-collapse');
-    if(mini) mini.addEventListener('click',function(){ betaSet(false); });
-    if(cb) cb.addEventListener('click',function(){ betaSet(true); });
-    // Don't auto-collapse if the visitor is engaging with the open band.
-    if(s) s.addEventListener('mouseenter',function(){
+    var tg=document.getElementById('beta-toggle');
+    var inner=document.getElementById('beta-details');
+    if(tg) tg.addEventListener('click',function(){ betaSet(!s.classList.contains('collapsed')); });
+    // Don't auto-collapse while the visitor is reading the open details.
+    if(inner) inner.addEventListener('mouseenter',function(){
       if(betaTimer && !s.classList.contains('collapsed')){ clearTimeout(betaTimer); betaTimer=null; }
     });
     if(/[?&]betacollapsed(=|&|$)/.test(location.search)){ betaSet(true); return; } // preview aid
