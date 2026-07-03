@@ -1,1 +1,5 @@
 wrangler.jsonc
+# Local `?betapreview` sample only. Production reads the authoritative
+# manifest from download.popbot.app; shipping this sample (visible:true)
+# would let ?betapreview render a fake beta with 404 installer links.
+manifest.json
