@@ -609,7 +609,9 @@
   // ---- BETA (band under the nav) ----
   function applyBeta(beta,stableV){
     if(!beta||!beta.version) return;
-    // Only advertise a beta that's actually ahead of stable.
+    // Only shown when "Show Beta on Website" is on in the manifest…
+    if(beta.visible!==true) return;
+    // …and only when the beta is actually ahead of stable.
     if(stableV&&cmpVer(beta.version,stableV)<=0) return;
     last.beta=beta; last.betaStableV=stableV;
     var v=beta.version, files=beta.files;

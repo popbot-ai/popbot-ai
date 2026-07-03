@@ -29,6 +29,10 @@ on:
         type: choice
         options: [prerelease, release]
         default: prerelease
+      show_beta_on_website:
+        description: Show Beta on Website (render the beta band on popbot.app). A real release always turns this off.
+        type: boolean
+        default: false
 
 concurrency:
   group: release
@@ -267,6 +271,9 @@ jobs:
           AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
           DIR: ${{ needs.version.outputs.dir }}
           VERSION: ${{ needs.version.outputs.version }}
+          # "Show Beta on Website" checkbox. gen-manifest forces false on a
+          # `release` regardless, so this only takes effect for a prerelease.
+          BETA_VISIBLE: ${{ inputs.show_beta_on_website }}
         run: |
           # Pull the current manifest (first release: none yet — ignore) and the
           # live stable version, so a beta manifest still knows what stable is.

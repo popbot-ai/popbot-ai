@@ -33,6 +33,9 @@ const {
   MANIFEST_OUT = 'manifest.json',
   HIGHLIGHTS = 'beta-highlights.json',
   STABLE_VERSION,
+  // "Show Beta on Website" — the site only renders the beta band when this is
+  // true. A real release always forces it back to false (see below).
+  BETA_VISIBLE = 'false',
 } = process.env;
 
 if (!DIR || !VERSION) {
@@ -73,11 +76,14 @@ if (!manifest.stable && STABLE_VERSION) {
 
 if (DIR === 'stable') {
   manifest.stable = { version: VERSION, date, files: filesFor(VERSION) };
+  // Publishing a real release always hides the (now-superseded) beta.
+  if (manifest.beta) manifest.beta.visible = false;
 } else {
   const notes = readJson(HIGHLIGHTS) ?? {};
   const beta = {
     version: VERSION,
     date,
+    visible: String(BETA_VISIBLE) === 'true',
     headline: notes.headline || 'New features in beta',
     highlights: Array.isArray(notes.highlights) ? notes.highlights : [],
     files: filesFor(VERSION),

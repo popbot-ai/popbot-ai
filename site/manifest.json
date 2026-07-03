@@ -10,6 +10,7 @@
   "beta": {
     "version": "0.1.0-rc.1",
     "date": "2026-07-03",
+    "visible": true,
     "headline": "The biggest PopBot update yet — now in beta",
     "highlights": [
       {
