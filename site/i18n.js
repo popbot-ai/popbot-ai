@@ -49,6 +49,7 @@
     'beta.miniCta': 'new features to try',
     'beta.miniOpen': 'Open',
     'beta.close': 'Close',
+    'beta.toggle': 'Show or hide beta details',
     'common.also': 'Also:',
     // hero
     'hero.eyebrow': 'Multi-agent agentic coding workflow tool',
@@ -357,7 +358,8 @@
       "feat.disk.more": "Cómo funcionan los espacios de trabajo virtuales",
       "beta.miniCta": "novedades para probar",
       "beta.miniOpen": "Abrir",
-      "beta.close": "Cerrar"
+      "beta.close": "Cerrar",
+      "beta.toggle": "Mostrar u ocultar detalles de la beta"
     },
     fr: {
       "meta.title": "PopBot — Le codage agentique que vous pouvez voir",
@@ -513,7 +515,8 @@
       "feat.disk.more": "Comment fonctionnent les espaces de travail virtuels",
       "beta.miniCta": "nouveautés à essayer",
       "beta.miniOpen": "Ouvrir",
-      "beta.close": "Fermer"
+      "beta.close": "Fermer",
+      "beta.toggle": "Afficher ou masquer les détails de la bêta"
     },
     de: {
       "meta.title": "PopBot — Agentisches Coding, das du siehst",
@@ -669,7 +672,8 @@
       "feat.disk.more": "Wie virtuelle Workspaces funktionieren",
       "beta.miniCta": "neue Features zum Ausprobieren",
       "beta.miniOpen": "Öffnen",
-      "beta.close": "Schließen"
+      "beta.close": "Schließen",
+      "beta.toggle": "Beta-Details ein- oder ausblenden"
     },
     ja: {
       "meta.title": "PopBot — 見えるエージェント型コーディング",
@@ -825,7 +829,8 @@
       "feat.disk.more": "仮想ワークスペースの仕組み",
       "beta.miniCta": "試せる新機能",
       "beta.miniOpen": "開く",
-      "beta.close": "閉じる"
+      "beta.close": "閉じる",
+      "beta.toggle": "ベータの詳細を表示または非表示"
     },
     ko: {
       "meta.title": "PopBot — 눈으로 보는 에이전틱 코딩",
@@ -981,7 +986,8 @@
       "feat.disk.more": "가상 워크스페이스 작동 방식",
       "beta.miniCta": "사용해 볼 새 기능",
       "beta.miniOpen": "열기",
-      "beta.close": "닫기"
+      "beta.close": "닫기",
+      "beta.toggle": "베타 세부정보 표시 또는 숨기기"
     },
     'zh-CN': {
       "meta.title": "PopBot — 看得见的智能体编程",
@@ -1137,7 +1143,8 @@
       "feat.disk.more": "了解虚拟工作区的原理",
       "beta.miniCta": "抢先体验的新功能",
       "beta.miniOpen": "展开",
-      "beta.close": "收起"
+      "beta.close": "收起",
+      "beta.toggle": "显示或隐藏 Beta 详情"
     },
     'pt-BR': {
       "meta.title": "PopBot — Programação Agêntica Que Você Pode Ver",
@@ -1293,7 +1300,8 @@
       "feat.disk.more": "Como funcionam os workspaces virtuais",
       "beta.miniCta": "novidades para testar",
       "beta.miniOpen": "Abrir",
-      "beta.close": "Fechar"
+      "beta.close": "Fechar",
+      "beta.toggle": "Mostrar ou ocultar detalhes da beta"
     },
   };
 

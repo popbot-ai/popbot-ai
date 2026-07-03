@@ -34,6 +34,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          # Read-only job: only reads scripts/set-beta-visibility.mjs, never
+          # pushes. Don't leave GITHUB_TOKEN in git config for later steps.
+          persist-credentials: false
       - uses: actions/setup-node@v4
         with:
           node-version: 20
