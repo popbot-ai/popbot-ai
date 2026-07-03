@@ -1208,7 +1208,12 @@ function EngineConfigPanel({ engineId }: { engineId: GameEngineId }): JSX.Elemen
 
   // Merge a patch into apps.engines[engineId] (preserving other engines).
   const writeEngine = async (patch: Partial<GameEngineConfig>): Promise<void> => {
-    const cur = get<AppsSettings>('apps', {}) ?? {};
+    // The three EngineConfigPanels (unity/unreal/custom) each keep an INDEPENDENT
+    // useSettings() cache of `apps` that never re-syncs across siblings, so
+    // `get('apps')` here can be stale — merging onto it would clobber a sibling's
+    // just-saved engine. Re-read the freshest persisted value before merging.
+    const fresh = await window.popbot.settings.getAll();
+    const cur = (fresh.apps as AppsSettings | undefined) ?? {};
     const curEngines: GameEnginesSettings = cur.engines ?? {};
     const nextCfg: GameEngineConfig = { ...(curEngines[engineId] ?? {}), ...patch };
     await set('apps', { ...cur, engines: { ...curEngines, [engineId]: nextCfg } } satisfies AppsSettings);
@@ -3163,9 +3168,10 @@ function SlotSetupProgress({
   onBack: () => void;
   /** Hard-close the wizard (discard) — the error state's Close button. */
   onClose: () => void;
-  /** Fires once the run settles (done or error) so the wizard can re-enable its
-   *  X + scrim, which are locked only while a build is actively running. */
-  onSettled?: (settled: boolean) => void;
+  /** Signals whether the wizard may UNLOCK its X + scrim: true ONLY when the run
+   *  FAILED, so a stuck failure can be dismissed. On success it stays locked and
+   *  exits via Done → onCreated, so the X can't bypass the repo refresh. */
+  onSettled?: (canDismiss: boolean) => void;
 }): JSX.Element {
   const { t } = useTranslation();
   const isP4 = draft.scm === 'perforce';
@@ -3175,10 +3181,12 @@ function SlotSetupProgress({
   const [error, setError] = useState<string | null>(null);
   const ran = useRef(false);
 
-  // Tell the wizard when the run has settled (done/error) so it can unlock its
-  // X + scrim — otherwise a FAILED setup traps the modal (only Back worked).
+  // Unlock the wizard's X + scrim ONLY on failure, so a FAILED setup can be
+  // dismissed (previously it trapped the modal — only Back worked). A SUCCESSFUL
+  // run stays locked and exits through the Done button (→ onCreated), so the X
+  // can't dismiss past the repo-refresh step.
   useEffect(() => {
-    onSettled?.(phase === 'done' || phase === 'error');
+    onSettled?.(phase === 'error');
   }, [phase, onSettled]);
 
   useEffect(() => window.popbot.repos.onBaseProgress((m) => setProgress(m)), []);
@@ -3855,7 +3863,7 @@ function NewRepoWizard({
             onDone={onCreated}
             onBack={() => setStep('setup')}
             onClose={onCancel}
-            onSettled={(settled) => setProgressRunning(!settled)}
+            onSettled={(canDismiss) => setProgressRunning(!canDismiss)}
           />
         )}
 

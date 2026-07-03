@@ -772,9 +772,13 @@ function SlotAppButtons({
   // shows that one engine's Run button + icon, so an Unreal project never shows
   // the Unity logo. Custom (no project marker) is the catch-all when nothing is
   // detected and the user has enabled it.
-  const [detected, setDetected] = useState<GameEngineId | null>(null);
+  // undefined = detection not yet run; null = checked, no engine found. The
+  // distinction avoids briefly showing the Custom button (the !detected branch)
+  // for a Unity/Unreal project before detection resolves.
+  const [detected, setDetected] = useState<GameEngineId | null | undefined>(undefined);
   useEffect(() => {
     if (!worktreePath) { setDetected(null); return; }
+    setDetected(undefined);
     let alive = true;
     void window.popbot.engines.detect(worktreePath).then((id) => { if (alive) setDetected(id); });
     return () => { alive = false; };
@@ -783,7 +787,7 @@ function SlotAppButtons({
   const engines = (get<{ engines?: GameEnginesSettings }>('apps', {}) ?? {}).engines;
   let engineForChat: GameEngineId | null = null;
   if (detected && engineEnabled(engines?.[detected], detected)) engineForChat = detected;
-  else if (!detected && engineEnabled(engines?.custom, 'custom')) engineForChat = 'custom';
+  else if (detected === null && engineEnabled(engines?.custom, 'custom')) engineForChat = 'custom';
 
   const buttons: AppButtonDef[] = [
     ...STATIC_APP_BUTTONS,

@@ -538,6 +538,15 @@ const SCAN_IGNORE_DIRS = new Set([
 const MAX_SCAN_DEPTH = 4;
 const MAX_SCAN_DIRS = 500;
 
+interface DetectedEngine { engine: GameEngineId; projectSubpath: string }
+
+// Short TTL cache for the worktree scan below — it's a synchronous fs walk on
+// the IPC hot path (fired from the renderer on every chat-worktree mount, plus
+// internally on each launch), so memoize per worktree like psCache/appsCache do
+// for their scans. A slot's engine doesn't change moment-to-moment.
+const engineDetectCache = new Map<string, { ts: number; result: DetectedEngine | null }>();
+const ENGINE_DETECT_CACHE_MS = 5000;
+
 /**
  * Detect the game engine a chat's worktree belongs to. The worktree either IS
  * the project (root has the marker) or HAS one nested inside (a child folder,
@@ -546,15 +555,19 @@ const MAX_SCAN_DIRS = 500;
  * with no manual config. Breadth-first so the SHALLOWEST project wins; Unreal
  * beats Unity within any single directory. Null when neither is found.
  */
-function detectEngineForWorktree(worktreePath: string): { engine: GameEngineId; projectSubpath: string } | null {
+function detectEngineForWorktree(worktreePath: string): DetectedEngine | null {
   if (!worktreePath || !existsSync(worktreePath)) return null;
+  const cached = engineDetectCache.get(worktreePath);
+  if (cached && Date.now() - cached.ts < ENGINE_DETECT_CACHE_MS) return cached.result;
+
   const queue: Array<{ dir: string; rel: string; depth: number }> = [{ dir: worktreePath, rel: '', depth: 0 }];
   let visited = 0;
+  let result: DetectedEngine | null = null;
   while (queue.length) {
     const { dir, rel, depth } = queue.shift()!;
     if (++visited > MAX_SCAN_DIRS) break;
     const marker = dirEngineMarker(dir);
-    if (marker) return { engine: marker, projectSubpath: rel };
+    if (marker) { result = { engine: marker, projectSubpath: rel }; break; }
     if (depth >= MAX_SCAN_DEPTH) continue;
     try {
       for (const e of readdirSync(dir, { withFileTypes: true })) {
@@ -565,7 +578,8 @@ function detectEngineForWorktree(worktreePath: string): { engine: GameEngineId; 
       /* unreadable dir — skip */
     }
   }
-  return null;
+  engineDetectCache.set(worktreePath, { ts: Date.now(), result });
+  return result;
 }
 
 /**
