@@ -55,7 +55,7 @@
        collapse toggle on the bar itself (so it never overlaps the content). -->
   <div class="beta-bar">
     <div class="wrap beta-bar-inner">
-      <span class="beta-chip">BETA</span>
+      <span class="beta-chip beta-chip-anim"><span>B</span><span>E</span><span>T</span><span>A</span></span>
       <span class="beta-bar-text"><span data-beta-version>v…</span> <span class="beta-sep">·</span> <span data-i18n="beta.miniCta">new features to try</span></span>
       <button class="beta-toggle" id="beta-toggle" type="button" aria-expanded="true" aria-controls="beta-details">
         <span class="beta-toggle-open"><i class="fa-solid fa-circle-chevron-down"></i> <span data-i18n="beta.miniOpen">Open</span></span>
@@ -614,7 +614,12 @@
     last.beta=beta; last.betaStableV=stableV;
     var v=beta.version, files=beta.files;
     document.querySelectorAll('[data-beta-version]').forEach(function(el){el.textContent='v'+v;});
-    if(beta.headline){var h=document.querySelector('[data-beta-headline]');if(h)h.textContent=beta.headline;}
+    // Localized headline + highlights: the manifest may carry per-locale copy
+    // under beta.i18n[<locale>]; fall back to the English base per field.
+    var loc=(window.I18N&&window.I18N.locale)||'en';
+    var li18n=(beta.i18n&&beta.i18n[loc])||null;
+    var headline=(li18n&&li18n.headline)||beta.headline;
+    if(headline){var h=document.querySelector('[data-beta-headline]');if(h)h.textContent=headline;}
     var bmain=document.getElementById('bdl-main');
     if(bmain){bmain.innerHTML='<i class="fa-solid fa-flask"></i> '+T('beta.dlOs',P[cur].name); bmain.href=fileUrl('beta',v,cur,files);}
     [['bdl-alt1',alts[0]],['bdl-alt2',alts[1]]].forEach(function(pair){
@@ -632,8 +637,9 @@
       // Set text via DOM so titles/bodies can never inject markup.
       var items=ul.querySelectorAll('li');
       beta.highlights.forEach(function(h,i){var li=items[i];if(!li)return;
-        li.querySelector('h4').textContent=h.title||'';
-        li.querySelector('p').textContent=h.body||'';});
+        var lh=(li18n&&li18n.highlights&&li18n.highlights[i])||h;
+        li.querySelector('h4').textContent=lh.title||h.title||'';
+        li.querySelector('p').textContent=lh.body||h.body||'';});
     }
     var sec=document.getElementById('beta'); if(sec) sec.hidden=false;
     betaArm();
@@ -659,9 +665,9 @@
       betaUserToggled=true; // once you use the toggle, stop the auto-collapse
     });
     if(/[?&]betacollapsed(=|&|$)/.test(location.search)){ betaSet(true); return; } // preview aid
-    // Always slide shut after 15s so the page settles to the thin bar — unless
+    // Always slide shut after 8s so the page settles to the thin bar — unless
     // you've already opened/closed it yourself.
-    betaTimer=setTimeout(function(){ if(!betaUserToggled) betaSet(true); }, 15000);
+    betaTimer=setTimeout(function(){ if(!betaUserToggled) betaSet(true); }, 8000);
   }
 
   // Re-localize labels + restore the version when the language changes. The

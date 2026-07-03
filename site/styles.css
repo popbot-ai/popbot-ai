@@ -130,6 +130,12 @@ code{font-family:var(--font-mono);font-size:0.86em;background:rgba(255,255,255,0
 .beta-bar-inner{display:flex;align-items:center;gap:13px;height:48px;}
 .beta-bar .beta-chip{flex:0 0 auto;background:#1a1206;color:#ffcf9a;font-family:var(--font-mono);font-weight:800;
   letter-spacing:.12em;font-size:11px;padding:4px 9px;border-radius:6px;}
+/* attract: the BETA letters wave to keep the bar alive */
+.beta-chip-anim span{display:inline-block;animation:beta-wave 1.7s ease-in-out infinite;}
+.beta-chip-anim span:nth-child(2){animation-delay:.12s;}
+.beta-chip-anim span:nth-child(3){animation-delay:.24s;}
+.beta-chip-anim span:nth-child(4){animation-delay:.36s;}
+@keyframes beta-wave{0%,55%,100%{transform:translateY(0);}28%{transform:translateY(-3px);}}
 .beta-bar-text{font-size:14.5px;font-weight:600;color:#2a1400;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .beta-bar-text [data-beta-version]{font-weight:800;}
 .beta-bar-text .beta-sep{opacity:.5;margin:0 2px;}
@@ -152,7 +158,7 @@ code{font-family:var(--font-mono);font-size:0.86em;background:rgba(255,255,255,0
   .beta-toggle-open span,.beta-toggle-close span{display:none;}
 }
 @media(prefers-reduced-motion:reduce){
-  .betaband.collapsed .beta-toggle{animation:none;}
+  .betaband.collapsed .beta-toggle,.beta-chip-anim span{animation:none;}
   .betaband-inner{transition:none;}
 }
 

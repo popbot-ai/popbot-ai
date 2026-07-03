@@ -75,13 +75,17 @@ if (DIR === 'stable') {
   manifest.stable = { version: VERSION, date, files: filesFor(VERSION) };
 } else {
   const notes = readJson(HIGHLIGHTS) ?? {};
-  manifest.beta = {
+  const beta = {
     version: VERSION,
     date,
     headline: notes.headline || 'New features in beta',
     highlights: Array.isArray(notes.highlights) ? notes.highlights : [],
     files: filesFor(VERSION),
   };
+  // Per-locale headline + highlight title/body, so the site's beta band
+  // localizes with the rest of the page. Icons stay shared from `highlights`.
+  if (notes.i18n && typeof notes.i18n === 'object') beta.i18n = notes.i18n;
+  manifest.beta = beta;
 }
 
 manifest.updated = UPDATED || manifest.updated || '';
