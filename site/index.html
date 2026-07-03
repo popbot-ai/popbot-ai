@@ -14,6 +14,10 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
 <link rel="stylesheet" href="styles.css" />
+<!-- Runtime i18n: defines window.I18N and applies the visitor's language on
+     load. Loaded before body scripts so the download wiring can localize its
+     button labels. -->
+<script src="i18n.js"></script>
 </head>
 <body>
 
@@ -22,16 +26,20 @@
   <div class="wrap">
     <a class="brand" href="#top"><img src="images/popbot_icon.png" alt="PopBot" />PopBot</a>
     <div class="links">
-      <a href="#why">Why</a>
-      <a href="#features">Features</a>
-      <a href="#different">How it's different</a>
-      <a href="#anatomy">Workspace</a>
-      <a href="#day">A day with PopBot</a>
-      <a href="#docs">Docs</a>
+      <a href="#why" data-i18n="nav.why">Why</a>
+      <a href="#features" data-i18n="nav.features">Features</a>
+      <a href="#different" data-i18n="nav.different">How it's different</a>
+      <a href="#anatomy" data-i18n="nav.workspace">Workspace</a>
+      <a href="#day" data-i18n="nav.day">A day with PopBot</a>
+      <a href="#docs" data-i18n="nav.docs">Docs</a>
     </div>
     <div class="cta">
+      <label class="lang-pick" title="Language">
+        <i class="fa-solid fa-globe" aria-hidden="true"></i>
+        <select id="lang-select" data-i18n-attr="aria-label:lang.label" aria-label="Language"></select>
+      </label>
       <a class="btn btn-github" href="https://github.com/proofofplay/popbot-tool"><i class="fa-brands fa-github"></i> GitHub</a>
-      <a class="btn btn-primary" href="#install">Get started</a>
+      <a class="btn btn-primary" href="#install" data-i18n="nav.getstarted">Get started</a>
     </div>
   </div>
 </nav>
@@ -41,14 +49,14 @@
 <section class="betaband" id="beta" hidden>
   <div class="wrap betaband-inner">
     <div class="betaband-lead">
-      <span class="beta-eyebrow"><span class="beta-chip">BETA</span><span data-beta-version>v…</span><span class="beta-dot">·</span>early access</span>
+      <span class="beta-eyebrow"><span class="beta-chip">BETA</span><span data-beta-version>v…</span><span class="beta-dot">·</span><span data-i18n="beta.early">early access</span></span>
       <h2 class="beta-headline" data-beta-headline>New features, fresh off the branch</h2>
-      <p class="beta-sub">Try our newest features before they reach stable. Beta builds are <strong>pre-release, unstable, and may be buggy</strong> — install one only if you're happy to hit rough edges and report them. It installs separately and is <strong>not</strong> the stable auto-update channel.</p>
+      <p class="beta-sub" data-i18n-html="beta.sub">Try our newest features before they reach stable. Beta builds are <strong>pre-release, unstable, and may be buggy</strong> — install one only if you're happy to hit rough edges and report them. It installs separately and is <strong>not</strong> the stable auto-update channel.</p>
       <div class="beta-actions">
         <a id="bdl-main" class="btn btn-beta btn-lg" href="#" rel="noopener"><i class="fa-solid fa-flask"></i> Download beta</a>
-        <span class="beta-alts">Also: <a id="bdl-alt1" href="#"></a> <span class="beta-dot">·</span> <a id="bdl-alt2" href="#"></a> <span class="beta-dot">·</span> <a href="#top" class="beta-stablelink">get the stable release instead</a></span>
+        <span class="beta-alts"><span data-i18n="common.also">Also:</span> <a id="bdl-alt1" href="#"></a> <span class="beta-dot">·</span> <a id="bdl-alt2" href="#"></a> <span class="beta-dot">·</span> <a href="#top" class="beta-stablelink" data-i18n="beta.getStable">get the stable release instead</a></span>
       </div>
-      <p class="beta-warn"><i class="fa-solid fa-triangle-exclamation"></i> Not for production work — expect bugs, and updates that overwrite it without notice.</p>
+      <p class="beta-warn"><i class="fa-solid fa-triangle-exclamation"></i> <span data-i18n="beta.warn">Not for production work — expect bugs, and updates that overwrite it without notice.</span></p>
     </div>
     <ul class="beta-highlights" data-beta-highlights><!-- filled from manifest.beta.highlights --></ul>
   </div>
@@ -59,23 +67,23 @@
   <div class="grid-bg"></div>
   <div class="wrap">
     <div class="hero-left">
-      <span class="eyebrow"><span class="dot"></span>Multi-agent agentic coding workflow tool</span>
+      <span class="eyebrow"><span class="dot"></span><span data-i18n="hero.eyebrow">Multi-agent agentic coding workflow tool</span></span>
       <div class="hero-brandrow">
         <img class="hero-mascot" src="images/popbot_icon.png" alt="PopBot mascot" />
         <span class="hero-wordmark">PopBot</span>
       </div>
-      <h1 class="hero-tagline">Agentic Coding You Can <span class="see">See</span></h1>
-      <p class="hero-sub">Run a team of AI coding agents in parallel — one per ticket, bug, or PR — each isolated in its own warm git-worktree <strong>slot</strong>, each able to build, run, and test your app end-to-end. Watch them all in <strong>live thumbnails</strong> and side-by-side <strong>multi-chat views</strong>.</p>
+      <h1 class="hero-tagline" data-i18n-html="hero.tagline">Agentic Coding You Can <span class="see">See</span></h1>
+      <p class="hero-sub" data-i18n-html="hero.sub">Run a team of AI coding agents in parallel — one per ticket, bug, or PR — each isolated in its own warm git-worktree <strong>slot</strong>, each able to build, run, and test your app end-to-end. Watch them all in <strong>live thumbnails</strong> and side-by-side <strong>multi-chat views</strong>.</p>
       <div class="hero-pills">
-        <span class="hero-pill"><i class="fa-solid fa-grip"></i> Live thumbnails</span>
-        <span class="hero-pill"><i class="fa-solid fa-table-columns"></i> Multi-chat views</span>
-        <span class="hero-pill"><i class="fa-solid fa-fire"></i> Warm worktree slots</span>
+        <span class="hero-pill"><i class="fa-solid fa-grip"></i> <span data-i18n="hero.pill1">Live thumbnails</span></span>
+        <span class="hero-pill"><i class="fa-solid fa-table-columns"></i> <span data-i18n="hero.pill2">Multi-chat views</span></span>
+        <span class="hero-pill"><i class="fa-solid fa-fire"></i> <span data-i18n="hero.pill3">Warm worktree slots</span></span>
       </div>
       <div data-version style="font-size:22px;font-weight:800;color:#fff;letter-spacing:.3px;margin-bottom:9px">v…</div>
       <div class="hero-actions">
         <a id="dl-main" class="btn btn-primary btn-lg" style="min-width:260px;justify-content:center" href="https://download.popbot.app/stable/" rel="noopener"><i class="fa-solid fa-download"></i> Free Download</a>
       </div>
-      <div style="opacity:.72;font-size:13.5px;margin-top:13px">Also: <a id="dl-alt1" href="https://download.popbot.app/stable/" style="color:inherit;text-decoration:underline"><i class="fa-brands fa-windows"></i> Windows</a> · <a id="dl-alt2" href="https://download.popbot.app/stable/" style="color:inherit;text-decoration:underline"><i class="fa-brands fa-linux"></i> Linux</a> · signed &amp; notarized · <a href="#features" style="color:inherit;text-decoration:underline">see how it works</a>.</div>
+      <div style="opacity:.72;font-size:13.5px;margin-top:13px"><span data-i18n="common.also">Also:</span> <a id="dl-alt1" href="https://download.popbot.app/stable/" style="color:inherit;text-decoration:underline"><i class="fa-brands fa-windows"></i> Windows</a> · <a id="dl-alt2" href="https://download.popbot.app/stable/" style="color:inherit;text-decoration:underline"><i class="fa-brands fa-linux"></i> Linux</a> · <span data-i18n="hero.signed">signed &amp; notarized</span> · <a href="#features" style="color:inherit;text-decoration:underline" data-i18n="hero.seehow">see how it works</a>.</div>
     </div>
 
     <!-- floating UI slice -->
@@ -139,14 +147,14 @@
 <section class="sec" id="why">
   <div class="wrap">
     <div class="sec-head">
-      <span class="eyebrow"><span class="dot"></span>Why PopBot</span>
-      <h2>Agentic coding is the easy part now.</h2>
-      <p class="lead">The hard part is <strong>running many agents at once without chaos</strong> — keeping their work isolated so they don't step on each other, actually <em>testing</em> what they build, reviewing it, and never letting one quietly do something dangerous.</p>
+      <span class="eyebrow"><span class="dot"></span><span data-i18n="why.eyebrow">Why PopBot</span></span>
+      <h2 data-i18n="why.h2">Agentic coding is the easy part now.</h2>
+      <p class="lead" data-i18n-html="why.lead">The hard part is <strong>running many agents at once without chaos</strong> — keeping their work isolated so they don't step on each other, actually <em>testing</em> what they build, reviewing it, and never letting one quietly do something dangerous.</p>
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:40px;align-items:center;">
       <div>
-        <p style="font-size:17px;color:var(--ink-1);">PopBot is the orchestration layer for that. It turns your Linear tickets and GitHub review requests into <strong style="color:#fff;">one-click agent sessions</strong>, gives each agent a real, isolated workspace — its own git worktree, and for game projects its own running app under test — runs them <strong style="color:#fff;">autonomously by default</strong>, and pulls every transcript, diff, terminal, and log into a single window.</p>
-        <p style="font-size:17px;color:var(--ink-1);">You stay the lead: you skim the columns, approve the risky moves, and ship. It was built to drive a real production game's development with a small team — open-sourced as a reference you can <strong style="color:#ffd9b0;">fork and reshape for your own stack</strong>.</p>
+        <p style="font-size:17px;color:var(--ink-1);" data-i18n-html="why.p1">PopBot is the orchestration layer for that. It turns your Linear tickets and GitHub review requests into <strong style="color:#fff;">one-click agent sessions</strong>, gives each agent a real, isolated workspace — its own git worktree, and for game projects its own running app under test — runs them <strong style="color:#fff;">autonomously by default</strong>, and pulls every transcript, diff, terminal, and log into a single window.</p>
+        <p style="font-size:17px;color:var(--ink-1);" data-i18n-html="why.p2">You stay the lead: you skim the columns, approve the risky moves, and ship. It was built to drive a real production game's development with a small team — open-sourced as a reference you can <strong style="color:#ffd9b0;">fork and reshape for your own stack</strong>.</p>
       </div>
       <div class="anat-shot" style="margin:0;">
         <img src="images/app-screenshot.png" alt="A real PopBot session — several agents working in parallel, each in its own slot." />
@@ -161,15 +169,15 @@
 <section class="sec" id="features">
   <div class="wrap">
     <div class="sec-head">
-      <span class="eyebrow"><span class="dot"></span>Defining features</span>
-      <h2>Built for running a fleet, not a single agent.</h2>
+      <span class="eyebrow"><span class="dot"></span><span data-i18n="features.eyebrow">Defining features</span></span>
+      <h2 data-i18n="features.h2">Built for running a fleet, not a single agent.</h2>
     </div>
 
     <div class="feat">
       <div class="feat-text">
-        <h3><span class="ic"><i class="fa-solid fa-grip"></i></span>Multi-chat view with live thumbnails</h3>
-        <p>Every open chat stays on screen — a strip of <strong>live thumbnails</strong> above side-by-side <strong>columns</strong>. Each thumbnail is a real, updating view of that chat, color-coded by state: running, done, waiting-on-you, error.</p>
-        <p>At a glance you see <em>what every agent is doing</em> and who needs you — and you can <strong>catch a wrong path early</strong>, redirecting before it burns time and tokens. One person supervises a whole fleet from one window.</p>
+        <h3><span class="ic"><i class="fa-solid fa-grip"></i></span><span data-i18n="feat.multichat.h3">Multi-chat view with live thumbnails</span></h3>
+        <p data-i18n-html="feat.multichat.p1">Every open chat stays on screen — a strip of <strong>live thumbnails</strong> above side-by-side <strong>columns</strong>. Each thumbnail is a real, updating view of that chat, color-coded by state: running, done, waiting-on-you, error.</p>
+        <p data-i18n-html="feat.multichat.p2">At a glance you see <em>what every agent is doing</em> and who needs you — and you can <strong>catch a wrong path early</strong>, redirecting before it burns time and tokens. One person supervises a whole fleet from one window.</p>
       </div>
       <div class="feat-visual" style="padding:14px;">
         <div class="window" style="width:100%;">
@@ -185,10 +193,10 @@
 
     <div class="feat flip">
       <div class="feat-text">
-        <h3><span class="ic"><i class="fa-solid fa-fire"></i></span>Warm slots for Unity development</h3>
-        <p>Each working chat leases a <strong>slot</strong> — a persistent git worktree plus its own warm build state, created once and reused. For Unity, the slot keeps its own hot <code>Library</code> import cache and can keep the Editor running.</p>
-        <p>Switching an agent back into its slot takes <strong>seconds, not a multi-minute reimport</strong>. Ten agents run in true branch isolation without thrashing a single Unity cache.</p>
-        <a class="more" href="#docs">How slots work <i class="fa-solid fa-arrow-right"></i></a>
+        <h3><span class="ic"><i class="fa-solid fa-fire"></i></span><span data-i18n="feat.slots.h3">Warm slots for Unity development</span></h3>
+        <p data-i18n-html="feat.slots.p1">Each working chat leases a <strong>slot</strong> — a persistent git worktree plus its own warm build state, created once and reused. For Unity, the slot keeps its own hot <code>Library</code> import cache and can keep the Editor running.</p>
+        <p data-i18n-html="feat.slots.p2">Switching an agent back into its slot takes <strong>seconds, not a multi-minute reimport</strong>. Ten agents run in true branch isolation without thrashing a single Unity cache.</p>
+        <a class="more" href="#docs"><span data-i18n="feat.slots.more">How slots work</span> <i class="fa-solid fa-arrow-right"></i></a>
       </div>
       <div class="feat-visual" style="padding:28px;">
         <div style="width:100%;display:flex;flex-direction:column;gap:11px;">
@@ -212,9 +220,9 @@
 
     <div class="feat">
       <div class="feat-text">
-        <h3><span class="ic"><i class="fa-solid fa-code-branch"></i></span>Worktree-aware git interface</h3>
-        <p>A built-in <strong>git panel</strong> scoped to <em>each chat's own worktree</em>: working-tree status, recent commits, and per-file diffs for exactly that branch — you're never guessing which checkout you're acting on.</p>
-        <p>One-click, templated actions — <strong>Commit</strong>, <strong>Push PR</strong>, <strong>Make ready</strong>, <strong>Address CR</strong>, <strong>Rebase onto base</strong> — send a pre-filled instruction to the agent, with <code>${branch}</code> / <code>${ticket}</code> / <code>${prnum}</code> filled in. Review the diff, click, ship.</p>
+        <h3><span class="ic"><i class="fa-solid fa-code-branch"></i></span><span data-i18n="feat.git.h3">Worktree-aware git interface</span></h3>
+        <p data-i18n-html="feat.git.p1">A built-in <strong>git panel</strong> scoped to <em>each chat's own worktree</em>: working-tree status, recent commits, and per-file diffs for exactly that branch — you're never guessing which checkout you're acting on.</p>
+        <p data-i18n-html="feat.git.p2">One-click, templated actions — <strong>Commit</strong>, <strong>Push PR</strong>, <strong>Make ready</strong>, <strong>Address CR</strong>, <strong>Rebase onto base</strong> — send a pre-filled instruction to the agent, with <code>${branch}</code> / <code>${ticket}</code> / <code>${prnum}</code> filled in. Review the diff, click, ship.</p>
       </div>
       <div class="feat-visual" style="padding:18px;">
         <div class="wc-diff" style="width:100%;font-size:11px;">
@@ -235,20 +243,20 @@
 
     <div class="feat flip">
       <div class="feat-text">
-        <h3><span class="ic"><i class="fa-solid fa-arrows-rotate"></i></span>End-to-end workflow</h3>
-        <p>The whole loop in one place: your <strong>inbox</strong> (assigned tickets + PRs awaiting review) → <strong>in-progress</strong> agent work in isolated slots → <strong>GitHub</strong> (commit, push, open the PR) → <strong>code review</strong> in instant repoless chats → <strong>archive</strong> a finished chat → <strong>reopen and restart</strong> later with full history.</p>
-        <p>Click a ticket and PopBot names the branch, leases a slot, moves the ticket to <em>In Progress</em>, and seeds the agent — then carries it through to a merged PR and back.</p>
+        <h3><span class="ic"><i class="fa-solid fa-arrows-rotate"></i></span><span data-i18n="feat.workflow.h3">End-to-end workflow</span></h3>
+        <p data-i18n-html="feat.workflow.p1">The whole loop in one place: your <strong>inbox</strong> (assigned tickets + PRs awaiting review) → <strong>in-progress</strong> agent work in isolated slots → <strong>GitHub</strong> (commit, push, open the PR) → <strong>code review</strong> in instant repoless chats → <strong>archive</strong> a finished chat → <strong>reopen and restart</strong> later with full history.</p>
+        <p data-i18n-html="feat.workflow.p2">Click a ticket and PopBot names the branch, leases a slot, moves the ticket to <em>In Progress</em>, and seeds the agent — then carries it through to a merged PR and back.</p>
       </div>
       <div class="feat-visual" style="padding:26px;">
         <div style="display:flex;flex-direction:column;gap:0;width:100%;">
           <!-- flow steps -->
-          <div class="flowstep" style="display:flex;align-items:center;gap:13px;padding:11px 0;"><span style="width:30px;height:30px;border-radius:8px;background:rgba(255,138,61,0.16);color:#ffb78f;display:inline-flex;align-items:center;justify-content:center;font-size:13px;"><i class="fa-solid fa-inbox"></i></span><span style="color:var(--fg-0);font-weight:600;font-size:14.5px;">Inbox</span><span style="color:var(--fg-2);font-size:13px;">ticket / PR lands, ranked</span></div>
+          <div class="flowstep" style="display:flex;align-items:center;gap:13px;padding:11px 0;"><span style="width:30px;height:30px;border-radius:8px;background:rgba(255,138,61,0.16);color:#ffb78f;display:inline-flex;align-items:center;justify-content:center;font-size:13px;"><i class="fa-solid fa-inbox"></i></span><span style="color:var(--fg-0);font-weight:600;font-size:14.5px;" data-i18n="flow.inbox">Inbox</span><span style="color:var(--fg-2);font-size:13px;" data-i18n="flow.inbox.sub">ticket / PR lands, ranked</span></div>
           <div style="margin-left:14px;width:2px;height:14px;background:var(--line-3);"></div>
-          <div class="flowstep" style="display:flex;align-items:center;gap:13px;padding:11px 0;"><span style="width:30px;height:30px;border-radius:8px;background:rgba(79,139,255,0.16);color:#8fb6ff;display:inline-flex;align-items:center;justify-content:center;font-size:13px;"><i class="fa-solid fa-robot"></i></span><span style="color:var(--fg-0);font-weight:600;font-size:14.5px;">In&nbsp;progress</span><span style="color:var(--fg-2);font-size:13px;">agent works in its slot</span></div>
+          <div class="flowstep" style="display:flex;align-items:center;gap:13px;padding:11px 0;"><span style="width:30px;height:30px;border-radius:8px;background:rgba(79,139,255,0.16);color:#8fb6ff;display:inline-flex;align-items:center;justify-content:center;font-size:13px;"><i class="fa-solid fa-robot"></i></span><span style="color:var(--fg-0);font-weight:600;font-size:14.5px;" data-i18n="flow.progress">In&nbsp;progress</span><span style="color:var(--fg-2);font-size:13px;" data-i18n="flow.progress.sub">agent works in its slot</span></div>
           <div style="margin-left:14px;width:2px;height:14px;background:var(--line-3);"></div>
-          <div class="flowstep" style="display:flex;align-items:center;gap:13px;padding:11px 0;"><span style="width:30px;height:30px;border-radius:8px;background:rgba(63,178,127,0.16);color:#7fd6aa;display:inline-flex;align-items:center;justify-content:center;font-size:13px;"><i class="fa-solid fa-code-pull-request"></i></span><span style="color:var(--fg-0);font-weight:600;font-size:14.5px;">GitHub</span><span style="color:var(--fg-2);font-size:13px;">commit, push, open PR</span></div>
+          <div class="flowstep" style="display:flex;align-items:center;gap:13px;padding:11px 0;"><span style="width:30px;height:30px;border-radius:8px;background:rgba(63,178,127,0.16);color:#7fd6aa;display:inline-flex;align-items:center;justify-content:center;font-size:13px;"><i class="fa-solid fa-code-pull-request"></i></span><span style="color:var(--fg-0);font-weight:600;font-size:14.5px;" data-i18n="flow.github">GitHub</span><span style="color:var(--fg-2);font-size:13px;" data-i18n="flow.github.sub">commit, push, open PR</span></div>
           <div style="margin-left:14px;width:2px;height:14px;background:var(--line-3);"></div>
-          <div class="flowstep" style="display:flex;align-items:center;gap:13px;padding:11px 0;"><span style="width:30px;height:30px;border-radius:8px;background:rgba(210,75,214,0.16);color:#e89bec;display:inline-flex;align-items:center;justify-content:center;font-size:13px;"><i class="fa-solid fa-box-archive"></i></span><span style="color:var(--fg-0);font-weight:600;font-size:14.5px;">Archive&nbsp;&amp;&nbsp;reopen</span><span style="color:var(--fg-2);font-size:13px;">resume with full history</span></div>
+          <div class="flowstep" style="display:flex;align-items:center;gap:13px;padding:11px 0;"><span style="width:30px;height:30px;border-radius:8px;background:rgba(210,75,214,0.16);color:#e89bec;display:inline-flex;align-items:center;justify-content:center;font-size:13px;"><i class="fa-solid fa-box-archive"></i></span><span style="color:var(--fg-0);font-weight:600;font-size:14.5px;" data-i18n="flow.archive">Archive&nbsp;&amp;&nbsp;reopen</span><span style="color:var(--fg-2);font-size:13px;" data-i18n="flow.archive.sub">resume with full history</span></div>
         </div>
       </div>
     </div>
@@ -261,16 +269,16 @@
 <section class="sec">
   <div class="wrap">
     <div class="sec-head">
-      <span class="eyebrow"><span class="dot"></span>Additional features</span>
-      <h2>The details that make it trustworthy.</h2>
+      <span class="eyebrow"><span class="dot"></span><span data-i18n="af.eyebrow">Additional features</span></span>
+      <h2 data-i18n="af.h2">The details that make it trustworthy.</h2>
     </div>
     <div class="afgrid">
-      <div class="afcard"><div class="ic"><i class="fa-solid fa-plug"></i></div><h4>The real Claude Code &amp; Codex</h4><p>Each chat drives the <strong>actual</strong> agent through its official SDK — the same <code>claude</code> and <code>codex</code> CLIs, with all tools, skills, and MCP servers intact. Pick model and reasoning effort per chat.</p></div>
-      <div class="afcard"><div class="ic"><i class="fa-solid fa-vial-circle-check"></i></div><h4>Agents that test their own work</h4><p>A slot can launch the real app — for Unity, a live Editor + sidecar server on a second display — so the agent <strong>clicks through the UI, reads logs, and verifies</strong> instead of guessing.</p></div>
-      <div class="afcard"><div class="ic"><i class="fa-solid fa-box-archive"></i></div><h4>Persistent, archivable chats</h4><p>Every chat is a durable transcript. Close it to free its slot, and <strong>reopen it later with full history</strong> intact.</p></div>
-      <div class="afcard"><div class="ic"><i class="fa-solid fa-terminal"></i></div><h4>Per-chat terminal &amp; clickable code</h4><p>An embedded terminal pinned to the chat's worktree, and <code>file.ts:42</code> links that open straight in VS&nbsp;Code or Cursor.</p></div>
-      <div class="afcard"><div class="ic"><i class="fa-solid fa-shield-halved"></i></div><h4>Autonomous, never reckless</h4><p>Agents auto-run safe work in their slot and <strong>pause for you on anything risky</strong> — <code>git push</code>, opening PRs, anything outside the worktree, network calls. Grants are per-chat, durable, revocable.</p></div>
-      <div class="afcard"><div class="ic"><i class="fa-solid fa-diagram-project"></i></div><h4>Multi-repo</h4><p>Drive several repositories side by side, each with its own <strong>slot pool, color, and branch conventions</strong>.</p></div>
+      <div class="afcard"><div class="ic"><i class="fa-solid fa-plug"></i></div><h4 data-i18n-html="af.claude.t">The real Claude Code &amp; Codex</h4><p data-i18n-html="af.claude.b">Each chat drives the <strong>actual</strong> agent through its official SDK — the same <code>claude</code> and <code>codex</code> CLIs, with all tools, skills, and MCP servers intact. Pick model and reasoning effort per chat.</p></div>
+      <div class="afcard"><div class="ic"><i class="fa-solid fa-vial-circle-check"></i></div><h4 data-i18n="af.test.t">Agents that test their own work</h4><p data-i18n-html="af.test.b">A slot can launch the real app — for Unity, a live Editor + sidecar server on a second display — so the agent <strong>clicks through the UI, reads logs, and verifies</strong> instead of guessing.</p></div>
+      <div class="afcard"><div class="ic"><i class="fa-solid fa-box-archive"></i></div><h4 data-i18n="af.persist.t">Persistent, archivable chats</h4><p data-i18n-html="af.persist.b">Every chat is a durable transcript. Close it to free its slot, and <strong>reopen it later with full history</strong> intact.</p></div>
+      <div class="afcard"><div class="ic"><i class="fa-solid fa-terminal"></i></div><h4 data-i18n-html="af.terminal.t">Per-chat terminal &amp; clickable code</h4><p data-i18n-html="af.terminal.b">An embedded terminal pinned to the chat's worktree, and <code>file.ts:42</code> links that open straight in VS&nbsp;Code or Cursor.</p></div>
+      <div class="afcard"><div class="ic"><i class="fa-solid fa-shield-halved"></i></div><h4 data-i18n="af.auto.t">Autonomous, never reckless</h4><p data-i18n-html="af.auto.b">Agents auto-run safe work in their slot and <strong>pause for you on anything risky</strong> — <code>git push</code>, opening PRs, anything outside the worktree, network calls. Grants are per-chat, durable, revocable.</p></div>
+      <div class="afcard"><div class="ic"><i class="fa-solid fa-diagram-project"></i></div><h4 data-i18n="af.multirepo.t">Multi-repo</h4><p data-i18n-html="af.multirepo.b">Drive several repositories side by side, each with its own <strong>slot pool, color, and branch conventions</strong>.</p></div>
     </div>
   </div>
 </section>
@@ -281,20 +289,20 @@
 <section class="sec" id="different">
   <div class="wrap">
     <div class="sec-head">
-      <span class="eyebrow"><span class="dot"></span>How PopBot is different</span>
-      <h2>A local cockpit for many real agents.</h2>
-      <p class="lead">Most agentic tools fall into a few buckets. PopBot sits in a different spot: running many <em>real</em> agents in parallel, with warm build state and live human oversight.</p>
+      <span class="eyebrow"><span class="dot"></span><span data-i18n="diff.eyebrow">How PopBot is different</span></span>
+      <h2 data-i18n="diff.h2">A local cockpit for many real agents.</h2>
+      <p class="lead" data-i18n-html="diff.lead">Most agentic tools fall into a few buckets. PopBot sits in a different spot: running many <em>real</em> agents in parallel, with warm build state and live human oversight.</p>
     </div>
     <table class="cmp">
-      <thead><tr><th>Instead of…</th><th>…PopBot</th></tr></thead>
+      <thead><tr><th data-i18n="diff.th1">Instead of…</th><th data-i18n="diff.th2">…PopBot</th></tr></thead>
       <tbody>
-        <tr><td><strong>One agent in a terminal or IDE</strong> — a single task in a single working tree at a time</td><td><strong>Many agents at once</strong>, each isolated in its own warm slot, all visible as a live fleet you steer from one window</td></tr>
-        <tr><td><strong>Async cloud agents</strong> (Devin, hosted Codex) — opaque and remote; submit a task, wait for a PR</td><td><strong>Local and live</strong> — watch each agent work, catch a wrong path early, and it drives <em>your real app</em> for genuine end-to-end testing</td></tr>
-        <tr><td><strong>DIY <code>tmux</code> + <code>git worktree</code> juggling</strong> — parallel but manual; every fresh checkout pays Unity's reimport tax</td><td><strong>Managed warm slots</strong> — reused worktrees that keep Unity's <code>Library</code> hot, with lifecycle, git panel, and review handled for you</td></tr>
-        <tr><td><strong>Orchestration frameworks</strong> (CrewAI, AutoGen) — toolkits for <em>building</em> agent systems</td><td><strong>A finished, opinionated app</strong> wired to your Linear/GitHub inbox and review loop — human-in-the-loop by design</td></tr>
+        <tr><td data-i18n-html="diff.r1a"><strong>One agent in a terminal or IDE</strong> — a single task in a single working tree at a time</td><td data-i18n-html="diff.r1b"><strong>Many agents at once</strong>, each isolated in its own warm slot, all visible as a live fleet you steer from one window</td></tr>
+        <tr><td data-i18n-html="diff.r2a"><strong>Async cloud agents</strong> (Devin, hosted Codex) — opaque and remote; submit a task, wait for a PR</td><td data-i18n-html="diff.r2b"><strong>Local and live</strong> — watch each agent work, catch a wrong path early, and it drives <em>your real app</em> for genuine end-to-end testing</td></tr>
+        <tr><td data-i18n-html="diff.r3a"><strong>DIY <code>tmux</code> + <code>git worktree</code> juggling</strong> — parallel but manual; every fresh checkout pays Unity's reimport tax</td><td data-i18n-html="diff.r3b"><strong>Managed warm slots</strong> — reused worktrees that keep Unity's <code>Library</code> hot, with lifecycle, git panel, and review handled for you</td></tr>
+        <tr><td data-i18n-html="diff.r4a"><strong>Orchestration frameworks</strong> (CrewAI, AutoGen) — toolkits for <em>building</em> agent systems</td><td data-i18n-html="diff.r4b"><strong>A finished, opinionated app</strong> wired to your Linear/GitHub inbox and review loop — human-in-the-loop by design</td></tr>
       </tbody>
     </table>
-    <p style="text-align:center;font-size:17px;color:var(--ink-1);margin-top:30px;max-width:780px;margin-left:auto;margin-right:auto;">And critically: PopBot doesn't replace Claude Code or Codex — it <strong style="color:#ffd9b0;">runs them</strong>. The exact agents you already trust, just many at a time, with orchestration, isolation, and oversight wrapped around them.</p>
+    <p style="text-align:center;font-size:17px;color:var(--ink-1);margin-top:30px;max-width:780px;margin-left:auto;margin-right:auto;" data-i18n-html="diff.close">And critically: PopBot doesn't replace Claude Code or Codex — it <strong style="color:#ffd9b0;">runs them</strong>. The exact agents you already trust, just many at a time, with orchestration, isolation, and oversight wrapped around them.</p>
   </div>
 </section>
 
@@ -304,18 +312,18 @@
 <section class="sec" id="anatomy">
   <div class="wrap">
     <div class="sec-head">
-      <span class="eyebrow"><span class="dot"></span>Anatomy of the workspace</span>
-      <h2>Everything in one window.</h2>
+      <span class="eyebrow"><span class="dot"></span><span data-i18n="anat.eyebrow">Anatomy of the workspace</span></span>
+      <h2 data-i18n="anat.h2">Everything in one window.</h2>
     </div>
     <div class="anat-shot"><img src="images/app-screenshot.png" alt="PopBot UI anatomy — thumbnail strip, chat columns, terminal, and git panel" /></div>
     <div class="regions">
-      <div class="region"><span class="ic"><i class="fa-solid fa-inbox"></i></span><div><h4>Inbox — tickets &amp; reviews</h4><p>Your Linear tickets and GitHub review requests, ranked. One click spawns a chat.</p></div></div>
-      <div class="region"><span class="ic"><i class="fa-solid fa-fire"></i></span><div><h4>Slots</h4><p>The pool of warm, isolated workspaces — a worktree plus persistent build state. A chat leases one while it works.</p></div></div>
-      <div class="region"><span class="ic"><i class="fa-solid fa-box-archive"></i></span><div><h4>Chat archive</h4><p>Every past chat, searchable and reopenable with full history.</p></div></div>
-      <div class="region"><span class="ic"><i class="fa-solid fa-grip"></i></span><div><h4>Chat thumbnails</h4><p>A live strip of all open chats — color-coded by status: running, done, needs-you, error.</p></div></div>
-      <div class="region"><span class="ic"><i class="fa-solid fa-comments"></i></span><div><h4>Chats</h4><p>The focused agent sessions: prose, tool calls, and inline code diffs, streaming live.</p></div></div>
-      <div class="region"><span class="ic"><i class="fa-solid fa-terminal"></i></span><div><h4>Per-chat terminal</h4><p>An embedded terminal pointed at that chat's worktree, for manual commands.</p></div></div>
-      <div class="region"><span class="ic"><i class="fa-brands fa-github"></i></span><div><h4>GitHub panel</h4><p>Working-tree status, commits, file diffs, and one-click commit / push / PR actions.</p></div></div>
+      <div class="region"><span class="ic"><i class="fa-solid fa-inbox"></i></span><div><h4 data-i18n-html="anat.inbox.t">Inbox — tickets &amp; reviews</h4><p data-i18n="anat.inbox.b">Your Linear tickets and GitHub review requests, ranked. One click spawns a chat.</p></div></div>
+      <div class="region"><span class="ic"><i class="fa-solid fa-fire"></i></span><div><h4 data-i18n="anat.slots.t">Slots</h4><p data-i18n="anat.slots.b">The pool of warm, isolated workspaces — a worktree plus persistent build state. A chat leases one while it works.</p></div></div>
+      <div class="region"><span class="ic"><i class="fa-solid fa-box-archive"></i></span><div><h4 data-i18n="anat.archive.t">Chat archive</h4><p data-i18n="anat.archive.b">Every past chat, searchable and reopenable with full history.</p></div></div>
+      <div class="region"><span class="ic"><i class="fa-solid fa-grip"></i></span><div><h4 data-i18n="anat.thumbs.t">Chat thumbnails</h4><p data-i18n="anat.thumbs.b">A live strip of all open chats — color-coded by status: running, done, needs-you, error.</p></div></div>
+      <div class="region"><span class="ic"><i class="fa-solid fa-comments"></i></span><div><h4 data-i18n="anat.chats.t">Chats</h4><p data-i18n="anat.chats.b">The focused agent sessions: prose, tool calls, and inline code diffs, streaming live.</p></div></div>
+      <div class="region"><span class="ic"><i class="fa-solid fa-terminal"></i></span><div><h4 data-i18n="anat.terminal.t">Per-chat terminal</h4><p data-i18n="anat.terminal.b">An embedded terminal pointed at that chat's worktree, for manual commands.</p></div></div>
+      <div class="region"><span class="ic"><i class="fa-brands fa-github"></i></span><div><h4 data-i18n="anat.github.t">GitHub panel</h4><p data-i18n="anat.github.b">Working-tree status, commits, file diffs, and one-click commit / push / PR actions.</p></div></div>
     </div>
   </div>
 </section>
@@ -326,33 +334,33 @@
 <section class="sec" id="day">
   <div class="wrap">
     <div class="sec-head">
-      <span class="eyebrow"><span class="dot"></span>A day with PopBot</span>
-      <h2>Four agents, one lead, zero thrash.</h2>
+      <span class="eyebrow"><span class="dot"></span><span data-i18n="day.eyebrow">A day with PopBot</span></span>
+      <h2 data-i18n="day.h2">Four agents, one lead, zero thrash.</h2>
     </div>
     <div class="day">
       <div class="daycard">
-        <span class="step">09:14 · A feature ticket</span>
-        <h4>Click → it builds</h4>
-        <p>A Linear ticket lands. Click it → PopBot opens a chat on <code>you/eng-123-…</code>, leases a slot, moves the ticket to <strong>In Progress</strong>, and hands the agent the full description. It writes the code, runs the app in its slot to verify, and pauses for your OK before pushing. You review the diff and hit <strong>Push PR</strong>.</p>
-        <span class="chip run">▶ running</span>
+        <span class="step" data-i18n="day.c1.step">09:14 · A feature ticket</span>
+        <h4 data-i18n="day.c1.h4">Click → it builds</h4>
+        <p data-i18n-html="day.c1.p">A Linear ticket lands. Click it → PopBot opens a chat on <code>you/eng-123-…</code>, leases a slot, moves the ticket to <strong>In Progress</strong>, and hands the agent the full description. It writes the code, runs the app in its slot to verify, and pauses for your OK before pushing. You review the diff and hit <strong>Push PR</strong>.</p>
+        <span class="chip run" data-i18n="day.c1.chip">▶ running</span>
       </div>
       <div class="daycard">
-        <span class="step">09:31 · A bug, in parallel</span>
-        <h4>Two agents, two trees</h4>
-        <p>While that's running, a bug report comes in. Spawn a second chat — its own slot, its own branch — and the two agents work <strong>simultaneously without ever touching each other's tree</strong>. The thumbnail strip shows both: one green, one blue.</p>
-        <span class="chip done">✓ done</span>
+        <span class="step" data-i18n="day.c2.step">09:31 · A bug, in parallel</span>
+        <h4 data-i18n="day.c2.h4">Two agents, two trees</h4>
+        <p data-i18n-html="day.c2.p">While that's running, a bug report comes in. Spawn a second chat — its own slot, its own branch — and the two agents work <strong>simultaneously without ever touching each other's tree</strong>. The thumbnail strip shows both: one green, one blue.</p>
+        <span class="chip done" data-i18n="day.c2.chip">✓ done</span>
       </div>
       <div class="daycard">
-        <span class="step">11:02 · A review request</span>
-        <h4>Repoless review</h4>
-        <p>A teammate's PR shows up in your Reviews tab. Click it → an instant <strong>repoless</strong> review chat opens, the agent reads the diff <em>and</em> the surrounding code, hunts for real bugs, and posts an inline review on GitHub — while your build chats keep going.</p>
-        <span class="chip run">▶ reviewing</span>
+        <span class="step" data-i18n="day.c3.step">11:02 · A review request</span>
+        <h4 data-i18n="day.c3.h4">Repoless review</h4>
+        <p data-i18n-html="day.c3.p">A teammate's PR shows up in your Reviews tab. Click it → an instant <strong>repoless</strong> review chat opens, the agent reads the diff <em>and</em> the surrounding code, hunts for real bugs, and posts an inline review on GitHub — while your build chats keep going.</p>
+        <span class="chip run" data-i18n="day.c3.chip">▶ reviewing</span>
       </div>
       <div class="daycard">
-        <span class="step">Next morning</span>
-        <h4>Pick it back up</h4>
-        <p>Close the finished chats to free their slots. Tomorrow, reopen the feature chat from the archive to address review feedback — the agent resumes with <strong>the entire conversation and its worktree intact</strong>.</p>
-        <span class="chip done">↺ reopened</span>
+        <span class="step" data-i18n="day.c4.step">Next morning</span>
+        <h4 data-i18n="day.c4.h4">Pick it back up</h4>
+        <p data-i18n-html="day.c4.p">Close the finished chats to free their slots. Tomorrow, reopen the feature chat from the archive to address review feedback — the agent resumes with <strong>the entire conversation and its worktree intact</strong>.</p>
+        <span class="chip done" data-i18n="day.c4.chip">↺ reopened</span>
       </div>
     </div>
   </div>
@@ -364,17 +372,17 @@
 <section class="sec" id="install">
   <div class="wrap">
     <div class="sec-head">
-      <span class="eyebrow"><span class="dot"></span>Requirements &amp; install</span>
-      <h2>Clone and Run Your Own Version</h2>
+      <span class="eyebrow"><span class="dot"></span><span data-i18n="inst.eyebrow">Requirements &amp; install</span></span>
+      <h2 data-i18n="inst.h2">Clone and Run Your Own Version</h2>
     </div>
-    <p style="opacity:.8;font-size:15px;margin-bottom:28px">You can run the <a href="#top">prebuilt binaries above</a> — <strong data-version>…</strong>, signed &amp; notarized — or clone the repo and run your own version, customizing it to work the way you want it to.</p>
+    <p style="opacity:.8;font-size:15px;margin-bottom:28px" data-i18n-html="inst.intro">You can run the <a href="#top">prebuilt binaries above</a> — <strong data-version>…</strong>, signed &amp; notarized — or clone the repo and run your own version, customizing it to work the way you want it to.</p>
     <div class="inst">
       <ul class="req-list">
-        <li><i class="fa-solid fa-check"></i><span><strong>macOS</strong> — the primary, tested platform. Portable to Windows (Electron + Node), but Windows isn't tested yet.</span></li>
-        <li><i class="fa-solid fa-check"></i><span><strong>Node 20+</strong></span></li>
-        <li><i class="fa-solid fa-check"></i><span>The <code>claude</code> and/or <code>codex</code> CLIs (the agent backends), plus <code>gh</code> and <code>git</code></span></li>
-        <li><i class="fa-solid fa-check"></i><span>Credentials (Linear, GitHub) are stored <strong>locally on your machine</strong> — never in the repo</span></li>
-        <li><i class="fa-solid fa-check"></i><span>Optional: a Unity Editor for game projects; VS&nbsp;Code / Cursor; iTerm</span></li>
+        <li><i class="fa-solid fa-check"></i><span data-i18n-html="req.mac"><strong>macOS</strong> — the primary, tested platform. Portable to Windows (Electron + Node), but Windows isn't tested yet.</span></li>
+        <li><i class="fa-solid fa-check"></i><span data-i18n-html="req.node"><strong>Node 20+</strong></span></li>
+        <li><i class="fa-solid fa-check"></i><span data-i18n-html="req.clis">The <code>claude</code> and/or <code>codex</code> CLIs (the agent backends), plus <code>gh</code> and <code>git</code></span></li>
+        <li><i class="fa-solid fa-check"></i><span data-i18n-html="req.creds">Credentials (Linear, GitHub) are stored <strong>locally on your machine</strong> — never in the repo</span></li>
+        <li><i class="fa-solid fa-check"></i><span data-i18n-html="req.optional">Optional: a Unity Editor for game projects; VS&nbsp;Code / Cursor; iTerm</span></li>
       </ul>
       <div class="terminal">
         <div class="tb"><i class="r"></i><i class="y"></i><i class="g"></i></div>
@@ -398,15 +406,15 @@
 <section class="sec">
   <div class="wrap">
     <div class="sec-head">
-      <span class="eyebrow"><span class="dot"></span>Make it yours</span>
-      <h2>MIT-licensed, and meant to be forked.</h2>
-      <p class="lead">PopBot was shaped around one team driving one game. But the shape that made it powerful — agents, warm slots, an inbox-as-queue, an app-under-test, and a live fleet view — is <strong>general</strong>. The specifics are just defaults.</p>
+      <span class="eyebrow"><span class="dot"></span><span data-i18n="yours.eyebrow">Make it yours</span></span>
+      <h2 data-i18n="yours.h2">MIT-licensed, and meant to be forked.</h2>
+      <p class="lead" data-i18n-html="yours.lead">PopBot was shaped around one team driving one game. But the shape that made it powerful — agents, warm slots, an inbox-as-queue, an app-under-test, and a live fleet view — is <strong>general</strong>. The specifics are just defaults.</p>
     </div>
     <div class="yours">
-      <div class="ycard"><h4><i class="fa-solid fa-cube"></i> Swap the app-under-test</h4><p>The Unity integration is one implementation of "let the agent run and verify the app." Replace it with your web app, your CLI, your own test harness.</p></div>
-      <div class="ycard"><h4><i class="fa-solid fa-inbox"></i> Point the inbox elsewhere</h4><p>Linear and GitHub are wired in, but the inbox-as-queue model is generic — adapt it to your tracker.</p></div>
-      <div class="ycard"><h4><i class="fa-solid fa-code-branch"></i> Rewire the git actions</h4><p>Branch conventions, PR flows, and action templates are all yours to change in Preferences or in code.</p></div>
-      <div class="ycard"><h4><i class="fa-solid fa-fire"></i> Keep the core</h4><p>Warm slots, persistent chats, the live-thumbnail fleet view, and the permission floor are the durable ideas worth keeping.</p></div>
+      <div class="ycard"><h4><i class="fa-solid fa-cube"></i> <span data-i18n="yours.swap.t">Swap the app-under-test</span></h4><p data-i18n="yours.swap.b">The Unity integration is one implementation of "let the agent run and verify the app." Replace it with your web app, your CLI, your own test harness.</p></div>
+      <div class="ycard"><h4><i class="fa-solid fa-inbox"></i> <span data-i18n="yours.inbox.t">Point the inbox elsewhere</span></h4><p data-i18n="yours.inbox.b">Linear and GitHub are wired in, but the inbox-as-queue model is generic — adapt it to your tracker.</p></div>
+      <div class="ycard"><h4><i class="fa-solid fa-code-branch"></i> <span data-i18n="yours.git.t">Rewire the git actions</span></h4><p data-i18n="yours.git.b">Branch conventions, PR flows, and action templates are all yours to change in Preferences or in code.</p></div>
+      <div class="ycard"><h4><i class="fa-solid fa-fire"></i> <span data-i18n="yours.core.t">Keep the core</span></h4><p data-i18n="yours.core.b">Warm slots, persistent chats, the live-thumbnail fleet view, and the permission floor are the durable ideas worth keeping.</p></div>
     </div>
   </div>
 </section>
@@ -417,17 +425,17 @@
 <section class="sec" id="docs">
   <div class="wrap">
     <div class="sec-head">
-      <span class="eyebrow"><span class="dot"></span>Documentation</span>
-      <h2>Dig deeper.</h2>
+      <span class="eyebrow"><span class="dot"></span><span data-i18n="docs.eyebrow">Documentation</span></span>
+      <h2 data-i18n="docs.h2">Dig deeper.</h2>
     </div>
     <table class="docs">
       <tbody>
-        <tr><td><a href="https://github.com/proofofplay/popbot-tool/blob/main/docs/GUIDE.md">Feature &amp; Workflow Guide</a></td><td>The complete tour — concepts, every feature, and end-to-end workflows. Start here.</td></tr>
-        <tr><td><a href="https://github.com/proofofplay/popbot-tool/blob/main/docs/CONFIGURATION.md">Configuration Guide</a></td><td>Set up every Preferences panel — integrations, repos, slots, agents — with screenshots.</td></tr>
-        <tr><td><a href="https://github.com/proofofplay/popbot-tool/blob/main/docs/USER_STORIES.md">User Stories</a></td><td>The user stories PopBot was measured against.</td></tr>
-        <tr><td><a href="https://github.com/proofofplay/popbot-tool/blob/main/docs/CORE_MODEL.md">Core Model</a></td><td>The object model — Chat, Message, Slot, AgentSession — and their lifecycles.</td></tr>
-        <tr><td><a href="https://github.com/proofofplay/popbot-tool/blob/main/docs/ARCHITECTURE.md">Architecture</a></td><td>Process boundaries, IPC, and where each subsystem lives.</td></tr>
-        <tr><td><a href="https://github.com/proofofplay/popbot-tool/blob/main/docs/DEVELOPMENT.md">Development</a></td><td>Local dev setup, scripts, conventions.</td></tr>
+        <tr><td><a href="https://github.com/proofofplay/popbot-tool/blob/main/docs/GUIDE.md">Feature &amp; Workflow Guide</a></td><td data-i18n="docs.guide">The complete tour — concepts, every feature, and end-to-end workflows. Start here.</td></tr>
+        <tr><td><a href="https://github.com/proofofplay/popbot-tool/blob/main/docs/CONFIGURATION.md">Configuration Guide</a></td><td data-i18n="docs.config">Set up every Preferences panel — integrations, repos, slots, agents — with screenshots.</td></tr>
+        <tr><td><a href="https://github.com/proofofplay/popbot-tool/blob/main/docs/USER_STORIES.md">User Stories</a></td><td data-i18n="docs.stories">The user stories PopBot was measured against.</td></tr>
+        <tr><td><a href="https://github.com/proofofplay/popbot-tool/blob/main/docs/CORE_MODEL.md">Core Model</a></td><td data-i18n="docs.model">The object model — Chat, Message, Slot, AgentSession — and their lifecycles.</td></tr>
+        <tr><td><a href="https://github.com/proofofplay/popbot-tool/blob/main/docs/ARCHITECTURE.md">Architecture</a></td><td data-i18n="docs.arch">Process boundaries, IPC, and where each subsystem lives.</td></tr>
+        <tr><td><a href="https://github.com/proofofplay/popbot-tool/blob/main/docs/DEVELOPMENT.md">Development</a></td><td data-i18n="docs.dev">Local dev setup, scripts, conventions.</td></tr>
       </tbody>
     </table>
   </div>
@@ -436,11 +444,11 @@
 <!-- CTA BAND -->
 <section class="cta-band">
   <div class="wrap">
-    <h2>Run a fleet. Keep the thread.</h2>
-    <p>If your team is reaching for more than one coding agent at a time without losing the thread, this is a working, opinionated starting point.</p>
+    <h2 data-i18n="cta.h2">Run a fleet. Keep the thread.</h2>
+    <p data-i18n="cta.p">If your team is reaching for more than one coding agent at a time without losing the thread, this is a working, opinionated starting point.</p>
     <div class="hero-actions">
-      <a class="btn btn-primary btn-lg" href="https://github.com/proofofplay/popbot-tool"><i class="fa-brands fa-github"></i> View on GitHub</a>
-      <a class="btn btn-ghost btn-lg" href="#install"><i class="fa-solid fa-download"></i> Get started</a>
+      <a class="btn btn-primary btn-lg" href="https://github.com/proofofplay/popbot-tool"><i class="fa-brands fa-github"></i> <span data-i18n="cta.github">View on GitHub</span></a>
+      <a class="btn btn-ghost btn-lg" href="#install"><i class="fa-solid fa-download"></i> <span data-i18n="cta.getstarted">Get started</span></a>
     </div>
   </div>
 </section>
@@ -450,7 +458,7 @@
   <div class="wrap">
     <div>
       <div class="brand"><img src="images/popbot_icon.png" alt="PopBot" />PopBot</div>
-      <p class="lic" style="margin-top:14px;">Agentic coding you can see.</p>
+      <p class="lic" style="margin-top:14px;" data-i18n="footer.tagline">Agentic coding you can see.</p>
     </div>
     <p class="lic"><a href="https://github.com/proofofplay/popbot-tool/blob/main/LICENSE">MIT</a> © 2026 Proof of Play, Inc. Third-party components and trademarks are listed in THIRD-PARTY-NOTICES.md — the <code>@anthropic-ai/claude-agent-sdk</code> runtime dependency is proprietary and used under Anthropic's terms, not the MIT grant.</p>
   </div>
@@ -516,17 +524,31 @@
     return A.pre<B.pre?-1:1;   // lexical is fine for rc.N ordering here
   }
 
+  // Localized label, via window.I18N when present (falls back to English so
+  // the buttons still read correctly if i18n.js failed to load).
+  function T(key,os){
+    if(window.I18N&&window.I18N.t) return window.I18N.t(key,os?{os:os}:undefined);
+    if(key==='dl.free') return os+' Free Download';
+    if(key==='beta.dlOs') return 'Download '+os+' beta';
+    return key;
+  }
+  // Cache of the last data applied, so a language switch can re-localize
+  // labels (and re-set the version, which an innerHTML swap may have cleared)
+  // without re-fetching the manifest.
+  var last={sv:null,sfiles:null,beta:null,betaStableV:null};
+
   // ---- STABLE (hero) ----
   var main=document.getElementById('dl-main');
   var altEls=[['dl-alt1',alts[0]],['dl-alt2',alts[1]]];
   // Folder-level links up front so the platform shows even offline.
-  if(main){ main.innerHTML='<i class="fa-solid fa-download"></i> '+P[cur].name+' Free Download'; main.href=DL+'stable/'; }
+  if(main){ main.innerHTML='<i class="fa-solid fa-download"></i> '+T('dl.free',P[cur].name); main.href=DL+'stable/'; }
   altEls.forEach(function(pair){var a=document.getElementById(pair[0]),k=pair[1];if(!a)return;
     a.innerHTML='<i class="'+P[k].icon+'"></i> '+P[k].name; a.href=DL+'stable/';});
   function applyStable(v,files){
     if(!v) return;
+    last.sv=v; last.sfiles=files;
     document.querySelectorAll('[data-version]').forEach(function(el){el.textContent='v'+v;});
-    if(main) main.href=fileUrl('stable',v,cur,files);
+    if(main){ main.innerHTML='<i class="fa-solid fa-download"></i> '+T('dl.free',P[cur].name); main.href=fileUrl('stable',v,cur,files); }
     altEls.forEach(function(pair){var a=document.getElementById(pair[0]),k=pair[1];
       if(a) a.href=fileUrl('stable',v,k,files);});
   }
@@ -536,11 +558,12 @@
     if(!beta||!beta.version) return;
     // Only advertise a beta that's actually ahead of stable.
     if(stableV&&cmpVer(beta.version,stableV)<=0) return;
+    last.beta=beta; last.betaStableV=stableV;
     var v=beta.version, files=beta.files;
     document.querySelectorAll('[data-beta-version]').forEach(function(el){el.textContent='v'+v;});
     if(beta.headline){var h=document.querySelector('[data-beta-headline]');if(h)h.textContent=beta.headline;}
     var bmain=document.getElementById('bdl-main');
-    if(bmain){bmain.innerHTML='<i class="fa-solid fa-flask"></i> Download '+P[cur].name+' beta'; bmain.href=fileUrl('beta',v,cur,files);}
+    if(bmain){bmain.innerHTML='<i class="fa-solid fa-flask"></i> '+T('beta.dlOs',P[cur].name); bmain.href=fileUrl('beta',v,cur,files);}
     [['bdl-alt1',alts[0]],['bdl-alt2',alts[1]]].forEach(function(pair){
       var a=document.getElementById(pair[0]),k=pair[1];if(!a)return;
       a.innerHTML='<i class="'+P[k].icon+'"></i> '+P[k].name; a.href=fileUrl('beta',v,k,files);});
@@ -558,6 +581,15 @@
         li.querySelector('p').textContent=h.body||'';});
     }
     var sec=document.getElementById('beta'); if(sec) sec.hidden=false;
+  }
+
+  // Re-localize labels + restore the version when the language changes. The
+  // headline/bullets are manifest content (English) and stay as delivered.
+  if(window.I18N&&window.I18N.onChange){
+    window.I18N.onChange(function(){
+      if(last.sv) applyStable(last.sv,last.sfiles);
+      if(last.beta) applyBeta(last.beta,last.betaStableV);
+    });
   }
 
   function fromManifest(m){
