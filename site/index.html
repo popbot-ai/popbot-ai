@@ -642,7 +642,7 @@
   // The persistent BETA bar stays; only the details panel expands/collapses.
   // Opens on load, then slides shut after 15s (unless you hover it first). The
   // toggle on the bar reads Open when shut, Close when open.
-  var betaArmed=false, betaTimer=null;
+  var betaArmed=false, betaTimer=null, betaUserToggled=false;
   function betaSet(collapsed){
     var s=document.getElementById('beta'); if(!s) return;
     s.classList.toggle('collapsed', collapsed);
@@ -654,14 +654,14 @@
     if(betaArmed) return; betaArmed=true;
     var s=document.getElementById('beta');
     var tg=document.getElementById('beta-toggle');
-    var inner=document.getElementById('beta-details');
-    if(tg) tg.addEventListener('click',function(){ betaSet(!s.classList.contains('collapsed')); });
-    // Don't auto-collapse while the visitor is reading the open details.
-    if(inner) inner.addEventListener('mouseenter',function(){
-      if(betaTimer && !s.classList.contains('collapsed')){ clearTimeout(betaTimer); betaTimer=null; }
+    if(tg) tg.addEventListener('click',function(){
+      betaSet(!s.classList.contains('collapsed'));
+      betaUserToggled=true; // once you use the toggle, stop the auto-collapse
     });
     if(/[?&]betacollapsed(=|&|$)/.test(location.search)){ betaSet(true); return; } // preview aid
-    betaTimer=setTimeout(function(){ betaSet(true); }, 15000);
+    // Always slide shut after 15s so the page settles to the thin bar — unless
+    // you've already opened/closed it yourself.
+    betaTimer=setTimeout(function(){ if(!betaUserToggled) betaSet(true); }, 15000);
   }
 
   // Re-localize labels + restore the version when the language changes. The
