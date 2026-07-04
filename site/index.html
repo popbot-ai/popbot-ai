@@ -600,6 +600,12 @@
   // without re-fetching the manifest.
   var last={sv:null,sfiles:null,beta:null,betaStableV:null};
 
+  // `?betapreview` forces the beta band to render even when the manifest has
+  // visible:false, so a stealth beta can be previewed on the live site without
+  // flipping the global "Show Beta on Website" flag (only you, with the param,
+  // see it). Read here so applyBeta below can consult it.
+  var preview=/(^|[?&])betapreview(=|&|$)/.test(location.search);
+
   // ---- STABLE (hero) ----
   var main=document.getElementById('dl-main');
   var altEls=[['dl-alt1',alts[0]],['dl-alt2',alts[1]]];
@@ -620,7 +626,8 @@
   function applyBeta(beta,stableV){
     if(!beta||!beta.version) return;
     // Only shown when "Show Beta on Website" is on in the manifest…
-    if(beta.visible!==true) return;
+    // …unless ?betapreview forces it, so a stealth beta can be previewed live.
+    if(!preview && beta.visible!==true) return;
     // …and only when the beta is actually ahead of stable.
     if(stableV&&cmpVer(beta.version,stableV)<=0) return;
     last.beta=beta; last.betaStableV=stableV;
@@ -705,9 +712,10 @@
   function getJson(u){return fetch(u,{cache:'no-store'}).then(function(r){
     if(!r.ok) throw new Error(r.status); return r.json();});}
 
-  // Preview hook: `?betapreview` reads the same-origin manifest.json first, so
-  // the beta band can be previewed locally without touching production R2.
-  var preview=/(^|[?&])betapreview(=|&|$)/.test(location.search);
+  // In preview, try a same-origin manifest.json first (local dev may serve the
+  // sample); production has none (excluded from deploy), so this 404s and we
+  // fall through to the live R2 manifest below — whose beta renders because
+  // `preview` bypasses the visible:false gate in applyBeta.
   var chain=preview?getJson('manifest.json').then(fromManifest):Promise.reject();
 
   chain
