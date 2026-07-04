@@ -95,8 +95,14 @@ linux:
   # Hardcode amd64 (the matrix only builds x64) so the filename is
   # deterministic and matches the site's computed download link.
   artifactName: ${productName}-${version}-linux-amd64.${ext}
-  # electron-builder derives the Linux icon set from build/icon.png
-  # (1024x1024) automatically — no platform-specific icon needed.
+  # Linux icon set comes from the build/icons/ DIRECTORY (16..1024 px, named
+  # NxN.png). electron-builder installs each into hicolor/<size>x<size>/apps/,
+  # so the desktop icon lookup finds a standard size (48/128/256/512) and the
+  # app icon actually shows. A single build/icon.png would only emit a lone
+  # 1024x1024 entry — not a standard hicolor size — and GNOME/Ubuntu then fail
+  # to resolve it, installing the app with a blank icon. Regenerate the set from
+  # build/icon.png with: for s in 16 32 48 64 128 256 512 1024; do magick
+  # build/icon.png -resize ${s}x${s} build/icons/${s}x${s}.png; done
   #
   # Bundle the shado shadow-workspace controller (Linux XFS/btrfs reflink COW
   # backend; built by scripts/build-shado.mjs into native/shado/bin/linux/).

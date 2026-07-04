@@ -2,7 +2,14 @@
 .DS_Store
 .AppleDouble
 .LSOverride
-Icon?
+# Finder custom-icon resource fork ("Icon\r"). The old `Icon?` rule used `?`
+# (any single char), which also matched the dir "build/icons" (the "s") and
+# silently dropped our Linux hicolor icon set from the build. We can't rely on a
+# literal trailing CR here because .gitattributes normalizes line endings to LF,
+# which would strip it — so match the base name and just re-include our real icon
+# dir. (A stray file literally named "Icon" is vanishingly unlikely in this repo.)
+Icon
+!/build/icons/
 
 # Node
 node_modules/
