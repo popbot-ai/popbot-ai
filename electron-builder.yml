@@ -107,10 +107,18 @@ linux:
   # Linux icon set comes from the build/icons/ DIRECTORY (16..1024 px, named
   # NxN.png, each with rounded corners baked in). electron-builder installs each
   # into hicolor/<size>x<size>/apps/, so the desktop icon lookup finds a standard
-  # size (48/128/256/512) and the app icon actually shows. A single build/icon.png
-  # would only emit a lone 1024x1024 entry — not a standard hicolor size — and
-  # GNOME/Ubuntu then fail to resolve it, installing the app with a blank icon.
+  # size (48/128/256/512) and the app icon actually shows.
+  #
+  # This MUST be set explicitly. electron-builder resolves the Linux icon as
+  # [linux.icon, mac.icon ?? config.icon] and only falls back to build/icons/ if
+  # that list is EMPTY (see LinuxTargetHelper.computeDesktopIcons). Once mac.icon
+  # is set (to the squircle), the Linux build would otherwise resolve from that
+  # single mac PNG — emitting one non-standard 1024x1024 entry — and the .desktop
+  # Icon=popbot then resolves to nothing (system "no icon" placeholder). Pointing
+  # linux.icon at the dir keeps Linux on its own rounded hicolor set.
+  #
   # Regenerate the whole set (all three platforms) with `npm run gen-icons`.
+  icon: build/icons
   #
   # Bundle the shado shadow-workspace controller (Linux XFS/btrfs reflink COW
   # backend; built by scripts/build-shado.mjs into native/shado/bin/linux/).
