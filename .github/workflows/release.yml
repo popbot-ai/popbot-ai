@@ -136,13 +136,17 @@ jobs:
           fi
 
       # Windows code signing via Azure Trusted Signing (Public Trust).
-      # electron-builder's azureSignOptions signs PopBot.exe + the NSIS
-      # installer; the bundled shado.exe (extraResources) is signed first with
-      # signtool + the Trusted Signing dlib, since electron-builder does NOT
-      # sign extraResources. Auth = a service principal with the "Artifact
-      # Signing Certificate Profile Signer" role (AZURE_* secrets), consumed by
-      # DefaultAzureCredential. Missing creds → a warned-but-unblocked unsigned
-      # build (SmartScreen will warn); a stable release without them is loud.
+      # electron-builder's azureSignOptions signs PopBot.exe + the NSIS installer
+      # via Microsoft's TrustedSigning PowerShell module (self-contained tooling);
+      # the bundled shado.exe (extraResources) is signed first with signtool + the
+      # Trusted Signing dlib, since electron-builder does NOT sign extraResources.
+      # NOTE: that signtool MUST be recent — the Trusted Signing dlib fails on the
+      # runner's stock Windows Kits signtool with the misleading "No certificates
+      # were found that met all the given criteria", so we fetch a current one
+      # from the SDK BuildTools nuget below. Auth = a service principal with the
+      # "Artifact Signing Certificate Profile Signer" role (AZURE_* secrets),
+      # consumed by DefaultAzureCredential. Missing creds → a warned-but-unblocked
+      # unsigned build (SmartScreen will warn); a stable release without them is loud.
       - name: Package + sign (Windows · Azure Trusted Signing)
         if: matrix.os == 'windows-2022'
         env:
@@ -161,8 +165,14 @@ jobs:
             Expand-Archive "$ts\client.zip" "$ts\client" -Force
             $dlib = (Get-ChildItem "$ts\client" -Recurse -Filter Azure.CodeSigning.Dlib.dll | Where-Object { $_.FullName -match '\\x64\\' } | Select-Object -First 1).FullName
             @{ Endpoint='https://eus.codesigning.azure.net/'; CodeSigningAccountName='popbotsigning'; CertificateProfileName='popbot-public' } | ConvertTo-Json | Set-Content "$ts\metadata.json"
-            $signtool = (Get-ChildItem 'C:\Program Files (x86)\Windows Kits\10\bin' -Recurse -Filter signtool.exe | Where-Object { $_.FullName -match '\\x64\\' } | Select-Object -First 1).FullName
-            Write-Host "Signing bundled shado.exe"
+            # Trusted Signing needs a MODERN signtool. The runner's Windows Kits
+            # signtool is too old for the Trusted Signing dlib and fails with the
+            # misleading "No certificates were found that met all the given
+            # criteria"; pull a current one from the SDK BuildTools nuget.
+            Invoke-WebRequest 'https://www.nuget.org/api/v2/package/Microsoft.Windows.SDK.BuildTools' -OutFile "$ts\sdk.zip" -UseBasicParsing
+            Expand-Archive "$ts\sdk.zip" "$ts\sdk" -Force
+            $signtool = (Get-ChildItem "$ts\sdk" -Recurse -Filter signtool.exe | Where-Object { $_.FullName -match '\\x64\\' } | Select-Object -First 1).FullName
+            Write-Host "Signing bundled shado.exe with $signtool"
             & $signtool sign /v /fd SHA256 /tr http://timestamp.acs.microsoft.com /td SHA256 /dlib $dlib /dmdf "$ts\metadata.json" 'native\shado\bin\win\shado.exe'
             if ($LASTEXITCODE -ne 0) { throw "shado.exe signing failed (exit $LASTEXITCODE)" }
             $signArgs = @(
