@@ -15,6 +15,7 @@
     "build": "electron-vite build",
     "start": "node scripts/electron-vite.mjs preview",
     "build:shado": "node scripts/build-shado.mjs",
+    "gen-icons": "node scripts/gen-icons.mjs",
     "package": "electron-vite build && electron-builder --config electron-builder.yml",
     "package:mac": "electron-vite build && electron-builder --mac --config electron-builder.yml",
     "package:win": "npm run build:shado && electron-vite build && electron-builder --win --config electron-builder.yml",
