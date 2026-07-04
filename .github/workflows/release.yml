@@ -176,6 +176,10 @@ jobs:
             & $signtool sign /v /fd SHA256 /tr http://timestamp.acs.microsoft.com /td SHA256 /dlib $dlib /dmdf "$ts\metadata.json" 'native\shado\bin\win\shado.exe'
             if ($LASTEXITCODE -ne 0) { throw "shado.exe signing failed (exit $LASTEXITCODE)" }
             $signArgs = @(
+              # publisherName is REQUIRED by electron-builder's azureSignOptions
+              # and must match the signing certificate subject (CN=Benjamin Cooley);
+              # omitting it fails schema validation before packaging.
+              '-c.win.azureSignOptions.publisherName=Benjamin Cooley',
               '-c.win.azureSignOptions.endpoint=https://eus.codesigning.azure.net/',
               '-c.win.azureSignOptions.codeSigningAccountName=popbotsigning',
               '-c.win.azureSignOptions.certificateProfileName=popbot-public'
