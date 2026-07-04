@@ -855,6 +855,11 @@ export const ptBR = {
   'prefs.engine.mcp.basePort.title': 'Porta MCP base',
   'prefs.engine.mcp.basePort.desc':
     'Porta do slot 1. Cada slot seguinte soma um (slot 2 → base + 1, slot 3 → base + 2, …).',
+  'prefs.engine.unityTitleScript.title': 'Mostrar o caminho do projeto na barra de título',
+  'prefs.engine.unityTitleScript.desc':
+    'Instala um pequeno script de editor em Assets/Scripts do seu projeto Unity para que cada Editor aberto mostre o caminho completo do projeto na barra de título — o jeito fácil de distinguir as janelas dos slots. Pode ser commitado.',
+  'prefs.engine.unityTitleScript.button': 'Instalar script da barra de título',
+  'prefs.engine.unityTitleScript.done': 'Instalado em {path}',
 
   // Preferences — Source control pane.
   'prefs.git.title': 'Controle de versão',

@@ -854,6 +854,11 @@ export const zhCN = {
   'prefs.engine.mcp.basePort.title': 'MCP 基础端口',
   'prefs.engine.mcp.basePort.desc':
     '槽位 1 的端口。之后每个槽位加一（槽位 2 → 基础 + 1，槽位 3 → 基础 + 2，…）。',
+  'prefs.engine.unityTitleScript.title': '在标题栏显示项目路径',
+  'prefs.engine.unityTitleScript.desc':
+    '在 Unity 项目的 Assets/Scripts 中安装一个小型编辑器脚本，让每个打开的编辑器在标题栏显示其完整项目路径 — 轻松区分各槽位窗口。可安全提交。',
+  'prefs.engine.unityTitleScript.button': '安装标题栏脚本',
+  'prefs.engine.unityTitleScript.done': '已安装到 {path}',
 
   // Preferences — Source control pane.
   'prefs.git.title': '版本控制',

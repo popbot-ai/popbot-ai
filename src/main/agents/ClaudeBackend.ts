@@ -89,6 +89,8 @@ class ClaudeSession implements AgentSession {
   private readonly onSessionId?: (sessionId: string) => void;
   private readonly pathToClaudeCodeExecutable: string | null;
   private readonly resolveRule?: (toolName: string) => 'allow' | 'deny' | null;
+  /** Per-slot HTTP MCP servers (e.g. this chat's Unity/Unreal editor). */
+  private readonly mcpServers?: Record<string, { type: 'http'; url: string }>;
   private readonly model: string;
   private readonly reasoningEffort: SdkOptions['effort'];
   private query: SdkQuery | null = null;
@@ -127,6 +129,7 @@ class ClaudeSession implements AgentSession {
     this.onSessionId = opts.onSessionId;
     this.pathToClaudeCodeExecutable = opts.pathToClaudeCodeExecutable ?? null;
     this.resolveRule = opts.resolveRule;
+    this.mcpServers = opts.mcpServers;
     this.model = opts.claudeModel ?? DEFAULT_CLAUDE_MODEL;
     this.reasoningEffort = opts.claudeReasoningEffort ?? DEFAULT_CLAUDE_REASONING_EFFORT;
     dlog('claude.start', {
@@ -184,6 +187,10 @@ class ClaudeSession implements AgentSession {
       // for the subprocess — no need for the file at
       // `~/.claude/projects/<encoded-cwd>/<sessionId>.jsonl` to exist.
       sessionStore: sqliteSessionStore,
+      // Per-slot editor MCP (Unity/Unreal on a slot-specific port), passed
+      // in-memory so nothing is written to ~/.claude.json or the repo's
+      // .mcp.json — each chat's agent connects to its own slot's editor.
+      ...(this.mcpServers ? { mcpServers: this.mcpServers } : {}),
     };
     try {
       this.query = sdkQuery({ prompt: this.userMessages(), options });

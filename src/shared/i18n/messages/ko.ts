@@ -854,6 +854,11 @@ export const ko = {
   'prefs.engine.mcp.basePort.title': 'MCP 기본 포트',
   'prefs.engine.mcp.basePort.desc':
     '슬롯 1의 포트. 이후 슬롯마다 1씩 더해집니다(슬롯 2 → 기본 + 1, 슬롯 3 → 기본 + 2, …).',
+  'prefs.engine.unityTitleScript.title': '제목 표시줄에 프로젝트 경로 표시',
+  'prefs.engine.unityTitleScript.desc':
+    'Unity 프로젝트의 Assets/Scripts에 작은 에디터 스크립트를 설치하여, 열려 있는 각 에디터가 제목 표시줄에 전체 프로젝트 경로를 표시하도록 합니다 — 슬롯 창을 쉽게 구분하는 방법입니다. 커밋해도 안전합니다.',
+  'prefs.engine.unityTitleScript.button': '제목 표시줄 스크립트 설치',
+  'prefs.engine.unityTitleScript.done': '{path}에 설치됨',
 
   // Preferences — Source control pane.
   'prefs.git.title': '버전 관리',

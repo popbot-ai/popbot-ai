@@ -46,6 +46,7 @@ import { applyPerforceAgentCwd, worktreePathForChat } from '../git/chatPaths';
 import { sqliteSessionStore } from './sqliteSessionStore';
 import { looksLikeQuestion } from '@shared/questionDetect';
 import { LOCALES, LOCALE_SETTING_KEY, resolveLocale } from '@shared/i18n';
+import { mcpEndpointForChat } from '../ipc/apps';
 import type { AgentBackend, AgentSession } from './types';
 import { StubBackend } from './StubBackend';
 import { ClaudeBackend } from './ClaudeBackend';
@@ -638,9 +639,20 @@ class AgentHostImpl {
       });
     }
 
+    // Per-slot editor MCP: if this chat's worktree is a Unity/Unreal project
+    // with MCP enabled, hand the agent its slot's editor MCP server (a unique
+    // localhost port per slot). Registered in-memory in the SDK options — no
+    // file on disk, no git-tracked config touched. Only the mcpHttp-capable
+    // backend (Claude) consumes it; others ignore it.
+    const editorMcp = backend.capabilities.mcpHttp ? mcpEndpointForChat(chatId, cwd) : null;
+    const mcpServers = editorMcp
+      ? { [editorMcp.name]: { type: 'http' as const, url: editorMcp.url } }
+      : undefined;
+
     dlog('agent.spawn', {
       chatId, cwd, sessionId, source: discoverySource,
       backend: backend.id,
+      editorMcp: editorMcp?.url ?? null,
     });
 
     const session = backend.spawn({
@@ -648,6 +660,7 @@ class AgentHostImpl {
       history: [],
       cwd,
       sessionId,
+      mcpServers,
       claudeModel: !isCodex ? chat?.claudeModel ?? DEFAULT_CLAUDE_MODEL : null,
       claudeReasoningEffort: !isCodex
         ? chat?.claudeReasoningEffort ?? DEFAULT_CLAUDE_REASONING_EFFORT

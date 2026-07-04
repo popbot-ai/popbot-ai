@@ -860,6 +860,11 @@ export const fr = {
   'prefs.engine.mcp.basePort.title': 'Port MCP de base',
   'prefs.engine.mcp.basePort.desc':
     'Port de l’emplacement 1. Chaque emplacement suivant ajoute un (emplacement 2 → base + 1, emplacement 3 → base + 2, …).',
+  'prefs.engine.unityTitleScript.title': 'Afficher le chemin du projet dans la barre de titre',
+  'prefs.engine.unityTitleScript.desc':
+    'Installe un petit script d’éditeur dans Assets/Scripts de votre projet Unity pour que chaque Éditeur ouvert affiche le chemin complet du projet dans la barre de titre — le moyen simple de distinguer les fenêtres des emplacements. Peut être commité.',
+  'prefs.engine.unityTitleScript.button': 'Installer le script de barre de titre',
+  'prefs.engine.unityTitleScript.done': 'Installé dans {path}',
 
   // Preferences — Source control pane.
   'prefs.git.title': 'Gestion de versions',

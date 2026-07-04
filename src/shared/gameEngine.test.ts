@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest';
 import {
   MCP_DEFAULT_BASE_PORT,
   mcpDefaultBasePort,
+  mcpEndpointUrl,
   mcpPortForSlot,
+  mcpServerName,
   unityMcpUrlArg,
   unrealMcpIniArg,
 } from './gameEngine';
@@ -67,5 +69,17 @@ describe('unityMcpUrlArg', () => {
 
   it('embeds the per-slot port', () => {
     expect(unityMcpUrlArg(8082)).toBe('-url=http://localhost:8082');
+  });
+});
+
+describe('agent-facing MCP endpoint', () => {
+  it('mcpEndpointUrl points at the per-slot /mcp endpoint', () => {
+    expect(mcpEndpointUrl(8080)).toBe('http://localhost:8080/mcp');
+    expect(mcpEndpointUrl(8082)).toBe('http://localhost:8082/mcp');
+  });
+
+  it('mcpServerName is stable per engine', () => {
+    expect(mcpServerName('unity')).toBe('unityEditor');
+    expect(mcpServerName('unreal')).toBe('unrealEditor');
   });
 });

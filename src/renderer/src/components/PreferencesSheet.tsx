@@ -1180,6 +1180,8 @@ function EngineConfigPanel({ engineId }: { engineId: GameEngineId }): JSX.Elemen
   const [runPosix, setRunPosix] = useState(cfg.runPosix ?? '');
   const [runWindows, setRunWindows] = useState(cfg.runWindows ?? '');
   const [savedAt, setSavedAt] = useState<number | null>(null);
+  // Result of the Unity "install title-bar script" button (path or error).
+  const [titleScript, setTitleScript] = useState<{ ok: boolean; msg: string } | null>(null);
   const enabled = engineEnabled(cfg, engineId);
   // MCP is only meaningful for the two detectable editors, not Custom.
   const supportsMcp = engineId === 'unity' || engineId === 'unreal';
@@ -1424,6 +1426,40 @@ function EngineConfigPanel({ engineId }: { engineId: GameEngineId }): JSX.Elemen
             </div>
           </div>
         </>
+      )}
+
+      {engineId === 'unity' && (
+        <div className="pref-row">
+          <div className="pref-label">
+            <div className="pref-label-title">{t('prefs.engine.unityTitleScript.title')}</div>
+            <div className="pref-label-desc">{t('prefs.engine.unityTitleScript.desc')}</div>
+          </div>
+          <div className="pref-control" style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+            <button
+              className="btn sm"
+              onClick={() => {
+                setTitleScript(null);
+                void window.popbot.engines.installUnityTitleScript().then((r) =>
+                  setTitleScript(
+                    r.ok
+                      ? { ok: true, msg: t('prefs.engine.unityTitleScript.done', { path: r.path }) }
+                      : { ok: false, msg: r.error },
+                  ),
+                );
+              }}
+            >
+              {t('prefs.engine.unityTitleScript.button')}
+            </button>
+            {titleScript && (
+              <span
+                className="mono"
+                style={{ fontSize: 11, color: titleScript.ok ? 'var(--st-done)' : 'var(--st-err)' }}
+              >
+                {titleScript.msg}
+              </span>
+            )}
+          </div>
+        </div>
       )}
 
       <div className="pref-row">

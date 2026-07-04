@@ -83,6 +83,20 @@ export function unityMcpUrlArg(port: number): string {
   return `-url=http://localhost:${port}`;
 }
 
+/** The HTTP MCP endpoint URL an AGENT (Claude/Codex) connects to for a slot's
+ *  editor. Both plugins expose a streamable-HTTP MCP server on the per-slot
+ *  port; the agent talks to it at `/mcp`. This is what we hand the agent SDK's
+ *  `mcpServers` map so each chat's agent drives its own slot's editor. */
+export function mcpEndpointUrl(port: number): string {
+  return `http://localhost:${port}/mcp`;
+}
+
+/** The `mcpServers` entry name for a game engine — the key the agent sees for
+ *  the editor's MCP server (e.g. shows up as `mcp__unityEditor__<tool>`). */
+export function mcpServerName(id: 'unity' | 'unreal'): string {
+  return id === 'unity' ? 'unityEditor' : 'unrealEditor';
+}
+
 /** All engines' configs, keyed by id. Stored on the `apps` settings blob. */
 export type GameEnginesSettings = Partial<Record<GameEngineId, GameEngineConfig>>;
 

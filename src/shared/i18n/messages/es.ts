@@ -854,6 +854,11 @@ export const es = {
   'prefs.engine.mcp.basePort.title': 'Puerto MCP base',
   'prefs.engine.mcp.basePort.desc':
     'Puerto del slot 1. Cada slot posterior suma uno (slot 2 → base + 1, slot 3 → base + 2, …).',
+  'prefs.engine.unityTitleScript.title': 'Mostrar la ruta del proyecto en la barra de título',
+  'prefs.engine.unityTitleScript.desc':
+    'Instala un pequeño script de editor en Assets/Scripts de tu proyecto de Unity para que cada Editor abierto muestre su ruta de proyecto completa en la barra de título — la forma fácil de distinguir las ventanas de los slots. Se puede confirmar en git.',
+  'prefs.engine.unityTitleScript.button': 'Instalar script de barra de título',
+  'prefs.engine.unityTitleScript.done': 'Instalado en {path}',
 
   // Preferences — Source control pane.
   'prefs.git.title': 'Control de versiones',

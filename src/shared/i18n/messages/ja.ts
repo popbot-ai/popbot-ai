@@ -854,6 +854,11 @@ export const ja = {
   'prefs.engine.mcp.basePort.title': 'MCP ベースポート',
   'prefs.engine.mcp.basePort.desc':
     'スロット 1 のポート。以降のスロットは 1 ずつ加算されます（スロット 2 → ベース + 1、スロット 3 → ベース + 2、…）。',
+  'prefs.engine.unityTitleScript.title': 'タイトルバーにプロジェクトパスを表示',
+  'prefs.engine.unityTitleScript.desc':
+    'Unity プロジェクトの Assets/Scripts に小さなエディタスクリプトをインストールし、開いている各 Editor がタイトルバーにフルプロジェクトパスを表示するようにします — スロットのウィンドウを簡単に見分けられます。コミットしても安全です。',
+  'prefs.engine.unityTitleScript.button': 'タイトルバースクリプトをインストール',
+  'prefs.engine.unityTitleScript.done': '{path} にインストールしました',
 
   // Preferences — Source control pane.
   'prefs.git.title': 'バージョン管理',

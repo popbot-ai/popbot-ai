@@ -90,6 +90,15 @@ export interface SpawnOpts {
    * null to fall through and prompt as normal.
    */
   resolveRule?(toolName: string): 'allow' | 'deny' | null;
+  /**
+   * Per-slot HTTP MCP servers to register with the agent for THIS chat —
+   * e.g. the chat's Unity/Unreal editor, listening on a slot-specific port.
+   * Registered in-memory in the SDK options at spawn (nothing written to
+   * disk or any git-tracked file), so each chat's agent drives its own
+   * slot's editor without touching shared config. Only the `mcpHttp`-capable
+   * backend (Claude) consumes this today. Keyed by server name.
+   */
+  mcpServers?: Record<string, { type: 'http'; url: string }>;
 }
 
 export interface AgentSession {

@@ -854,6 +854,11 @@ export const de = {
   'prefs.engine.mcp.basePort.title': 'MCP-Basis-Port',
   'prefs.engine.mcp.basePort.desc':
     'Port für Slot 1. Jeder weitere Slot zählt eins hinzu (Slot 2 → Basis + 1, Slot 3 → Basis + 2, …).',
+  'prefs.engine.unityTitleScript.title': 'Projektpfad in der Titelleiste anzeigen',
+  'prefs.engine.unityTitleScript.desc':
+    'Installiert ein kleines Editor-Skript in Assets/Scripts deines Unity-Projekts, damit jeder geöffnete Editor seinen vollständigen Projektpfad in der Titelleiste zeigt — der einfache Weg, Slot-Fenster zu unterscheiden. Kann committet werden.',
+  'prefs.engine.unityTitleScript.button': 'Titelleisten-Skript installieren',
+  'prefs.engine.unityTitleScript.done': 'Installiert unter {path}',
 
   // Preferences — Source control pane.
   'prefs.git.title': 'Versionsverwaltung',
