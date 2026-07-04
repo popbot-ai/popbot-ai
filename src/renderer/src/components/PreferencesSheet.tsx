@@ -13,7 +13,7 @@ import type { GithubTestResult, JiraSettings } from '@shared/ticketProvider';
 import {
   GAME_ENGINES,
   engineEnabled,
-  UNREAL_MCP_DEFAULT_BASE_PORT,
+  mcpDefaultBasePort,
   type GameEngineId,
   type GameEngineConfig,
   type GameEnginesSettings,
@@ -1180,12 +1180,13 @@ function EngineConfigPanel({ engineId }: { engineId: GameEngineId }): JSX.Elemen
   const [runPosix, setRunPosix] = useState(cfg.runPosix ?? '');
   const [runWindows, setRunWindows] = useState(cfg.runWindows ?? '');
   const [savedAt, setSavedAt] = useState<number | null>(null);
-  // Unreal MCP: the base-port field is a free-text buffer (so a mid-edit empty
-  // string doesn't snap back), committed to settings on change/blur.
-  const [mcpBasePort, setMcpBasePort] = useState(String(cfg.mcpBasePort ?? UNREAL_MCP_DEFAULT_BASE_PORT));
-
   const enabled = engineEnabled(cfg, engineId);
-  const isUnreal = engineId === 'unreal';
+  // MCP is only meaningful for the two detectable editors, not Custom.
+  const supportsMcp = engineId === 'unity' || engineId === 'unreal';
+  // Engine MCP (Unity + Unreal): the base-port field is a free-text buffer (so
+  // a mid-edit empty string doesn't snap back), committed to settings on blur.
+  const engineDefaultMcpPort = supportsMcp ? mcpDefaultBasePort(engineId) : 0;
+  const [mcpBasePort, setMcpBasePort] = useState(String(cfg.mcpBasePort ?? engineDefaultMcpPort));
 
   const refresh = async () => {
     if (isCustom) return;
@@ -1202,8 +1203,8 @@ function EngineConfigPanel({ engineId }: { engineId: GameEngineId }): JSX.Elemen
   useEffect(() => { setRunPosix(cfg.runPosix ?? ''); }, [cfg.runPosix]);
   useEffect(() => { setRunWindows(cfg.runWindows ?? ''); }, [cfg.runWindows]);
   useEffect(() => {
-    setMcpBasePort(String(cfg.mcpBasePort ?? UNREAL_MCP_DEFAULT_BASE_PORT));
-  }, [cfg.mcpBasePort]);
+    setMcpBasePort(String(cfg.mcpBasePort ?? engineDefaultMcpPort));
+  }, [cfg.mcpBasePort, engineDefaultMcpPort]);
 
   if (loading) return <p className="pref-section-desc">{t('common.loading')}</p>;
 
@@ -1373,15 +1374,16 @@ function EngineConfigPanel({ engineId }: { engineId: GameEngineId }): JSX.Elemen
         </div>
       </div>
 
-      {isUnreal && (
+      {supportsMcp && (
         <>
-          {/* Unreal MCP — persists immediately (like the enable toggle). When on,
-              each slot's Editor is launched with an MCP listen port derived from
-              the base port + slot index. */}
+          {/* Engine MCP (Unity / Unreal) — persists immediately (like the enable
+              toggle). When on, each slot's Editor is launched with an MCP port
+              derived from the base port + slot index. Title/desc are per-engine
+              (Unity → IvanMurzak/Unity-MCP URL; Unreal → -ini: server port). */}
           <div className="pref-row">
             <div className="pref-label">
-              <div className="pref-label-title">{t('prefs.engine.unrealMcp.title')}</div>
-              <div className="pref-label-desc">{t('prefs.engine.unrealMcp.desc')}</div>
+              <div className="pref-label-title">{t(`prefs.engine.mcp.${engineId}.title`)}</div>
+              <div className="pref-label-desc">{t(`prefs.engine.mcp.${engineId}.desc`)}</div>
             </div>
             <div className="pref-control">
               <input
@@ -1393,8 +1395,8 @@ function EngineConfigPanel({ engineId }: { engineId: GameEngineId }): JSX.Elemen
           </div>
           <div className="pref-row">
             <div className="pref-label">
-              <div className="pref-label-title">{t('prefs.engine.unrealMcp.basePort.title')}</div>
-              <div className="pref-label-desc">{t('prefs.engine.unrealMcp.basePort.desc')}</div>
+              <div className="pref-label-title">{t('prefs.engine.mcp.basePort.title')}</div>
+              <div className="pref-label-desc">{t('prefs.engine.mcp.basePort.desc')}</div>
             </div>
             <div className="pref-control" style={{ minWidth: 120 }}>
               <input
@@ -1406,13 +1408,13 @@ function EngineConfigPanel({ engineId }: { engineId: GameEngineId }): JSX.Elemen
                 value={mcpBasePort}
                 onChange={(e) => setMcpBasePort(e.target.value)}
                 onBlur={() => {
-                  // Commit: blank restores the default; otherwise clamp to a
-                  // valid port range (Number('') is 0, so guard blank first).
+                  // Commit: blank restores the engine default; otherwise clamp to
+                  // a valid port range (Number('') is 0, so guard blank first).
                   const raw = mcpBasePort.trim();
                   const n = Math.round(Number(raw));
                   const port =
                     raw === '' || !Number.isFinite(n)
-                      ? UNREAL_MCP_DEFAULT_BASE_PORT
+                      ? engineDefaultMcpPort
                       : Math.min(65535, Math.max(1024, n));
                   setMcpBasePort(String(port));
                   void writeEngine({ mcpBasePort: port });

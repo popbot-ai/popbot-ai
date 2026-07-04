@@ -45,6 +45,7 @@ import { listSessions, type SDKSessionInfo } from '@anthropic-ai/claude-agent-sd
 import { applyPerforceAgentCwd, worktreePathForChat } from '../git/chatPaths';
 import { sqliteSessionStore } from './sqliteSessionStore';
 import { looksLikeQuestion } from '@shared/questionDetect';
+import { LOCALES, LOCALE_SETTING_KEY, resolveLocale } from '@shared/i18n';
 import type { AgentBackend, AgentSession } from './types';
 import { StubBackend } from './StubBackend';
 import { ClaudeBackend } from './ClaudeBackend';
@@ -98,6 +99,55 @@ export function sessionCwdForChat(
   return applyPerforceAgentCwd(base, chat);
 }
 
+/**
+ * An invisible one-line preamble prepended to the FIRST message an agent
+ * receives in a spawned session. It is NOT stored or shown in the transcript —
+ * only the agent sees it — so the chat history stays clean.
+ *
+ * Three cases, keyed off two authoritative signals:
+ *   - `isFresh` (no prior agent message): a brand-new chat → announce the cwd
+ *     and promise a heads-up if it ever moves.
+ *   - `cwdChanged` (reopened into a DIFFERENT slot, per the reopen handler): the
+ *     path the agent recalls is stale → announce the new cwd.
+ *   - otherwise (resumed into the SAME slot): the agent already knows its cwd
+ *     from prior context → say nothing (return '').
+ *
+ * Returns '' when there's no resolvable cwd (raw scratch chats, mis-config), or
+ * for a same-slot resume. MCP config is handled automatically at editor-launch
+ * time, so it is deliberately NOT mentioned here.
+ */
+export function firstMessageCwdPreamble(
+  chat: Pick<ChatRecord, 'slotId' | 'repoId' | 'worktreePath'> | null | undefined,
+  isFresh: boolean,
+  cwdChanged: boolean,
+): string {
+  if (!isFresh && !cwdChanged) return '';
+  const cwd = sessionCwdForChat(chat);
+  if (!cwd) return '';
+  // A LOCAL (not UTC) timestamp so the agent can gauge how much wall-clock time
+  // has passed (e.g. a resume hours/days after the last turn). The `sv-SE`
+  // locale gives a compact, sortable ISO-like "YYYY-MM-DD HH:MM" in local time.
+  const now = new Date().toLocaleString('sv-SE', { dateStyle: 'short', timeStyle: 'short' });
+  return isFresh
+    ? `[System] Starting up at ${now} in this working directory: ${cwd}.${languageDirective()} ` +
+        `Instructions will follow. If this chat is later paused and resumed, you'll be told here ` +
+        `whether the working directory has changed.\n\n`
+    : `[System] This chat resumed at ${now} in a new working directory: ${cwd} — the slot ` +
+        `changed, so use this path for all file reads, edits, and commands from here on; any ` +
+        `path you recall from earlier is stale.\n\n`;
+}
+
+/** A sentence telling the agent to respond in the user's chosen UI language,
+ *  or '' when that language is English (the default — no directive needed).
+ *  Prefixed with a leading space so it slots into the fresh-start preamble. */
+function languageDirective(): string {
+  const locale = resolveLocale(getSetting<string>(LOCALE_SETTING_KEY) ?? undefined);
+  if (locale === 'en') return '';
+  const meta = LOCALES.find((l) => l.code === locale);
+  if (!meta) return '';
+  return ` The user's language is ${meta.englishName} (${meta.nativeName}); respond in ${meta.englishName} unless they write to you in another language.`;
+}
+
 export function sdkSessionJsonlPath(cwd: string, sessionId: string): string | null {
   if (!cwd || !sessionId) return null;
   const encoded = cwd.normalize('NFC').replace(/[^a-zA-Z0-9]/g, '-');
@@ -127,6 +177,12 @@ function rawChatCwd(): string {
 class AgentHostImpl {
   private webContents: WebContents | null = null;
   private readonly sessions = new Map<string, AgentSession>();
+  // Chats that reopened into a DIFFERENT slot than they last ran in. The next
+  // first-message preamble tells the agent its working directory changed, then
+  // the flag is cleared. Set authoritatively by the reopen handler (it's the
+  // only place that knows the old vs new slot); a same-slot reopen never sets
+  // it, so the agent isn't falsely told its cwd moved.
+  private readonly cwdChangedChats = new Set<string>();
   private readonly textBuffers = new Map<
     string,
     { chatId: string; messageId: string; buffer: string; flushTimer: NodeJS.Timeout | null }
@@ -148,6 +204,13 @@ class AgentHostImpl {
     this.webContents = webContents;
   }
 
+  /** Record that a chat resumed into a different worktree slot, so the next
+   *  first-message preamble tells the agent its working directory changed.
+   *  Called by the reopen handler, which alone knows the old vs new slot. */
+  markCwdChanged(chatId: string): void {
+    this.cwdChangedChats.add(chatId);
+  }
+
   /** Send a user message to a chat. Spawns a session if none exists. */
   async send(chatId: string, text: string, attachments?: PickedAttachment[]): Promise<void> {
     const chat = getChat(chatId);
@@ -160,6 +223,17 @@ class AgentHostImpl {
       worktree: chat.worktreePath ?? null,
       branch: chat.branch ?? null,
     });
+
+    // Prepend an invisible working-directory preamble on the FIRST message of a
+    // spawned session (no live session yet) — only the agent sees it (the
+    // stored/broadcast user bubble below uses the raw `text`). Fresh chats get a
+    // "starting up here" note; a chat that reopened into a DIFFERENT slot gets a
+    // "your cwd changed" note (flag set by the reopen handler). A resume into the
+    // same slot needs neither — the agent already has its cwd from prior context.
+    const firstOfSession = !this.sessions.get(chatId)?.isAlive();
+    const isFresh = !listMessages(chatId).some((m) => m.role === 'agent');
+    const cwdChanged = this.cwdChangedChats.delete(chatId);
+    const preamble = firstOfSession ? firstMessageCwdPreamble(chat, isFresh, cwdChanged) : '';
 
     const storedAttachments = await persistChatAttachments(chatId, attachments);
     const userMsg = appendMessage({
@@ -195,7 +269,9 @@ class AgentHostImpl {
 
     try {
       const session = await this.getOrSpawnSession(chatId);
-      await session.sendUser(text, storedAttachments);
+      // The preamble (if any) rides on the first message to the agent only; it
+      // is intentionally absent from the persisted/broadcast user bubble above.
+      await session.sendUser(preamble + text, storedAttachments);
     } catch (err) {
       // Spawn-time failure: surface immediately as a chat error so the
       // user sees something instead of a silent stuck 'run' status.

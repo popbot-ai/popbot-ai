@@ -19,9 +19,10 @@ import {
   type GameEngineConfig,
   type GameEnginesSettings,
   engineMeta,
-  unrealMcpPort,
+  mcpPortForSlot,
+  mcpDefaultBasePort,
   unrealMcpIniArg,
-  UNREAL_MCP_DEFAULT_BASE_PORT,
+  unityMcpUrlArg,
 } from '@shared/gameEngine';
 import { getSetting } from '../persistence/settings';
 import { getChat } from '../persistence/chats';
@@ -621,6 +622,22 @@ async function spawnDetachedEditor(binary: string, args: string[], label: string
 }
 
 /**
+ * The per-slot MCP launch argument(s) for an engine, or `[]` when MCP is off or
+ * unsupported. Both Unity and Unreal derive a per-slot port from the configured
+ * base (base for slot 1, +1 per slot) so parallel slots never share a port; only
+ * the flag shape differs (Unreal: an `-ini:` override; Unity: a `-url=` for the
+ * IvanMurzak/Unity-MCP plugin). The slot index comes from the chat; an
+ * unresolvable slot falls back to slot 1 (the base port).
+ */
+function mcpLaunchArgs(id: GameEngineId, ec: GameEngineConfig, chatId?: string): string[] {
+  if (!ec.useMcp || (id !== 'unity' && id !== 'unreal')) return [];
+  const basePort = ec.mcpBasePort ?? mcpDefaultBasePort(id);
+  const slotId = chatId ? getChat(chatId)?.slotId ?? null : null;
+  const port = mcpPortForSlot(basePort, slotId);
+  return id === 'unreal' ? [unrealMcpIniArg(port)] : [unityMcpUrlArg(port)];
+}
+
+/**
  * Launch (or focus) a game engine's editor for a slot's project.
  *   - unity : direct `-projectPath` launch; on macOS focuses an already-running
  *             instance for this project first (window-title, then PID).
@@ -656,10 +673,19 @@ async function launchEngine(
         reason: 'not-configured',
       };
     }
+    // Expose the slot to the custom command so per-slot scripts can branch
+    // (e.g. pick a port, a display, a config). POPBOT_SLOT is the 1-based slot
+    // number; LEFT UNSET (not empty) when the chat has no slot, so scripts can
+    // use `${POPBOT_SLOT:-N}` defaulting and `$((POPBOT_SLOT))` arithmetic
+    // without an empty-string blowing up. Spread process.env so the shell keeps
+    // its PATH (fixed at boot by fixShellPath on macOS/Linux).
+    const slotId = chatId ? getChat(chatId)?.slotId ?? null : null;
+    const env = { ...process.env };
+    if (slotId != null) env.POPBOT_SLOT = String(slotId);
     try {
       const child = isWindows
-        ? spawn('cmd', ['/c', command], { cwd: proj, detached: true, stdio: 'ignore' })
-        : spawn('bash', ['-lc', command], { cwd: proj, detached: true, stdio: 'ignore' });
+        ? spawn('cmd', ['/c', command], { cwd: proj, detached: true, stdio: 'ignore', env })
+        : spawn('bash', ['-lc', command], { cwd: proj, detached: true, stdio: 'ignore', env });
       child.once('error', () => { /* best-effort: detached */ });
       child.unref();
       return { ok: true };
@@ -691,7 +717,11 @@ async function launchEngine(
       return { ok: true };
     }
     const logPath = join(tmpdir(), `unity-${basename(worktreePath)}.log`);
-    return spawnDetachedEditor(ec.binary, ['-projectPath', proj, '-noprojectBrowser', '-logFile', logPath], label);
+    // MCP (IvanMurzak/Unity-MCP): point the plugin at this slot's server URL.
+    // Only applied on a fresh spawn — focusing an existing editor can't change
+    // its already-set connection.
+    const unityArgs = ['-projectPath', proj, '-noprojectBrowser', '-logFile', logPath];
+    return spawnDetachedEditor(ec.binary, [...unityArgs, ...mcpLaunchArgs(id, ec, chatId)], label);
   }
 
   // unreal — open the .uproject; Unreal focuses an existing instance itself.
@@ -699,17 +729,9 @@ async function launchEngine(
   if (!uproject) {
     return { ok: false, error: `No .uproject found in ${proj}` };
   }
-  const args = [uproject];
-  // When MCP is enabled, give this slot's Editor its own MCP listen port
-  // (base for slot 1, +1 per slot) via a command-line -ini: override, so
-  // parallel slots don't fight over one port. The slot index comes from the
-  // chat; if we can't resolve it we fall back to slot 1 (the base port).
-  if (ec.useMcp) {
-    const basePort = ec.mcpBasePort ?? UNREAL_MCP_DEFAULT_BASE_PORT;
-    const slotId = chatId ? getChat(chatId)?.slotId ?? null : null;
-    args.push(unrealMcpIniArg(unrealMcpPort(basePort, slotId)));
-  }
-  return spawnDetachedEditor(ec.binary, args, label);
+  // When MCP is on, give this slot's Editor its own MCP port via a command-line
+  // override so parallel slots don't collide (see mcpLaunchArgs).
+  return spawnDetachedEditor(ec.binary, [uproject, ...mcpLaunchArgs(id, ec, chatId)], label);
 }
 
 const ENGINE_KINDS: readonly GameEngineId[] = ['unity', 'unreal', 'custom'];

@@ -851,11 +851,14 @@ export const fr = {
   'prefs.engine.custom.windows.title': 'Commande d’exécution (Windows)',
   'prefs.engine.custom.windows.desc':
     'Commande exécutée (via cmd) dans le répertoire du projet.',
-  'prefs.engine.unrealMcp.title': 'Utiliser Unreal MCP',
-  'prefs.engine.unrealMcp.desc':
+  'prefs.engine.mcp.unreal.title': 'Utiliser Unreal MCP',
+  'prefs.engine.mcp.unreal.desc':
     'Lance l’Éditeur avec un port de serveur MCP pour que les agents puissent piloter Unreal. Chaque emplacement obtient son propre port pour que les emplacements en parallèle n’entrent pas en conflit.',
-  'prefs.engine.unrealMcp.basePort.title': 'Port MCP de base',
-  'prefs.engine.unrealMcp.basePort.desc':
+  'prefs.engine.mcp.unity.title': 'Utiliser Unity MCP',
+  'prefs.engine.mcp.unity.desc':
+    'Lance l’Éditeur pointé vers l’URL d’un serveur Unity-MCP (IvanMurzak), pour que les agents puissent piloter Unity. Chaque emplacement obtient son propre port pour que les emplacements en parallèle n’entrent pas en conflit.',
+  'prefs.engine.mcp.basePort.title': 'Port MCP de base',
+  'prefs.engine.mcp.basePort.desc':
     'Port de l’emplacement 1. Chaque emplacement suivant ajoute un (emplacement 2 → base + 1, emplacement 3 → base + 2, …).',
 
   // Preferences — Source control pane.

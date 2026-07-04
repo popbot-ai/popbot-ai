@@ -845,11 +845,14 @@ export const ja = {
   'prefs.engine.custom.posix.desc': 'プロジェクトディレクトリで (bash 経由で) 実行されるシェルコマンド。',
   'prefs.engine.custom.windows.title': '実行コマンド (Windows)',
   'prefs.engine.custom.windows.desc': 'プロジェクトディレクトリで (cmd 経由で) 実行されるコマンド。',
-  'prefs.engine.unrealMcp.title': 'Unreal MCP を使用',
-  'prefs.engine.unrealMcp.desc':
+  'prefs.engine.mcp.unreal.title': 'Unreal MCP を使用',
+  'prefs.engine.mcp.unreal.desc':
     'エージェントが Unreal を操作できるよう、MCP サーバーポート付きで Editor を起動します。各スロットに専用のポートが割り当てられ、並列スロットが衝突しません。',
-  'prefs.engine.unrealMcp.basePort.title': 'MCP ベースポート',
-  'prefs.engine.unrealMcp.basePort.desc':
+  'prefs.engine.mcp.unity.title': 'Unity MCP を使用',
+  'prefs.engine.mcp.unity.desc':
+    'エージェントが Unity を操作できるよう、Unity-MCP（IvanMurzak）サーバーの URL を指定して Editor を起動します。各スロットに専用のポートが割り当てられ、並列スロットが衝突しません。',
+  'prefs.engine.mcp.basePort.title': 'MCP ベースポート',
+  'prefs.engine.mcp.basePort.desc':
     'スロット 1 のポート。以降のスロットは 1 ずつ加算されます（スロット 2 → ベース + 1、スロット 3 → ベース + 2、…）。',
 
   // Preferences — Source control pane.

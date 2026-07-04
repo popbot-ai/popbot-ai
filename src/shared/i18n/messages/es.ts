@@ -845,11 +845,14 @@ export const es = {
   'prefs.engine.custom.posix.desc': 'Comando de shell ejecutado (mediante bash) en el directorio del proyecto.',
   'prefs.engine.custom.windows.title': 'Comando de ejecución (Windows)',
   'prefs.engine.custom.windows.desc': 'Comando ejecutado (mediante cmd) en el directorio del proyecto.',
-  'prefs.engine.unrealMcp.title': 'Usar Unreal MCP',
-  'prefs.engine.unrealMcp.desc':
+  'prefs.engine.mcp.unreal.title': 'Usar Unreal MCP',
+  'prefs.engine.mcp.unreal.desc':
     'Inicia el Editor con un puerto de servidor MCP para que los agentes puedan controlar Unreal. Cada slot recibe su propio puerto para que los slots en paralelo no colisionen.',
-  'prefs.engine.unrealMcp.basePort.title': 'Puerto MCP base',
-  'prefs.engine.unrealMcp.basePort.desc':
+  'prefs.engine.mcp.unity.title': 'Usar Unity MCP',
+  'prefs.engine.mcp.unity.desc':
+    'Inicia el Editor apuntando a la URL de un servidor Unity-MCP (IvanMurzak), para que los agentes puedan controlar Unity. Cada slot recibe su propio puerto para que los slots en paralelo no colisionen.',
+  'prefs.engine.mcp.basePort.title': 'Puerto MCP base',
+  'prefs.engine.mcp.basePort.desc':
     'Puerto del slot 1. Cada slot posterior suma uno (slot 2 → base + 1, slot 3 → base + 2, …).',
 
   // Preferences — Source control pane.

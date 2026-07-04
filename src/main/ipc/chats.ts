@@ -548,8 +548,8 @@ export function registerChatHandlers(): void {
         if (!reopened) return { ok: false, reason: 'not-found' };
         return { ok: true, chat: reopened };
       }
-      // Remember which slot this chat last lived in so we can detect a
-      // forced slot-reassignment below and tell the agent about it.
+      // The slot this chat last ran in, so we can flag a genuine slot change
+      // (its cwd moved) to the agent — a same-slot reopen must not.
       const previousSlotId = chat.slotId;
       const slotId = allocateSlotPreferring(maxSlots, chat.slotId);
       if (slotId === null) return { ok: false, reason: 'no-free-slot' };
@@ -582,26 +582,12 @@ export function registerChatHandlers(): void {
       }
       const reopened = reopenChat(chatId, { slotId, worktreePath });
       if (!reopened) return { ok: false, reason: 'not-found' };
-      // Slot changed: the agent's prior context referenced an old
-      // worktree path. Inject a heads-up note so subsequent reads,
-      // edits, and git ops use the new slot/worktree without the
-      // agent silently following the stale path it remembers. We
-      // fire-and-forget so a transient send failure (e.g. agent not
-      // ready yet) doesn't break the reopen.
+      // If the chat resumed into a DIFFERENT slot, its cwd moved and the path
+      // the agent recalls is stale. Flag it so the invisible preamble on the
+      // next message tells the agent (see firstMessageCwdPreamble). A same-slot
+      // reopen isn't flagged, so the agent isn't falsely told its cwd changed.
       if (previousSlotId != null && previousSlotId !== slotId) {
-        const slotLabel = `${repo.slotPrefix}-${slotId}`;
-        const prevLabel = `${repo.slotPrefix}-${previousSlotId}`;
-        const note = (
-          `Heads-up: this chat was paused and just resumed in a new worktree slot. ` +
-          `Previous: \`${prevLabel}\`. Now active: \`${slotLabel}\` (\`${worktreePath}\`). ` +
-          `All file reads, edits, and git operations from here on should use the new slot path — ` +
-          `the old one no longer reflects this chat's working tree. ` +
-          `There's nothing you need to do about this right now; continue with the user's next instruction.`
-        );
-        void AgentHost.send(chatId, note).catch((err) => {
-          // eslint-disable-next-line no-console
-          console.warn(`[slots] slot-change note failed for chat ${chatId}: ${(err as Error).message}`);
-        });
+        AgentHost.markCwdChanged(chatId);
       }
       return { ok: true, chat: reopened };
     },
