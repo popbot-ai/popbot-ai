@@ -31,6 +31,32 @@ export interface GameEngineConfig {
    *  variants so one machine's config works cross-platform. */
   runPosix?: string;
   runWindows?: string;
+  /** Unreal only: when on, the editor is launched with a command-line override
+   *  that sets the MCP server's listen port, so each slot's Editor exposes MCP
+   *  on its own port and agents don't collide. Default off. */
+  useMcp?: boolean;
+  /** Unreal only: base MCP port for slot 1. Each slot uses `mcpBasePort +
+   *  (slotId - 1)` (slot 1 → base, slot 2 → base+1, …).
+   *  Default {@link UNREAL_MCP_DEFAULT_BASE_PORT}. */
+  mcpBasePort?: number;
+}
+
+/** Default base MCP port for Unreal — slot 1's port. */
+export const UNREAL_MCP_DEFAULT_BASE_PORT = 8001;
+
+/** The per-slot Unreal MCP port: the base for slot 1, +1 for each slot after.
+ *  `slotId` is the 1-based slot index; a missing/invalid slot falls back to 1. */
+export function unrealMcpPort(basePort: number, slotId: number | null | undefined): number {
+  const slot = slotId && slotId > 0 ? slotId : 1;
+  return basePort + (slot - 1);
+}
+
+/** Unreal editor command-line argument that overrides the MCP server's listen
+ *  port. Injected at launch when `useMcp` is on. The `-ini:` form sets a config
+ *  value for this process only (it does not write the project's .ini files):
+ *  Section [/Script/…ModelContextProtocolSettings], key ServerPortNumber. */
+export function unrealMcpIniArg(port: number): string {
+  return `-ini:Engine:[/Script/ModelContextProtocolEngine.ModelContextProtocolSettings]:ServerPortNumber=${port}`;
 }
 
 /** All engines' configs, keyed by id. Stored on the `apps` settings blob. */

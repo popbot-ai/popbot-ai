@@ -845,6 +845,12 @@ export const zhCN = {
   'prefs.engine.custom.posix.desc': '在项目目录中（通过 bash）运行的 Shell 命令。',
   'prefs.engine.custom.windows.title': '运行命令（Windows）',
   'prefs.engine.custom.windows.desc': '在项目目录中（通过 cmd）运行的命令。',
+  'prefs.engine.unrealMcp.title': '使用 Unreal MCP',
+  'prefs.engine.unrealMcp.desc':
+    '以 MCP 服务器端口启动编辑器，让智能体可以驱动 Unreal。每个槽位分配到各自的端口，因此并行槽位不会冲突。',
+  'prefs.engine.unrealMcp.basePort.title': 'MCP 基础端口',
+  'prefs.engine.unrealMcp.basePort.desc':
+    '槽位 1 的端口。之后每个槽位加一（槽位 2 → 基础 + 1，槽位 3 → 基础 + 2，…）。',
 
   // Preferences — Source control pane.
   'prefs.git.title': '版本控制',

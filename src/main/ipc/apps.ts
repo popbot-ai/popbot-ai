@@ -19,6 +19,9 @@ import {
   type GameEngineConfig,
   type GameEnginesSettings,
   engineMeta,
+  unrealMcpPort,
+  unrealMcpIniArg,
+  UNREAL_MCP_DEFAULT_BASE_PORT,
 } from '@shared/gameEngine';
 import { getSetting } from '../persistence/settings';
 import { getChat } from '../persistence/chats';
@@ -626,7 +629,12 @@ async function spawnDetachedEditor(binary: string, args: string[], label: string
  *   - custom: runs the configured shell command (posix vs Windows variant) in
  *             the project directory.
  */
-async function launchEngine(id: GameEngineId, cfg: AppsSettings, worktreePath: string): Promise<LaunchResult> {
+async function launchEngine(
+  id: GameEngineId,
+  cfg: AppsSettings,
+  worktreePath: string,
+  chatId?: string,
+): Promise<LaunchResult> {
   const ec = resolveEngineCfg(cfg, id);
   // Unity/Unreal auto-locate the project (root or a child folder); Custom runs
   // in the configured subpath (or the worktree root).
@@ -691,7 +699,17 @@ async function launchEngine(id: GameEngineId, cfg: AppsSettings, worktreePath: s
   if (!uproject) {
     return { ok: false, error: `No .uproject found in ${proj}` };
   }
-  return spawnDetachedEditor(ec.binary, [uproject], label);
+  const args = [uproject];
+  // When MCP is enabled, give this slot's Editor its own MCP listen port
+  // (base for slot 1, +1 per slot) via a command-line -ini: override, so
+  // parallel slots don't fight over one port. The slot index comes from the
+  // chat; if we can't resolve it we fall back to slot 1 (the base port).
+  if (ec.useMcp) {
+    const basePort = ec.mcpBasePort ?? UNREAL_MCP_DEFAULT_BASE_PORT;
+    const slotId = chatId ? getChat(chatId)?.slotId ?? null : null;
+    args.push(unrealMcpIniArg(unrealMcpPort(basePort, slotId)));
+  }
+  return spawnDetachedEditor(ec.binary, args, label);
 }
 
 const ENGINE_KINDS: readonly GameEngineId[] = ['unity', 'unreal', 'custom'];
@@ -722,7 +740,7 @@ export function registerAppsHandlers(): void {
       // platform (spawn the editor binary / run the command), so they route to
       // launchEngine before the macOS-vs-Windows split below.
       if (isEngineKind(kind)) {
-        return launchEngine(kind, cfg, worktreePath);
+        return launchEngine(kind, cfg, worktreePath, chatId);
       }
       // The TERMINAL opens where the AGENT runs — for a Perforce repo that's a
       // configured subdir of the mount root. Editor/git keep the mount root

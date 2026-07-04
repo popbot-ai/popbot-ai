@@ -858,6 +858,12 @@ export const en = {
   'prefs.engine.custom.posix.desc': 'Shell command run (via bash) in the project directory.',
   'prefs.engine.custom.windows.title': 'Run command (Windows)',
   'prefs.engine.custom.windows.desc': 'Command run (via cmd) in the project directory.',
+  'prefs.engine.unrealMcp.title': 'Use Unreal MCP',
+  'prefs.engine.unrealMcp.desc':
+    "Launch the Editor with an MCP server port, so agents can drive Unreal. Each slot gets its own port so parallel slots don't collide.",
+  'prefs.engine.unrealMcp.basePort.title': 'Base MCP port',
+  'prefs.engine.unrealMcp.basePort.desc':
+    'Port for slot 1. Each later slot adds one (slot 2 → base + 1, slot 3 → base + 2, …).',
 
   // Preferences — Source control pane.
   'prefs.git.title': 'Source control',

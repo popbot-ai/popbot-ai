@@ -845,6 +845,12 @@ export const ko = {
   'prefs.engine.custom.posix.desc': '프로젝트 디렉터리에서 (bash를 통해) 실행되는 셸 명령입니다.',
   'prefs.engine.custom.windows.title': '실행 명령 (Windows)',
   'prefs.engine.custom.windows.desc': '프로젝트 디렉터리에서 (cmd를 통해) 실행되는 명령입니다.',
+  'prefs.engine.unrealMcp.title': 'Unreal MCP 사용',
+  'prefs.engine.unrealMcp.desc':
+    '에이전트가 Unreal을 제어할 수 있도록 MCP 서버 포트와 함께 에디터를 실행합니다. 각 슬롯에 고유한 포트가 부여되어 병렬 슬롯이 충돌하지 않습니다.',
+  'prefs.engine.unrealMcp.basePort.title': 'MCP 기본 포트',
+  'prefs.engine.unrealMcp.basePort.desc':
+    '슬롯 1의 포트. 이후 슬롯마다 1씩 더해집니다(슬롯 2 → 기본 + 1, 슬롯 3 → 기본 + 2, …).',
 
   // Preferences — Source control pane.
   'prefs.git.title': '버전 관리',
