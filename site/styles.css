@@ -321,59 +321,77 @@ code{font-family:var(--font-mono);font-size:0.86em;background:rgba(255,255,255,0
 .ptag.lease{color:var(--st-run);background:rgba(79,139,255,0.14);}
 .ptag.free{color:var(--fg-3);border:1px solid var(--line-3);}
 
-/* BEAT 3 — payoff timeline */
-.payoff{display:flex;flex-direction:column;gap:16px;}
-.payoff-lbl{font-size:13px;margin-bottom:8px;font-weight:600;}
-.payoff-lbl.cold{color:var(--st-err);}
-.payoff-lbl.warm{color:var(--st-done);}
-.payoff-track{height:30px;border-radius:7px;background:var(--bg-1);border:1px solid var(--line-2);
-  position:relative;display:flex;align-items:center;}
-.payoff-fill{height:100%;border-radius:7px;display:flex;align-items:center;justify-content:center;
-  font-family:var(--font-mono);font-size:10.5px;font-weight:600;color:#fff;
-  white-space:nowrap;overflow:hidden;padding:0 6px;}
-.payoff-fill.cold{width:100%;background:linear-gradient(90deg,#e2564f,#e0913a);}
-.payoff-fill.warm{width:15%;background:linear-gradient(90deg,#37b07d,#5fcf9a);}
-.payoff-tag{font-family:var(--font-mono);font-size:11.5px;font-weight:600;color:var(--fg-0);
-  margin-left:11px;display:inline-flex;align-items:center;gap:6px;white-space:nowrap;}
-.payoff-tag i{color:var(--b-orange);}
-.payoff-axis{display:flex;justify-content:space-between;gap:10px;font-family:var(--font-mono);
-  font-size:10.5px;color:var(--fg-3);border-top:1px solid var(--line-2);padding-top:8px;}
+/* Payoff — cold vs warm, one clean before/after comparison */
+.payoff{display:flex;flex-direction:column;gap:20px;}
+.payoff-head{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin-bottom:9px;}
+.payoff-name{font-size:13.5px;font-weight:600;color:var(--ink-1);}
+.payoff-time{font-family:var(--font-mono);font-size:12px;font-weight:600;white-space:nowrap;}
+.payoff-time.cold{color:#ff9d8a;}
+.payoff-time.warm{color:#7fd6aa;}
+.payoff-time.warm i{color:var(--b-orange);font-size:11px;margin-right:3px;}
+.payoff-track{height:12px;border-radius:999px;background:rgba(255,255,255,0.045);
+  box-shadow:inset 0 1px 3px rgba(0,0,0,0.35);position:relative;overflow:hidden;}
+.payoff-fill{position:absolute;top:0;bottom:0;left:0;border-radius:999px;}
+.payoff-fill.cold{width:100%;background:linear-gradient(90deg,#9b3a3e,#e2564f 55%,#e0913a);}
+/* faint minute ticks over the cold bar — 12 segments ≈ 12 minutes */
+.payoff-track.cold::after{content:"";position:absolute;inset:0;border-radius:999px;pointer-events:none;
+  background:repeating-linear-gradient(90deg,transparent 0,transparent calc(100%/12 - 1px),rgba(10,11,30,0.32) calc(100%/12 - 1px),rgba(10,11,30,0.32) calc(100%/12));}
+.payoff-fill.warm{width:26px;background:linear-gradient(90deg,#2f9c6d,#5fcf9a);
+  box-shadow:0 0 16px -2px rgba(63,178,127,0.75);}
+.payoff-axis{display:flex;justify-content:space-between;align-items:baseline;gap:12px;
+  font-family:var(--font-mono);font-size:10.5px;color:var(--fg-3);border-top:1px solid var(--line-2);padding-top:10px;}
+.payoff-axis span{white-space:nowrap;}
 @media (prefers-reduced-motion:no-preference){
   .payoff-fill.cold{width:0;animation:barfill100 1.1s cubic-bezier(.4,0,.2,1) .2s forwards;}
+  .payoff-fill.warm{width:0;animation:barfillwarm .6s cubic-bezier(.4,0,.2,1) .15s forwards;}
 }
 @keyframes barfill100{to{width:100%;}}
+@keyframes barfillwarm{to{width:26px;}}
 
-/* ---- DIAGRAM 2 — copy-on-write ---- */
-.dgm.cow{text-align:center;}
-.dgm-title{font-size:28px;font-weight:800;margin-bottom:30px;letter-spacing:-0.02em;}
-.dgm-title .accent{background:linear-gradient(96deg,var(--b-pink),var(--b-orange));
-  -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;color:var(--b-orange);}
-.cow-cols{display:grid;grid-template-columns:1fr auto 1fr;gap:30px;align-items:end;}
+/* ---- Copy-on-write — five full projects vs one shared base ---- */
+.cow-cols{display:grid;grid-template-columns:1fr auto 1fr;gap:34px;align-items:stretch;}
 .cow-side{display:flex;flex-direction:column;align-items:center;}
-.cow-divider{width:1px;align-self:stretch;background:linear-gradient(180deg,transparent,var(--line-3),transparent);}
-.cow-head{font-family:var(--font-mono);font-size:13px;font-weight:700;letter-spacing:0.1em;margin-bottom:22px;}
-.cow-head.bad{background:linear-gradient(90deg,#e2564f,#e0913a);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;}
-.cow-head.good{color:var(--st-done);}
-/* naive: 5 fat gradient bars */
-.cow-bars{display:flex;gap:10px;align-items:flex-end;height:230px;}
-.cow-bar{flex:1;border-radius:8px 8px 4px 4px;display:flex;align-items:center;justify-content:center;
-  font-family:var(--font-mono);font-size:14px;font-weight:700;color:#fff;text-align:center;line-height:1.1;
-  min-width:0;box-shadow:0 10px 30px -10px rgba(240,86,127,0.5);}
-.cow-bar.big{height:100%;background:linear-gradient(180deg,var(--b-purple),var(--b-pink) 55%,var(--b-orange));}
-.cow-total{font-family:var(--font-mono);font-size:15px;font-weight:700;margin-top:20px;}
-.cow-total.bad{color:var(--st-err);}
-.cow-total.good{color:var(--st-done);}
-/* popbot side: tiny bars → connectors → shared base */
-.cow-tiny-wrap{width:100%;display:flex;flex-direction:column;align-items:stretch;height:230px;justify-content:flex-end;}
-.cow-tinybars{display:flex;gap:12px;align-items:flex-end;justify-content:center;padding:0 6px;}
-.cow-tiny{flex:1;display:flex;flex-direction:column;align-items:center;gap:6px;min-width:0;}
-.cow-tiny-lbl{font-family:var(--font-mono);font-size:11px;color:var(--fg-1);}
-.cow-tiny-bar{width:100%;max-width:52px;height:9px;border-radius:5px;
-  background:linear-gradient(90deg,var(--st-done),var(--st-run));box-shadow:0 0 12px -2px rgba(79,139,255,0.5);}
-.cow-connect{width:100%;height:44px;display:block;}
-.cow-base{border-radius:10px;padding:20px 16px;font-family:var(--font-mono);font-size:14px;font-weight:600;
-  color:var(--fg-0);background:linear-gradient(180deg,rgba(123,63,242,0.22),rgba(43,47,143,0.28));
-  border:1px solid rgba(123,63,242,0.4);}
+.cow-divider{position:relative;width:1px;align-self:stretch;background:linear-gradient(180deg,transparent,var(--line-3),transparent);}
+.cow-vs{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-family:var(--font-mono);
+  font-size:10.5px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--ink-2);
+  background:var(--panel);border:1px solid var(--panel-line);border-radius:999px;padding:4px 11px;}
+/* friendly sans headings with an icon — same voice as the panel above */
+.cow-head{display:flex;align-items:center;gap:9px;font-size:15.5px;font-weight:600;color:var(--ink-0);margin-bottom:26px;}
+.cow-head i{color:var(--b-orange);font-size:13px;}
+/* left: five full copies — labels above slim columns, mirroring the right side */
+.cow-bars{display:flex;gap:14px;align-items:stretch;height:216px;width:100%;max-width:390px;}
+.cow-fat{flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;gap:8px;}
+.cow-fat-lbl{font-family:var(--font-mono);font-size:11px;color:var(--fg-1);white-space:nowrap;}
+.cow-fat-bar{width:100%;flex:1;border-radius:10px 10px 6px 6px;position:relative;overflow:hidden;
+  background:linear-gradient(175deg,#f09a53 0%,#e5763c 22%,#d24468 55%,#6f36c9 100%);
+  box-shadow:0 16px 34px -18px rgba(240,86,127,0.55);}
+/* horizontal sheen — gives the bar a lit, cylindrical read like polished chart fills */
+.cow-fat-bar::before{content:"";position:absolute;inset:0;border-radius:inherit;
+  background:linear-gradient(90deg,rgba(255,255,255,0.28),rgba(255,255,255,0.05) 38%,rgba(0,0,0,0.10) 82%,rgba(0,0,0,0.22));}
+/* crisp top light edge + hairline inset ring instead of a fuzzy outer border */
+.cow-fat-bar::after{content:"";position:absolute;inset:0;border-radius:inherit;
+  box-shadow:inset 0 1.5px 0 rgba(255,255,255,0.45),inset 0 0 0 1px rgba(255,255,255,0.10);}
+/* right: tiny per-slot deltas → connector → one shared base */
+.cow-tiny-wrap{width:100%;max-width:390px;height:216px;display:flex;flex-direction:column;}
+.cow-tinybars{display:flex;gap:14px;}
+.cow-tiny{flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;gap:8px;}
+.cow-tiny-lbl{font-family:var(--font-mono);font-size:11px;color:var(--fg-1);white-space:nowrap;}
+.cow-tiny-bar{width:100%;height:10px;border-radius:999px;
+  background:linear-gradient(90deg,var(--st-done),var(--st-run));box-shadow:0 0 12px -2px rgba(79,139,255,0.55);}
+.cow-connect{width:100%;flex:1;min-height:40px;display:block;}
+.cow-base{border-radius:12px;padding:15px 16px;font-family:var(--font-mono);font-size:13px;font-weight:600;color:var(--fg-0);
+  display:flex;align-items:center;justify-content:center;gap:10px;
+  background:linear-gradient(180deg,rgba(123,63,242,0.20),rgba(43,47,143,0.30));
+  border:1px solid rgba(123,63,242,0.45);
+  box-shadow:0 16px 36px -16px rgba(123,63,242,0.55),inset 0 1px 0 rgba(255,255,255,0.08);}
+.cow-base i{color:#b79aff;font-size:12px;}
+.cow-total{font-family:var(--font-mono);font-size:15px;font-weight:700;margin-top:22px;}
+.cow-total.bad{color:#ff9d8a;}
+.cow-total.good{color:#7fd6aa;}
+@media(max-width:860px){
+  .cow-cols{grid-template-columns:1fr;gap:28px;}
+  .cow-divider{display:none;}
+}
 
 /* why-unique callout */
 .slots-unique{background:linear-gradient(120deg,rgba(123,63,242,0.12),rgba(255,138,61,0.08));
@@ -383,6 +401,15 @@ code{font-family:var(--font-mono);font-size:0.86em;background:rgba(255,255,255,0
 .slots-unique p{font-size:16.5px;color:var(--ink-1);margin:0 0 14px;line-height:1.62;}
 .slots-unique p strong{color:#fff;}
 .slots-unique .more{font-size:14.5px;color:var(--b-orange);font-weight:600;display:inline-flex;align-items:center;gap:7px;}
+/* Plain-language copy that introduces each diagram. Full-width (unlike the
+   capped .slots-unique callout) so it reads as a lead-in, with breathing room
+   between the copy and the diagram it explains. */
+.slots-lead-in{max-width:820px;margin:0 0 20px;}
+.slots-lead-in h3{font-size:23px;font-weight:700;color:var(--ink-0);margin:0 0 10px;letter-spacing:-0.01em;}
+.slots-lead-in p{font-size:17px;color:var(--ink-1);line-height:1.62;margin:0;}
+.slots-lead-in p strong{color:#fff;}
+.slots-lead-in .step{display:inline-flex;align-items:center;gap:8px;font-family:var(--font-mono);
+  font-size:12px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:var(--b-orange);margin-bottom:12px;}
 
 @media (max-width:860px){
   .dgm-cols{grid-template-columns:1fr;gap:32px;}
@@ -498,3 +525,37 @@ footer .lic a{color:var(--ink-1);border-bottom:1px solid rgba(255,255,255,0.2);}
 .lightbox-close{position:absolute;top:14px;right:22px;width:44px;height:44px;font-size:30px;line-height:1;color:#fff;background:none;border:none;cursor:pointer;opacity:.75;}
 .lightbox-close:hover{opacity:1;}
 @keyframes lb-fade{from{opacity:0;}to{opacity:1;}}
+
+
+/* ============ WARM SLOTS — rebuilt in the page's feature-row rhythm ============ */
+/* Reuses .feat / .feat-visual so it harmonizes with the rest of the page.
+   Each visual is now a single, simple comparison — not a multi-beat chart. */
+.slotsband::before{opacity:.55;}
+.slotsband .feat{margin-bottom:56px;}
+.slots-visual{flex-direction:column;align-items:stretch;justify-content:center;gap:16px;padding:32px 34px;}
+.slots-visual .payoff,.slots-visual .slot-pool{width:100%;}
+.svis-label{display:flex;align-items:center;gap:9px;font-size:15.5px;font-weight:600;color:var(--ink-0);margin-bottom:2px;}
+.svis-label i{color:var(--b-orange);font-size:13px;}
+.svis-cap{font-family:var(--font-mono);font-size:11px;color:var(--fg-2);}
+.svis-cap.center{text-align:center;margin-top:22px;line-height:1.55;}
+/* full-width copy-on-write feature */
+.slots-full{margin:0 0 56px;}
+.slots-full-head{max-width:720px;margin:0 auto 26px;text-align:center;}
+.slots-full-head h3{justify-content:center;}
+.cow-visual{flex-direction:column;align-items:stretch;justify-content:center;padding:36px 36px 30px;}
+.cow-visual .cow-cols{width:100%;}
+@media(max-width:860px){
+  .slots-visual,.cow-visual{padding:22px;}
+}
+
+/* ============ BRAND LOGO TILES ============ */
+/* "Make it yours" pairings — built-in default → what you can fork toward. */
+.ycard-stack{display:flex;align-items:center;gap:12px;margin:9px 0 14px;flex-wrap:wrap;}
+.ycard-stack .fa-arrow-right{color:var(--ink-3);font-size:12px;}
+.chipset{display:inline-flex;align-items:center;gap:9px;}
+.chipset .cn{font-size:13px;font-weight:600;color:var(--ink-1);}
+.logo-tile{width:38px;height:38px;border-radius:10px;background:rgba(255,255,255,0.06);
+  border:1px solid rgba(255,255,255,0.11);display:flex;align-items:center;justify-content:center;flex:0 0 auto;}
+.logo-tile img{width:24px;height:24px;object-fit:contain;display:block;}
+/* Beta highlight icons: real brand logos (webp) share the orange beta tile. */
+.beta-highlights .ic-img img{width:24px;height:24px;object-fit:contain;display:block;}

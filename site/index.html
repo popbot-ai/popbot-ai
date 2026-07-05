@@ -171,133 +171,80 @@
       <p class="lead" data-i18n-html="slots.lead">Run ten agents on a big game project the obvious way and you hit a wall: <strong>every fresh checkout makes the engine rebuild its whole asset cache</strong>. PopBot's answer is the <strong>warm slot</strong> — and it's the one thing other multi-agent tools simply don't do.</p>
     </div>
 
-    <!-- DIAGRAM 1 — warm slots, three beats. Drawn in HTML/SVG so every label
-         localizes (no baked-in text). -->
-    <div class="dgm">
-      <div class="dgm-flow">
-        <span class="dgm-beat problem"><span data-i18n="slots.beat.problem">The problem</span></span>
-        <span class="dgm-arrow" aria-hidden="true"></span>
-        <span class="dgm-beat ok"><span data-i18n="slots.beat.solution">The solution</span></span>
-        <span class="dgm-arrow" aria-hidden="true"></span>
-        <span class="dgm-beat mute"><span data-i18n="slots.beat.payoff">The payoff</span></span>
+    <!-- FEATURE ROW 1 — the warm slot: the reimport problem, the fix, and the
+         time it saves. Rehoused in the page's own feature-row pattern. -->
+    <div class="feat">
+      <div class="feat-text">
+        <h3><span class="ic"><i class="fa-solid fa-fire"></i></span><span data-i18n="slots.explain1.h">Big game projects are slow to switch between.</span></h3>
+        <p data-i18n-html="slots.explain1.p">A game engine keeps a huge cache of imported art and code. Switch an AI agent to a different branch and the engine has to <strong>rebuild that cache from scratch — minutes of waiting, every time</strong>. Run several agents and they spend the day rebuilding. A <strong>warm slot</strong> is a ready-to-go workspace PopBot keeps that cache hot in, so an agent picks up <strong>in seconds instead of minutes</strong>. Here's the time it saves:</p>
+        <a class="more" href="#anatomy"><span data-i18n="slots.unique.more">See slots inside the workspace</span> <i class="fa-solid fa-arrow-right"></i></a>
       </div>
-      <div class="dgm-cols">
-        <!-- BEAT 1 · the problem -->
-        <div class="dgm-col">
-          <h3 class="dgm-h" data-i18n="slots.problem.h">Every checkout pays the reimport tax.</h3>
-          <div class="reimport-list">
-            <div class="reimport-row">
-              <div class="reimport-lbl" data-i18n="slots.problem.spawn">spawn a fresh workspace</div>
-              <div class="reimport-bar"><span></span></div>
-              <div class="reimport-sub"><i class="fa-solid fa-hourglass-half"></i> <span data-i18n="slots.problem.reimport">Unity Library reimport · 4–12 min</span></div>
+      <div class="feat-visual slots-visual">
+        <div class="svis-label"><i class="fa-solid fa-bolt"></i> <span data-i18n="slots.payoff.h">Ready in seconds, not minutes.</span></div>
+        <div class="payoff">
+          <div class="payoff-row">
+            <div class="payoff-head">
+              <span class="payoff-name" data-i18n="slots.payoff.cold">cold git checkout</span>
+              <span class="payoff-time cold" data-i18n="slots.payoff.reimport">reimport · 4–12 min</span>
             </div>
-            <div class="reimport-row">
-              <div class="reimport-lbl" data-i18n="slots.problem.spawn">spawn a fresh workspace</div>
-              <div class="reimport-bar"><span></span></div>
-              <div class="reimport-sub"><i class="fa-solid fa-hourglass-half"></i> <span data-i18n="slots.problem.reimport">Unity Library reimport · 4–12 min</span></div>
-            </div>
-            <div class="reimport-row">
-              <div class="reimport-lbl" data-i18n="slots.problem.spawn">spawn a fresh workspace</div>
-              <div class="reimport-bar"><span></span></div>
-              <div class="reimport-sub"><i class="fa-solid fa-hourglass-half"></i> <span data-i18n="slots.problem.reimport">Unity Library reimport · 4–12 min</span></div>
-            </div>
+            <div class="payoff-track cold"><div class="payoff-fill cold"></div></div>
           </div>
-          <div class="dgm-cap" data-i18n="slots.problem.cap">wasted time, over and over — cache thrash</div>
-        </div>
-
-        <!-- BEAT 2 · the solution (slot pool) -->
-        <div class="dgm-col">
-          <h3 class="dgm-h" data-i18n="slots.solution.h">A pool of workspaces that stay hot.</h3>
-          <div class="slot-pool" aria-hidden="false">
-            <div class="pslot lease">
-              <span class="pflame"><i class="fa-solid fa-fire"></i></span>
-              <div class="pbody"><div class="pname">slot 1 · eng/20402-srv-ts</div><div class="pmeta"><span data-i18n="slots.pool.hot">Library hot · Editor running</span> · :5101</div></div>
-              <span class="ptag lease" data-i18n="slots.pool.inuse">in use</span>
+          <div class="payoff-row">
+            <div class="payoff-head">
+              <span class="payoff-name" data-i18n="slots.payoff.warm">warm slot</span>
+              <span class="payoff-time warm"><i class="fa-solid fa-bolt"></i> <span data-i18n="slots.payoff.seconds">ready in seconds</span></span>
             </div>
-            <div class="pslot warm">
-              <span class="pflame"><i class="fa-solid fa-fire"></i></span>
-              <div class="pbody"><div class="pname">slot 2 · eng/20447-library</div><div class="pmeta" data-i18n="slots.pool.idle">idle · cache still hot</div></div>
-              <span class="ptag warm" data-i18n="slots.pool.warm">warm</span>
-            </div>
-            <div class="pslot warm">
-              <span class="pflame"><i class="fa-solid fa-fire"></i></span>
-              <div class="pbody"><div class="pname">slot 3 · eng/20355-arena</div><div class="pmeta" data-i18n="slots.pool.idle">idle · cache still hot</div></div>
-              <span class="ptag warm" data-i18n="slots.pool.warm">warm</span>
-            </div>
-            <div class="pslot free">
-              <span class="pflame cold"><i class="fa-regular fa-snowflake"></i></span>
-              <div class="pbody"><div class="pname">slot 4 · <span data-i18n="slots.pool.availword">available</span></div><div class="pmeta" data-i18n="slots.pool.availmeta">ready to lease</div></div>
-              <span class="ptag free" data-i18n="slots.pool.free">free</span>
-            </div>
+            <div class="payoff-track"><div class="payoff-fill warm"></div></div>
           </div>
-          <div class="dgm-cap"><span data-i18n="slots.pool.cap">a fixed pool, reused</span> · <span data-i18n="slots.pool.leaseloop">lease → work → return</span></div>
-        </div>
-
-        <!-- BEAT 3 · the payoff (timeline) -->
-        <div class="dgm-col">
-          <h3 class="dgm-h" data-i18n="slots.payoff.h">Ready in seconds, not minutes.</h3>
-          <div class="payoff">
-            <div class="payoff-row">
-              <div class="payoff-lbl cold" data-i18n="slots.payoff.cold">cold git checkout</div>
-              <div class="payoff-track"><div class="payoff-fill cold"><span data-i18n="slots.payoff.reimport">reimport · 4–12 min</span></div></div>
-            </div>
-            <div class="payoff-row">
-              <div class="payoff-lbl warm" data-i18n="slots.payoff.warm">warm slot</div>
-              <div class="payoff-track"><div class="payoff-fill warm"></div><span class="payoff-tag"><i class="fa-solid fa-bolt"></i> <span data-i18n="slots.payoff.seconds">ready in seconds</span></span></div>
-            </div>
-            <div class="payoff-axis"><span>0</span><span data-i18n="slots.payoff.axis">time saved every switch →</span><span>~12 min</span></div>
-          </div>
+          <div class="payoff-axis"><span>0</span><span data-i18n="slots.payoff.axis">time saved every switch →</span><span>~12 min</span></div>
         </div>
       </div>
     </div>
 
-    <!-- DIAGRAM 2 — copy-on-write: many agents, one repo's disk. -->
-    <div class="dgm cow">
-      <h3 class="dgm-title"><span data-i18n="cow.title.a">5 agents.</span> <span class="accent" data-i18n="cow.title.b">One repo's disk.</span></h3>
-      <div class="cow-cols">
-        <!-- naive -->
-        <div class="cow-side">
-          <div class="cow-head bad" data-i18n="cow.naive.head">WITHOUT COPY-ON-WRITE</div>
-          <div class="cow-bars">
-            <div class="cow-bar big"><span>500<br>GB</span></div>
-            <div class="cow-bar big"><span>500<br>GB</span></div>
-            <div class="cow-bar big"><span>500<br>GB</span></div>
-            <div class="cow-bar big"><span>500<br>GB</span></div>
-            <div class="cow-bar big"><span>500<br>GB</span></div>
-          </div>
-          <div class="cow-total bad">= 2.5 TB</div>
-        </div>
-        <div class="cow-divider" aria-hidden="true"></div>
-        <!-- popbot -->
-        <div class="cow-side">
-          <div class="cow-head good" data-i18n="cow.pop.head">POPBOT SLOTS</div>
-          <div class="cow-tiny-wrap">
-            <div class="cow-tinybars">
-              <div class="cow-tiny"><span class="cow-tiny-lbl">10 MB</span><span class="cow-tiny-bar"></span></div>
-              <div class="cow-tiny"><span class="cow-tiny-lbl">10 MB</span><span class="cow-tiny-bar"></span></div>
-              <div class="cow-tiny"><span class="cow-tiny-lbl">10 MB</span><span class="cow-tiny-bar"></span></div>
-              <div class="cow-tiny"><span class="cow-tiny-lbl">10 MB</span><span class="cow-tiny-bar"></span></div>
-              <div class="cow-tiny"><span class="cow-tiny-lbl">10 MB</span><span class="cow-tiny-bar"></span></div>
-            </div>
-            <svg class="cow-connect" viewBox="0 0 500 46" preserveAspectRatio="none" aria-hidden="true">
-              <path d="M50 0 V22 H250 M150 0 V22 H250 M250 0 V22 M350 0 V22 H250 M450 0 V22 H250 M250 22 V40" fill="none" stroke="#3a4252" stroke-width="1.5"/>
-              <path d="M244 34 L250 42 L256 34" fill="none" stroke="#3a4252" stroke-width="1.5"/>
-            </svg>
-            <div class="cow-base"><span data-i18n="cow.base">shared base · 500 GB</span></div>
-          </div>
-          <div class="cow-total good">= 500 GB <span data-i18n="cow.total">total</span></div>
-        </div>
+    <!-- FULL-WIDTH FEATURE — copy-on-write disk. The comparison chart needs the
+         full column, so it reads as a centered feature + wide visual panel
+         (same shape as the workspace screenshot elsewhere on the page). -->
+    <div class="slots-full">
+      <div class="feat-text slots-full-head">
+        <h3><span class="ic"><i class="fa-solid fa-clone"></i></span><span data-i18n="slots.explain2.h">And it doesn't fill up your disk.</span></h3>
+        <p data-i18n-html="slots.explain2.p">Each slot is a <strong>full, live copy of your project</strong> — but making a real copy per agent would eat hundreds of gigabytes each. Instead, PopBot's slots <strong>all share one base copy and only store what they change</strong>. So a whole team of agents fits in <strong style="color:#ffd9b0;">the space of a single project</strong>, not one copy per agent:</p>
       </div>
-      <div class="dgm-cap center"><span data-i18n="cow.cap">copy-on-write clones — each keeps only its own changes · ready in seconds · Windows · macOS · Linux</span></div>
+      <div class="feat-visual slots-visual cow-visual">
+        <div class="cow-cols">
+          <div class="cow-side">
+            <div class="cow-head"><i class="fa-solid fa-hard-drive"></i> <span data-i18n="cow.naive.head">Without copy-on-write</span></div>
+            <div class="cow-bars">
+              <div class="cow-fat"><span class="cow-fat-lbl">500 GB</span><span class="cow-fat-bar"></span></div>
+              <div class="cow-fat"><span class="cow-fat-lbl">500 GB</span><span class="cow-fat-bar"></span></div>
+              <div class="cow-fat"><span class="cow-fat-lbl">500 GB</span><span class="cow-fat-bar"></span></div>
+              <div class="cow-fat"><span class="cow-fat-lbl">500 GB</span><span class="cow-fat-bar"></span></div>
+              <div class="cow-fat"><span class="cow-fat-lbl">500 GB</span><span class="cow-fat-bar"></span></div>
+            </div>
+            <div class="cow-total bad">= 2.5 TB</div>
+          </div>
+          <div class="cow-divider" aria-hidden="true"><span class="cow-vs">vs</span></div>
+          <div class="cow-side">
+            <div class="cow-head"><i class="fa-solid fa-fire"></i> <span data-i18n="cow.pop.head">PopBot slots with copy-on-write</span></div>
+            <div class="cow-tiny-wrap">
+              <div class="cow-tinybars">
+                <div class="cow-tiny"><span class="cow-tiny-lbl">10 MB</span><span class="cow-tiny-bar"></span></div>
+                <div class="cow-tiny"><span class="cow-tiny-lbl">10 MB</span><span class="cow-tiny-bar"></span></div>
+                <div class="cow-tiny"><span class="cow-tiny-lbl">10 MB</span><span class="cow-tiny-bar"></span></div>
+                <div class="cow-tiny"><span class="cow-tiny-lbl">10 MB</span><span class="cow-tiny-bar"></span></div>
+                <div class="cow-tiny"><span class="cow-tiny-lbl">10 MB</span><span class="cow-tiny-bar"></span></div>
+              </div>
+              <svg class="cow-connect" viewBox="0 0 500 46" preserveAspectRatio="none" aria-hidden="true">
+                <path d="M43 2 V16 M146 2 V16 M250 2 V16 M354 2 V16 M457 2 V16 M43 16 H457 M250 16 V36" fill="none" stroke="rgba(122,133,161,0.45)" stroke-width="1.5" stroke-linecap="round"/>
+                <path d="M243 30 L250 39 L257 30" fill="none" stroke="rgba(122,133,161,0.6)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+              <div class="cow-base"><i class="fa-solid fa-database"></i> <span data-i18n="cow.base">shared base · 500 GB</span></div>
+            </div>
+            <div class="cow-total good">= 500 GB <span data-i18n="cow.total">total</span></div>
+          </div>
+        </div>
+        <div class="svis-cap center"><span data-i18n="cow.cap">copy-on-write clones — each keeps only its own changes · ready in seconds · Windows · macOS · Linux</span></div>
+      </div>
     </div>
-
-    <!-- BEAT 3 — why it's unique -->
-    <div class="slots-unique">
-      <div class="uniq-head"><i class="fa-solid fa-award"></i> <span data-i18n="slots.unique.tag">Genuinely new</span></div>
-      <p data-i18n-html="slots.unique.p">Every other approach cold-starts. <strong>One agent in an IDE</strong> works a single tree. <strong>Async cloud agents</strong> (Devin, hosted Codex) spin up a remote sandbox per task. <strong>DIY <code>tmux</code> + <code>git worktree</code></strong> is parallel but every checkout pays the tax. PopBot is the only one that manages a pool of <strong style="color:#ffd9b0;">reusable, warm build environments</strong> — the difference between a fleet that flies and one that spends its day waiting on imports.</p>
-      <a class="more" href="#anatomy"><span data-i18n="slots.unique.more">See slots inside the workspace</span> <i class="fa-solid fa-arrow-right"></i></a>
-    </div>
-  </div>
 </section>
 
 <div class="wrap"><div class="divider-glow"></div></div>
@@ -419,24 +366,21 @@
 
 <div class="wrap"><div class="divider-glow"></div></div>
 
-<!-- HOW IT'S DIFFERENT -->
+<!-- WHAT MAKES POPBOT POPBOT — stated about PopBot itself, no comparisons. -->
 <section class="sec" id="different">
   <div class="wrap">
     <div class="sec-head">
-      <span class="eyebrow"><span class="dot"></span><span data-i18n="diff.eyebrow">How PopBot is different</span></span>
+      <span class="eyebrow"><span class="dot"></span><span data-i18n="diff.eyebrow">What makes PopBot, PopBot</span></span>
       <h2 data-i18n="diff.h2">A local cockpit for many real agents.</h2>
-      <p class="lead" data-i18n-html="diff.lead">Most agentic tools fall into a few buckets. PopBot sits in a different spot: running many <em>real</em> agents in parallel, with warm build state and live human oversight.</p>
+      <p class="lead" data-i18n-html="diff.lead">PopBot runs many <em>real</em> agents in parallel, each in its own warm slot, with warm build state and live human oversight — everything wired into one window you steer.</p>
     </div>
-    <table class="cmp">
-      <thead><tr><th data-i18n="diff.th1">Instead of…</th><th data-i18n="diff.th2">…PopBot</th></tr></thead>
-      <tbody>
-        <tr><td data-i18n-html="diff.r1a"><strong>One agent in a terminal or IDE</strong> — a single task in a single working tree at a time</td><td data-i18n-html="diff.r1b"><strong>Many agents at once</strong>, each isolated in its own warm slot, all visible as a live fleet you steer from one window</td></tr>
-        <tr><td data-i18n-html="diff.r2a"><strong>Async cloud agents</strong> (Devin, hosted Codex) — opaque and remote; submit a task, wait for a PR</td><td data-i18n-html="diff.r2b"><strong>Local and live</strong> — watch each agent work, catch a wrong path early, and it drives <em>your real app</em> for genuine end-to-end testing</td></tr>
-        <tr><td data-i18n-html="diff.r3a"><strong>DIY <code>tmux</code> + <code>git worktree</code> juggling</strong> — parallel but manual; every fresh checkout pays Unity's reimport tax</td><td data-i18n-html="diff.r3b"><strong>Managed warm slots</strong> — reused worktrees that keep Unity's <code>Library</code> hot, with lifecycle, git panel, and review handled for you</td></tr>
-        <tr><td data-i18n-html="diff.r4a"><strong>Orchestration frameworks</strong> (CrewAI, AutoGen) — toolkits for <em>building</em> agent systems</td><td data-i18n-html="diff.r4b"><strong>A finished, opinionated app</strong> wired to your Linear/GitHub inbox and review loop — human-in-the-loop by design</td></tr>
-      </tbody>
-    </table>
-    <p style="text-align:center;font-size:17px;color:var(--ink-1);margin-top:30px;max-width:780px;margin-left:auto;margin-right:auto;" data-i18n-html="diff.close">And critically: PopBot doesn't replace Claude Code or Codex — it <strong style="color:#ffd9b0;">runs them</strong>. The exact agents you already trust, just many at a time, with orchestration, isolation, and oversight wrapped around them.</p>
+    <div class="afgrid">
+      <div class="afcard"><div class="ic"><i class="fa-solid fa-users-gear"></i></div><h4 data-i18n="diff.c1.t">Many agents at once</h4><p data-i18n-html="diff.c1.b">Each agent works in its own <strong>warm slot</strong> — isolated, and all visible as a live fleet you steer from one window.</p></div>
+      <div class="afcard"><div class="ic"><i class="fa-solid fa-eye"></i></div><h4 data-i18n="diff.c2.t">Local and live</h4><p data-i18n-html="diff.c2.b">Watch each agent work and catch a wrong path early. It drives <strong>your real app</strong> for genuine end-to-end testing.</p></div>
+      <div class="afcard"><div class="ic"><i class="fa-solid fa-fire"></i></div><h4 data-i18n="diff.c3.t">Warm, managed slots</h4><p data-i18n-html="diff.c3.b">Reused worktrees keep the engine's cache hot — with lifecycle, git panel, and review handled for you.</p></div>
+      <div class="afcard"><div class="ic"><i class="fa-solid fa-plug"></i></div><h4 data-i18n="diff.c4.t">A finished app, not a toolkit</h4><p data-i18n-html="diff.c4.b">Wired to your <strong>Linear/GitHub inbox and review loop</strong> — human-in-the-loop by design, nothing to assemble.</p></div>
+    </div>
+    <p style="text-align:center;font-size:17px;color:var(--ink-1);margin-top:30px;max-width:780px;margin-left:auto;margin-right:auto;" data-i18n-html="diff.close">And PopBot doesn't replace the coding agents you already use — it <strong style="color:#ffd9b0;">runs them</strong>. The exact agents you trust, just many at a time, with orchestration, isolation, and oversight wrapped around them.</p>
   </div>
 </section>
 
@@ -545,9 +489,9 @@
       <p class="lead" data-i18n-html="yours.lead">PopBot was shaped around one team driving one game. But the shape that made it powerful — agents, warm slots, an inbox-as-queue, an app-under-test, and a live fleet view — is <strong>general</strong>. The specifics are just defaults.</p>
     </div>
     <div class="yours">
-      <div class="ycard"><h4><i class="fa-solid fa-cube"></i> <span data-i18n="yours.swap.t">Swap the app-under-test</span></h4><p data-i18n="yours.swap.b">The Unity integration is one implementation of "let the agent run and verify the app." Replace it with your web app, your CLI, your own test harness.</p></div>
-      <div class="ycard"><h4><i class="fa-solid fa-inbox"></i> <span data-i18n="yours.inbox.t">Point the inbox elsewhere</span></h4><p data-i18n="yours.inbox.b">Linear and GitHub are wired in, but the inbox-as-queue model is generic — adapt it to your tracker.</p></div>
-      <div class="ycard"><h4><i class="fa-solid fa-code-branch"></i> <span data-i18n="yours.git.t">Rewire the git actions</span></h4><p data-i18n="yours.git.b">Branch conventions, PR flows, and action templates are all yours to change in Preferences or in code.</p></div>
+      <div class="ycard"><h4><i class="fa-solid fa-cube"></i> <span data-i18n="yours.swap.t">Swap the app-under-test</span></h4><div class="ycard-stack"><span class="chipset"><span class="logo-tile"><img src="images/unity-white.webp" alt="Unity" /></span><span class="cn">Unity</span></span><i class="fa-solid fa-arrow-right"></i><span class="chipset"><span class="logo-tile"><img src="images/unreal-white.webp" alt="Unreal Engine" /></span><span class="cn">Unreal</span></span></div><p data-i18n="yours.swap.b">The Unity integration is one implementation of "let the agent run and verify the app." Replace it with your web app, your CLI, your own test harness.</p></div>
+      <div class="ycard"><h4><i class="fa-solid fa-inbox"></i> <span data-i18n="yours.inbox.t">Point the inbox elsewhere</span></h4><div class="ycard-stack"><span class="chipset"><span class="logo-tile"><img src="images/linear.webp" alt="Linear" /></span><span class="cn">Linear</span></span><i class="fa-solid fa-arrow-right"></i><span class="chipset"><span class="logo-tile"><img src="images/jira.webp" alt="Jira" /></span><span class="cn">Jira</span></span></div><p data-i18n="yours.inbox.b">Linear and GitHub are wired in, but the inbox-as-queue model is generic — adapt it to your tracker.</p></div>
+      <div class="ycard"><h4><i class="fa-solid fa-code-branch"></i> <span data-i18n="yours.git.t">Rewire the git actions</span></h4><div class="ycard-stack"><span class="chipset"><span class="logo-tile"><img src="images/github.webp" alt="GitHub" /></span><span class="cn">GitHub</span></span><i class="fa-solid fa-arrow-right"></i><span class="chipset"><span class="logo-tile"><img src="images/p4.webp" alt="Perforce" /></span><span class="cn">Perforce</span></span></div><p data-i18n="yours.git.b">Branch conventions, PR flows, and action templates are all yours to change in Preferences or in code.</p></div>
       <div class="ycard"><h4><i class="fa-solid fa-fire"></i> <span data-i18n="yours.core.t">Keep the core</span></h4><p data-i18n="yours.core.b">Warm slots, persistent chats, the live-thumbnail fleet view, and the permission floor are the durable ideas worth keeping.</p></div>
     </div>
   </div>
@@ -731,8 +675,13 @@
         // Full Font Awesome class incl. style prefix, e.g. "fa-solid fa-clone"
         // or "fa-brands fa-jira". Sanitized to letters/digits/dash/space.
         var ic=(h.icon||'fa-solid fa-star').replace(/[^a-z0-9\- ]/gi,'');
-        return '<li><span class="ic"><i class="'+ic+'"></i></span>'+
-          '<div><h4></h4><p></p></div></li>';
+        // Optional brand logo (webp/png) shown in place of the glyph — used for
+        // integration features. Path sanitized to a safe relative asset ref.
+        var img=(h.img||'').replace(/[^a-z0-9._/\- ]/gi,'');
+        var media=img
+          ? '<span class="ic ic-img"><img src="'+img+'" alt="" loading="lazy"></span>'
+          : '<span class="ic"><i class="'+ic+'"></i></span>';
+        return '<li>'+media+'<div><h4></h4><p></p></div></li>';
       }).join('');
       // Set text via DOM so titles/bodies can never inject markup.
       var items=ul.querySelectorAll('li');
@@ -796,7 +745,9 @@
   // In preview, try a same-origin manifest.json first (local dev may serve the
   // sample); production has none (excluded from deploy), so this 404s and we
   // fall through to the live R2 manifest below — whose beta renders because
-  // `preview` bypasses the visible:false gate in applyBeta.
+  // `preview` bypasses the visible:false gate in applyBeta. WITHOUT `preview`,
+  // we do NOT read the local manifest at all, so the beta band only ever shows
+  // when a live R2 manifest marks the beta visible:true. Keep this gating.
   var chain=preview?getJson('manifest.json').then(fromManifest):Promise.reject();
 
   chain
