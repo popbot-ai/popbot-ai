@@ -548,9 +548,6 @@ export function registerChatHandlers(): void {
         if (!reopened) return { ok: false, reason: 'not-found' };
         return { ok: true, chat: reopened };
       }
-      // The slot this chat last ran in, so we can flag a genuine slot change
-      // (its cwd moved) to the agent — a same-slot reopen must not.
-      const previousSlotId = chat.slotId;
       const slotId = allocateSlotPreferring(maxSlots, chat.slotId);
       if (slotId === null) return { ok: false, reason: 'no-free-slot' };
       const worktreePath = slotWorktreePathForRepo(repo, slotId);
@@ -582,13 +579,14 @@ export function registerChatHandlers(): void {
       }
       const reopened = reopenChat(chatId, { slotId, worktreePath });
       if (!reopened) return { ok: false, reason: 'not-found' };
-      // If the chat resumed into a DIFFERENT slot, its cwd moved and the path
-      // the agent recalls is stale. Flag it so the invisible preamble on the
-      // next message tells the agent (see firstMessageCwdPreamble). A same-slot
-      // reopen isn't flagged, so the agent isn't falsely told its cwd changed.
-      if (previousSlotId != null && previousSlotId !== slotId) {
-        AgentHost.markCwdChanged(chatId);
-      }
+      // A reopened slot-backed chat was closed (which nulls its slot_id) and is
+      // now (re)attached to a slot — often a different one, since slot
+      // allocation can't guarantee the same number. We can't compare to the old
+      // slot (closeChat already cleared it), so flag the resume unconditionally:
+      // the invisible preamble on the next message re-states the current working
+      // directory (see firstMessageCwdPreamble) so the agent doesn't follow a
+      // stale path it recalls from before the close.
+      AgentHost.markResumed(chatId);
       return { ok: true, chat: reopened };
     },
   );

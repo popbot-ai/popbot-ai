@@ -105,24 +105,26 @@ export function sessionCwdForChat(
  * receives in a spawned session. It is NOT stored or shown in the transcript —
  * only the agent sees it — so the chat history stays clean.
  *
- * Three cases, keyed off two authoritative signals:
- *   - `isFresh` (no prior agent message): a brand-new chat → announce the cwd
- *     and promise a heads-up if it ever moves.
- *   - `cwdChanged` (reopened into a DIFFERENT slot, per the reopen handler): the
- *     path the agent recalls is stale → announce the new cwd.
- *   - otherwise (resumed into the SAME slot): the agent already knows its cwd
- *     from prior context → say nothing (return '').
+ * Three cases:
+ *   - `isFresh` (no prior agent message): a brand-new chat → announce the cwd,
+ *     the user's language, and promise a heads-up on resume.
+ *   - `resumed` (reopened from the inactive list — flagged by the reopen
+ *     handler): the chat was closed and re-attached to a slot, so re-state the
+ *     current cwd because it may differ from the path the agent recalls. We
+ *     can't tell if the slot number actually changed (closeChat nulls the old
+ *     slot_id), so we always re-state on resume rather than risk staying silent.
+ *   - neither (a live in-session turn): the agent already knows its cwd → '' .
  *
- * Returns '' when there's no resolvable cwd (raw scratch chats, mis-config), or
- * for a same-slot resume. MCP config is handled automatically at editor-launch
- * time, so it is deliberately NOT mentioned here.
+ * Returns '' when there's no resolvable cwd (raw scratch chats, mis-config).
+ * MCP config is handled automatically at editor-launch time, so it is
+ * deliberately NOT mentioned here.
  */
 export function firstMessageCwdPreamble(
   chat: Pick<ChatRecord, 'slotId' | 'repoId' | 'worktreePath'> | null | undefined,
   isFresh: boolean,
-  cwdChanged: boolean,
+  resumed: boolean,
 ): string {
-  if (!isFresh && !cwdChanged) return '';
+  if (!isFresh && !resumed) return '';
   const cwd = sessionCwdForChat(chat);
   if (!cwd) return '';
   // A LOCAL (not UTC) timestamp so the agent can gauge how much wall-clock time
@@ -132,10 +134,10 @@ export function firstMessageCwdPreamble(
   return isFresh
     ? `[System] Starting up at ${now} in this working directory: ${cwd}.${languageDirective()} ` +
         `Instructions will follow. If this chat is later paused and resumed, you'll be told here ` +
-        `whether the working directory has changed.\n\n`
-    : `[System] This chat resumed at ${now} in a new working directory: ${cwd} — the slot ` +
-        `changed, so use this path for all file reads, edits, and commands from here on; any ` +
-        `path you recall from earlier is stale.\n\n`;
+        `its working directory (which may have changed).\n\n`
+    : `[System] This chat resumed at ${now}. Its working directory is now: ${cwd} — this may ` +
+        `differ from before (a resumed chat can move to a new slot), so use this path for all ` +
+        `file reads, edits, and commands from here on; any path you recall from earlier may be stale.\n\n`;
 }
 
 /** A sentence telling the agent to respond in the user's chosen UI language,
@@ -178,12 +180,10 @@ function rawChatCwd(): string {
 class AgentHostImpl {
   private webContents: WebContents | null = null;
   private readonly sessions = new Map<string, AgentSession>();
-  // Chats that reopened into a DIFFERENT slot than they last ran in. The next
-  // first-message preamble tells the agent its working directory changed, then
-  // the flag is cleared. Set authoritatively by the reopen handler (it's the
-  // only place that knows the old vs new slot); a same-slot reopen never sets
-  // it, so the agent isn't falsely told its cwd moved.
-  private readonly cwdChangedChats = new Set<string>();
+  // Chats that were just reopened from the inactive list. The next first-message
+  // preamble re-states the current working directory (it may have moved slots),
+  // then the flag is cleared. Set by the reopen handler.
+  private readonly resumedChats = new Set<string>();
   private readonly textBuffers = new Map<
     string,
     { chatId: string; messageId: string; buffer: string; flushTimer: NodeJS.Timeout | null }
@@ -205,11 +205,11 @@ class AgentHostImpl {
     this.webContents = webContents;
   }
 
-  /** Record that a chat resumed into a different worktree slot, so the next
-   *  first-message preamble tells the agent its working directory changed.
-   *  Called by the reopen handler, which alone knows the old vs new slot. */
-  markCwdChanged(chatId: string): void {
-    this.cwdChangedChats.add(chatId);
+  /** Record that a chat was just reopened, so the next first-message preamble
+   *  re-states its (possibly moved) working directory to the agent. Called by
+   *  the reopen handler. */
+  markResumed(chatId: string): void {
+    this.resumedChats.add(chatId);
   }
 
   /** Send a user message to a chat. Spawns a session if none exists. */
@@ -227,14 +227,14 @@ class AgentHostImpl {
 
     // Prepend an invisible working-directory preamble on the FIRST message of a
     // spawned session (no live session yet) — only the agent sees it (the
-    // stored/broadcast user bubble below uses the raw `text`). Fresh chats get a
-    // "starting up here" note; a chat that reopened into a DIFFERENT slot gets a
-    // "your cwd changed" note (flag set by the reopen handler). A resume into the
-    // same slot needs neither — the agent already has its cwd from prior context.
+    // stored/broadcast user bubble below uses the raw `text`). A fresh chat gets
+    // a "starting up here" note; a reopened chat (flagged by the reopen handler)
+    // gets its current cwd re-stated in case it moved slots. A live in-session
+    // turn gets nothing — the agent already knows its cwd.
     const firstOfSession = !this.sessions.get(chatId)?.isAlive();
     const isFresh = !listMessages(chatId).some((m) => m.role === 'agent');
-    const cwdChanged = this.cwdChangedChats.delete(chatId);
-    const preamble = firstOfSession ? firstMessageCwdPreamble(chat, isFresh, cwdChanged) : '';
+    const resumed = this.resumedChats.delete(chatId);
+    const preamble = firstOfSession ? firstMessageCwdPreamble(chat, isFresh, resumed) : '';
 
     const storedAttachments = await persistChatAttachments(chatId, attachments);
     const userMsg = appendMessage({
