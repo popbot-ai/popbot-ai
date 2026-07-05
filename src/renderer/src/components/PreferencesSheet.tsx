@@ -1185,10 +1185,13 @@ function EngineConfigPanel({ engineId }: { engineId: GameEngineId }): JSX.Elemen
   const [titleScript, setTitleScript] = useState<{ ok: boolean; msg: string } | null>(null);
   const enabled = engineEnabled(cfg, engineId);
   // MCP is only meaningful for the two detectable editors, not Custom.
+  // Inline the narrowing so `engineId` is provably `'unity' | 'unreal'` at the
+  // mcpDefaultBasePort call (a separate boolean const doesn't narrow it).
   const supportsMcp = engineId === 'unity' || engineId === 'unreal';
   // Engine MCP (Unity + Unreal): the base-port field is a free-text buffer (so
   // a mid-edit empty string doesn't snap back), committed to settings on blur.
-  const engineDefaultMcpPort = supportsMcp ? mcpDefaultBasePort(engineId) : 0;
+  const engineDefaultMcpPort =
+    engineId === 'unity' || engineId === 'unreal' ? mcpDefaultBasePort(engineId) : 0;
   const [mcpBasePort, setMcpBasePort] = useState(String(cfg.mcpBasePort ?? engineDefaultMcpPort));
 
   const refresh = async () => {

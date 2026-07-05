@@ -234,7 +234,9 @@ class AgentHostImpl {
     // turn gets nothing — the agent already knows its cwd.
     const firstOfSession = !this.sessions.get(chatId)?.isAlive();
     const isFresh = !listMessages(chatId).some((m) => m.role === 'agent');
-    const resumed = this.resumedChats.delete(chatId);
+    // Read (don't consume) the resume flag — we only clear it AFTER the message
+    // is actually delivered, so a spawn/send failure preserves it for the retry.
+    const resumed = this.resumedChats.has(chatId);
     const preamble = firstOfSession ? firstMessageCwdPreamble(chat, isFresh, resumed) : '';
 
     const storedAttachments = await persistChatAttachments(chatId, attachments);
@@ -274,6 +276,8 @@ class AgentHostImpl {
       // The preamble (if any) rides on the first message to the agent only; it
       // is intentionally absent from the persisted/broadcast user bubble above.
       await session.sendUser(preamble + text, storedAttachments);
+      // Delivered — now consume the resume flag so it doesn't re-fire next turn.
+      if (resumed) this.resumedChats.delete(chatId);
     } catch (err) {
       // Spawn-time failure: surface immediately as a chat error so the
       // user sees something instead of a silent stuck 'run' status.
@@ -652,8 +656,11 @@ class AgentHostImpl {
     // with MCP enabled, hand the agent its slot's editor MCP server (a unique
     // localhost port per slot). Registered in-memory in the SDK options — no
     // file on disk, no git-tracked config touched. Only the mcpHttp-capable
-    // backend (Claude) consumes it; others ignore it.
-    const editorMcp = backend.capabilities.mcpHttp ? mcpEndpointForChat(chatId, cwd) : null;
+    // backend (Claude) consumes it; others ignore it. Detect from the WORKTREE
+    // ROOT (liveWorktree), not `cwd` — for Perforce, cwd can be a subdir and the
+    // engine markers (a .uproject / ProjectSettings) live at the root.
+    const editorMcp =
+      backend.capabilities.mcpHttp ? mcpEndpointForChat(chatId, liveWorktree ?? cwd) : null;
     const mcpServers = editorMcp
       ? { [editorMcp.name]: { type: 'http' as const, url: editorMcp.url } }
       : undefined;
