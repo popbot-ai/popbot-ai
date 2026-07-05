@@ -33,6 +33,32 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # Injects site tracking markup at deploy time so it's kept out of the
+      # repo. index.html carries an inert `<!-- SITE_TRACKING_TAG_1 -->` marker;
+      # we replace it with the value of SITE_TRACKING_TAG_1. If that value is
+      # unset the marker is left as an inert comment, so the build never breaks
+      # and nothing extra ships. The value is passed via env (never interpolated
+      # into the script body) and the replacement is a literal string swap
+      # (no regex) so its contents can't corrupt the HTML.
+      - name: Inject site tracking tag
+        env:
+          SITE_TRACKING_TAG_1: ${{ secrets.SITE_TRACKING_TAG_1 }}
+        run: |
+          python3 - <<'PY'
+          import os, pathlib
+          marker = "<!-- SITE_TRACKING_TAG_1 -->"
+          snippet = os.environ.get("SITE_TRACKING_TAG_1", "")
+          p = pathlib.Path("site/index.html")
+          html = p.read_text(encoding="utf-8")
+          if marker not in html:
+              raise SystemExit("ERROR: injection marker not found in site/index.html")
+          if snippet.strip():
+              p.write_text(html.replace(marker, snippet), encoding="utf-8")
+              print("Injected SITE_TRACKING_TAG_1.")
+          else:
+              print("SITE_TRACKING_TAG_1 is empty; leaving inert marker in place.")
+          PY
+
       # wrangler-action installs wrangler itself. site/ has no package.json,
       # so nothing else is installed — no node-pty, no app build.
       - name: Deploy site/ to Cloudflare
