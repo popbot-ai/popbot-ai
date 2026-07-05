@@ -1043,6 +1043,7 @@ export const de = {
   'prefs.permissions.tool.exitPlanMode.desc': 'Den Plan-Modus verlassen und den Plan präsentieren.',
   'prefs.permissions.tool.mcpUnreal.desc': 'Alle MCP-Tools des Unreal-Editors (den laufenden Editor steuern).',
   'prefs.permissions.tool.mcpUnity.desc': 'Alle MCP-Tools des Unity-Editors (den laufenden Editor steuern).',
+  'prefs.permissions.mcpAllTools': 'alle Tools',
   'prefs.permissions.title': 'Berechtigungen',
   'prefs.permissions.desc':
     'Globaler Standard für jedes Tool. „Fragen“ fragt jedes Mal im Chat nach (der Standard). „Erlauben“ genehmigt automatisch ohne Nachfrage. „Verweigern“ lehnt automatisch ab. Chat-spezifische Regeln — über die Berechtigungskarte mit „Für diesen Chat erlauben“ / „Für diesen Chat verweigern“ gesetzt — überschreiben diese globalen Werte, sodass ein einzelner Chat ein Tool sperren kann, das Sie sonst überall erlaubt haben.',

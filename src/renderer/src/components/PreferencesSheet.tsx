@@ -39,6 +39,7 @@ import {
 } from '@shared/persistence';
 import type { SourceControlProviderId } from '@shared/sourceControl';
 import type { BasePreflightInfo } from '@shared/ipc';
+import { isMcpTool, mcpServerOfTool, permissionRuleMatches } from '@shared/agent';
 import { useSettings } from '../lib/useSettings';
 import { ConfigureSlotsPanel } from './ConfigureSlotsPanel';
 import { P4Glyph } from './P4Glyph';
@@ -2919,17 +2920,40 @@ function PrefsPermissions(): JSX.Element {
     { name: 'mcp__unityEditor__*', descKey: 'prefs.permissions.tool.mcpUnity.desc' },
   ];
 
+  // A friendly display label for a rule's tool pattern. MCP tools read
+  // `mcp__unrealEditor__call_tool`; show `unrealEditor → call_tool` (and
+  // `unrealEditor → all tools` for a wildcard) instead of the raw namespace.
+  const labelForTool = (name: string): string => {
+    if (!isMcpTool(name)) return name;
+    const server = mcpServerOfTool(name) ?? 'MCP';
+    const rest = name.slice(`mcp__${server}__`.length);
+    return `${server} → ${rest === '*' ? t('prefs.permissions.mcpAllTools') : rest}`;
+  };
+
   // Merge core tools + MCP server toggles with user-added (non-core) rules so
   // MCP / custom tools the user has opinions on don't disappear from the list.
   const alwaysShown = new Set([
     ...CORE_TOOLS.map((tool) => tool.name),
     ...MCP_SERVER_TOGGLES.map((m) => m.name),
   ]);
-  const customToolNames = rules.map((r) => r.tool).filter((name) => !alwaysShown.has(name));
-  const renderRows: Array<{ name: string; description: string | null }> = [
-    ...CORE_TOOLS.map((tool) => ({ name: tool.name, description: t(tool.descKey) })),
-    ...MCP_SERVER_TOGGLES.map((m) => ({ name: m.name, description: t(m.descKey) })),
-    ...customToolNames.map((name) => ({ name, description: null })),
+  // Auto-collapse: hide a per-tool MCP rule when a wildcard for the SAME server
+  // already covers it with the SAME action — the wildcard row makes it
+  // redundant. Keep it when the actions differ (a meaningful per-tool override).
+  const isRedundantUnderWildcard = (name: string): boolean => {
+    if (!isMcpTool(name) || name.endsWith('*')) return false;
+    const rule = rules.find((r) => r.tool === name);
+    if (!rule) return false;
+    return rules.some(
+      (w) => w.tool.endsWith('*') && w.action === rule.action && permissionRuleMatches(w.tool, name),
+    );
+  };
+  const customToolNames = rules
+    .map((r) => r.tool)
+    .filter((name) => !alwaysShown.has(name) && !isRedundantUnderWildcard(name));
+  const renderRows: Array<{ name: string; label: string; description: string | null }> = [
+    ...CORE_TOOLS.map((tool) => ({ name: tool.name, label: tool.name, description: t(tool.descKey) })),
+    ...MCP_SERVER_TOGGLES.map((m) => ({ name: m.name, label: labelForTool(m.name), description: t(m.descKey) })),
+    ...customToolNames.map((name) => ({ name, label: labelForTool(name), description: null })),
   ];
 
   const stateLabel: Record<ToolState, string> = {
@@ -2975,7 +2999,7 @@ function PrefsPermissions(): JSX.Element {
             >
               <div style={{ flex: 1, minWidth: 0, overflow: 'hidden' }}>
                 <div style={{ fontFamily: 'var(--font-mono)', fontSize: 13 }}>
-                  {row.name}
+                  {row.label}
                 </div>
                 <div
                   style={{
@@ -2993,7 +3017,7 @@ function PrefsPermissions(): JSX.Element {
               <div
                 style={{ display: 'flex', gap: 2, flex: '0 0 auto' }}
                 role="radiogroup"
-                aria-label={t('prefs.permissions.toolDefaultAria', { tool: row.name })}
+                aria-label={t('prefs.permissions.toolDefaultAria', { tool: row.label })}
               >
                 {(['ask', 'allow', 'deny'] as const).map((s) => (
                   <button

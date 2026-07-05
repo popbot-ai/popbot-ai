@@ -1044,6 +1044,7 @@ export const ptBR = {
   'prefs.permissions.tool.exitPlanMode.desc': 'Sair do modo de plano e apresentar o plano.',
   'prefs.permissions.tool.mcpUnreal.desc': 'Todas as ferramentas MCP do editor do Unreal (controlar o Editor em execução).',
   'prefs.permissions.tool.mcpUnity.desc': 'Todas as ferramentas MCP do editor do Unity (controlar o Editor em execução).',
+  'prefs.permissions.mcpAllTools': 'todas as ferramentas',
   'prefs.permissions.title': 'Permissões',
   'prefs.permissions.desc':
     'Padrão global para cada ferramenta. Perguntar consulta o chat a cada vez (o padrão). Permitir aprova automaticamente sem perguntar. Negar rejeita automaticamente. Regras por chat — definidas no cartão de permissão via "Permitir neste chat" / "Negar neste chat" — substituem esses padrões globais, então um único chat pode bloquear uma ferramenta que você permitiu em todos os lugares.',
