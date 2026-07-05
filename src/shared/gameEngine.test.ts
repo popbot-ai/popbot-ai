@@ -6,7 +6,7 @@ import {
   mcpPortForSlot,
   mcpServerName,
   unityMcpUrlArg,
-  unrealMcpIniArg,
+  unrealMcpArgs,
 } from './gameEngine';
 
 describe('mcpPortForSlot', () => {
@@ -43,22 +43,26 @@ describe('mcpPortForSlot', () => {
 
 describe('mcpDefaultBasePort', () => {
   it('matches each engine plugin default', () => {
-    expect(mcpDefaultBasePort('unreal')).toBe(8001);
+    // Unreal → Epic's ModelContextProtocol default (8000); Unity → Unity-MCP's.
+    expect(mcpDefaultBasePort('unreal')).toBe(8000);
     expect(mcpDefaultBasePort('unity')).toBe(8080);
-    expect(MCP_DEFAULT_BASE_PORT.unreal).toBe(8001);
+    expect(MCP_DEFAULT_BASE_PORT.unreal).toBe(8000);
     expect(MCP_DEFAULT_BASE_PORT.unity).toBe(8080);
   });
 });
 
-describe('unrealMcpIniArg', () => {
-  it('produces the exact -ini: override Unreal expects', () => {
-    expect(unrealMcpIniArg(8001)).toBe(
-      '-ini:Engine:[/Script/ModelContextProtocolEngine.ModelContextProtocolSettings]:ServerPortNumber=8001',
-    );
+describe('unrealMcpArgs', () => {
+  it('starts the server AND sets the port (the plugin needs both)', () => {
+    // Without -ModelContextProtocolStartServer the plugin's Auto Start Server
+    // pref defaults off, so the server never starts and the port is moot.
+    expect(unrealMcpArgs(8001)).toEqual([
+      '-ModelContextProtocolStartServer',
+      '-ModelContextProtocolPort=8001',
+    ]);
   });
 
-  it('embeds the given port', () => {
-    expect(unrealMcpIniArg(8003)).toContain('ServerPortNumber=8003');
+  it('embeds the per-slot port', () => {
+    expect(unrealMcpArgs(8003)).toContain('-ModelContextProtocolPort=8003');
   });
 });
 
@@ -73,9 +77,9 @@ describe('unityMcpUrlArg', () => {
 });
 
 describe('agent-facing MCP endpoint', () => {
-  it('mcpEndpointUrl points at the per-slot /mcp endpoint', () => {
-    expect(mcpEndpointUrl(8080)).toBe('http://localhost:8080/mcp');
-    expect(mcpEndpointUrl(8082)).toBe('http://localhost:8082/mcp');
+  it('mcpEndpointUrl points at the per-slot /mcp endpoint on loopback', () => {
+    expect(mcpEndpointUrl(8080)).toBe('http://127.0.0.1:8080/mcp');
+    expect(mcpEndpointUrl(8082)).toBe('http://127.0.0.1:8082/mcp');
   });
 
   it('mcpServerName is stable per engine', () => {

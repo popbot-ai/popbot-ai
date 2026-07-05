@@ -23,7 +23,7 @@ import {
   mcpDefaultBasePort,
   mcpEndpointUrl,
   mcpServerName,
-  unrealMcpIniArg,
+  unrealMcpArgs,
   unityMcpUrlArg,
 } from '@shared/gameEngine';
 import { getSetting } from '../persistence/settings';
@@ -640,14 +640,14 @@ function resolveMcpPort(id: GameEngineId, ec: GameEngineConfig, chatId?: string)
 
 /**
  * The per-slot MCP launch argument(s) for an engine, or `[]` when MCP is off or
- * unsupported. The flag shape differs (Unreal: an `-ini:` override; Unity: a
- * `-url=` for the IvanMurzak/Unity-MCP plugin) but both carry the same per-slot
- * port from {@link resolveMcpPort}.
+ * unsupported. The flags differ (Unreal: `-ModelContextProtocolStartServer`
+ * `-ModelContextProtocolPort=N`; Unity: `-url=` for the IvanMurzak/Unity-MCP
+ * plugin) but both carry the same per-slot port from {@link resolveMcpPort}.
  */
 function mcpLaunchArgs(id: GameEngineId, ec: GameEngineConfig, chatId?: string): string[] {
   const port = resolveMcpPort(id, ec, chatId);
   if (port === null) return [];
-  return id === 'unreal' ? [unrealMcpIniArg(port)] : [unityMcpUrlArg(port)];
+  return id === 'unreal' ? unrealMcpArgs(port) : [unityMcpUrlArg(port)];
 }
 
 /**

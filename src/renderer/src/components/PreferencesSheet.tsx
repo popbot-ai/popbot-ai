@@ -1381,7 +1381,7 @@ function EngineConfigPanel({ engineId }: { engineId: GameEngineId }): JSX.Elemen
           {/* Engine MCP (Unity / Unreal) — persists immediately (like the enable
               toggle). When on, each slot's Editor is launched with an MCP port
               derived from the base port + slot index. Title/desc are per-engine
-              (Unity → IvanMurzak/Unity-MCP URL; Unreal → -ini: server port). */}
+              (Unity → IvanMurzak/Unity-MCP URL; Unreal → Epic's MCP plugin flags). */}
           <div className="pref-row">
             <div className="pref-label">
               <div className="pref-label-title">{t(`prefs.engine.mcp.${engineId}.title`)}</div>
