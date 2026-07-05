@@ -121,7 +121,10 @@ old transcript stays. The model never silently rewrites history.
 
 ### Slot
 
-A git worktree + Library + (optionally) a running Unity Editor +
+A warm, isolated, disposable workspace: an isolated checkout over a
+copy-on-write folder (a Git worktree, or a Perforce client) + a warm
+build cache (e.g. an engine's asset/import cache) + (optionally) a running
+editor for the app under test (Unity, Unreal, or a custom engine) +
 (optionally) a running sidecar server. **Created rarely, reused
 continuously.** Slots are owned by the user / app, not by Chats.
 
@@ -131,7 +134,7 @@ interface SlotRecord {
   worktreePath: string;
   branch: string | null;                        // null if free / detached
   ports: { mcp: number; server: number };
-  unityPid: number | null;                      // refreshed via PID liveness
+  unityPid: number | null;                      // editor PID; refreshed via PID liveness
   serverPid: number | null;
   state: 'free' | 'leased' | 'degraded' | 'creating';
   pinnedBranch?: string;                        // refuse leases for other branches
@@ -158,13 +161,20 @@ interface PermissionGrant {
   id: string;                                   // grant_<12hex>
   scope: 'global' | 'chat';
   chatId: string | null;                        // non-null iff scope='chat'
-  tool: string;                                 // e.g. 'Bash', 'git_push', 'mcp__linear__save_issue'
+  tool: string;                                 // exact tool, e.g. 'Bash', 'git_push', 'mcp__linear__save_issue',
+                                                //   OR a trailing-`*` wildcard, e.g. 'mcp__unrealEditor__*'
   /** Optional refinement: 'Bash' tool restricted to commands matching this prefix. */
   argMatcher: string | null;                    // raw string OR /regex/ — TBD
   decision: 'allow' | 'deny';
   createdAt: number;
 }
 ```
+
+`tool` may be a trailing-`*` wildcard, so an entire MCP server can be
+allowed with one grant (`allow-mcp-server` → `mcp__<server>__*`) — this is
+how a slot's editor MCP is permitted once instead of once-per-tool. Deny
+rules always win over allow, and a more specific pattern wins over a
+broader one (see `resolvePermissionRules` in `src/shared/agent.ts`).
 
 Grants accumulate per chat (US-9: "always allow git push for this chat").
 Hard-coded **deny rules** in [adr/0004](adr/0004-canusetool-policy-boundary.md)
@@ -184,13 +194,14 @@ renderer.
 
 ### Cached attention items
 
-Linear tickets, GitHub PRs, Slack messages from the user's queues. Cached
-locally so panels render instantly; refreshed on a schedule + on demand.
+The user's queues of assigned tickets (Linear / Jira / GitHub Issues) and
+pending reviews (GitHub PRs / Helix Swarm changelists). Cached locally so
+panels render instantly; refreshed on a schedule + on demand.
 
 ```ts
 interface AttentionItem {
-  id: string;                                   // source-prefixed: linear:ENG-20512, gh:7401, slack:ts-ch
-  source: 'linear' | 'github' | 'slack';
+  id: string;                                   // source-prefixed: linear:ENG-20512, jira:ENG-123, gh:7401, swarm:1284
+  source: 'linear' | 'jira' | 'github' | 'swarm';
   /** Source-specific raw payload, JSON. */
   payload: string;
   /** Local UI-state: have I dismissed this? Is there a chat already open for it? */
@@ -200,7 +211,9 @@ interface AttentionItem {
 }
 ```
 
-Cached, not authoritative — the source of truth is Linear / GitHub / Slack.
+Ticket sources are interchangeable behind a common provider (Linear, Jira,
+GitHub Issues); review sources likewise (GitHub PRs, Swarm). Cached, not
+authoritative — the source of truth is the tracker / review system itself.
 
 ---
 
@@ -209,7 +222,8 @@ Cached, not authoritative — the source of truth is Linear / GitHub / Slack.
 ### AgentSession
 
 The thing that talks to the LLM. One AgentSession per "running" Chat.
-Backed by an `AgentBackend` (Claude SDK in v1; Codex SDK later).
+Backed by an `AgentBackend` (the Claude Agent SDK or the Codex SDK; both
+ship today).
 
 ```ts
 interface AgentSession {
@@ -255,10 +269,12 @@ the agent's tool call gets cancelled on restart.
 
 ### Process supervisor handles
 
-Per slot: a `child_process.ChildProcess` for Unity, another for sidecar.
-Owned by `SlotManager`. Health-checked via PID liveness + HTTP probes.
-Killed on slot release / app quit. **Reconciled on startup** by walking
-the slot dir's `slot.json` and verifying recorded PIDs are still alive.
+Per slot: a `child_process.ChildProcess` for the app-under-test editor
+(Unity / Unreal / custom engine — the `unityPid` field records its PID
+regardless of engine), another for the sidecar server. Owned by
+`SlotManager`. Health-checked via PID liveness + HTTP probes. Killed on
+slot release / app quit. **Reconciled on startup** by walking the slot
+dir's `slot.json` and verifying recorded PIDs are still alive.
 
 ---
 
@@ -407,9 +423,10 @@ interface AgentBackend {
 }
 ```
 
-- **ClaudeBackend** wraps `@anthropic-ai/claude-agent-sdk`. Default in v1.
-- **CodexBackend** wraps OpenAI Agents SDK. Phase 4. UI surfaces the
-  reduced capability set (no skills, no memory).
+- **ClaudeBackend** wraps `@anthropic-ai/claude-agent-sdk`. The default.
+- **CodexBackend** wraps `@openai/codex-sdk` (which drives `codex exec`).
+  Shipped. Each backend advertises its `capabilities` and the UI
+  feature-detects them per chat.
 - **StubBackend** echoes user text with a fake stream. Used for wiring
   validation + UI tests.
 
