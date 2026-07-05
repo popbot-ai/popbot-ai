@@ -1,3 +1,7 @@
+# Local scratch / holding area — design-pass drops, raw asset sources, and
+# anything parked out of the working set. Never committed; keep it local.
+attic/
+
 # macOS
 .DS_Store
 .AppleDouble
