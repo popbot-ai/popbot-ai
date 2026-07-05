@@ -26,6 +26,7 @@
   <div class="wrap">
     <a class="brand" href="#top"><img src="images/popbot_icon.png" alt="PopBot" />PopBot</a>
     <div class="links">
+      <a href="#slots" data-i18n="nav.slots">Warm slots</a>
       <a href="#why" data-i18n="nav.why">Why</a>
       <a href="#features" data-i18n="nav.features">Features</a>
       <a href="#different" data-i18n="nav.different">How it's different</a>
@@ -159,6 +160,148 @@
   </div>
 </header>
 
+<!-- WARM SLOTS — the defining feature. Placed right after the hero: this is
+     what nothing else has. Three beats: the problem, how slots solve it, why
+     it's unique. -->
+<section class="sec slotsband" id="slots">
+  <div class="wrap">
+    <div class="sec-head">
+      <span class="eyebrow"><span class="dot"></span><span data-i18n="slots.eyebrow">The feature nobody else has</span></span>
+      <h2 data-i18n="slots.h2">Warm slots: parallel agents without the reimport tax.</h2>
+      <p class="lead" data-i18n-html="slots.lead">Run ten agents on a big game project the obvious way and you hit a wall: <strong>every fresh checkout makes the engine rebuild its whole asset cache</strong>. PopBot's answer is the <strong>warm slot</strong> — and it's the one thing other multi-agent tools simply don't do.</p>
+    </div>
+
+    <!-- DIAGRAM 1 — warm slots, three beats. Drawn in HTML/SVG so every label
+         localizes (no baked-in text). -->
+    <div class="dgm">
+      <div class="dgm-flow">
+        <span class="dgm-beat problem"><span data-i18n="slots.beat.problem">The problem</span></span>
+        <span class="dgm-arrow" aria-hidden="true"></span>
+        <span class="dgm-beat ok"><span data-i18n="slots.beat.solution">The solution</span></span>
+        <span class="dgm-arrow" aria-hidden="true"></span>
+        <span class="dgm-beat mute"><span data-i18n="slots.beat.payoff">The payoff</span></span>
+      </div>
+      <div class="dgm-cols">
+        <!-- BEAT 1 · the problem -->
+        <div class="dgm-col">
+          <h3 class="dgm-h" data-i18n="slots.problem.h">Every checkout pays the reimport tax.</h3>
+          <div class="reimport-list">
+            <div class="reimport-row">
+              <div class="reimport-lbl" data-i18n="slots.problem.spawn">spawn a fresh workspace</div>
+              <div class="reimport-bar"><span></span></div>
+              <div class="reimport-sub"><i class="fa-solid fa-hourglass-half"></i> <span data-i18n="slots.problem.reimport">Unity Library reimport · 4–12 min</span></div>
+            </div>
+            <div class="reimport-row">
+              <div class="reimport-lbl" data-i18n="slots.problem.spawn">spawn a fresh workspace</div>
+              <div class="reimport-bar"><span></span></div>
+              <div class="reimport-sub"><i class="fa-solid fa-hourglass-half"></i> <span data-i18n="slots.problem.reimport">Unity Library reimport · 4–12 min</span></div>
+            </div>
+            <div class="reimport-row">
+              <div class="reimport-lbl" data-i18n="slots.problem.spawn">spawn a fresh workspace</div>
+              <div class="reimport-bar"><span></span></div>
+              <div class="reimport-sub"><i class="fa-solid fa-hourglass-half"></i> <span data-i18n="slots.problem.reimport">Unity Library reimport · 4–12 min</span></div>
+            </div>
+          </div>
+          <div class="dgm-cap" data-i18n="slots.problem.cap">wasted time, over and over — cache thrash</div>
+        </div>
+
+        <!-- BEAT 2 · the solution (slot pool) -->
+        <div class="dgm-col">
+          <h3 class="dgm-h" data-i18n="slots.solution.h">A pool of workspaces that stay hot.</h3>
+          <div class="slot-pool" aria-hidden="false">
+            <div class="pslot lease">
+              <span class="pflame"><i class="fa-solid fa-fire"></i></span>
+              <div class="pbody"><div class="pname">slot 1 · eng/20402-srv-ts</div><div class="pmeta"><span data-i18n="slots.pool.hot">Library hot · Editor running</span> · :5101</div></div>
+              <span class="ptag lease" data-i18n="slots.pool.inuse">in use</span>
+            </div>
+            <div class="pslot warm">
+              <span class="pflame"><i class="fa-solid fa-fire"></i></span>
+              <div class="pbody"><div class="pname">slot 2 · eng/20447-library</div><div class="pmeta" data-i18n="slots.pool.idle">idle · cache still hot</div></div>
+              <span class="ptag warm" data-i18n="slots.pool.warm">warm</span>
+            </div>
+            <div class="pslot warm">
+              <span class="pflame"><i class="fa-solid fa-fire"></i></span>
+              <div class="pbody"><div class="pname">slot 3 · eng/20355-arena</div><div class="pmeta" data-i18n="slots.pool.idle">idle · cache still hot</div></div>
+              <span class="ptag warm" data-i18n="slots.pool.warm">warm</span>
+            </div>
+            <div class="pslot free">
+              <span class="pflame cold"><i class="fa-regular fa-snowflake"></i></span>
+              <div class="pbody"><div class="pname">slot 4 · <span data-i18n="slots.pool.availword">available</span></div><div class="pmeta" data-i18n="slots.pool.availmeta">ready to lease</div></div>
+              <span class="ptag free" data-i18n="slots.pool.free">free</span>
+            </div>
+          </div>
+          <div class="dgm-cap"><span data-i18n="slots.pool.cap">a fixed pool, reused</span> · <span data-i18n="slots.pool.leaseloop">lease → work → return</span></div>
+        </div>
+
+        <!-- BEAT 3 · the payoff (timeline) -->
+        <div class="dgm-col">
+          <h3 class="dgm-h" data-i18n="slots.payoff.h">Ready in seconds, not minutes.</h3>
+          <div class="payoff">
+            <div class="payoff-row">
+              <div class="payoff-lbl cold" data-i18n="slots.payoff.cold">cold git checkout</div>
+              <div class="payoff-track"><div class="payoff-fill cold"><span data-i18n="slots.payoff.reimport">reimport · 4–12 min</span></div></div>
+            </div>
+            <div class="payoff-row">
+              <div class="payoff-lbl warm" data-i18n="slots.payoff.warm">warm slot</div>
+              <div class="payoff-track"><div class="payoff-fill warm"></div><span class="payoff-tag"><i class="fa-solid fa-bolt"></i> <span data-i18n="slots.payoff.seconds">ready in seconds</span></span></div>
+            </div>
+            <div class="payoff-axis"><span>0</span><span data-i18n="slots.payoff.axis">time saved every switch →</span><span>~12 min</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- DIAGRAM 2 — copy-on-write: many agents, one repo's disk. -->
+    <div class="dgm cow">
+      <h3 class="dgm-title"><span data-i18n="cow.title.a">5 agents.</span> <span class="accent" data-i18n="cow.title.b">One repo's disk.</span></h3>
+      <div class="cow-cols">
+        <!-- naive -->
+        <div class="cow-side">
+          <div class="cow-head bad" data-i18n="cow.naive.head">WITHOUT COPY-ON-WRITE</div>
+          <div class="cow-bars">
+            <div class="cow-bar big"><span>500<br>GB</span></div>
+            <div class="cow-bar big"><span>500<br>GB</span></div>
+            <div class="cow-bar big"><span>500<br>GB</span></div>
+            <div class="cow-bar big"><span>500<br>GB</span></div>
+            <div class="cow-bar big"><span>500<br>GB</span></div>
+          </div>
+          <div class="cow-total bad">= 2.5 TB</div>
+        </div>
+        <div class="cow-divider" aria-hidden="true"></div>
+        <!-- popbot -->
+        <div class="cow-side">
+          <div class="cow-head good" data-i18n="cow.pop.head">POPBOT SLOTS</div>
+          <div class="cow-tiny-wrap">
+            <div class="cow-tinybars">
+              <div class="cow-tiny"><span class="cow-tiny-lbl">10 MB</span><span class="cow-tiny-bar"></span></div>
+              <div class="cow-tiny"><span class="cow-tiny-lbl">10 MB</span><span class="cow-tiny-bar"></span></div>
+              <div class="cow-tiny"><span class="cow-tiny-lbl">10 MB</span><span class="cow-tiny-bar"></span></div>
+              <div class="cow-tiny"><span class="cow-tiny-lbl">10 MB</span><span class="cow-tiny-bar"></span></div>
+              <div class="cow-tiny"><span class="cow-tiny-lbl">10 MB</span><span class="cow-tiny-bar"></span></div>
+            </div>
+            <svg class="cow-connect" viewBox="0 0 500 46" preserveAspectRatio="none" aria-hidden="true">
+              <path d="M50 0 V22 H250 M150 0 V22 H250 M250 0 V22 M350 0 V22 H250 M450 0 V22 H250 M250 22 V40" fill="none" stroke="#3a4252" stroke-width="1.5"/>
+              <path d="M244 34 L250 42 L256 34" fill="none" stroke="#3a4252" stroke-width="1.5"/>
+            </svg>
+            <div class="cow-base"><span data-i18n="cow.base">shared base · 500 GB</span></div>
+          </div>
+          <div class="cow-total good">= 500 GB <span data-i18n="cow.total">total</span></div>
+        </div>
+      </div>
+      <div class="dgm-cap center"><span data-i18n="cow.cap">copy-on-write clones — each keeps only its own changes · ready in seconds · Windows · macOS · Linux</span></div>
+    </div>
+
+    <!-- BEAT 3 — why it's unique -->
+    <div class="slots-unique">
+      <div class="uniq-head"><i class="fa-solid fa-award"></i> <span data-i18n="slots.unique.tag">Genuinely new</span></div>
+      <p data-i18n-html="slots.unique.p">Every other approach cold-starts. <strong>One agent in an IDE</strong> works a single tree. <strong>Async cloud agents</strong> (Devin, hosted Codex) spin up a remote sandbox per task. <strong>DIY <code>tmux</code> + <code>git worktree</code></strong> is parallel but every checkout pays the tax. PopBot is the only one that manages a pool of <strong style="color:#ffd9b0;">reusable, warm build environments</strong> — the difference between a fleet that flies and one that spends its day waiting on imports.</p>
+      <a class="more" href="#anatomy"><span data-i18n="slots.unique.more">See slots inside the workspace</span> <i class="fa-solid fa-arrow-right"></i></a>
+    </div>
+  </div>
+</section>
+
+<div class="wrap"><div class="divider-glow"></div></div>
+
 <!-- WHY -->
 <section class="sec" id="why">
   <div class="wrap">
@@ -207,34 +350,8 @@
       </div>
     </div>
 
-    <div class="feat flip">
-      <div class="feat-text">
-        <h3><span class="ic"><i class="fa-solid fa-fire"></i></span><span data-i18n="feat.slots.h3">Warm slots for Unity development</span></h3>
-        <p data-i18n-html="feat.slots.p1">Each working chat leases a <strong>slot</strong> — a persistent git worktree plus its own warm build state, created once and reused. For Unity, the slot keeps its own hot <code>Library</code> import cache and can keep the Editor running.</p>
-        <p data-i18n-html="feat.slots.p2">Switching an agent back into its slot takes <strong>seconds, not a multi-minute reimport</strong>. Ten agents run in true branch isolation without thrashing a single Unity cache.</p>
-        <a class="more" href="#docs"><span data-i18n="feat.slots.more">How slots work</span> <i class="fa-solid fa-arrow-right"></i></a>
-      </div>
-      <div class="feat-visual" style="padding:28px;">
-        <div style="width:100%;display:flex;flex-direction:column;gap:11px;">
-          <div style="display:flex;align-items:center;gap:12px;background:var(--bg-1);border:1px solid var(--line-2);border-left:3px solid var(--st-run);border-radius:8px;padding:13px 15px;">
-            <i class="fa-solid fa-fire" style="color:#ff8a4d;"></i>
-            <div style="flex:1;"><div style="color:var(--fg-0);font-weight:600;font-size:14px;">slot 1 · eng/20402-srv-ts</div><div style="font-family:var(--font-mono);font-size:11px;color:var(--fg-2);">Library cache hot · Editor running · :5101</div></div>
-            <span style="font-family:var(--font-mono);font-size:11px;color:var(--st-done);">warm</span>
-          </div>
-          <div style="display:flex;align-items:center;gap:12px;background:var(--bg-1);border:1px solid var(--line-2);border-left:3px solid var(--st-wait);border-radius:8px;padding:13px 15px;">
-            <i class="fa-solid fa-fire" style="color:#ff8a4d;"></i>
-            <div style="flex:1;"><div style="color:var(--fg-0);font-weight:600;font-size:14px;">slot 2 · eng/20447-library</div><div style="font-family:var(--font-mono);font-size:11px;color:var(--fg-2);">Library cache hot · :5102</div></div>
-            <span style="font-family:var(--font-mono);font-size:11px;color:var(--st-done);">warm</span>
-          </div>
-          <div style="display:flex;align-items:center;gap:12px;background:var(--bg-1);border:1px dashed var(--line-3);border-radius:8px;padding:13px 15px;opacity:.6;">
-            <i class="fa-regular fa-snowflake" style="color:var(--fg-3);"></i>
-            <div style="flex:1;"><div style="color:var(--fg-1);font-weight:600;font-size:14px;">slot 3 · available</div><div style="font-family:var(--font-mono);font-size:11px;color:var(--fg-3);">ready to lease</div></div>
-          </div>
-        </div>
-      </div>
-    </div>
 
-    <div class="feat">
+    <div class="feat flip">
       <div class="feat-text">
         <h3><span class="ic"><i class="fa-solid fa-code-branch"></i></span><span data-i18n="feat.git.h3">Worktree-aware git interface</span></h3>
         <p data-i18n-html="feat.git.p1">A built-in <strong>git panel</strong> scoped to <em>each chat's own worktree</em>: working-tree status, recent commits, and per-file diffs for exactly that branch — you're never guessing which checkout you're acting on.</p>
@@ -257,7 +374,7 @@
       </div>
     </div>
 
-    <div class="feat flip">
+    <div class="feat">
       <div class="feat-text">
         <h3><span class="ic"><i class="fa-solid fa-arrows-rotate"></i></span><span data-i18n="feat.workflow.h3">End-to-end workflow</span></h3>
         <p data-i18n-html="feat.workflow.p1">The whole loop in one place: your <strong>inbox</strong> (assigned tickets + PRs awaiting review) → <strong>in-progress</strong> agent work in isolated slots → <strong>GitHub</strong> (commit, push, open the PR) → <strong>code review</strong> in instant repoless chats → <strong>archive</strong> a finished chat → <strong>reopen and restart</strong> later with full history.</p>
@@ -277,42 +394,6 @@
       </div>
     </div>
 
-    <div class="feat">
-      <div class="feat-text">
-        <h3><span class="ic"><i class="fa-solid fa-hard-drive"></i></span><span data-i18n="feat.disk.h3">Unlimited live copies of your repo, for one repo's disk</span></h3>
-        <p data-i18n-html="feat.disk.p1">Open a new chat and it gets a <strong>live, full copy of your repo — and its asset library</strong>, up to <strong>1&nbsp;TB</strong>: real files you can edit, build, and run, completely independent from every other chat.</p>
-        <p data-i18n-html="feat.disk.p2">Each copy is a <strong>copy-on-write workspace folder</strong> — they all share one base image and keep only their own changes, so <strong>unlimited copies use the disk of a single repo</strong>. A fresh copy of a terabyte-scale Perforce or git tree is ready in <strong>seconds</strong>, and freed just as fast. It works the same on Windows, macOS, and Linux.</p>
-        <a class="more" href="#docs"><span data-i18n="feat.disk.more">How virtual workspaces work</span> <i class="fa-solid fa-arrow-right"></i></a>
-      </div>
-      <div class="feat-visual" style="padding:26px;">
-        <div style="width:100%;display:flex;flex-direction:column;gap:10px;">
-          <div style="display:flex;align-items:center;gap:12px;background:var(--bg-1);border:1px solid var(--line-2);border-left:3px solid var(--st-done);border-radius:8px;padding:13px 15px;">
-            <i class="fa-solid fa-database" style="color:#7fd6aa;"></i>
-            <div style="flex:1;"><div style="color:var(--fg-0);font-weight:600;font-size:14px;">autorpg · Perforce depot</div><div style="font-family:var(--font-mono);font-size:11px;color:var(--fg-2);">base image · shared, read-only</div></div>
-            <span style="font-family:var(--font-mono);font-size:12px;color:var(--fg-1);font-weight:600;">1.18 TB</span>
-          </div>
-          <div style="display:flex;align-items:center;gap:12px;background:var(--bg-1);border:1px solid var(--line-2);border-left:3px solid var(--st-run);border-radius:8px;padding:11px 15px;">
-            <i class="fa-solid fa-fire" style="color:#ff8a4d;"></i>
-            <div style="flex:1;"><div style="color:var(--fg-0);font-weight:600;font-size:13.5px;">slot 1 · eng/20402-srv-ts</div><div style="font-family:var(--font-mono);font-size:11px;color:var(--fg-3);">copy-on-write clone</div></div>
-            <span style="font-family:var(--font-mono);font-size:11px;color:var(--st-done);">+ 240 MB</span>
-          </div>
-          <div style="display:flex;align-items:center;gap:12px;background:var(--bg-1);border:1px solid var(--line-2);border-left:3px solid var(--st-wait);border-radius:8px;padding:11px 15px;">
-            <i class="fa-solid fa-fire" style="color:#ff8a4d;"></i>
-            <div style="flex:1;"><div style="color:var(--fg-0);font-weight:600;font-size:13.5px;">slot 2 · eng/20447-library</div><div style="font-family:var(--font-mono);font-size:11px;color:var(--fg-3);">copy-on-write clone</div></div>
-            <span style="font-family:var(--font-mono);font-size:11px;color:var(--st-done);">+ 190 MB</span>
-          </div>
-          <div style="display:flex;align-items:center;gap:12px;background:var(--bg-1);border:1px dashed var(--line-3);border-radius:8px;padding:11px 15px;opacity:.7;">
-            <i class="fa-regular fa-snowflake" style="color:var(--fg-3);"></i>
-            <div style="flex:1;"><div style="color:var(--fg-1);font-weight:600;font-size:13.5px;">slot 3 · available</div></div>
-            <span style="font-family:var(--font-mono);font-size:11px;color:var(--fg-3);">+ 0 B</span>
-          </div>
-          <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 15px 2px;">
-            <span style="font-family:var(--font-mono);font-size:11.5px;color:var(--fg-2);">6 slots on disk</span>
-            <span style="font-family:var(--font-mono);font-size:12px;color:#ffd9b0;font-weight:600;">1.18 TB&nbsp;&nbsp;+&nbsp;0.6 GB</span>
-          </div>
-        </div>
-      </div>
-    </div>
   </div>
 </section>
 
