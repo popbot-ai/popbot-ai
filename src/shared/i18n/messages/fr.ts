@@ -587,6 +587,7 @@ export const fr = {
   'chat.permission.allowOnce': 'Autoriser une fois',
   'chat.permission.allowChat': 'Autoriser ce chat',
   'chat.permission.allowEverywhere': 'Autoriser partout',
+  'chat.permission.allowMcpServer': 'Autoriser tous les outils {server}',
   'chat.permission.deny': 'Refuser',
   'chat.permission.denyEverywhere': 'Refuser partout',
   'chat.qa.questionPrefix': 'Q :',

@@ -587,6 +587,7 @@ export const ptBR = {
   'chat.permission.allowOnce': 'Permitir uma vez',
   'chat.permission.allowChat': 'Permitir neste chat',
   'chat.permission.allowEverywhere': 'Permitir em todos os lugares',
+  'chat.permission.allowMcpServer': 'Permitir todas as ferramentas do {server}',
   'chat.permission.deny': 'Negar',
   'chat.permission.denyEverywhere': 'Negar em todos os lugares',
   'chat.qa.questionPrefix': 'P:',

@@ -358,7 +358,7 @@ export interface MessageBodyPermission {
   args: Record<string, unknown>;
   reason?: string;
   decision?:
-    | 'allow' | 'allow-chat' | 'allow-everywhere'
+    | 'allow' | 'allow-chat' | 'allow-everywhere' | 'allow-mcp-server'
     | 'deny'  | 'deny-everywhere';
 }
 

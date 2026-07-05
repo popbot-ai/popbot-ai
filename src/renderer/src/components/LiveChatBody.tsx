@@ -2,6 +2,7 @@ import { createContext, memo, useContext, useEffect, useLayoutEffect, useMemo, u
 import { createPortal } from 'react-dom';
 import ReactMarkdown, { type Components } from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import { isMcpTool, mcpServerOfTool } from '@shared/agent';
 
 /** Active chatId, provided at the top of the chat body so deeply-nested
  *  markdown link / inline-code / tool-row renderers can resolve relative
@@ -212,7 +213,7 @@ interface LiveChatBodyProps {
    *  permanent. */
   onDecidePermission?: (
     permissionId: string,
-    decision: 'allow' | 'allow-chat' | 'allow-everywhere' | 'deny' | 'deny-everywhere',
+    decision: 'allow' | 'allow-chat' | 'allow-everywhere' | 'allow-mcp-server' | 'deny' | 'deny-everywhere',
   ) => void;
 }
 
@@ -669,7 +670,7 @@ interface MessageRowProps {
   onQuickReply?: (text: string) => void;
   onDecide?: (
     permissionId: string,
-    decision: 'allow' | 'allow-chat' | 'allow-everywhere' | 'deny' | 'deny-everywhere',
+    decision: 'allow' | 'allow-chat' | 'allow-everywhere' | 'allow-mcp-server' | 'deny' | 'deny-everywhere',
   ) => void;
 }
 
@@ -1502,7 +1503,7 @@ function asAskUserQuestionArgs(
 }
 
 type ScopedDecision =
-  | 'allow' | 'allow-chat' | 'allow-everywhere'
+  | 'allow' | 'allow-chat' | 'allow-everywhere' | 'allow-mcp-server'
   | 'deny'  | 'deny-everywhere';
 
 function PermissionBlock({
@@ -1548,6 +1549,13 @@ function PermissionBlock({
         <button className="btn primary sm" onClick={() => onDecide?.(body.permissionId, 'allow')}>{t('chat.permission.allowOnce')}</button>
         <button className="btn sm"         onClick={() => onDecide?.(body.permissionId, 'allow-chat')}>{t('chat.permission.allowChat')}</button>
         <button className="btn sm"         onClick={() => onDecide?.(body.permissionId, 'allow-everywhere')}>{t('chat.permission.allowEverywhere')}</button>
+        {/* MCP tools: one grant for the whole server, so its other tools don't
+            re-prompt. Only shown for `mcp__<server>__…` tools. */}
+        {isMcpTool(body.tool) && (
+          <button className="btn sm" onClick={() => onDecide?.(body.permissionId, 'allow-mcp-server')}>
+            {t('chat.permission.allowMcpServer', { server: mcpServerOfTool(body.tool) ?? 'MCP' })}
+          </button>
+        )}
         <button className="btn sm"         onClick={() => onDecide?.(body.permissionId, 'deny')}>{t('chat.permission.deny')}</button>
         <button className="btn sm"         onClick={() => onDecide?.(body.permissionId, 'deny-everywhere')}>{t('chat.permission.denyEverywhere')}</button>
       </div>

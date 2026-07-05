@@ -587,6 +587,7 @@ export const zhCN = {
   'chat.permission.allowOnce': '允许一次',
   'chat.permission.allowChat': '允许此聊天',
   'chat.permission.allowEverywhere': '处处允许',
+  'chat.permission.allowMcpServer': '允许所有 {server} 工具',
   'chat.permission.deny': '拒绝',
   'chat.permission.denyEverywhere': '处处拒绝',
   'chat.qa.questionPrefix': '问：',

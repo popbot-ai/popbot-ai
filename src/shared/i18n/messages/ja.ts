@@ -587,6 +587,7 @@ export const ja = {
   'chat.permission.allowOnce': '一度だけ許可',
   'chat.permission.allowChat': 'このチャットで許可',
   'chat.permission.allowEverywhere': 'すべてで許可',
+  'chat.permission.allowMcpServer': '{server} のすべてのツールを許可',
   'chat.permission.deny': '拒否',
   'chat.permission.denyEverywhere': 'すべてで拒否',
   'chat.qa.questionPrefix': 'Q:',

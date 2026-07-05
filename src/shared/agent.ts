@@ -144,12 +144,15 @@ export type AgentEvent =
  * is rarely useful — if you don't trust a tool at all, you want it off
  * everywhere; if you do trust it, you decide per-call.
  *
- * Rules are tool-name only in v1; command-pattern matching is deferred.
+ * `allow-mcp-server` is offered only for MCP tools: it stores a global
+ * `mcp__<server>__*` wildcard rule so the ENTIRE MCP server is allowed and
+ * never prompts again (one grant instead of once-per-tool).
  */
 export type PermissionDecision =
   | 'allow'
   | 'allow-chat'
   | 'allow-everywhere'
+  | 'allow-mcp-server'
   | 'deny'
   | 'deny-everywhere';
 

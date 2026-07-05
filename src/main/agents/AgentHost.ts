@@ -3,7 +3,7 @@ import { existsSync, mkdirSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 import type { AgentEvent, PermissionDecision } from '@shared/agent';
-import { resolvePermissionRules } from '@shared/agent';
+import { resolvePermissionRules, mcpServerOfTool, mcpServerWildcard } from '@shared/agent';
 import type { PickedAttachment } from '@shared/ipc';
 import {
   DEFAULT_CLAUDE_MODEL,
@@ -353,14 +353,22 @@ class AgentHostImpl {
       if (decision === 'allow-chat') {
         addChatPermissionRule(chatId, { tool: toolForRule, action });
         dlog('perm.rule.added', { scope: 'chat', chatId, tool: toolForRule, action });
-      } else if (decision === 'allow-everywhere' || decision === 'deny-everywhere') {
+      } else if (
+        decision === 'allow-everywhere' ||
+        decision === 'deny-everywhere' ||
+        decision === 'allow-mcp-server'
+      ) {
+        // allow-mcp-server stores a wildcard for the WHOLE MCP server so the
+        // user isn't prompted per-tool; the others store the exact tool.
+        const server = decision === 'allow-mcp-server' ? mcpServerOfTool(toolForRule) : null;
+        const rulePattern = server ? mcpServerWildcard(server) : toolForRule;
         const current = getSetting<PermissionRule[]>('permissions.rules') ?? [];
         const next = [
-          ...current.filter((r) => r.tool !== toolForRule),
-          { tool: toolForRule, action },
+          ...current.filter((r) => r.tool !== rulePattern),
+          { tool: rulePattern, action },
         ];
         setSetting('permissions.rules', next);
-        dlog('perm.rule.added', { scope: 'global', tool: toolForRule, action });
+        dlog('perm.rule.added', { scope: 'global', tool: rulePattern, action });
       }
     }
     this.broadcast({

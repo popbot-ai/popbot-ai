@@ -587,6 +587,7 @@ export const ko = {
   'chat.permission.allowOnce': '한 번 허용',
   'chat.permission.allowChat': '이 채팅에서 허용',
   'chat.permission.allowEverywhere': '모든 곳에서 허용',
+  'chat.permission.allowMcpServer': '{server}의 모든 도구 허용',
   'chat.permission.deny': '거부',
   'chat.permission.denyEverywhere': '모든 곳에서 거부',
   'chat.qa.questionPrefix': 'Q:',
