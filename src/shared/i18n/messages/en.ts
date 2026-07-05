@@ -1056,6 +1056,8 @@ export const en = {
   'prefs.permissions.tool.todoWrite.desc': 'Update the agent’s internal task list.',
   'prefs.permissions.tool.task.desc': 'Spawn a sub-agent to delegate work.',
   'prefs.permissions.tool.exitPlanMode.desc': 'Leave plan mode and present the plan.',
+  'prefs.permissions.tool.mcpUnreal.desc': 'All Unreal editor MCP tools (drive the running Editor).',
+  'prefs.permissions.tool.mcpUnity.desc': 'All Unity editor MCP tools (drive the running Editor).',
   'prefs.permissions.title': 'Permissions',
   'prefs.permissions.desc':
     'Global default for each tool. Ask prompts the chat each time (the default). Allow auto-approves without prompting. Deny auto-rejects. Per-chat rules — set from the permission card via "Allow this chat" / "Deny this chat" — override these globals, so a single chat can lock down a tool you’ve otherwise allowed everywhere.',

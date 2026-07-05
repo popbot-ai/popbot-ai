@@ -1390,7 +1390,9 @@ function EngineConfigPanel({ engineId }: { engineId: GameEngineId }): JSX.Elemen
             <div className="pref-control">
               <input
                 type="checkbox"
-                checked={cfg.useMcp ?? false}
+                // Coerce to a strict boolean so the box is always checked or
+                // unchecked — never renders indeterminate from a stray value.
+                checked={cfg.useMcp === true}
                 onChange={(e) => void writeEngine({ useMcp: e.target.checked })}
               />
             </div>
@@ -1406,7 +1408,7 @@ function EngineConfigPanel({ engineId }: { engineId: GameEngineId }): JSX.Elemen
                 type="number"
                 min={1024}
                 max={65535}
-                disabled={!(cfg.useMcp ?? false)}
+                disabled={cfg.useMcp !== true}
                 value={mcpBasePort}
                 onChange={(e) => setMcpBasePort(e.target.value)}
                 onBlur={() => {
@@ -2908,12 +2910,25 @@ function PrefsPermissions(): JSX.Element {
     void window.popbot.settings.set('permissions.rules', next);
   };
 
-  // Merge core tools with user-added (non-core) rules so MCP / custom
-  // tools the user has opinions on don't disappear from the list.
-  const coreNames = new Set(CORE_TOOLS.map((tool) => tool.name));
-  const customToolNames = rules.map((r) => r.tool).filter((name) => !coreNames.has(name));
+  // Always-shown MCP server toggles: a single wildcard rule per editor MCP
+  // pre-allows (or denies) every tool from that slot's Unity/Unreal editor, so
+  // the user isn't prompted for each MCP call. Set to 'allow' to enable all of
+  // that engine's MCP tools; leave 'ask' to be prompted per tool.
+  const MCP_SERVER_TOGGLES: Array<{ name: string; descKey: MessageKey }> = [
+    { name: 'mcp__unrealEditor__*', descKey: 'prefs.permissions.tool.mcpUnreal.desc' },
+    { name: 'mcp__unityEditor__*', descKey: 'prefs.permissions.tool.mcpUnity.desc' },
+  ];
+
+  // Merge core tools + MCP server toggles with user-added (non-core) rules so
+  // MCP / custom tools the user has opinions on don't disappear from the list.
+  const alwaysShown = new Set([
+    ...CORE_TOOLS.map((tool) => tool.name),
+    ...MCP_SERVER_TOGGLES.map((m) => m.name),
+  ]);
+  const customToolNames = rules.map((r) => r.tool).filter((name) => !alwaysShown.has(name));
   const renderRows: Array<{ name: string; description: string | null }> = [
     ...CORE_TOOLS.map((tool) => ({ name: tool.name, description: t(tool.descKey) })),
+    ...MCP_SERVER_TOGGLES.map((m) => ({ name: m.name, description: t(m.descKey) })),
     ...customToolNames.map((name) => ({ name, description: null })),
   ];
 

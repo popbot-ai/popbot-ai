@@ -3,6 +3,7 @@ import { existsSync, mkdirSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 import type { AgentEvent, PermissionDecision } from '@shared/agent';
+import { resolvePermissionRules } from '@shared/agent';
 import type { PickedAttachment } from '@shared/ipc';
 import {
   DEFAULT_CLAUDE_MODEL,
@@ -690,12 +691,14 @@ class AgentHostImpl {
       // global allow with a deny (or vice versa). null/undefined → no
       // saved rule for this tool, prompt the user.
       resolveRule: (toolName: string) => {
-        const chatRules = getChatPermissionRules(chatId);
-        const chatHit = chatRules.find((r) => r.tool === toolName);
-        if (chatHit) return chatHit.action;
+        // Per-chat rules win over global; within each set, deny beats allow and
+        // a more specific pattern beats a broader one. Rules support trailing-`*`
+        // wildcards, so a single `mcp__unrealEditor__*` (written by the Unreal
+        // MCP permission toggle) allows this chat's whole editor MCP server.
+        const chatDecision = resolvePermissionRules(getChatPermissionRules(chatId), toolName);
+        if (chatDecision) return chatDecision;
         const globalRules = getSetting<PermissionRule[]>('permissions.rules') ?? [];
-        const globalHit = globalRules.find((r) => r.tool === toolName);
-        return globalHit ? globalHit.action : null;
+        return resolvePermissionRules(globalRules, toolName);
       },
     });
     this.sessions.set(chatId, session);

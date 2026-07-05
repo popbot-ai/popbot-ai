@@ -1040,6 +1040,8 @@ export const ja = {
   'prefs.permissions.tool.todoWrite.desc': 'エージェントの内部タスクリストを更新します。',
   'prefs.permissions.tool.task.desc': '作業を委任するためのサブエージェントを起動します。',
   'prefs.permissions.tool.exitPlanMode.desc': 'プランモードを終了してプランを提示します。',
+  'prefs.permissions.tool.mcpUnreal.desc': 'Unreal エディタのすべての MCP ツール（実行中の Editor を操作）。',
+  'prefs.permissions.tool.mcpUnity.desc': 'Unity エディタのすべての MCP ツール（実行中の Editor を操作）。',
   'prefs.permissions.title': '権限',
   'prefs.permissions.desc':
     '各ツールのグローバルなデフォルトです。Ask は毎回チャットに確認します (デフォルト)。Allow は確認なしで自動承認します。Deny は自動拒否します。チャットごとのルール — 権限カードの "このチャットで許可" / "このチャットで拒否" から設定 — はこれらのグローバル設定を上書きするため、他の場所では許可しているツールを1つのチャットだけでロックダウンできます。',

@@ -1040,6 +1040,8 @@ export const zhCN = {
   'prefs.permissions.tool.todoWrite.desc': '更新代理的内部任务列表。',
   'prefs.permissions.tool.task.desc': '生成一个子代理以委派工作。',
   'prefs.permissions.tool.exitPlanMode.desc': '离开计划模式并呈现计划。',
+  'prefs.permissions.tool.mcpUnreal.desc': '所有 Unreal 编辑器 MCP 工具（驱动正在运行的编辑器）。',
+  'prefs.permissions.tool.mcpUnity.desc': '所有 Unity 编辑器 MCP 工具（驱动正在运行的编辑器）。',
   'prefs.permissions.title': '权限',
   'prefs.permissions.desc':
     '每个工具的全局默认值。询问会每次提示聊天（默认）。允许会自动批准而不提示。拒绝会自动拒绝。每个聊天的规则 — 通过权限卡的"允许此聊天"/"拒绝此聊天"设置 — 会覆盖这些全局值，因此单个聊天可以锁定一个您在其他地方已允许的工具。',

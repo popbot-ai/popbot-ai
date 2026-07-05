@@ -30,6 +30,7 @@ import { getSetting } from '../persistence/settings';
 import { getChat } from '../persistence/chats';
 import { listRepos } from '../persistence/repos';
 import { applyPerforceAgentCwd } from '../git/chatPaths';
+import { dlog } from '../diagLog';
 
 const execFileP = promisify(execFile);
 
@@ -608,6 +609,8 @@ function resolveEngineProjectDir(worktreePath: string, id: GameEngineId, cfg: Ap
 
 /** Spawn a detached editor process; resolve on successful spawn. */
 async function spawnDetachedEditor(binary: string, args: string[], label: string): Promise<LaunchResult> {
+  // Log the exact spawn so we can see the real command line (esp. the MCP flags).
+  dlog('engine.spawn', { label, binary, args });
   try {
     await new Promise<void>((resolve, reject) => {
       const child = spawn(binary, args, { detached: true, stdio: 'ignore' });
@@ -632,10 +635,16 @@ async function spawnDetachedEditor(binary: string, args: string[], label: string
  * agent-facing MCP endpoint so the two always agree on the port.
  */
 function resolveMcpPort(id: GameEngineId, ec: GameEngineConfig, chatId?: string): number | null {
-  if (!ec.useMcp || (id !== 'unity' && id !== 'unreal')) return null;
+  // Strict boolean check — a stray non-boolean useMcp must not enable MCP.
+  if (ec.useMcp !== true || (id !== 'unity' && id !== 'unreal')) {
+    dlog('engine.mcp.resolve', { id, useMcp: ec.useMcp ?? false, result: null, reason: 'off-or-unsupported' });
+    return null;
+  }
   const basePort = ec.mcpBasePort ?? mcpDefaultBasePort(id);
   const slotId = chatId ? getChat(chatId)?.slotId ?? null : null;
-  return mcpPortForSlot(basePort, slotId);
+  const port = mcpPortForSlot(basePort, slotId);
+  dlog('engine.mcp.resolve', { id, useMcp: ec.useMcp, configBasePort: ec.mcpBasePort ?? null, basePort, slotId, port });
+  return port;
 }
 
 /**

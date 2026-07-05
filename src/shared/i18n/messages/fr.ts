@@ -1046,6 +1046,8 @@ export const fr = {
   'prefs.permissions.tool.todoWrite.desc': 'Mettre à jour la liste de tâches interne de l’agent.',
   'prefs.permissions.tool.task.desc': 'Créer un sous-agent pour déléguer du travail.',
   'prefs.permissions.tool.exitPlanMode.desc': 'Quitter le mode plan et présenter le plan.',
+  'prefs.permissions.tool.mcpUnreal.desc': 'Tous les outils MCP de l’éditeur Unreal (piloter l’Éditeur en cours d’exécution).',
+  'prefs.permissions.tool.mcpUnity.desc': 'Tous les outils MCP de l’éditeur Unity (piloter l’Éditeur en cours d’exécution).',
   'prefs.permissions.title': 'Autorisations',
   'prefs.permissions.desc':
     'Valeur par défaut globale pour chaque outil. Demander interroge le chat à chaque fois (le défaut). Autoriser approuve automatiquement sans demander. Refuser rejette automatiquement. Les règles par chat — définies depuis la carte d’autorisation via « Autoriser ce chat » / « Refuser ce chat » — remplacent ces valeurs globales, de sorte qu’un seul chat peut verrouiller un outil que vous avez par ailleurs autorisé partout.',

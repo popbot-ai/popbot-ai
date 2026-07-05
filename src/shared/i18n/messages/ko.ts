@@ -1040,6 +1040,8 @@ export const ko = {
   'prefs.permissions.tool.todoWrite.desc': '에이전트의 내부 작업 목록을 업데이트합니다.',
   'prefs.permissions.tool.task.desc': '작업을 위임할 하위 에이전트를 생성합니다.',
   'prefs.permissions.tool.exitPlanMode.desc': '계획 모드를 종료하고 계획을 제시합니다.',
+  'prefs.permissions.tool.mcpUnreal.desc': '모든 Unreal 에디터 MCP 도구(실행 중인 에디터 제어).',
+  'prefs.permissions.tool.mcpUnity.desc': '모든 Unity 에디터 MCP 도구(실행 중인 에디터 제어).',
   'prefs.permissions.title': '권한',
   'prefs.permissions.desc':
     '각 도구의 전역 기본값입니다. 질문은 매번 채팅에 묻습니다 (기본값). 허용은 묻지 않고 자동 승인합니다. 거부는 자동 거부합니다. 채팅별 규칙 — 권한 카드에서 "이 채팅에서 허용" / "이 채팅에서 거부"로 설정 — 은 이 전역값을 재정의하므로, 단일 채팅이 다른 모든 곳에서 허용한 도구를 차단할 수 있습니다.',
