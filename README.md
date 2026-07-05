@@ -8,6 +8,8 @@ A battle-tested desktop tool for running a team of AI coding agents in parallel 
 
 </div>
 
+*Languages: **English** · [Español](docs/es/README.md) · [Français](docs/fr/README.md) · [Deutsch](docs/de/README.md) · [日本語](docs/ja/README.md) · [한국어](docs/ko/README.md) · [简体中文](docs/zh-CN/README.md) · [Português (Brasil)](docs/pt-BR/README.md) · [Русский](docs/ru/README.md) · [Italiano](docs/it/README.md)*
+
 ---
 
 ## Why PopBot
