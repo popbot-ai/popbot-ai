@@ -587,6 +587,7 @@ export const es = {
   'chat.permission.allowOnce': 'Permitir una vez',
   'chat.permission.allowChat': 'Permitir en este chat',
   'chat.permission.allowEverywhere': 'Permitir en todas partes',
+  'chat.permission.allowMcpServer': 'Permitir todas las herramientas de {server}',
   'chat.permission.deny': 'Denegar',
   'chat.permission.denyEverywhere': 'Denegar en todas partes',
   'chat.qa.questionPrefix': 'P:',
@@ -845,6 +846,20 @@ export const es = {
   'prefs.engine.custom.posix.desc': 'Comando de shell ejecutado (mediante bash) en el directorio del proyecto.',
   'prefs.engine.custom.windows.title': 'Comando de ejecución (Windows)',
   'prefs.engine.custom.windows.desc': 'Comando ejecutado (mediante cmd) en el directorio del proyecto.',
+  'prefs.engine.mcp.unreal.title': 'Usar Unreal MCP',
+  'prefs.engine.mcp.unreal.desc':
+    'Inicia el Editor con un puerto de servidor MCP para que los agentes puedan controlar Unreal. Cada slot recibe su propio puerto para que los slots en paralelo no colisionen.',
+  'prefs.engine.mcp.unity.title': 'Usar Unity MCP',
+  'prefs.engine.mcp.unity.desc':
+    'Inicia el Editor apuntando a la URL de un servidor Unity-MCP (IvanMurzak), para que los agentes puedan controlar Unity. Cada slot recibe su propio puerto para que los slots en paralelo no colisionen.',
+  'prefs.engine.mcp.basePort.title': 'Puerto MCP base',
+  'prefs.engine.mcp.basePort.desc':
+    'Puerto del slot 1. Cada slot posterior suma uno (slot 2 → base + 1, slot 3 → base + 2, …).',
+  'prefs.engine.unityTitleScript.title': 'Mostrar la ruta del proyecto en la barra de título',
+  'prefs.engine.unityTitleScript.desc':
+    'Instala un pequeño script de editor en Assets/Scripts de tu proyecto de Unity para que cada Editor abierto muestre su ruta de proyecto completa en la barra de título — la forma fácil de distinguir las ventanas de los slots. Se puede confirmar en git.',
+  'prefs.engine.unityTitleScript.button': 'Instalar script de barra de título',
+  'prefs.engine.unityTitleScript.done': 'Instalado en {path}',
 
   // Preferences — Source control pane.
   'prefs.git.title': 'Control de versiones',
@@ -1026,6 +1041,9 @@ export const es = {
   'prefs.permissions.tool.todoWrite.desc': 'Actualizar la lista de tareas interna del agente.',
   'prefs.permissions.tool.task.desc': 'Lanzar un subagente para delegar trabajo.',
   'prefs.permissions.tool.exitPlanMode.desc': 'Salir del modo de plan y presentar el plan.',
+  'prefs.permissions.tool.mcpUnreal.desc': 'Todas las herramientas MCP del editor de Unreal (controlar el Editor en ejecución).',
+  'prefs.permissions.tool.mcpUnity.desc': 'Todas las herramientas MCP del editor de Unity (controlar el Editor en ejecución).',
+  'prefs.permissions.mcpAllTools': 'todas las herramientas',
   'prefs.permissions.title': 'Permisos',
   'prefs.permissions.desc':
     'Valor predeterminado global para cada herramienta. Preguntar consulta al chat cada vez (el predeterminado). Permitir aprueba automáticamente sin preguntar. Denegar rechaza automáticamente. Las reglas por chat — establecidas desde la tarjeta de permiso mediante "Permitir en este chat" / "Denegar en este chat" — anulan estos valores globales, así que un único chat puede bloquear una herramienta que de otro modo has permitido en todas partes.',

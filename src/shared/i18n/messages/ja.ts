@@ -587,6 +587,7 @@ export const ja = {
   'chat.permission.allowOnce': '一度だけ許可',
   'chat.permission.allowChat': 'このチャットで許可',
   'chat.permission.allowEverywhere': 'すべてで許可',
+  'chat.permission.allowMcpServer': '{server} のすべてのツールを許可',
   'chat.permission.deny': '拒否',
   'chat.permission.denyEverywhere': 'すべてで拒否',
   'chat.qa.questionPrefix': 'Q:',
@@ -845,6 +846,20 @@ export const ja = {
   'prefs.engine.custom.posix.desc': 'プロジェクトディレクトリで (bash 経由で) 実行されるシェルコマンド。',
   'prefs.engine.custom.windows.title': '実行コマンド (Windows)',
   'prefs.engine.custom.windows.desc': 'プロジェクトディレクトリで (cmd 経由で) 実行されるコマンド。',
+  'prefs.engine.mcp.unreal.title': 'Unreal MCP を使用',
+  'prefs.engine.mcp.unreal.desc':
+    'エージェントが Unreal を操作できるよう、MCP サーバーポート付きで Editor を起動します。各スロットに専用のポートが割り当てられ、並列スロットが衝突しません。',
+  'prefs.engine.mcp.unity.title': 'Unity MCP を使用',
+  'prefs.engine.mcp.unity.desc':
+    'エージェントが Unity を操作できるよう、Unity-MCP（IvanMurzak）サーバーの URL を指定して Editor を起動します。各スロットに専用のポートが割り当てられ、並列スロットが衝突しません。',
+  'prefs.engine.mcp.basePort.title': 'MCP ベースポート',
+  'prefs.engine.mcp.basePort.desc':
+    'スロット 1 のポート。以降のスロットは 1 ずつ加算されます（スロット 2 → ベース + 1、スロット 3 → ベース + 2、…）。',
+  'prefs.engine.unityTitleScript.title': 'タイトルバーにプロジェクトパスを表示',
+  'prefs.engine.unityTitleScript.desc':
+    'Unity プロジェクトの Assets/Scripts に小さなエディタスクリプトをインストールし、開いている各 Editor がタイトルバーにフルプロジェクトパスを表示するようにします — スロットのウィンドウを簡単に見分けられます。コミットしても安全です。',
+  'prefs.engine.unityTitleScript.button': 'タイトルバースクリプトをインストール',
+  'prefs.engine.unityTitleScript.done': '{path} にインストールしました',
 
   // Preferences — Source control pane.
   'prefs.git.title': 'バージョン管理',
@@ -1026,6 +1041,9 @@ export const ja = {
   'prefs.permissions.tool.todoWrite.desc': 'エージェントの内部タスクリストを更新します。',
   'prefs.permissions.tool.task.desc': '作業を委任するためのサブエージェントを起動します。',
   'prefs.permissions.tool.exitPlanMode.desc': 'プランモードを終了してプランを提示します。',
+  'prefs.permissions.tool.mcpUnreal.desc': 'Unreal エディタのすべての MCP ツール（実行中の Editor を操作）。',
+  'prefs.permissions.tool.mcpUnity.desc': 'Unity エディタのすべての MCP ツール（実行中の Editor を操作）。',
+  'prefs.permissions.mcpAllTools': 'すべてのツール',
   'prefs.permissions.title': '権限',
   'prefs.permissions.desc':
     '各ツールのグローバルなデフォルトです。Ask は毎回チャットに確認します (デフォルト)。Allow は確認なしで自動承認します。Deny は自動拒否します。チャットごとのルール — 権限カードの "このチャットで許可" / "このチャットで拒否" から設定 — はこれらのグローバル設定を上書きするため、他の場所では許可しているツールを1つのチャットだけでロックダウンできます。',

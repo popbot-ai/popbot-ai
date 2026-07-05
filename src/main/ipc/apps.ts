@@ -8,7 +8,7 @@
  * `cursor://`) when those are more reliable.
  */
 import { ipcMain } from 'electron';
-import { existsSync, readdirSync } from 'node:fs';
+import { existsSync, readdirSync, mkdirSync, writeFileSync } from 'node:fs';
 import { execFile, spawn } from 'node:child_process';
 import { basename, join } from 'node:path';
 import { homedir, tmpdir } from 'node:os';
@@ -19,10 +19,18 @@ import {
   type GameEngineConfig,
   type GameEnginesSettings,
   engineMeta,
+  mcpPortForSlot,
+  mcpDefaultBasePort,
+  mcpEndpointUrl,
+  mcpServerName,
+  unrealMcpArgs,
+  unityMcpUrlArg,
 } from '@shared/gameEngine';
 import { getSetting } from '../persistence/settings';
 import { getChat } from '../persistence/chats';
+import { listRepos } from '../persistence/repos';
 import { applyPerforceAgentCwd } from '../git/chatPaths';
+import { dlog } from '../diagLog';
 
 const execFileP = promisify(execFile);
 
@@ -601,6 +609,8 @@ function resolveEngineProjectDir(worktreePath: string, id: GameEngineId, cfg: Ap
 
 /** Spawn a detached editor process; resolve on successful spawn. */
 async function spawnDetachedEditor(binary: string, args: string[], label: string): Promise<LaunchResult> {
+  // Log the exact spawn so we can see the real command line (esp. the MCP flags).
+  dlog('engine.spawn', { label, binary, args });
   try {
     await new Promise<void>((resolve, reject) => {
       const child = spawn(binary, args, { detached: true, stdio: 'ignore' });
@@ -618,6 +628,60 @@ async function spawnDetachedEditor(binary: string, args: string[], label: string
 }
 
 /**
+ * The per-slot MCP port for an engine when MCP is enabled, else null. Unity and
+ * Unreal each derive `base + (slotId - 1)` (slot 1 → base) so parallel slots
+ * never share a port. The slot index comes from the chat; an unresolvable slot
+ * falls back to slot 1 (the base port). Shared by the editor-launch flag and the
+ * agent-facing MCP endpoint so the two always agree on the port.
+ */
+function resolveMcpPort(id: GameEngineId, ec: GameEngineConfig, chatId?: string): number | null {
+  // Strict boolean check — a stray non-boolean useMcp must not enable MCP.
+  if (ec.useMcp !== true || (id !== 'unity' && id !== 'unreal')) {
+    dlog('engine.mcp.resolve', { id, useMcp: ec.useMcp ?? false, result: null, reason: 'off-or-unsupported' });
+    return null;
+  }
+  const basePort = ec.mcpBasePort ?? mcpDefaultBasePort(id);
+  const slotId = chatId ? getChat(chatId)?.slotId ?? null : null;
+  const port = mcpPortForSlot(basePort, slotId);
+  dlog('engine.mcp.resolve', { id, useMcp: ec.useMcp, configBasePort: ec.mcpBasePort ?? null, basePort, slotId, port });
+  return port;
+}
+
+/**
+ * The per-slot MCP launch argument(s) for an engine, or `[]` when MCP is off or
+ * unsupported. The flags differ (Unreal: `-ModelContextProtocolStartServer`
+ * `-ModelContextProtocolPort=N`; Unity: `-url=` for the IvanMurzak/Unity-MCP
+ * plugin) but both carry the same per-slot port from {@link resolveMcpPort}.
+ */
+function mcpLaunchArgs(id: GameEngineId, ec: GameEngineConfig, chatId?: string): string[] {
+  const port = resolveMcpPort(id, ec, chatId);
+  if (port === null) return [];
+  return id === 'unreal' ? unrealMcpArgs(port) : [unityMcpUrlArg(port)];
+}
+
+/**
+ * The agent-facing HTTP MCP server for a chat, or null when the chat's editor
+ * has no MCP enabled. Detects the chat's game engine from its worktree, honours
+ * the same per-engine `useMcp`/`mcpBasePort` settings + per-slot port as the
+ * launch flag, and returns the SDK-ready endpoint. Used by AgentHost to hand the
+ * agent its slot's editor MCP at spawn — nothing is written to disk or to any
+ * git-tracked file. Returns null for slot-less chats (no per-slot editor).
+ */
+export function mcpEndpointForChat(chatId: string, worktreePath: string | null): {
+  name: string;
+  url: string;
+} | null {
+  if (!worktreePath) return null;
+  const detected = detectEngineForWorktree(worktreePath);
+  if (!detected || (detected.engine !== 'unity' && detected.engine !== 'unreal')) return null;
+  const cfg = getSetting<AppsSettings>('apps') ?? {};
+  const ec = resolveEngineCfg(cfg, detected.engine);
+  const port = resolveMcpPort(detected.engine, ec, chatId);
+  if (port === null) return null;
+  return { name: mcpServerName(detected.engine), url: mcpEndpointUrl(port) };
+}
+
+/**
  * Launch (or focus) a game engine's editor for a slot's project.
  *   - unity : direct `-projectPath` launch; on macOS focuses an already-running
  *             instance for this project first (window-title, then PID).
@@ -626,7 +690,12 @@ async function spawnDetachedEditor(binary: string, args: string[], label: string
  *   - custom: runs the configured shell command (posix vs Windows variant) in
  *             the project directory.
  */
-async function launchEngine(id: GameEngineId, cfg: AppsSettings, worktreePath: string): Promise<LaunchResult> {
+async function launchEngine(
+  id: GameEngineId,
+  cfg: AppsSettings,
+  worktreePath: string,
+  chatId?: string,
+): Promise<LaunchResult> {
   const ec = resolveEngineCfg(cfg, id);
   // Unity/Unreal auto-locate the project (root or a child folder); Custom runs
   // in the configured subpath (or the worktree root).
@@ -648,10 +717,19 @@ async function launchEngine(id: GameEngineId, cfg: AppsSettings, worktreePath: s
         reason: 'not-configured',
       };
     }
+    // Expose the slot to the custom command so per-slot scripts can branch
+    // (e.g. pick a port, a display, a config). POPBOT_SLOT is the 1-based slot
+    // number; LEFT UNSET (not empty) when the chat has no slot, so scripts can
+    // use `${POPBOT_SLOT:-N}` defaulting and `$((POPBOT_SLOT))` arithmetic
+    // without an empty-string blowing up. Spread process.env so the shell keeps
+    // its PATH (fixed at boot by fixShellPath on macOS/Linux).
+    const slotId = chatId ? getChat(chatId)?.slotId ?? null : null;
+    const env = { ...process.env };
+    if (slotId != null) env.POPBOT_SLOT = String(slotId);
     try {
       const child = isWindows
-        ? spawn('cmd', ['/c', command], { cwd: proj, detached: true, stdio: 'ignore' })
-        : spawn('bash', ['-lc', command], { cwd: proj, detached: true, stdio: 'ignore' });
+        ? spawn('cmd', ['/c', command], { cwd: proj, detached: true, stdio: 'ignore', env })
+        : spawn('bash', ['-lc', command], { cwd: proj, detached: true, stdio: 'ignore', env });
       child.once('error', () => { /* best-effort: detached */ });
       child.unref();
       return { ok: true };
@@ -683,7 +761,11 @@ async function launchEngine(id: GameEngineId, cfg: AppsSettings, worktreePath: s
       return { ok: true };
     }
     const logPath = join(tmpdir(), `unity-${basename(worktreePath)}.log`);
-    return spawnDetachedEditor(ec.binary, ['-projectPath', proj, '-noprojectBrowser', '-logFile', logPath], label);
+    // MCP (IvanMurzak/Unity-MCP): point the plugin at this slot's server URL.
+    // Only applied on a fresh spawn — focusing an existing editor can't change
+    // its already-set connection.
+    const unityArgs = ['-projectPath', proj, '-noprojectBrowser', '-logFile', logPath];
+    return spawnDetachedEditor(ec.binary, [...unityArgs, ...mcpLaunchArgs(id, ec, chatId)], label);
   }
 
   // unreal — open the .uproject; Unreal focuses an existing instance itself.
@@ -691,7 +773,9 @@ async function launchEngine(id: GameEngineId, cfg: AppsSettings, worktreePath: s
   if (!uproject) {
     return { ok: false, error: `No .uproject found in ${proj}` };
   }
-  return spawnDetachedEditor(ec.binary, [uproject], label);
+  // When MCP is on, give this slot's Editor its own MCP port via a command-line
+  // override so parallel slots don't collide (see mcpLaunchArgs).
+  return spawnDetachedEditor(ec.binary, [uproject, ...mcpLaunchArgs(id, ec, chatId)], label);
 }
 
 const ENGINE_KINDS: readonly GameEngineId[] = ['unity', 'unreal', 'custom'];
@@ -699,11 +783,83 @@ function isEngineKind(kind: string): kind is GameEngineId {
   return (ENGINE_KINDS as readonly string[]).includes(kind);
 }
 
+/**
+ * The Unity editor script we install. It appends the full project path to the
+ * Editor's main window title, so each slot's Editor window is identifiable at a
+ * glance (and so PopBot's window-title focus matching has a path to match). It's
+ * a normal committed project script (unlike the MCP wiring, which is runtime-
+ * only) — installing it in the source repo propagates it to every slot clone.
+ */
+const UNITY_TITLE_SCRIPT = `// Auto-installed by PopBot. Shows the full project path in the Unity Editor
+// title bar so parallel slot windows are identifiable. Safe to commit.
+#if UNITY_EDITOR
+using UnityEditor;
+using UnityEngine;
+
+[InitializeOnLoad]
+public static class PopBotProjectPathTitle
+{
+    static PopBotProjectPathTitle()
+    {
+        EditorApplication.updateMainWindowTitle += OnUpdateTitle;
+        EditorApplication.UpdateMainWindowTitle();
+    }
+
+    static void OnUpdateTitle(ApplicationTitleDescriptor desc)
+    {
+        // Application.dataPath ends in "/Assets"; drop it to get the project root.
+        string dataPath = Application.dataPath;
+        string projectRoot = dataPath.EndsWith("/Assets")
+            ? dataPath.Substring(0, dataPath.Length - "/Assets".Length)
+            : dataPath;
+        desc.title = projectRoot + "  —  " + desc.title;
+    }
+}
+#endif
+`;
+
+/**
+ * Install {@link UNITY_TITLE_SCRIPT} into a configured Unity project's
+ * Assets/Scripts folder. Resolves the project from the Unity engine config
+ * (binary/projectSubpath) against each configured repo's source clone; installs
+ * into the first repo that actually contains a Unity project. Idempotent — it
+ * overwrites its own file. Returns the written path or a reason it couldn't.
+ */
+function installUnityTitleScript():
+  | { ok: true; path: string }
+  | { ok: false; error: string } {
+  const cfg = getSetting<AppsSettings>('apps') ?? {};
+  const sub = (resolveEngineCfg(cfg, 'unity').projectSubpath ?? '').trim();
+  const repos = listRepos();
+  if (repos.length === 0) {
+    return { ok: false, error: 'No repository configured. Add one in Preferences → Source control.' };
+  }
+  // Find the first repo whose source clone holds a Unity project (honouring the
+  // configured subpath, else auto-detection).
+  for (const repo of repos) {
+    const root = repo.repoPath;
+    if (!root || !existsSync(root)) continue;
+    const proj = sub && existsSync(join(root, sub)) ? join(root, sub) : resolveEngineProjectDir(root, 'unity', cfg);
+    if (dirEngineMarker(proj) !== 'unity') continue;
+    const scriptsDir = join(proj, 'Assets', 'Scripts');
+    try {
+      mkdirSync(scriptsDir, { recursive: true });
+      const dest = join(scriptsDir, 'PopBotProjectPathTitle.cs');
+      writeFileSync(dest, UNITY_TITLE_SCRIPT);
+      return { ok: true, path: dest };
+    } catch (err) {
+      return { ok: false, error: `Could not write script: ${(err as Error).message}` };
+    }
+  }
+  return { ok: false, error: 'No Unity project found in your configured repositories.' };
+}
+
 export function registerAppsHandlers(): void {
   ipcMain.handle(IpcChannel.UnityListVersions, () => listUnityVersions());
   ipcMain.handle(IpcChannel.UnityRunningProjects, () => listRunningUnityProjects());
   ipcMain.handle(IpcChannel.AppsRunning, () => listRunningAppsForSlots());
   ipcMain.handle(IpcChannel.EngineListVersions, (_e, engineId: GameEngineId) => listEngineVersions(engineId));
+  ipcMain.handle(IpcChannel.EngineInstallUnityTitleScript, () => installUnityTitleScript());
   ipcMain.handle(IpcChannel.AppsDetectEngine, (_e, worktreePath: string) => detectEngineForWorktree(worktreePath)?.engine ?? null);
 
   ipcMain.handle(
@@ -722,7 +878,7 @@ export function registerAppsHandlers(): void {
       // platform (spawn the editor binary / run the command), so they route to
       // launchEngine before the macOS-vs-Windows split below.
       if (isEngineKind(kind)) {
-        return launchEngine(kind, cfg, worktreePath);
+        return launchEngine(kind, cfg, worktreePath, chatId);
       }
       // The TERMINAL opens where the AGENT runs — for a Perforce repo that's a
       // configured subdir of the mount root. Editor/git keep the mount root

@@ -587,6 +587,7 @@ export const zhCN = {
   'chat.permission.allowOnce': '允许一次',
   'chat.permission.allowChat': '允许此聊天',
   'chat.permission.allowEverywhere': '处处允许',
+  'chat.permission.allowMcpServer': '允许所有 {server} 工具',
   'chat.permission.deny': '拒绝',
   'chat.permission.denyEverywhere': '处处拒绝',
   'chat.qa.questionPrefix': '问：',
@@ -845,6 +846,20 @@ export const zhCN = {
   'prefs.engine.custom.posix.desc': '在项目目录中（通过 bash）运行的 Shell 命令。',
   'prefs.engine.custom.windows.title': '运行命令（Windows）',
   'prefs.engine.custom.windows.desc': '在项目目录中（通过 cmd）运行的命令。',
+  'prefs.engine.mcp.unreal.title': '使用 Unreal MCP',
+  'prefs.engine.mcp.unreal.desc':
+    '以 MCP 服务器端口启动编辑器，让智能体可以驱动 Unreal。每个槽位分配到各自的端口，因此并行槽位不会冲突。',
+  'prefs.engine.mcp.unity.title': '使用 Unity MCP',
+  'prefs.engine.mcp.unity.desc':
+    '以指向 Unity-MCP（IvanMurzak）服务器 URL 的方式启动编辑器，让智能体可以驱动 Unity。每个槽位分配到各自的端口，因此并行槽位不会冲突。',
+  'prefs.engine.mcp.basePort.title': 'MCP 基础端口',
+  'prefs.engine.mcp.basePort.desc':
+    '槽位 1 的端口。之后每个槽位加一（槽位 2 → 基础 + 1，槽位 3 → 基础 + 2，…）。',
+  'prefs.engine.unityTitleScript.title': '在标题栏显示项目路径',
+  'prefs.engine.unityTitleScript.desc':
+    '在 Unity 项目的 Assets/Scripts 中安装一个小型编辑器脚本，让每个打开的编辑器在标题栏显示其完整项目路径 — 轻松区分各槽位窗口。可安全提交。',
+  'prefs.engine.unityTitleScript.button': '安装标题栏脚本',
+  'prefs.engine.unityTitleScript.done': '已安装到 {path}',
 
   // Preferences — Source control pane.
   'prefs.git.title': '版本控制',
@@ -1026,6 +1041,9 @@ export const zhCN = {
   'prefs.permissions.tool.todoWrite.desc': '更新代理的内部任务列表。',
   'prefs.permissions.tool.task.desc': '生成一个子代理以委派工作。',
   'prefs.permissions.tool.exitPlanMode.desc': '离开计划模式并呈现计划。',
+  'prefs.permissions.tool.mcpUnreal.desc': '所有 Unreal 编辑器 MCP 工具（驱动正在运行的编辑器）。',
+  'prefs.permissions.tool.mcpUnity.desc': '所有 Unity 编辑器 MCP 工具（驱动正在运行的编辑器）。',
+  'prefs.permissions.mcpAllTools': '所有工具',
   'prefs.permissions.title': '权限',
   'prefs.permissions.desc':
     '每个工具的全局默认值。询问会每次提示聊天（默认）。允许会自动批准而不提示。拒绝会自动拒绝。每个聊天的规则 — 通过权限卡的"允许此聊天"/"拒绝此聊天"设置 — 会覆盖这些全局值，因此单个聊天可以锁定一个您在其他地方已允许的工具。',

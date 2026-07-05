@@ -13,6 +13,7 @@ import type { GithubTestResult, JiraSettings } from '@shared/ticketProvider';
 import {
   GAME_ENGINES,
   engineEnabled,
+  mcpDefaultBasePort,
   type GameEngineId,
   type GameEngineConfig,
   type GameEnginesSettings,
@@ -38,6 +39,7 @@ import {
 } from '@shared/persistence';
 import type { SourceControlProviderId } from '@shared/sourceControl';
 import type { BasePreflightInfo } from '@shared/ipc';
+import { isMcpTool, mcpServerOfTool, permissionRuleMatches } from '@shared/agent';
 import { useSettings } from '../lib/useSettings';
 import { ConfigureSlotsPanel } from './ConfigureSlotsPanel';
 import { P4Glyph } from './P4Glyph';
@@ -1179,8 +1181,18 @@ function EngineConfigPanel({ engineId }: { engineId: GameEngineId }): JSX.Elemen
   const [runPosix, setRunPosix] = useState(cfg.runPosix ?? '');
   const [runWindows, setRunWindows] = useState(cfg.runWindows ?? '');
   const [savedAt, setSavedAt] = useState<number | null>(null);
-
+  // Result of the Unity "install title-bar script" button (path or error).
+  const [titleScript, setTitleScript] = useState<{ ok: boolean; msg: string } | null>(null);
   const enabled = engineEnabled(cfg, engineId);
+  // MCP is only meaningful for the two detectable editors, not Custom.
+  // Inline the narrowing so `engineId` is provably `'unity' | 'unreal'` at the
+  // mcpDefaultBasePort call (a separate boolean const doesn't narrow it).
+  const supportsMcp = engineId === 'unity' || engineId === 'unreal';
+  // Engine MCP (Unity + Unreal): the base-port field is a free-text buffer (so
+  // a mid-edit empty string doesn't snap back), committed to settings on blur.
+  const engineDefaultMcpPort =
+    engineId === 'unity' || engineId === 'unreal' ? mcpDefaultBasePort(engineId) : 0;
+  const [mcpBasePort, setMcpBasePort] = useState(String(cfg.mcpBasePort ?? engineDefaultMcpPort));
 
   const refresh = async () => {
     if (isCustom) return;
@@ -1196,6 +1208,9 @@ function EngineConfigPanel({ engineId }: { engineId: GameEngineId }): JSX.Elemen
   useEffect(() => { setSubpath(cfg.projectSubpath ?? legacySubpath ?? ''); }, [cfg.projectSubpath, legacySubpath]);
   useEffect(() => { setRunPosix(cfg.runPosix ?? ''); }, [cfg.runPosix]);
   useEffect(() => { setRunWindows(cfg.runWindows ?? ''); }, [cfg.runWindows]);
+  useEffect(() => {
+    setMcpBasePort(String(cfg.mcpBasePort ?? engineDefaultMcpPort));
+  }, [cfg.mcpBasePort, engineDefaultMcpPort]);
 
   if (loading) return <p className="pref-section-desc">{t('common.loading')}</p>;
 
@@ -1364,6 +1379,94 @@ function EngineConfigPanel({ engineId }: { engineId: GameEngineId }): JSX.Elemen
           />
         </div>
       </div>
+
+      {supportsMcp && (
+        <>
+          {/* Engine MCP (Unity / Unreal) — persists immediately (like the enable
+              toggle). When on, each slot's Editor is launched with an MCP port
+              derived from the base port + slot index. Title/desc are per-engine
+              (Unity → IvanMurzak/Unity-MCP URL; Unreal → Epic's MCP plugin flags). */}
+          <div className="pref-row">
+            <div className="pref-label">
+              <div className="pref-label-title">{t(`prefs.engine.mcp.${engineId}.title`)}</div>
+              <div className="pref-label-desc">{t(`prefs.engine.mcp.${engineId}.desc`)}</div>
+            </div>
+            <div className="pref-control">
+              <input
+                type="checkbox"
+                // Coerce to a strict boolean so the box is always checked or
+                // unchecked — never renders indeterminate from a stray value.
+                checked={cfg.useMcp === true}
+                onChange={(e) => void writeEngine({ useMcp: e.target.checked })}
+              />
+            </div>
+          </div>
+          <div className="pref-row">
+            <div className="pref-label">
+              <div className="pref-label-title">{t('prefs.engine.mcp.basePort.title')}</div>
+              <div className="pref-label-desc">{t('prefs.engine.mcp.basePort.desc')}</div>
+            </div>
+            <div className="pref-control" style={{ minWidth: 120 }}>
+              <input
+                className="pref-input mono"
+                type="number"
+                min={1024}
+                max={65535}
+                disabled={cfg.useMcp !== true}
+                value={mcpBasePort}
+                onChange={(e) => setMcpBasePort(e.target.value)}
+                onBlur={() => {
+                  // Commit: blank restores the engine default; otherwise clamp to
+                  // a valid port range (Number('') is 0, so guard blank first).
+                  const raw = mcpBasePort.trim();
+                  const n = Math.round(Number(raw));
+                  const port =
+                    raw === '' || !Number.isFinite(n)
+                      ? engineDefaultMcpPort
+                      : Math.min(65535, Math.max(1024, n));
+                  setMcpBasePort(String(port));
+                  void writeEngine({ mcpBasePort: port });
+                }}
+                style={{ width: 120 }}
+              />
+            </div>
+          </div>
+        </>
+      )}
+
+      {engineId === 'unity' && (
+        <div className="pref-row">
+          <div className="pref-label">
+            <div className="pref-label-title">{t('prefs.engine.unityTitleScript.title')}</div>
+            <div className="pref-label-desc">{t('prefs.engine.unityTitleScript.desc')}</div>
+          </div>
+          <div className="pref-control" style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+            <button
+              className="btn sm"
+              onClick={() => {
+                setTitleScript(null);
+                void window.popbot.engines.installUnityTitleScript().then((r) =>
+                  setTitleScript(
+                    r.ok
+                      ? { ok: true, msg: t('prefs.engine.unityTitleScript.done', { path: r.path }) }
+                      : { ok: false, msg: r.error },
+                  ),
+                );
+              }}
+            >
+              {t('prefs.engine.unityTitleScript.button')}
+            </button>
+            {titleScript && (
+              <span
+                className="mono"
+                style={{ fontSize: 11, color: titleScript.ok ? 'var(--st-done)' : 'var(--st-err)' }}
+              >
+                {titleScript.msg}
+              </span>
+            )}
+          </div>
+        </div>
+      )}
 
       <div className="pref-row">
         <div className="pref-label" />
@@ -2811,13 +2914,49 @@ function PrefsPermissions(): JSX.Element {
     void window.popbot.settings.set('permissions.rules', next);
   };
 
-  // Merge core tools with user-added (non-core) rules so MCP / custom
-  // tools the user has opinions on don't disappear from the list.
-  const coreNames = new Set(CORE_TOOLS.map((tool) => tool.name));
-  const customToolNames = rules.map((r) => r.tool).filter((name) => !coreNames.has(name));
-  const renderRows: Array<{ name: string; description: string | null }> = [
-    ...CORE_TOOLS.map((tool) => ({ name: tool.name, description: t(tool.descKey) })),
-    ...customToolNames.map((name) => ({ name, description: null })),
+  // Always-shown MCP server toggles: a single wildcard rule per editor MCP
+  // pre-allows (or denies) every tool from that slot's Unity/Unreal editor, so
+  // the user isn't prompted for each MCP call. Set to 'allow' to enable all of
+  // that engine's MCP tools; leave 'ask' to be prompted per tool.
+  const MCP_SERVER_TOGGLES: Array<{ name: string; descKey: MessageKey }> = [
+    { name: 'mcp__unrealEditor__*', descKey: 'prefs.permissions.tool.mcpUnreal.desc' },
+    { name: 'mcp__unityEditor__*', descKey: 'prefs.permissions.tool.mcpUnity.desc' },
+  ];
+
+  // A friendly display label for a rule's tool pattern. MCP tools read
+  // `mcp__unrealEditor__call_tool`; show `unrealEditor → call_tool` (and
+  // `unrealEditor → all tools` for a wildcard) instead of the raw namespace.
+  const labelForTool = (name: string): string => {
+    if (!isMcpTool(name)) return name;
+    const server = mcpServerOfTool(name) ?? 'MCP';
+    const rest = name.slice(`mcp__${server}__`.length);
+    return `${server} → ${rest === '*' ? t('prefs.permissions.mcpAllTools') : rest}`;
+  };
+
+  // Merge core tools + MCP server toggles with user-added (non-core) rules so
+  // MCP / custom tools the user has opinions on don't disappear from the list.
+  const alwaysShown = new Set([
+    ...CORE_TOOLS.map((tool) => tool.name),
+    ...MCP_SERVER_TOGGLES.map((m) => m.name),
+  ]);
+  // Auto-collapse: hide a per-tool MCP rule when a wildcard for the SAME server
+  // already covers it with the SAME action — the wildcard row makes it
+  // redundant. Keep it when the actions differ (a meaningful per-tool override).
+  const isRedundantUnderWildcard = (name: string): boolean => {
+    if (!isMcpTool(name) || name.endsWith('*')) return false;
+    const rule = rules.find((r) => r.tool === name);
+    if (!rule) return false;
+    return rules.some(
+      (w) => w.tool.endsWith('*') && w.action === rule.action && permissionRuleMatches(w.tool, name),
+    );
+  };
+  const customToolNames = rules
+    .map((r) => r.tool)
+    .filter((name) => !alwaysShown.has(name) && !isRedundantUnderWildcard(name));
+  const renderRows: Array<{ name: string; label: string; description: string | null }> = [
+    ...CORE_TOOLS.map((tool) => ({ name: tool.name, label: tool.name, description: t(tool.descKey) })),
+    ...MCP_SERVER_TOGGLES.map((m) => ({ name: m.name, label: labelForTool(m.name), description: t(m.descKey) })),
+    ...customToolNames.map((name) => ({ name, label: labelForTool(name), description: null })),
   ];
 
   const stateLabel: Record<ToolState, string> = {
@@ -2863,7 +3002,7 @@ function PrefsPermissions(): JSX.Element {
             >
               <div style={{ flex: 1, minWidth: 0, overflow: 'hidden' }}>
                 <div style={{ fontFamily: 'var(--font-mono)', fontSize: 13 }}>
-                  {row.name}
+                  {row.label}
                 </div>
                 <div
                   style={{
@@ -2881,7 +3020,7 @@ function PrefsPermissions(): JSX.Element {
               <div
                 style={{ display: 'flex', gap: 2, flex: '0 0 auto' }}
                 role="radiogroup"
-                aria-label={t('prefs.permissions.toolDefaultAria', { tool: row.name })}
+                aria-label={t('prefs.permissions.toolDefaultAria', { tool: row.label })}
               >
                 {(['ask', 'allow', 'deny'] as const).map((s) => (
                   <button

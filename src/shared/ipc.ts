@@ -160,6 +160,10 @@ export const IpcChannel = {
   UnityRunningProjects: 'pb:unity:running-projects',
   /** List detected editor installs for a game engine (unity/unreal). */
   EngineListVersions: 'pb:engine:list-versions',
+  /** Install the Unity editor script that puts the full project path in the
+   *  Editor title bar (into a project's Assets/, so each slot's window is
+   *  identifiable). */
+  EngineInstallUnityTitleScript: 'pb:engine:install-unity-title-script',
   /** Detect which engine a chat's worktree is (root or child project folder). */
   AppsDetectEngine: 'pb:apps:detect-engine',
   /** Per-app status (terminal/editor/git/engines) for slot icon coloring. */
@@ -648,6 +652,11 @@ export interface PopBotApi {
      *  project or HAS one in a child folder. Null when neither Unity nor
      *  Unreal is found. Drives the chat bar's engine icon. */
     detect(worktreePath: string): Promise<GameEngineId | null>;
+    /** Install a Unity editor script that shows the full project path in the
+     *  Editor title bar, so each slot's window is identifiable. Writes one .cs
+     *  file under the Unity project's Assets/. Needs a configured Unity project
+     *  path (the binary/subpath from settings) to locate Assets/. */
+    installUnityTitleScript(): Promise<{ ok: true; path: string } | { ok: false; error: string }>;
   };
   apps: {
     /** Open / focus an external app pointed at `worktreePath`.

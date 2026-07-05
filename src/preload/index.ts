@@ -94,6 +94,7 @@ const api: PopBotApi = {
     listVersions: (engineId: GameEngineId) =>
       ipcRenderer.invoke(IpcChannel.EngineListVersions, engineId),
     detect: (worktreePath: string) => ipcRenderer.invoke(IpcChannel.AppsDetectEngine, worktreePath),
+    installUnityTitleScript: () => ipcRenderer.invoke(IpcChannel.EngineInstallUnityTitleScript),
   },
   reviews: {
     list: () => ipcRenderer.invoke(IpcChannel.ReviewsList),

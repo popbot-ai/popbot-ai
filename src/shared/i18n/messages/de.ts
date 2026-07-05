@@ -587,6 +587,7 @@ export const de = {
   'chat.permission.allowOnce': 'Einmal erlauben',
   'chat.permission.allowChat': 'Für diesen Chat erlauben',
   'chat.permission.allowEverywhere': 'Überall erlauben',
+  'chat.permission.allowMcpServer': 'Alle {server}-Tools zulassen',
   'chat.permission.deny': 'Verweigern',
   'chat.permission.denyEverywhere': 'Überall verweigern',
   'chat.qa.questionPrefix': 'F:',
@@ -845,6 +846,20 @@ export const de = {
   'prefs.engine.custom.posix.desc': 'Shell-Befehl, der (über bash) im Projektverzeichnis ausgeführt wird.',
   'prefs.engine.custom.windows.title': 'Ausführungsbefehl (Windows)',
   'prefs.engine.custom.windows.desc': 'Befehl, der (über cmd) im Projektverzeichnis ausgeführt wird.',
+  'prefs.engine.mcp.unreal.title': 'Unreal MCP verwenden',
+  'prefs.engine.mcp.unreal.desc':
+    'Startet den Editor mit einem MCP-Server-Port, damit Agenten Unreal steuern können. Jeder Slot erhält seinen eigenen Port, damit parallele Slots nicht kollidieren.',
+  'prefs.engine.mcp.unity.title': 'Unity MCP verwenden',
+  'prefs.engine.mcp.unity.desc':
+    'Startet den Editor mit Verweis auf die URL eines Unity-MCP-Servers (IvanMurzak), damit Agenten Unity steuern können. Jeder Slot erhält seinen eigenen Port, damit parallele Slots nicht kollidieren.',
+  'prefs.engine.mcp.basePort.title': 'MCP-Basis-Port',
+  'prefs.engine.mcp.basePort.desc':
+    'Port für Slot 1. Jeder weitere Slot zählt eins hinzu (Slot 2 → Basis + 1, Slot 3 → Basis + 2, …).',
+  'prefs.engine.unityTitleScript.title': 'Projektpfad in der Titelleiste anzeigen',
+  'prefs.engine.unityTitleScript.desc':
+    'Installiert ein kleines Editor-Skript in Assets/Scripts deines Unity-Projekts, damit jeder geöffnete Editor seinen vollständigen Projektpfad in der Titelleiste zeigt — der einfache Weg, Slot-Fenster zu unterscheiden. Kann committet werden.',
+  'prefs.engine.unityTitleScript.button': 'Titelleisten-Skript installieren',
+  'prefs.engine.unityTitleScript.done': 'Installiert unter {path}',
 
   // Preferences — Source control pane.
   'prefs.git.title': 'Versionsverwaltung',
@@ -1026,6 +1041,9 @@ export const de = {
   'prefs.permissions.tool.todoWrite.desc': 'Die interne Aufgabenliste des Agenten aktualisieren.',
   'prefs.permissions.tool.task.desc': 'Einen Sub-Agenten starten, um Arbeit zu delegieren.',
   'prefs.permissions.tool.exitPlanMode.desc': 'Den Plan-Modus verlassen und den Plan präsentieren.',
+  'prefs.permissions.tool.mcpUnreal.desc': 'Alle MCP-Tools des Unreal-Editors (den laufenden Editor steuern).',
+  'prefs.permissions.tool.mcpUnity.desc': 'Alle MCP-Tools des Unity-Editors (den laufenden Editor steuern).',
+  'prefs.permissions.mcpAllTools': 'alle Tools',
   'prefs.permissions.title': 'Berechtigungen',
   'prefs.permissions.desc':
     'Globaler Standard für jedes Tool. „Fragen“ fragt jedes Mal im Chat nach (der Standard). „Erlauben“ genehmigt automatisch ohne Nachfrage. „Verweigern“ lehnt automatisch ab. Chat-spezifische Regeln — über die Berechtigungskarte mit „Für diesen Chat erlauben“ / „Für diesen Chat verweigern“ gesetzt — überschreiben diese globalen Werte, sodass ein einzelner Chat ein Tool sperren kann, das Sie sonst überall erlaubt haben.',

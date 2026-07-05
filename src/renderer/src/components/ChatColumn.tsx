@@ -474,7 +474,7 @@ export function ChatColumn({
   // scope is permanent.
   const decidePermission = useCallback(async (
     permissionId: string,
-    decision: 'allow' | 'allow-chat' | 'allow-everywhere' | 'deny' | 'deny-everywhere',
+    decision: 'allow' | 'allow-chat' | 'allow-everywhere' | 'allow-mcp-server' | 'deny' | 'deny-everywhere',
   ) => {
     try {
       await window.popbot.agent.approve({ chatId: chat.id, permissionId, decision });

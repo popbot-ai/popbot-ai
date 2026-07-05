@@ -551,6 +551,7 @@ export const en = {
   'chat.permission.allowOnce': 'Allow once',
   'chat.permission.allowChat': 'Allow this chat',
   'chat.permission.allowEverywhere': 'Allow everywhere',
+  'chat.permission.allowMcpServer': 'Allow all {server} tools',
   'chat.permission.deny': 'Deny',
   'chat.permission.denyEverywhere': 'Deny everywhere',
   'chat.qa.questionPrefix': 'Q:',
@@ -858,6 +859,20 @@ export const en = {
   'prefs.engine.custom.posix.desc': 'Shell command run (via bash) in the project directory.',
   'prefs.engine.custom.windows.title': 'Run command (Windows)',
   'prefs.engine.custom.windows.desc': 'Command run (via cmd) in the project directory.',
+  'prefs.engine.mcp.unreal.title': 'Use Unreal MCP',
+  'prefs.engine.mcp.unreal.desc':
+    "Launch the Editor with an MCP server port, so agents can drive Unreal. Each slot gets its own port so parallel slots don't collide.",
+  'prefs.engine.mcp.unity.title': 'Use Unity MCP',
+  'prefs.engine.mcp.unity.desc':
+    "Launch the Editor pointed at a Unity-MCP (IvanMurzak) server URL, so agents can drive Unity. Each slot gets its own port so parallel slots don't collide.",
+  'prefs.engine.mcp.basePort.title': 'Base MCP port',
+  'prefs.engine.mcp.basePort.desc':
+    'Port for slot 1. Each later slot adds one (slot 2 → base + 1, slot 3 → base + 2, …).',
+  'prefs.engine.unityTitleScript.title': 'Show project path in title bar',
+  'prefs.engine.unityTitleScript.desc':
+    "Install a small editor script into your Unity project's Assets/Scripts so each open Editor shows its full project path in the title bar — the easy way to tell slot windows apart. Safe to commit.",
+  'prefs.engine.unityTitleScript.button': 'Install title-bar script',
+  'prefs.engine.unityTitleScript.done': 'Installed at {path}',
 
   // Preferences — Source control pane.
   'prefs.git.title': 'Source control',
@@ -1042,6 +1057,9 @@ export const en = {
   'prefs.permissions.tool.todoWrite.desc': 'Update the agent’s internal task list.',
   'prefs.permissions.tool.task.desc': 'Spawn a sub-agent to delegate work.',
   'prefs.permissions.tool.exitPlanMode.desc': 'Leave plan mode and present the plan.',
+  'prefs.permissions.tool.mcpUnreal.desc': 'All Unreal editor MCP tools (drive the running Editor).',
+  'prefs.permissions.tool.mcpUnity.desc': 'All Unity editor MCP tools (drive the running Editor).',
+  'prefs.permissions.mcpAllTools': 'all tools',
   'prefs.permissions.title': 'Permissions',
   'prefs.permissions.desc':
     'Global default for each tool. Ask prompts the chat each time (the default). Allow auto-approves without prompting. Deny auto-rejects. Per-chat rules — set from the permission card via "Allow this chat" / "Deny this chat" — override these globals, so a single chat can lock down a tool you’ve otherwise allowed everywhere.',

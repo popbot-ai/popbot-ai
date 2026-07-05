@@ -31,6 +31,78 @@ export interface GameEngineConfig {
    *  variants so one machine's config works cross-platform. */
   runPosix?: string;
   runWindows?: string;
+  /** Unity / Unreal: when on, the editor is launched with a command-line
+   *  override that points its MCP integration at a per-slot port, so each
+   *  slot's Editor exposes MCP on its own port and agents don't collide.
+   *  Default off. */
+  useMcp?: boolean;
+  /** Unity / Unreal: base MCP port for slot 1. Each slot uses `mcpBasePort +
+   *  (slotId - 1)` (slot 1 → base, slot 2 → base+1, …). Default is the engine's
+   *  {@link mcpDefaultBasePort}. */
+  mcpBasePort?: number;
+}
+
+/** Default base MCP port for the engines that support MCP (slot 1's port).
+ *   - unreal: 8000, matching Epic's ModelContextProtocol plugin default.
+ *   - unity:  8080, matching IvanMurzak/Unity-MCP's default plugin port.
+ *  Custom has no MCP integration, so it isn't listed. */
+export const MCP_DEFAULT_BASE_PORT: Record<'unity' | 'unreal', number> = {
+  unreal: 8000,
+  unity: 8080,
+};
+
+/** The default base MCP port for an MCP-capable engine. */
+export function mcpDefaultBasePort(id: 'unity' | 'unreal'): number {
+  return MCP_DEFAULT_BASE_PORT[id];
+}
+
+/** Highest valid TCP port. */
+const MAX_PORT = 65535;
+
+/** The per-slot MCP port: the base for slot 1, +1 for each slot after, clamped
+ *  to a valid TCP port. `slotId` is the 1-based slot index; a missing/invalid
+ *  slot falls back to 1 (the base port). */
+export function mcpPortForSlot(basePort: number, slotId: number | null | undefined): number {
+  const slot = slotId && slotId > 0 ? slotId : 1;
+  return Math.min(MAX_PORT, basePort + (slot - 1));
+}
+
+/** Unreal editor command-line arguments that start the MCP server on a specific
+ *  port. Injected at launch when `useMcp` is on. Two flags, per Epic's MCP
+ *  plugin docs:
+ *   - `-ModelContextProtocolStartServer` starts the server (the plugin's
+ *     "Auto Start Server" pref defaults to false, so without this the server
+ *     never starts and no port would matter).
+ *   - `-ModelContextProtocolPort=N` overrides the listen port (1–65535).
+ *  NOTE: the plugin does NOT reliably read the port from an `-ini:` override of
+ *  ServerPortNumber — these dedicated flags are the supported mechanism. The
+ *  server binds to http://127.0.0.1:<port>/mcp. */
+export function unrealMcpArgs(port: number): string[] {
+  return ['-ModelContextProtocolStartServer', `-ModelContextProtocolPort=${port}`];
+}
+
+/** Unity editor command-line argument that points the MCP plugin (IvanMurzak/
+ *  Unity-MCP) at a per-slot server URL. `-url` is the current alias for
+ *  UNITY_MCP_CLOUD_URL; a loopback URL puts the plugin in Custom connection
+ *  mode. Only the port varies per slot. */
+export function unityMcpUrlArg(port: number): string {
+  return `-url=http://localhost:${port}`;
+}
+
+/** The HTTP MCP endpoint URL an AGENT (Claude/Codex) connects to for a slot's
+ *  editor. Both plugins expose a streamable-HTTP MCP server on the per-slot
+ *  port at `/mcp`. Uses 127.0.0.1 (not `localhost`) to match the plugins'
+ *  loopback-only bind exactly — on some Windows setups `localhost` resolves to
+ *  IPv6 `::1` first, which wouldn't reach a 127.0.0.1-only server. This is what
+ *  we hand the agent SDK's `mcpServers` map so each chat drives its own editor. */
+export function mcpEndpointUrl(port: number): string {
+  return `http://127.0.0.1:${port}/mcp`;
+}
+
+/** The `mcpServers` entry name for a game engine — the key the agent sees for
+ *  the editor's MCP server (e.g. shows up as `mcp__unityEditor__<tool>`). */
+export function mcpServerName(id: 'unity' | 'unreal'): string {
+  return id === 'unity' ? 'unityEditor' : 'unrealEditor';
 }
 
 /** All engines' configs, keyed by id. Stored on the `apps` settings blob. */

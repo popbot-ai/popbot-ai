@@ -144,17 +144,70 @@ export type AgentEvent =
  * is rarely useful — if you don't trust a tool at all, you want it off
  * everywhere; if you do trust it, you decide per-call.
  *
- * Rules are tool-name only in v1; command-pattern matching is deferred.
+ * `allow-mcp-server` is offered only for MCP tools: it stores a global
+ * `mcp__<server>__*` wildcard rule so the ENTIRE MCP server is allowed and
+ * never prompts again (one grant instead of once-per-tool).
  */
 export type PermissionDecision =
   | 'allow'
   | 'allow-chat'
   | 'allow-everywhere'
+  | 'allow-mcp-server'
   | 'deny'
   | 'deny-everywhere';
 
-/** Stored permission rule. v1: tool-name only. */
+/** Stored permission rule. `tool` is an exact tool name OR a trailing-`*`
+ *  wildcard prefix (e.g. `mcp__unrealEditor__*` matches every tool from that
+ *  MCP server; `mcp__*` matches every MCP tool). */
 export interface PermissionRule {
   tool: string;
   action: 'allow' | 'deny';
+}
+
+/** Does a permission rule's `tool` pattern match a concrete tool name? Exact
+ *  match, or a trailing-`*` prefix match. */
+export function permissionRuleMatches(pattern: string, toolName: string): boolean {
+  if (pattern.endsWith('*')) return toolName.startsWith(pattern.slice(0, -1));
+  return pattern === toolName;
+}
+
+/** Resolve a tool against a rule list. A DENY that matches always wins over an
+ *  ALLOW (fail-safe), and a more specific (longer) pattern wins over a broader
+ *  one at the same action. Returns null when no rule matches. */
+export function resolvePermissionRules(
+  rules: readonly PermissionRule[],
+  toolName: string,
+): 'allow' | 'deny' | null {
+  let best: PermissionRule | null = null;
+  for (const r of rules) {
+    if (!permissionRuleMatches(r.tool, toolName)) continue;
+    // Prefer a deny; among same action prefer the longer (more specific) pattern.
+    if (
+      !best ||
+      (r.action === 'deny' && best.action !== 'deny') ||
+      (r.action === best.action && r.tool.length > best.tool.length)
+    ) {
+      best = r;
+    }
+  }
+  return best ? best.action : null;
+}
+
+/** True when a tool is an MCP tool (SDK namespaces them `mcp__<server>__<tool>`). */
+export function isMcpTool(toolName: string): boolean {
+  return toolName.startsWith('mcp__');
+}
+
+/** The MCP server portion of an MCP tool name, or null. `mcp__unrealEditor__x`
+ *  → `unrealEditor`. Used to offer "allow all tools from this server". */
+export function mcpServerOfTool(toolName: string): string | null {
+  if (!isMcpTool(toolName)) return null;
+  const rest = toolName.slice('mcp__'.length);
+  const sep = rest.indexOf('__');
+  return sep === -1 ? rest : rest.slice(0, sep);
+}
+
+/** The wildcard rule pattern that allows every tool from an MCP server. */
+export function mcpServerWildcard(server: string): string {
+  return `mcp__${server}__*`;
 }

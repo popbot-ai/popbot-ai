@@ -587,6 +587,7 @@ export const ko = {
   'chat.permission.allowOnce': '한 번 허용',
   'chat.permission.allowChat': '이 채팅에서 허용',
   'chat.permission.allowEverywhere': '모든 곳에서 허용',
+  'chat.permission.allowMcpServer': '{server}의 모든 도구 허용',
   'chat.permission.deny': '거부',
   'chat.permission.denyEverywhere': '모든 곳에서 거부',
   'chat.qa.questionPrefix': 'Q:',
@@ -845,6 +846,20 @@ export const ko = {
   'prefs.engine.custom.posix.desc': '프로젝트 디렉터리에서 (bash를 통해) 실행되는 셸 명령입니다.',
   'prefs.engine.custom.windows.title': '실행 명령 (Windows)',
   'prefs.engine.custom.windows.desc': '프로젝트 디렉터리에서 (cmd를 통해) 실행되는 명령입니다.',
+  'prefs.engine.mcp.unreal.title': 'Unreal MCP 사용',
+  'prefs.engine.mcp.unreal.desc':
+    '에이전트가 Unreal을 제어할 수 있도록 MCP 서버 포트와 함께 에디터를 실행합니다. 각 슬롯에 고유한 포트가 부여되어 병렬 슬롯이 충돌하지 않습니다.',
+  'prefs.engine.mcp.unity.title': 'Unity MCP 사용',
+  'prefs.engine.mcp.unity.desc':
+    '에이전트가 Unity를 제어할 수 있도록 Unity-MCP(IvanMurzak) 서버 URL을 가리키도록 에디터를 실행합니다. 각 슬롯에 고유한 포트가 부여되어 병렬 슬롯이 충돌하지 않습니다.',
+  'prefs.engine.mcp.basePort.title': 'MCP 기본 포트',
+  'prefs.engine.mcp.basePort.desc':
+    '슬롯 1의 포트. 이후 슬롯마다 1씩 더해집니다(슬롯 2 → 기본 + 1, 슬롯 3 → 기본 + 2, …).',
+  'prefs.engine.unityTitleScript.title': '제목 표시줄에 프로젝트 경로 표시',
+  'prefs.engine.unityTitleScript.desc':
+    'Unity 프로젝트의 Assets/Scripts에 작은 에디터 스크립트를 설치하여, 열려 있는 각 에디터가 제목 표시줄에 전체 프로젝트 경로를 표시하도록 합니다 — 슬롯 창을 쉽게 구분하는 방법입니다. 커밋해도 안전합니다.',
+  'prefs.engine.unityTitleScript.button': '제목 표시줄 스크립트 설치',
+  'prefs.engine.unityTitleScript.done': '{path}에 설치됨',
 
   // Preferences — Source control pane.
   'prefs.git.title': '버전 관리',
@@ -1026,6 +1041,9 @@ export const ko = {
   'prefs.permissions.tool.todoWrite.desc': '에이전트의 내부 작업 목록을 업데이트합니다.',
   'prefs.permissions.tool.task.desc': '작업을 위임할 하위 에이전트를 생성합니다.',
   'prefs.permissions.tool.exitPlanMode.desc': '계획 모드를 종료하고 계획을 제시합니다.',
+  'prefs.permissions.tool.mcpUnreal.desc': '모든 Unreal 에디터 MCP 도구(실행 중인 에디터 제어).',
+  'prefs.permissions.tool.mcpUnity.desc': '모든 Unity 에디터 MCP 도구(실행 중인 에디터 제어).',
+  'prefs.permissions.mcpAllTools': '모든 도구',
   'prefs.permissions.title': '권한',
   'prefs.permissions.desc':
     '각 도구의 전역 기본값입니다. 질문은 매번 채팅에 묻습니다 (기본값). 허용은 묻지 않고 자동 승인합니다. 거부는 자동 거부합니다. 채팅별 규칙 — 권한 카드에서 "이 채팅에서 허용" / "이 채팅에서 거부"로 설정 — 은 이 전역값을 재정의하므로, 단일 채팅이 다른 모든 곳에서 허용한 도구를 차단할 수 있습니다.',

@@ -548,9 +548,6 @@ export function registerChatHandlers(): void {
         if (!reopened) return { ok: false, reason: 'not-found' };
         return { ok: true, chat: reopened };
       }
-      // Remember which slot this chat last lived in so we can detect a
-      // forced slot-reassignment below and tell the agent about it.
-      const previousSlotId = chat.slotId;
       const slotId = allocateSlotPreferring(maxSlots, chat.slotId);
       if (slotId === null) return { ok: false, reason: 'no-free-slot' };
       const worktreePath = slotWorktreePathForRepo(repo, slotId);
@@ -582,27 +579,14 @@ export function registerChatHandlers(): void {
       }
       const reopened = reopenChat(chatId, { slotId, worktreePath });
       if (!reopened) return { ok: false, reason: 'not-found' };
-      // Slot changed: the agent's prior context referenced an old
-      // worktree path. Inject a heads-up note so subsequent reads,
-      // edits, and git ops use the new slot/worktree without the
-      // agent silently following the stale path it remembers. We
-      // fire-and-forget so a transient send failure (e.g. agent not
-      // ready yet) doesn't break the reopen.
-      if (previousSlotId != null && previousSlotId !== slotId) {
-        const slotLabel = `${repo.slotPrefix}-${slotId}`;
-        const prevLabel = `${repo.slotPrefix}-${previousSlotId}`;
-        const note = (
-          `Heads-up: this chat was paused and just resumed in a new worktree slot. ` +
-          `Previous: \`${prevLabel}\`. Now active: \`${slotLabel}\` (\`${worktreePath}\`). ` +
-          `All file reads, edits, and git operations from here on should use the new slot path — ` +
-          `the old one no longer reflects this chat's working tree. ` +
-          `There's nothing you need to do about this right now; continue with the user's next instruction.`
-        );
-        void AgentHost.send(chatId, note).catch((err) => {
-          // eslint-disable-next-line no-console
-          console.warn(`[slots] slot-change note failed for chat ${chatId}: ${(err as Error).message}`);
-        });
-      }
+      // A reopened slot-backed chat was closed (which nulls its slot_id) and is
+      // now (re)attached to a slot — often a different one, since slot
+      // allocation can't guarantee the same number. We can't compare to the old
+      // slot (closeChat already cleared it), so flag the resume unconditionally:
+      // the invisible preamble on the next message re-states the current working
+      // directory (see firstMessageCwdPreamble) so the agent doesn't follow a
+      // stale path it recalls from before the close.
+      AgentHost.markResumed(chatId);
       return { ok: true, chat: reopened };
     },
   );

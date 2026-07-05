@@ -587,6 +587,7 @@ export const fr = {
   'chat.permission.allowOnce': 'Autoriser une fois',
   'chat.permission.allowChat': 'Autoriser ce chat',
   'chat.permission.allowEverywhere': 'Autoriser partout',
+  'chat.permission.allowMcpServer': 'Autoriser tous les outils {server}',
   'chat.permission.deny': 'Refuser',
   'chat.permission.denyEverywhere': 'Refuser partout',
   'chat.qa.questionPrefix': 'Q :',
@@ -851,6 +852,20 @@ export const fr = {
   'prefs.engine.custom.windows.title': 'Commande d’exécution (Windows)',
   'prefs.engine.custom.windows.desc':
     'Commande exécutée (via cmd) dans le répertoire du projet.',
+  'prefs.engine.mcp.unreal.title': 'Utiliser Unreal MCP',
+  'prefs.engine.mcp.unreal.desc':
+    'Lance l’Éditeur avec un port de serveur MCP pour que les agents puissent piloter Unreal. Chaque emplacement obtient son propre port pour que les emplacements en parallèle n’entrent pas en conflit.',
+  'prefs.engine.mcp.unity.title': 'Utiliser Unity MCP',
+  'prefs.engine.mcp.unity.desc':
+    'Lance l’Éditeur pointé vers l’URL d’un serveur Unity-MCP (IvanMurzak), pour que les agents puissent piloter Unity. Chaque emplacement obtient son propre port pour que les emplacements en parallèle n’entrent pas en conflit.',
+  'prefs.engine.mcp.basePort.title': 'Port MCP de base',
+  'prefs.engine.mcp.basePort.desc':
+    'Port de l’emplacement 1. Chaque emplacement suivant ajoute un (emplacement 2 → base + 1, emplacement 3 → base + 2, …).',
+  'prefs.engine.unityTitleScript.title': 'Afficher le chemin du projet dans la barre de titre',
+  'prefs.engine.unityTitleScript.desc':
+    'Installe un petit script d’éditeur dans Assets/Scripts de votre projet Unity pour que chaque Éditeur ouvert affiche le chemin complet du projet dans la barre de titre — le moyen simple de distinguer les fenêtres des emplacements. Peut être commité.',
+  'prefs.engine.unityTitleScript.button': 'Installer le script de barre de titre',
+  'prefs.engine.unityTitleScript.done': 'Installé dans {path}',
 
   // Preferences — Source control pane.
   'prefs.git.title': 'Gestion de versions',
@@ -1032,6 +1047,9 @@ export const fr = {
   'prefs.permissions.tool.todoWrite.desc': 'Mettre à jour la liste de tâches interne de l’agent.',
   'prefs.permissions.tool.task.desc': 'Créer un sous-agent pour déléguer du travail.',
   'prefs.permissions.tool.exitPlanMode.desc': 'Quitter le mode plan et présenter le plan.',
+  'prefs.permissions.tool.mcpUnreal.desc': 'Tous les outils MCP de l’éditeur Unreal (piloter l’Éditeur en cours d’exécution).',
+  'prefs.permissions.tool.mcpUnity.desc': 'Tous les outils MCP de l’éditeur Unity (piloter l’Éditeur en cours d’exécution).',
+  'prefs.permissions.mcpAllTools': 'tous les outils',
   'prefs.permissions.title': 'Autorisations',
   'prefs.permissions.desc':
     'Valeur par défaut globale pour chaque outil. Demander interroge le chat à chaque fois (le défaut). Autoriser approuve automatiquement sans demander. Refuser rejette automatiquement. Les règles par chat — définies depuis la carte d’autorisation via « Autoriser ce chat » / « Refuser ce chat » — remplacent ces valeurs globales, de sorte qu’un seul chat peut verrouiller un outil que vous avez par ailleurs autorisé partout.',

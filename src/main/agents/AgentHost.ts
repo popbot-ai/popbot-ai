@@ -3,6 +3,7 @@ import { existsSync, mkdirSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 import type { AgentEvent, PermissionDecision } from '@shared/agent';
+import { resolvePermissionRules, mcpServerOfTool, mcpServerWildcard } from '@shared/agent';
 import type { PickedAttachment } from '@shared/ipc';
 import {
   DEFAULT_CLAUDE_MODEL,
@@ -45,6 +46,8 @@ import { listSessions, type SDKSessionInfo } from '@anthropic-ai/claude-agent-sd
 import { applyPerforceAgentCwd, worktreePathForChat } from '../git/chatPaths';
 import { sqliteSessionStore } from './sqliteSessionStore';
 import { looksLikeQuestion } from '@shared/questionDetect';
+import { LOCALES, LOCALE_SETTING_KEY, resolveLocale } from '@shared/i18n';
+import { mcpEndpointForChat } from '../ipc/apps';
 import type { AgentBackend, AgentSession } from './types';
 import { StubBackend } from './StubBackend';
 import { ClaudeBackend } from './ClaudeBackend';
@@ -98,6 +101,57 @@ export function sessionCwdForChat(
   return applyPerforceAgentCwd(base, chat);
 }
 
+/**
+ * An invisible one-line preamble prepended to the FIRST message an agent
+ * receives in a spawned session. It is NOT stored or shown in the transcript —
+ * only the agent sees it — so the chat history stays clean.
+ *
+ * Three cases:
+ *   - `isFresh` (no prior agent message): a brand-new chat → announce the cwd,
+ *     the user's language, and promise a heads-up on resume.
+ *   - `resumed` (reopened from the inactive list — flagged by the reopen
+ *     handler): the chat was closed and re-attached to a slot, so re-state the
+ *     current cwd because it may differ from the path the agent recalls. We
+ *     can't tell if the slot number actually changed (closeChat nulls the old
+ *     slot_id), so we always re-state on resume rather than risk staying silent.
+ *   - neither (a live in-session turn): the agent already knows its cwd → '' .
+ *
+ * Returns '' when there's no resolvable cwd (raw scratch chats, mis-config).
+ * MCP config is handled automatically at editor-launch time, so it is
+ * deliberately NOT mentioned here.
+ */
+export function firstMessageCwdPreamble(
+  chat: Pick<ChatRecord, 'slotId' | 'repoId' | 'worktreePath'> | null | undefined,
+  isFresh: boolean,
+  resumed: boolean,
+): string {
+  if (!isFresh && !resumed) return '';
+  const cwd = sessionCwdForChat(chat);
+  if (!cwd) return '';
+  // A LOCAL (not UTC) timestamp so the agent can gauge how much wall-clock time
+  // has passed (e.g. a resume hours/days after the last turn). The `sv-SE`
+  // locale gives a compact, sortable ISO-like "YYYY-MM-DD HH:MM" in local time.
+  const now = new Date().toLocaleString('sv-SE', { dateStyle: 'short', timeStyle: 'short' });
+  return isFresh
+    ? `[System] Starting up at ${now} in this working directory: ${cwd}.${languageDirective()} ` +
+        `Instructions will follow. If this chat is later paused and resumed, you'll be told here ` +
+        `its working directory (which may have changed).\n\n`
+    : `[System] This chat resumed at ${now}. Its working directory is now: ${cwd} — this may ` +
+        `differ from before (a resumed chat can move to a new slot), so use this path for all ` +
+        `file reads, edits, and commands from here on; any path you recall from earlier may be stale.\n\n`;
+}
+
+/** A sentence telling the agent to respond in the user's chosen UI language,
+ *  or '' when that language is English (the default — no directive needed).
+ *  Prefixed with a leading space so it slots into the fresh-start preamble. */
+function languageDirective(): string {
+  const locale = resolveLocale(getSetting<string>(LOCALE_SETTING_KEY) ?? undefined);
+  if (locale === 'en') return '';
+  const meta = LOCALES.find((l) => l.code === locale);
+  if (!meta) return '';
+  return ` The user's language is ${meta.englishName} (${meta.nativeName}); respond in ${meta.englishName} unless they write to you in another language.`;
+}
+
 export function sdkSessionJsonlPath(cwd: string, sessionId: string): string | null {
   if (!cwd || !sessionId) return null;
   const encoded = cwd.normalize('NFC').replace(/[^a-zA-Z0-9]/g, '-');
@@ -127,6 +181,10 @@ function rawChatCwd(): string {
 class AgentHostImpl {
   private webContents: WebContents | null = null;
   private readonly sessions = new Map<string, AgentSession>();
+  // Chats that were just reopened from the inactive list. The next first-message
+  // preamble re-states the current working directory (it may have moved slots),
+  // then the flag is cleared. Set by the reopen handler.
+  private readonly resumedChats = new Set<string>();
   private readonly textBuffers = new Map<
     string,
     { chatId: string; messageId: string; buffer: string; flushTimer: NodeJS.Timeout | null }
@@ -148,6 +206,13 @@ class AgentHostImpl {
     this.webContents = webContents;
   }
 
+  /** Record that a chat was just reopened, so the next first-message preamble
+   *  re-states its (possibly moved) working directory to the agent. Called by
+   *  the reopen handler. */
+  markResumed(chatId: string): void {
+    this.resumedChats.add(chatId);
+  }
+
   /** Send a user message to a chat. Spawns a session if none exists. */
   async send(chatId: string, text: string, attachments?: PickedAttachment[]): Promise<void> {
     const chat = getChat(chatId);
@@ -160,6 +225,19 @@ class AgentHostImpl {
       worktree: chat.worktreePath ?? null,
       branch: chat.branch ?? null,
     });
+
+    // Prepend an invisible working-directory preamble on the FIRST message of a
+    // spawned session (no live session yet) — only the agent sees it (the
+    // stored/broadcast user bubble below uses the raw `text`). A fresh chat gets
+    // a "starting up here" note; a reopened chat (flagged by the reopen handler)
+    // gets its current cwd re-stated in case it moved slots. A live in-session
+    // turn gets nothing — the agent already knows its cwd.
+    const firstOfSession = !this.sessions.get(chatId)?.isAlive();
+    const isFresh = !listMessages(chatId).some((m) => m.role === 'agent');
+    // Read (don't consume) the resume flag — we only clear it AFTER the message
+    // is actually delivered, so a spawn/send failure preserves it for the retry.
+    const resumed = this.resumedChats.has(chatId);
+    const preamble = firstOfSession ? firstMessageCwdPreamble(chat, isFresh, resumed) : '';
 
     const storedAttachments = await persistChatAttachments(chatId, attachments);
     const userMsg = appendMessage({
@@ -195,7 +273,11 @@ class AgentHostImpl {
 
     try {
       const session = await this.getOrSpawnSession(chatId);
-      await session.sendUser(text, storedAttachments);
+      // The preamble (if any) rides on the first message to the agent only; it
+      // is intentionally absent from the persisted/broadcast user bubble above.
+      await session.sendUser(preamble + text, storedAttachments);
+      // Delivered — now consume the resume flag so it doesn't re-fire next turn.
+      if (resumed) this.resumedChats.delete(chatId);
     } catch (err) {
       // Spawn-time failure: surface immediately as a chat error so the
       // user sees something instead of a silent stuck 'run' status.
@@ -275,14 +357,22 @@ class AgentHostImpl {
       if (decision === 'allow-chat') {
         addChatPermissionRule(chatId, { tool: toolForRule, action });
         dlog('perm.rule.added', { scope: 'chat', chatId, tool: toolForRule, action });
-      } else if (decision === 'allow-everywhere' || decision === 'deny-everywhere') {
+      } else if (
+        decision === 'allow-everywhere' ||
+        decision === 'deny-everywhere' ||
+        decision === 'allow-mcp-server'
+      ) {
+        // allow-mcp-server stores a wildcard for the WHOLE MCP server so the
+        // user isn't prompted per-tool; the others store the exact tool.
+        const server = decision === 'allow-mcp-server' ? mcpServerOfTool(toolForRule) : null;
+        const rulePattern = server ? mcpServerWildcard(server) : toolForRule;
         const current = getSetting<PermissionRule[]>('permissions.rules') ?? [];
         const next = [
-          ...current.filter((r) => r.tool !== toolForRule),
-          { tool: toolForRule, action },
+          ...current.filter((r) => r.tool !== rulePattern),
+          { tool: rulePattern, action },
         ];
         setSetting('permissions.rules', next);
-        dlog('perm.rule.added', { scope: 'global', tool: toolForRule, action });
+        dlog('perm.rule.added', { scope: 'global', tool: rulePattern, action });
       }
     }
     this.broadcast({
@@ -562,9 +652,23 @@ class AgentHostImpl {
       });
     }
 
+    // Per-slot editor MCP: if this chat's worktree is a Unity/Unreal project
+    // with MCP enabled, hand the agent its slot's editor MCP server (a unique
+    // localhost port per slot). Registered in-memory in the SDK options — no
+    // file on disk, no git-tracked config touched. Only the mcpHttp-capable
+    // backend (Claude) consumes it; others ignore it. Detect from the WORKTREE
+    // ROOT (liveWorktree), not `cwd` — for Perforce, cwd can be a subdir and the
+    // engine markers (a .uproject / ProjectSettings) live at the root.
+    const editorMcp =
+      backend.capabilities.mcpHttp ? mcpEndpointForChat(chatId, liveWorktree ?? cwd) : null;
+    const mcpServers = editorMcp
+      ? { [editorMcp.name]: { type: 'http' as const, url: editorMcp.url } }
+      : undefined;
+
     dlog('agent.spawn', {
       chatId, cwd, sessionId, source: discoverySource,
       backend: backend.id,
+      editorMcp: editorMcp?.url ?? null,
     });
 
     const session = backend.spawn({
@@ -572,6 +676,7 @@ class AgentHostImpl {
       history: [],
       cwd,
       sessionId,
+      mcpServers,
       claudeModel: !isCodex ? chat?.claudeModel ?? DEFAULT_CLAUDE_MODEL : null,
       claudeReasoningEffort: !isCodex
         ? chat?.claudeReasoningEffort ?? DEFAULT_CLAUDE_REASONING_EFFORT
@@ -601,12 +706,14 @@ class AgentHostImpl {
       // global allow with a deny (or vice versa). null/undefined → no
       // saved rule for this tool, prompt the user.
       resolveRule: (toolName: string) => {
-        const chatRules = getChatPermissionRules(chatId);
-        const chatHit = chatRules.find((r) => r.tool === toolName);
-        if (chatHit) return chatHit.action;
+        // Per-chat rules win over global; within each set, deny beats allow and
+        // a more specific pattern beats a broader one. Rules support trailing-`*`
+        // wildcards, so a single `mcp__unrealEditor__*` (written by the Unreal
+        // MCP permission toggle) allows this chat's whole editor MCP server.
+        const chatDecision = resolvePermissionRules(getChatPermissionRules(chatId), toolName);
+        if (chatDecision) return chatDecision;
         const globalRules = getSetting<PermissionRule[]>('permissions.rules') ?? [];
-        const globalHit = globalRules.find((r) => r.tool === toolName);
-        return globalHit ? globalHit.action : null;
+        return resolvePermissionRules(globalRules, toolName);
       },
     });
     this.sessions.set(chatId, session);
