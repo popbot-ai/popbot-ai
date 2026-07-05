@@ -4,6 +4,8 @@ The "what does success look like" reference for PopBot. Captured 2026-05-01. Eve
 
 The user is a single developer (Ben) running PopBot on his own machine. "I" below is him.
 
+> **Status (annotation added 2026-07, at publication).** The stories below are the *founding* user stories captured in 2026-05, preserved here as the original record of design intent. PopBot has since been generalized well beyond that first single-user, Unity/Linear/Slack/GitHub scope — it now spans Git and Perforce, Unity and Unreal, Linear/Jira/GitHub Issues, GitHub PRs and Helix Swarm, and ships localized in multiple languages under an MIT license. This document is intentionally *not* retrofitted to match; treat it as history, and see [GUIDE.md](GUIDE.md) for the current feature set. The US-1..US-9 stories and the 2026-05 capture are unchanged.
+
 ---
 
 ## US-1 · Awareness of attention queue
