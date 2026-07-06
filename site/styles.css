@@ -425,6 +425,68 @@ code{font-family:var(--font-mono);font-size:0.86em;background:rgba(255,255,255,0
 .afcard p{font-size:14.5px;color:var(--ink-2);margin:0;line-height:1.55;}
 .afcard p strong{color:var(--ink-0);}
 
+/* ============ BUILT FOR GAME ENGINES ============ */
+/* a warm wash so this reads as a headline moment, like the slots band */
+.engband{padding-top:76px;}
+.engband::before{content:"";position:absolute;inset:0;pointer-events:none;
+  background:radial-gradient(720px 320px at 88% 2%,rgba(255,138,61,0.10),transparent 66%),
+            radial-gradient(640px 300px at 6% 8%,rgba(123,63,242,0.10),transparent 66%);}
+.engfeat{margin-top:8px;align-items:start;gap:56px;}
+.engpoints{display:flex;flex-direction:column;gap:30px;}
+.engpoint{display:flex;gap:16px;align-items:flex-start;}
+.engpoint .ic{width:42px;height:42px;border-radius:12px;flex:0 0 auto;display:inline-flex;
+  align-items:center;justify-content:center;font-size:17px;color:#fff;
+  background:linear-gradient(135deg,var(--b-purple),var(--b-pink));}
+.engpoint h3{font-size:19px;font-weight:700;margin-bottom:7px;}
+.engpoint p{font-size:15px;line-height:1.58;color:var(--ink-2);margin:0;}
+.engpoint p strong{color:var(--ink-0);}
+.engpoint code{font-size:0.82em;}
+.eng-soon{display:inline-block;margin-top:6px;font-size:12px;font-weight:600;letter-spacing:.02em;
+  color:#ffcf9a;background:rgba(255,138,61,0.12);border:1px solid rgba(255,138,61,0.26);
+  border-radius:999px;padding:2px 10px;}
+
+/* the engine mark — the two logos, big, offset on a diagonal, as the visual.
+   Unity high-left, Unreal low-right, a soft "+" on the diagonal between them. */
+.engmark{position:relative;min-height:420px;border-radius:20px;overflow:hidden;
+  border:1px solid var(--panel-line);box-shadow:0 34px 80px rgba(0,0,0,0.5);
+  background:
+    radial-gradient(560px 400px at 26% 26%,rgba(123,63,242,0.22),transparent 60%),
+    radial-gradient(560px 400px at 76% 78%,rgba(240,86,127,0.18),transparent 60%),
+    linear-gradient(180deg,#14162e,#0b0d1e);}
+/* subtle grid texture, faded toward the edges */
+.engmark::before{content:"";position:absolute;inset:0;pointer-events:none;opacity:.6;
+  background-image:linear-gradient(rgba(255,255,255,0.045) 1px,transparent 1px),
+                   linear-gradient(90deg,rgba(255,255,255,0.045) 1px,transparent 1px);
+  background-size:46px 46px;mask-image:radial-gradient(circle at 50% 50%,#000 25%,transparent 80%);}
+.engmark-logo{position:absolute;display:flex;flex-direction:column;align-items:center;gap:18px;z-index:1;}
+.engmark-unity{top:11%;left:13%;}
+.engmark-unreal{bottom:11%;right:13%;}
+/* logos float free — no box — big, with a soft drop shadow */
+.engmark-tile{display:grid;place-items:center;}
+.engmark-tile img{object-fit:contain;display:block;
+  filter:drop-shadow(0 14px 34px rgba(0,0,0,0.6)) drop-shadow(0 0 40px rgba(255,255,255,0.10));}
+/* Unity's source has ~13% side padding; Unreal fills its canvas edge-to-edge.
+   Render Unity a touch larger so the two marks look optically equal-sized. */
+.engmark-unity .engmark-tile img{width:176px;height:176px;}
+.engmark-unreal .engmark-tile img{width:158px;height:158px;}
+.engmark-name{font-size:34px;font-weight:900;letter-spacing:-0.01em;color:#fff;
+  text-shadow:0 3px 20px rgba(0,0,0,0.6);}
+/* the "+" sits on the diagonal midpoint between the two marks */
+.engmark-plus{position:absolute;top:50%;left:50%;transform:translate(-50%,-58%);z-index:1;
+  font-size:48px;font-weight:200;line-height:1;color:rgba(255,255,255,0.6);
+  text-shadow:0 0 30px rgba(255,138,61,0.6);}
+@media(max-width:980px){
+  .engfeat{grid-template-columns:1fr;gap:40px;}
+  .engmark{min-height:380px;}
+}
+@media(max-width:560px){
+  .engmark{min-height:340px;}
+  .engmark-unity .engmark-tile img{width:128px;height:128px;}
+  .engmark-unreal .engmark-tile img{width:114px;height:114px;}
+  .engmark-name{font-size:26px;}
+  .engmark-unity{top:12%;left:9%;}.engmark-unreal{bottom:12%;right:9%;}
+}
+
 /* comparison table */
 .cmp{width:100%;border-collapse:separate;border-spacing:0;border:1px solid var(--panel-line);border-radius:14px;overflow:hidden;}
 .cmp th,.cmp td{padding:18px 22px;text-align:left;vertical-align:top;border-bottom:1px solid var(--panel-line);}
