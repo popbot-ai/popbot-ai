@@ -59,6 +59,29 @@ jobs:
               print("SITE_TRACKING_TAG_1 is empty; leaving inert marker in place.")
           PY
 
+      # Google Ads download-conversion snippet (defines report_download(), called
+      # on download-button clicks). Same literal-swap approach as the tag above,
+      # and injected AFTER it so the conversion snippet can rely on gtag(). An
+      # unset secret leaves the inert marker, so downloads still work.
+      - name: Inject Google Ads conversion snippet
+        env:
+          CONVERSION_TAG_SNIPPET: ${{ secrets.CONVERSION_TAG_SNIPPET }}
+        run: |
+          python3 - <<'PY'
+          import os, pathlib
+          marker = "<!-- CONVERSION_TAG_SNIPPET -->"
+          snippet = os.environ.get("CONVERSION_TAG_SNIPPET", "")
+          p = pathlib.Path("site/index.html")
+          html = p.read_text(encoding="utf-8")
+          if marker not in html:
+              raise SystemExit("ERROR: injection marker not found in site/index.html")
+          if snippet.strip():
+              p.write_text(html.replace(marker, snippet), encoding="utf-8")
+              print("Injected CONVERSION_TAG_SNIPPET.")
+          else:
+              print("CONVERSION_TAG_SNIPPET is empty; leaving inert marker in place.")
+          PY
+
       # wrangler-action installs wrangler itself. site/ has no package.json,
       # so nothing else is installed — no node-pty, no app build.
       - name: Deploy site/ to Cloudflare

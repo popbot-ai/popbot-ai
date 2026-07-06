@@ -5,6 +5,10 @@
 <!-- Site tracking markup is injected here at deploy time (kept out of the
      repo). Marker below; replaced by the deploy workflow. -->
 <!-- SITE_TRACKING_TAG_1 -->
+<!-- Google Ads download-conversion snippet (defines report_download()); injected
+     right AFTER the tag above so gtag() is already defined. Left as an inert
+     comment when the secret is unset, so download clicks still work. -->
+<!-- CONVERSION_TAG_SNIPPET -->
 <title>PopBot — Agentic Coding You Can See</title>
 <meta name="viewport" content="width=device-width,initial-scale=1" />
 <meta name="description" content="The best agentic coding tool for Unity & Unreal. Run a team of AI coding agents in parallel — one per ticket, bug, or PR — each in its own warm slot that can build, run, and test your game end-to-end." />
@@ -89,7 +93,7 @@
       <h2 class="beta-headline" data-beta-headline>New features, fresh off the branch</h2>
       <p class="beta-sub" data-i18n-html="beta.sub">Try our newest features before they reach stable. Beta builds are <strong>pre-release, unstable, and may be buggy</strong> — install one only if you're happy to hit rough edges and report them. It installs separately and is <strong>not</strong> the stable auto-update channel.</p>
       <div class="beta-actions">
-        <a id="bdl-main" class="btn btn-beta btn-lg" href="#" rel="noopener"><i class="fa-solid fa-flask"></i> Download beta</a>
+        <a id="bdl-main" class="btn btn-beta btn-lg" href="#" rel="noopener" onclick="return typeof report_download==='function'?report_download(this.href):true"><i class="fa-solid fa-flask"></i> Download beta</a>
         <span class="beta-alts"><span data-i18n="common.also">Also:</span> <a id="bdl-alt1" href="#"></a> <span class="beta-dot">·</span> <a id="bdl-alt2" href="#"></a> <span class="beta-dot">·</span> <a href="#top" class="beta-stablelink" data-i18n="beta.getStable">get the stable release instead</a></span>
       </div>
       <p class="beta-warn"><i class="fa-solid fa-triangle-exclamation"></i> <span data-i18n="beta.warn">Not for production work — expect bugs, and updates that overwrite it without notice.</span></p>
@@ -117,7 +121,7 @@
       </div>
       <div data-version style="font-size:22px;font-weight:800;color:#fff;letter-spacing:.3px;margin-bottom:9px">v…</div>
       <div class="hero-actions">
-        <a id="dl-main" class="btn btn-primary btn-lg" style="min-width:260px;justify-content:center" href="https://download.popbot.app/stable/" rel="noopener"><i class="fa-solid fa-download"></i> Free Download</a>
+        <a id="dl-main" class="btn btn-primary btn-lg" style="min-width:260px;justify-content:center" href="https://download.popbot.app/stable/" rel="noopener" onclick="return typeof report_download==='function'?report_download(this.href):true"><i class="fa-solid fa-download"></i> Free Download</a>
       </div>
       <div style="opacity:.72;font-size:13.5px;margin-top:13px"><span data-i18n="common.also">Also:</span> <a id="dl-alt1" href="https://download.popbot.app/stable/" style="color:inherit;text-decoration:underline"><i class="fa-brands fa-windows"></i> Windows</a> · <a id="dl-alt2" href="https://download.popbot.app/stable/" style="color:inherit;text-decoration:underline"><i class="fa-brands fa-linux"></i> Linux</a> · <span data-i18n="hero.signed">signed &amp; notarized</span> · <a href="#features" style="color:inherit;text-decoration:underline" data-i18n="hero.seehow">see how it works</a>.</div>
     </div>
