@@ -1,5 +1,3 @@
-*Languages: [English](../USER_STORIES.md) · [Español](../es/USER_STORIES.md) · [Français](../fr/USER_STORIES.md) · **Deutsch** · [日本語](../ja/USER_STORIES.md) · [한국어](../ko/USER_STORIES.md) · [简体中文](../zh-CN/USER_STORIES.md) · [Português (Brasil)](../pt-BR/USER_STORIES.md) · [Русский](../ru/USER_STORIES.md) · [Italiano](../it/USER_STORIES.md)*
-
 # User Stories
 
 Die "wie sieht Erfolg aus"-Referenz für PopBot. Erfasst am 2026-05-01. Jede Implementierungsentscheidung sollte auf eine davon zurückführbar sein.

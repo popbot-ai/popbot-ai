@@ -1,5 +1,3 @@
-*Languages: [English](../USER_STORIES.md) · [Español](../es/USER_STORIES.md) · [Français](../fr/USER_STORIES.md) · [Deutsch](../de/USER_STORIES.md) · [日本語](../ja/USER_STORIES.md) · [한국어](../ko/USER_STORIES.md) · **简体中文** · [Português (Brasil)](../pt-BR/USER_STORIES.md) · [Русский](../ru/USER_STORIES.md) · [Italiano](../it/USER_STORIES.md)*
-
 # 用户故事
 
 PopBot"成功是什么样子"的参考文档。记录于 2026-05-01。每一个实现决策都应该能追溯到其中一条用户故事。

@@ -1,9 +1,9 @@
 import { en } from './messages/en';
 
 /**
- * Supported UI locales for the localization MVP. English is the base /
- * fallback; the rest were chosen as the FIGS + CJK + PT-BR set covering
- * the highest-value developer-tool markets.
+ * Supported UI locales. English is the base / fallback; the rest cover
+ * the highest-value developer-tool markets plus languages added for
+ * specific studios/partners (e.g. Polish).
  *
  * `code` is a BCP-47 tag. `nativeName` is shown in the language picker in
  * the user's own language (never translated). `englishName` is for logs /
@@ -24,6 +24,10 @@ export const LOCALES = [
   { code: 'ko', nativeName: '한국어', englishName: 'Korean' },
   { code: 'zh-CN', nativeName: '简体中文', englishName: 'Chinese (Simplified)' },
   { code: 'pt-BR', nativeName: 'Português (Brasil)', englishName: 'Portuguese (Brazil)' },
+  { code: 'ru', nativeName: 'Русский', englishName: 'Russian' },
+  { code: 'it', nativeName: 'Italiano', englishName: 'Italian' },
+  { code: 'pl', nativeName: 'Polski', englishName: 'Polish' },
+  { code: 'uk', nativeName: 'Українська', englishName: 'Ukrainian' },
 ] as const satisfies readonly LocaleMeta[];
 
 export type Locale =
@@ -34,7 +38,11 @@ export type Locale =
   | 'ja'
   | 'ko'
   | 'zh-CN'
-  | 'pt-BR';
+  | 'pt-BR'
+  | 'ru'
+  | 'it'
+  | 'pl'
+  | 'uk';
 
 export const DEFAULT_LOCALE: Locale = 'en';
 

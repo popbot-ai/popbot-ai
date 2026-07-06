@@ -1,5 +1,3 @@
-*Languages: [English](../WINDOWS.md) · [Español](../es/WINDOWS.md) · [Français](../fr/WINDOWS.md) · [Deutsch](../de/WINDOWS.md) · [日本語](../ja/WINDOWS.md) · [한국어](../ko/WINDOWS.md) · **简体中文** · [Português (Brasil)](../pt-BR/WINDOWS.md) · [Русский](../ru/WINDOWS.md) · [Italiano](../it/WINDOWS.md)*
-
 # 在 Windows 上运行 PopBot
 
 PopBot 构建于 Electron + Node 之上，可以在 Windows 上运行，但有几个搭建

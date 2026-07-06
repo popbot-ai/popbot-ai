@@ -1,5 +1,3 @@
-*Languages: [English](../USER_STORIES.md) · **Español** · [Français](../fr/USER_STORIES.md) · [Deutsch](../de/USER_STORIES.md) · [日本語](../ja/USER_STORIES.md) · [한국어](../ko/USER_STORIES.md) · [简体中文](../zh-CN/USER_STORIES.md) · [Português (Brasil)](../pt-BR/USER_STORIES.md) · [Русский](../ru/USER_STORIES.md) · [Italiano](../it/USER_STORIES.md)*
-
 # Historias de Usuario
 
 La referencia de "cómo se ve el éxito" para PopBot. Capturada el 2026-05-01.

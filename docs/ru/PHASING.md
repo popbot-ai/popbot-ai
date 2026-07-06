@@ -1,5 +1,3 @@
-*Languages: [English](../PHASING.md) · [Español](../es/PHASING.md) · [Français](../fr/PHASING.md) · [Deutsch](../de/PHASING.md) · [日本語](../ja/PHASING.md) · [한국어](../ko/PHASING.md) · [简体中文](../zh-CN/PHASING.md) · [Português (Brasil)](../pt-BR/PHASING.md) · **Русский** · [Italiano](../it/PHASING.md)*
-
 # Фазы
 
 Дорожная карта перехода PopBot от «дизайн + прототип» к «полезный ежедневный инструмент». Отражает разбиение на фазы в [POPBOT_DESIGN.md](POPBOT_DESIGN.md#phasing), но отслеживает конкретный прогресс с помощью чекбоксов.

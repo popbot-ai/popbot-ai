@@ -8,8 +8,6 @@ Uno strumento desktop collaudato sul campo per eseguire in parallelo un team di 
 
 </div>
 
-*Languages: [English](../../README.md) · [Español](../es/README.md) · [Français](../fr/README.md) · [Deutsch](../de/README.md) · [日本語](../ja/README.md) · [한국어](../ko/README.md) · [简体中文](../zh-CN/README.md) · [Português (Brasil)](../pt-BR/README.md) · [Русский](../ru/README.md) · **Italiano***
-
 ---
 
 ## Perché PopBot
@@ -53,7 +51,7 @@ L'intero ciclo in un unico posto: la tua **inbox** — ticket assegnati da **Lin
 - **Chat persistenti e archiviabili.** Ogni chat è un transcript durevole; chiudila per liberare il suo slot, e riaprila più tardi con la cronologia completa intatta.
 - **Terminale per chat e codice cliccabile.** Un terminale integrato ancorato allo spazio di lavoro della chat, e link `file.ts:42` che si aprono in VS Code o Cursor.
 - **Autonomi, ma mai avventati.** Gli agenti eseguono automaticamente il lavoro sicuro all'interno del proprio slot e si fermano per te su qualsiasi cosa rischiosa — `git push` / `p4 submit`, apertura di PR, qualsiasi cosa al di fuori dello spazio di lavoro, chiamate di rete. Le concessioni sono per chat, durevoli e revocabili — server MCP inclusi.
-- **Completamente localizzato.** L'intera interfaccia è disponibile in otto lingue (inglese, spagnolo, francese, tedesco, giapponese, coreano, cinese semplificato, portoghese brasiliano), commutabile in qualsiasi momento dal menu delle lingue.
+- **Completamente localizzato.** L'intera interfaccia è disponibile in dodici lingue (inglese, spagnolo, francese, tedesco, giapponese, coreano, cinese semplificato, portoghese brasiliano, russo, italiano, polacco, ucraino), commutabile in qualsiasi momento dal menu delle lingue.
 - **Multi-repository.** Gestisci più repository fianco a fianco, ciascuno con il proprio pool di slot, colore, provider e convenzioni di branch.
 
 ## In cosa PopBot è diverso

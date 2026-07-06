@@ -1,5 +1,3 @@
-*Languages: [English](../GUIDE.md) · [Español](../es/GUIDE.md) · [Français](../fr/GUIDE.md) · [Deutsch](../de/GUIDE.md) · [日本語](../ja/GUIDE.md) · [한국어](../ko/GUIDE.md) · [简体中文](../zh-CN/GUIDE.md) · [Português (Brasil)](../pt-BR/GUIDE.md) · [Русский](../ru/GUIDE.md) · **Italiano***
-
 # PopBot — Guida alle funzionalità e ai flussi di lavoro
 
 PopBot è un cockpit desktop per eseguire **molti agenti AI di coding in parallelo**. Questa guida copre le idee su cui è costruito — perché esiste, come funzionano i pezzi, cosa ha plasmato il design, e come un team di Proof of Play lo ha usato su un progetto reale, ricco di asset, che è stato rilasciato. È scritta per ingegneri capaci di trovare l'UI da soli; il punto qui è il ragionamento, così puoi adattare lo strumento al tuo flusso di lavoro invece di seguire un copione.
@@ -284,7 +282,7 @@ Quando approvi qualcosa, puoi concederlo **una volta**, **per la sessione**, o *
 
 ## Localizzazione
 
-L'intera interfaccia di PopBot — menu, impostazioni, dialoghi, tutto — è completamente localizzata. L'app viene distribuita in **otto lingue**: inglese, spagnolo, francese, tedesco, giapponese, coreano, cinese semplificato, e portoghese brasiliano — commutabili in qualsiasi momento dal menu della lingua senza riavvio. (Il sito di marketing offre inoltre russo e italiano.) Se fai il fork di PopBot, ogni locale è un unico catalogo di messaggi, così aggiungere o modificare una lingua è una modifica contenuta piuttosto che una caccia al tesoro nell'UI.
+L'intera interfaccia di PopBot — menu, impostazioni, dialoghi, tutto — è completamente localizzata. L'app viene distribuita in **dodici lingue**: inglese, spagnolo, francese, tedesco, giapponese, coreano, cinese semplificato, portoghese brasiliano, russo, italiano, polacco e ucraino — commutabili in qualsiasi momento dal menu della lingua senza riavvio. Se fai il fork di PopBot, ogni locale è un unico catalogo di messaggi, così aggiungere o modificare una lingua è una modifica contenuta piuttosto che una caccia al tesoro nell'UI.
 
 ## Preferenze
 

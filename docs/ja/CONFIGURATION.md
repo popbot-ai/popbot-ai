@@ -1,5 +1,3 @@
-*Languages: [English](../CONFIGURATION.md) · [Español](../es/CONFIGURATION.md) · [Français](../fr/CONFIGURATION.md) · [Deutsch](../de/CONFIGURATION.md) · **[日本語](CONFIGURATION.md)** · [한국어](../ko/CONFIGURATION.md) · [简体中文](../zh-CN/CONFIGURATION.md) · [Português (Brasil)](../pt-BR/CONFIGURATION.md) · [Русский](../ru/CONFIGURATION.md) · [Italiano](../it/CONFIGURATION.md)*
-
 # PopBot を設定する
 
 PopBot のすべては、アプリ内の **Preferences**（タイトルバーの歯車、または `⌘,`）を通じて設定されます — 手で編集する設定ファイルはありません。このガイドは、ナビゲーションが並べている順序で各パネルを一通り説明します。これはおおよそ、初めてセットアップする際の順序でもあります。

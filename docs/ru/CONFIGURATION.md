@@ -1,5 +1,3 @@
-*Languages: [English](../CONFIGURATION.md) · [Español](../es/CONFIGURATION.md) · [Français](../fr/CONFIGURATION.md) · [Deutsch](../de/CONFIGURATION.md) · [日本語](../ja/CONFIGURATION.md) · [한국어](../ko/CONFIGURATION.md) · [简体中文](../zh-CN/CONFIGURATION.md) · [Português (Brasil)](../pt-BR/CONFIGURATION.md) · **Русский** · [Italiano](../it/CONFIGURATION.md)*
-
 # Настройка PopBot
 
 Всё в PopBot настраивается внутри приложения через **Настройки** (шестерёнка в заголовке окна, или `⌘,`) — конфигурационных файлов для ручного редактирования нет. Это руководство проходит по каждой панели в том порядке, в котором их перечисляет навигация, что примерно соответствует порядку их настройки в первый раз.

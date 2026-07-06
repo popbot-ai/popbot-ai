@@ -1,5 +1,3 @@
-*Languages: [English](../CONFIGURATION.md) · [Español](../es/CONFIGURATION.md) · [Français](../fr/CONFIGURATION.md) · [Deutsch](../de/CONFIGURATION.md) · [日本語](../ja/CONFIGURATION.md) · [한국어](CONFIGURATION.md) · [简体中文](../zh-CN/CONFIGURATION.md) · [Português (Brasil)](../pt-BR/CONFIGURATION.md) · [Русский](../ru/CONFIGURATION.md) · [Italiano](../it/CONFIGURATION.md)*
-
 # PopBot 설정하기
 
 PopBot의 모든 것은 앱 안의 **환경설정**(제목 표시줄의 톱니바퀴, 또는 `⌘,`)을 통해 설정됩니다 — 손으로 편집해야 할 설정 파일은 없습니다. 이 가이드는 내비게이션이 나열하는 순서대로 모든 패널을 살펴보며, 이는 대체로 처음 설정할 때의 순서와 같습니다.

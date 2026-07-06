@@ -1,5 +1,3 @@
-*Languages: [English](../WINDOWS.md) · [Español](../es/WINDOWS.md) · [Français](../fr/WINDOWS.md) · [Deutsch](../de/WINDOWS.md) · **[日本語](WINDOWS.md)** · [한국어](../ko/WINDOWS.md) · [简体中文](../zh-CN/WINDOWS.md) · [Português (Brasil)](../pt-BR/WINDOWS.md) · [Русский](../ru/WINDOWS.md) · [Italiano](../it/WINDOWS.md)*
-
 # Windows で PopBot を実行する
 
 PopBot は Electron + Node 上に構築されており Windows でも動作しますが、macOS とはいくつかセットアップ手順が異なります — 主に 2 つのネイティブモジュール

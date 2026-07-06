@@ -1,5 +1,3 @@
-*Languages: [English](../RELEASING.md) · [Español](../es/RELEASING.md) · [Français](../fr/RELEASING.md) · [Deutsch](../de/RELEASING.md) · [日本語](../ja/RELEASING.md) · [한국어](../ko/RELEASING.md) · **简体中文** · [Português (Brasil)](../pt-BR/RELEASING.md) · [Русский](../ru/RELEASING.md) · [Italiano](../it/RELEASING.md)*
-
 # 发布 PopBot
 
 版本由 GitHub Actions 跨 **macOS、Windows 和 Linux** 三个平台构建，

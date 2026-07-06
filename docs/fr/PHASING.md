@@ -1,5 +1,3 @@
-*Languages: [English](../PHASING.md) · [Español](../es/PHASING.md) · [Français](PHASING.md) · [Deutsch](../de/PHASING.md) · [日本語](../ja/PHASING.md) · [한국어](../ko/PHASING.md) · [简体中文](../zh-CN/PHASING.md) · [Português (Brasil)](../pt-BR/PHASING.md) · [Русский](../ru/PHASING.md) · [Italiano](../it/PHASING.md)*
-
 # Phasage
 
 Feuille de route pour amener PopBot de « conception + prototype » à « outil quotidien utile ». Reflète le phasage dans [POPBOT_DESIGN.md](POPBOT_DESIGN.md#phasage) mais suit une progression concrète avec des cases à cocher.

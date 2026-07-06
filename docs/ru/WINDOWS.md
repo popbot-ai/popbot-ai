@@ -1,5 +1,3 @@
-*Languages: [English](../WINDOWS.md) · [Español](../es/WINDOWS.md) · [Français](../fr/WINDOWS.md) · [Deutsch](../de/WINDOWS.md) · [日本語](../ja/WINDOWS.md) · [한국어](../ko/WINDOWS.md) · [简体中文](../zh-CN/WINDOWS.md) · [Português (Brasil)](../pt-BR/WINDOWS.md) · **Русский** · [Italiano](../it/WINDOWS.md)*
-
 # Запуск PopBot на Windows
 
 PopBot построен на Electron + Node и работает на Windows, но несколько шагов

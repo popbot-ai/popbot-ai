@@ -1,5 +1,3 @@
-*Languages: [English](../ARCHITECTURE.md) · [Español](../es/ARCHITECTURE.md) · [Français](ARCHITECTURE.md) · [Deutsch](../de/ARCHITECTURE.md) · [日本語](../ja/ARCHITECTURE.md) · [한국어](../ko/ARCHITECTURE.md) · [简体中文](../zh-CN/ARCHITECTURE.md) · [Português (Brasil)](../pt-BR/ARCHITECTURE.md) · [Русский](../ru/ARCHITECTURE.md) · [Italiano](../it/ARCHITECTURE.md)*
-
 # Architecture
 
 Une carte pratique du modèle de processus Electron et de l'endroit où vit chaque sous-système. Pour le « pourquoi », voir [POPBOT_DESIGN.md](POPBOT_DESIGN.md). Pour le **graphe d'objets + cycles de vie + règles de propriété** dont dépend tout ce qui est dans ce document, voir [CORE_MODEL.md](CORE_MODEL.md) — lisez-le d'abord si quoi que ce soit ci-dessous semble non motivé.

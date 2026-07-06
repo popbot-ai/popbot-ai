@@ -1,5 +1,3 @@
-*Languages: [English](../USER_STORIES.md) · [Español](../es/USER_STORIES.md) · [Français](../fr/USER_STORIES.md) · [Deutsch](../de/USER_STORIES.md) · [日本語](../ja/USER_STORIES.md) · [한국어](USER_STORIES.md) · [简体中文](../zh-CN/USER_STORIES.md) · [Português (Brasil)](../pt-BR/USER_STORIES.md) · [Русский](../ru/USER_STORIES.md) · [Italiano](../it/USER_STORIES.md)*
-
 # 사용자 스토리
 
 PopBot의 "성공이란 어떤 모습인가"에 대한 참조 문서입니다. 2026-05-01에 작성되었습니다. 모든 구현 선택은 이 중 하나로 거슬러 올라갈 수 있어야 합니다.

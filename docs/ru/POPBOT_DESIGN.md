@@ -1,5 +1,3 @@
-*Languages: [English](../POPBOT_DESIGN.md) · [Español](../es/POPBOT_DESIGN.md) · [Français](../fr/POPBOT_DESIGN.md) · [Deutsch](../de/POPBOT_DESIGN.md) · [日本語](../ja/POPBOT_DESIGN.md) · [한국어](../ko/POPBOT_DESIGN.md) · [简体中文](../zh-CN/POPBOT_DESIGN.md) · [Português (Brasil)](../pt-BR/POPBOT_DESIGN.md) · **Русский** · [Italiano](../it/POPBOT_DESIGN.md)*
-
 # Дизайн PopBot
 
 Мультиагентный оркестратор разработки для AutoRPG. Вдохновлён Conductor; добавляет инфраструктуру тестирования внутри игры, чтобы агенты могли запускать реальную игру, кликать по ней и проверять поведение.

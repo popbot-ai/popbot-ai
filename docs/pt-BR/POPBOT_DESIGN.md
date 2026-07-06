@@ -1,5 +1,3 @@
-*Languages: [English](../POPBOT_DESIGN.md) · [Español](../es/POPBOT_DESIGN.md) · [Français](../fr/POPBOT_DESIGN.md) · [Deutsch](../de/POPBOT_DESIGN.md) · [日本語](../ja/POPBOT_DESIGN.md) · [한국어](../ko/POPBOT_DESIGN.md) · [简体中文](../zh-CN/POPBOT_DESIGN.md) · **[Português (Brasil)](POPBOT_DESIGN.md)** · [Русский](../ru/POPBOT_DESIGN.md) · [Italiano](../it/POPBOT_DESIGN.md)*
-
 # Design do PopBot
 
 Um orquestrador de desenvolvimento multi-agente para o AutoRPG. Inspirado no Conductor; adiciona infraestrutura de teste dentro do jogo para que agentes possam lançar o jogo real, clicar por ele, e verificar comportamento.

@@ -2,8 +2,6 @@
 
 ![PopBot — a battle-tested multi-chat & multi-slot agentic coding tool](../../images/hero_banner_2.png)
 
-*Languages: [English](../../README.md) · [Español](../es/README.md) · [Français](../fr/README.md) · **Deutsch** · [日本語](../ja/README.md) · [한국어](../ko/README.md) · [简体中文](../zh-CN/README.md) · [Português (Brasil)](../pt-BR/README.md) · [Русский](../ru/README.md) · [Italiano](../it/README.md)*
-
 Ein bewährtes Desktop-Tool, um ein Team von KI-Coding-Agents parallel laufen zu lassen — einen pro Ticket, Bug oder Review, jeder isoliert in seinem eigenen warmen "Slot", jeder in der Lage, eure App End-to-End zu bauen, auszuführen und zu testen.
 
 [Warum PopBot](#warum-popbot) · [Features](#zentrale-features) · [Wie es funktioniert](#anatomie-des-workspace) · [Ein Tag mit PopBot](#ein-tag-mit-popbot) · [Installation](#installation) · [Macht es zu eurem eigenen](#macht-es-zu-eurem-eigenen)
@@ -53,7 +51,7 @@ Der gesamte Loop an einem Ort: dein **Postfach** — zugewiesene Tickets von **L
 - **Persistente, archivierbare Chats.** Jeder Chat ist ein dauerhaftes Transcript; schließe ihn, um seinen Slot freizugeben, und öffne ihn später mit vollständig intakter Historie wieder.
 - **Terminal pro Chat & klickbarer Code.** Ein eingebettetes Terminal, das am Workspace des Chats verankert ist, und `file.ts:42`-Links, die sich in VS Code oder Cursor öffnen.
 - **Autonom, aber nie leichtsinnig.** Agents führen sichere Arbeit innerhalb ihres Slots automatisch aus und pausieren bei allem Riskanten für dich — `git push` / `p4 submit`, das Öffnen von PRs, alles außerhalb des Workspace, Netzwerkaufrufe. Berechtigungen sind pro Chat, dauerhaft und widerrufbar — MCP-Server eingeschlossen.
-- **Vollständig lokalisiert.** Die gesamte Oberfläche wird in acht Sprachen ausgeliefert (Englisch, Spanisch, Französisch, Deutsch, Japanisch, Koreanisch, vereinfachtes Chinesisch, brasilianisches Portugiesisch), jederzeit über das Sprachmenü umschaltbar.
+- **Vollständig lokalisiert.** Die gesamte Oberfläche wird in zwölf Sprachen ausgeliefert (Englisch, Spanisch, Französisch, Deutsch, Japanisch, Koreanisch, vereinfachtes Chinesisch, brasilianisches Portugiesisch, Russisch, Italienisch, Polnisch, Ukrainisch), jederzeit über das Sprachmenü umschaltbar.
 - **Multi-Repo.** Steuere mehrere Repositories nebeneinander, jedes mit seinem eigenen Slot-Pool, seiner Farbe, seinem Provider und seinen Branch-Konventionen.
 
 ## Wie PopBot sich unterscheidet

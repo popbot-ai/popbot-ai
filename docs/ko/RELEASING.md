@@ -1,5 +1,3 @@
-*Languages: [English](../RELEASING.md) · [Español](../es/RELEASING.md) · [Français](../fr/RELEASING.md) · [Deutsch](../de/RELEASING.md) · [日本語](../ja/RELEASING.md) · [한국어](RELEASING.md) · [简体中文](../zh-CN/RELEASING.md) · [Português (Brasil)](../pt-BR/RELEASING.md) · [Русский](../ru/RELEASING.md) · [Italiano](../it/RELEASING.md)*
-
 # PopBot 릴리스하기
 
 릴리스는 **macOS, Windows, Linux** 전체에서 GitHub Actions로 빌드되어 이

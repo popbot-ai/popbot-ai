@@ -1,5 +1,3 @@
-*Languages: [English](../DEVELOPMENT.md) · [Español](../es/DEVELOPMENT.md) · [Français](../fr/DEVELOPMENT.md) · [Deutsch](../de/DEVELOPMENT.md) · [日本語](../ja/DEVELOPMENT.md) · [한국어](../ko/DEVELOPMENT.md) · **简体中文** · [Português (Brasil)](../pt-BR/DEVELOPMENT.md) · [Русский](../ru/DEVELOPMENT.md) · [Italiano](../it/DEVELOPMENT.md)*
-
 # 开发
 
 ## 前置条件

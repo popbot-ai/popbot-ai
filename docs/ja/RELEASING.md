@@ -1,5 +1,3 @@
-*Languages: [English](../RELEASING.md) · [Español](../es/RELEASING.md) · [Français](../fr/RELEASING.md) · [Deutsch](../de/RELEASING.md) · **[日本語](RELEASING.md)** · [한국어](../ko/RELEASING.md) · [简体中文](../zh-CN/RELEASING.md) · [Português (Brasil)](../pt-BR/RELEASING.md) · [Русский](../ru/RELEASING.md) · [Italiano](../it/RELEASING.md)*
-
 # PopBot をリリースする
 
 リリースは **macOS、Windows、Linux** をまたいで GitHub Actions によってビルドされ、このリポジトリの GitHub Release に公開されます。各プラットフォームは自身のランナー上でビルドされます — ネイティブモジュール（`better-sqlite3`、`node-pty`）は OS ごとに Electron の ABI に対してコンパイルする必要があるため、クロスコンパイルは選択肢にありません。

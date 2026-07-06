@@ -1,5 +1,3 @@
-*Languages: [English](../PHASING.md) · **Español** · [Français](../fr/PHASING.md) · [Deutsch](../de/PHASING.md) · [日本語](../ja/PHASING.md) · [한국어](../ko/PHASING.md) · [简体中文](../zh-CN/PHASING.md) · [Português (Brasil)](../pt-BR/PHASING.md) · [Русский](../ru/PHASING.md) · [Italiano](../it/PHASING.md)*
-
 # Fases
 
 Hoja de ruta para llevar a PopBot de "diseño + prototipo" a "herramienta
