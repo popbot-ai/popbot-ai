@@ -1,5 +1,3 @@
-*Languages: [English](../CORE_MODEL.md) · [Español](../es/CORE_MODEL.md) · [Français](../fr/CORE_MODEL.md) · [Deutsch](../de/CORE_MODEL.md) · **[日本語](CORE_MODEL.md)** · [한국어](../ko/CORE_MODEL.md) · [简体中文](../zh-CN/CORE_MODEL.md) · [Português (Brasil)](../pt-BR/CORE_MODEL.md) · [Русский](../ru/CORE_MODEL.md) · [Italiano](../it/CORE_MODEL.md)*
-
 # コアモデル
 
 PopBot のアプリが組み立てられているオブジェクトグラフです。それ以外のすべて — IPC、

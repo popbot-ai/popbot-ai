@@ -1,5 +1,3 @@
-*Languages: [English](../ARCHITECTURE.md) · [Español](../es/ARCHITECTURE.md) · [Français](../fr/ARCHITECTURE.md) · [Deutsch](../de/ARCHITECTURE.md) · [日本語](../ja/ARCHITECTURE.md) · [한국어](../ko/ARCHITECTURE.md) · [简体中文](../zh-CN/ARCHITECTURE.md) · [Português (Brasil)](../pt-BR/ARCHITECTURE.md) · **Русский** · [Italiano](../it/ARCHITECTURE.md)*
-
 # Архитектура
 
 Практическая карта модели процессов Electron и того, где живёт каждая подсистема. О «зачем» см. [POPBOT_DESIGN.md](POPBOT_DESIGN.md). О **графе объектов + жизненных циклах + правилах владения**, на которых держится всё в этом документе, см. [CORE_MODEL.md](CORE_MODEL.md) — прочитайте его первым, если что-то ниже покажется немотивированным.

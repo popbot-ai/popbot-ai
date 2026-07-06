@@ -1,5 +1,3 @@
-*Languages: [English](../CONFIGURATION.md) · [Español](../es/CONFIGURATION.md) · [Français](../fr/CONFIGURATION.md) · [Deutsch](../de/CONFIGURATION.md) · [日本語](../ja/CONFIGURATION.md) · [한국어](../ko/CONFIGURATION.md) · **简体中文** · [Português (Brasil)](../pt-BR/CONFIGURATION.md) · [Русский](../ru/CONFIGURATION.md) · [Italiano](../it/CONFIGURATION.md)*
-
 # 配置 PopBot
 
 PopBot 中的一切都在应用内通过**偏好设置**（标题栏中的齿轮图标，或 `⌘,`）进行配置——没有需要手动编辑的配置文件。本指南按照导航列出的顺序逐一介绍每个面板，这个顺序大致也是你第一次搭建时应该设置它们的顺序。

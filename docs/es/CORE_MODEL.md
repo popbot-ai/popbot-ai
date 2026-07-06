@@ -1,5 +1,3 @@
-*Languages: [English](../CORE_MODEL.md) · **Español** · [Français](../fr/CORE_MODEL.md) · [Deutsch](../de/CORE_MODEL.md) · [日本語](../ja/CORE_MODEL.md) · [한국어](../ko/CORE_MODEL.md) · [简体中文](../zh-CN/CORE_MODEL.md) · [Português (Brasil)](../pt-BR/CORE_MODEL.md) · [Русский](../ru/CORE_MODEL.md) · [Italiano](../it/CORE_MODEL.md)*
-
 # Modelo Central
 
 El grafo de objetos alrededor del cual se construye la aplicación de PopBot.

@@ -1,5 +1,3 @@
-*Languages: [English](../CORE_MODEL.md) · [Español](../es/CORE_MODEL.md) · [Français](../fr/CORE_MODEL.md) · [Deutsch](../de/CORE_MODEL.md) · [日本語](../ja/CORE_MODEL.md) · [한국어](../ko/CORE_MODEL.md) · [简体中文](../zh-CN/CORE_MODEL.md) · [Português (Brasil)](../pt-BR/CORE_MODEL.md) · [Русский](../ru/CORE_MODEL.md) · **Italiano***
-
 # Modello di base
 
 Il grafo di oggetti su cui è costruita l'app di PopBot. Tutto il resto — IPC,

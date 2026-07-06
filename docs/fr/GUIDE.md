@@ -1,5 +1,3 @@
-*Languages: [English](../GUIDE.md) · [Español](../es/GUIDE.md) · [Français](GUIDE.md) · [Deutsch](../de/GUIDE.md) · [日本語](../ja/GUIDE.md) · [한국어](../ko/GUIDE.md) · [简体中文](../zh-CN/GUIDE.md) · [Português (Brasil)](../pt-BR/GUIDE.md) · [Русский](../ru/GUIDE.md) · [Italiano](../it/GUIDE.md)*
-
 # PopBot — Guide des fonctionnalités et workflows
 
 PopBot est un cockpit de bureau pour exécuter **de nombreux agents de codage IA en parallèle**. Ce guide couvre les idées sur lesquelles il est construit — pourquoi il existe, comment fonctionnent les pièces, ce qui a façonné la conception, et comment une équipe chez Proof of Play l'a utilisé sur un vrai projet riche en assets qui a été livré. Il est écrit pour des ingénieurs qui peuvent trouver l'interface par eux-mêmes ; l'objectif ici est le raisonnement, afin que vous puissiez adapter l'outil à votre propre workflow plutôt que de suivre un script.
@@ -284,7 +282,7 @@ Quand vous approuvez quelque chose, vous pouvez l'accorder **une fois**, **pour 
 
 ## Localisation
 
-L'interface entière de PopBot — menus, paramètres, boîtes de dialogue, tout — est entièrement localisée. L'application est livrée en **huit langues** : anglais, espagnol, français, allemand, japonais, coréen, chinois simplifié, et portugais brésilien — modifiable à tout moment depuis le menu des langues sans redémarrage. (Le site marketing propose en plus le russe et l'italien.) Si vous forkez PopBot, chaque locale est un catalogue de messages unique, de sorte qu'ajouter ou ajuster une langue est un changement contenu plutôt qu'une chasse au trésor à travers l'interface.
+L'interface entière de PopBot — menus, paramètres, boîtes de dialogue, tout — est entièrement localisée. L'application est livrée en **douze langues** : anglais, espagnol, français, allemand, japonais, coréen, chinois simplifié, portugais brésilien, russe, italien, polonais et ukrainien — modifiable à tout moment depuis le menu des langues sans redémarrage. Si vous forkez PopBot, chaque locale est un catalogue de messages unique, de sorte qu'ajouter ou ajuster une langue est un changement contenu plutôt qu'une chasse au trésor à travers l'interface.
 
 ## Préférences
 

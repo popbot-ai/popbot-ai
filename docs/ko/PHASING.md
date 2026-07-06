@@ -1,5 +1,3 @@
-*Languages: [English](../PHASING.md) · [Español](../es/PHASING.md) · [Français](../fr/PHASING.md) · [Deutsch](../de/PHASING.md) · [日本語](../ja/PHASING.md) · [한국어](PHASING.md) · [简体中文](../zh-CN/PHASING.md) · [Português (Brasil)](../pt-BR/PHASING.md) · [Русский](../ru/PHASING.md) · [Italiano](../it/PHASING.md)*
-
 # 단계 구분
 
 PopBot을 "설계 + 프로토타입" 상태에서 "쓸모 있는 일상 도구"로 만들어 가는 로드맵입니다. [POPBOT_DESIGN.md](POPBOT_DESIGN.md#단계-구분)의 단계 구분을 그대로 반영하되, 체크박스로 구체적인 진행 상황을 추적합니다.

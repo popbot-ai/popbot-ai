@@ -1,5 +1,3 @@
-*Languages: [English](../RELEASING.md) · [Español](../es/RELEASING.md) · [Français](../fr/RELEASING.md) · **Deutsch** · [日本語](../ja/RELEASING.md) · [한국어](../ko/RELEASING.md) · [简体中文](../zh-CN/RELEASING.md) · [Português (Brasil)](../pt-BR/RELEASING.md) · [Русский](../ru/RELEASING.md) · [Italiano](../it/RELEASING.md)*
-
 # PopBot veröffentlichen
 
 Releases werden von GitHub Actions über **macOS, Windows und Linux** gebaut

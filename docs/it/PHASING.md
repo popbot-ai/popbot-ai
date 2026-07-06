@@ -1,5 +1,3 @@
-*Languages: [English](../PHASING.md) · [Español](../es/PHASING.md) · [Français](../fr/PHASING.md) · [Deutsch](../de/PHASING.md) · [日本語](../ja/PHASING.md) · [한국어](../ko/PHASING.md) · [简体中文](../zh-CN/PHASING.md) · [Português (Brasil)](../pt-BR/PHASING.md) · [Русский](../ru/PHASING.md) · [**Italiano**](PHASING.md)*
-
 # Fasi
 
 Roadmap per portare PopBot da "design + prototipo" a "strumento utile per l'uso quotidiano." Rispecchia le fasi descritte in [POPBOT_DESIGN.md](POPBOT_DESIGN.md#fasatura) ma traccia i progressi concreti con delle checkbox.

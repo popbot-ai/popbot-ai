@@ -1,5 +1,3 @@
-*Languages: [English](../GUIDE.md) · **Español** · [Français](../fr/GUIDE.md) · [Deutsch](../de/GUIDE.md) · [日本語](../ja/GUIDE.md) · [한국어](../ko/GUIDE.md) · [简体中文](../zh-CN/GUIDE.md) · [Português (Brasil)](../pt-BR/GUIDE.md) · [Русский](../ru/GUIDE.md) · [Italiano](../it/GUIDE.md)*
-
 # PopBot — Guía de Funcionalidades y Flujos de Trabajo
 
 PopBot es una cabina de control de escritorio para ejecutar **muchos agentes de codificación con IA en paralelo**. Esta guía cubre las ideas sobre las que está construida — por qué existe, cómo funcionan las piezas, qué moldeó el diseño, y cómo un equipo en Proof of Play lo usó en un proyecto real, cargado de assets, que se lanzó al mercado. Está escrita para ingenieros que pueden encontrar la interfaz por sí mismos; el objetivo aquí es el razonamiento, para que puedas adaptar la herramienta a tu propio flujo de trabajo en lugar de seguir un guion.
@@ -284,7 +282,7 @@ Cuando apruebas algo, puedes concederlo **una vez**, **para la sesión**, o **de
 
 ## Localización
 
-Toda la interfaz de PopBot — menús, configuraciones, diálogos, todo — está totalmente localizada. La aplicación se distribuye en **ocho idiomas**: inglés, español, francés, alemán, japonés, coreano, chino simplificado, y portugués brasileño — intercambiables en cualquier momento desde el menú de idioma sin reiniciar. (El sitio de marketing además ofrece ruso e italiano.) Si bifurcas (fork) PopBot, cada configuración regional es un solo catálogo de mensajes, así que añadir o ajustar un idioma es un cambio contenido en lugar de una búsqueda del tesoro por toda la interfaz.
+Toda la interfaz de PopBot — menús, configuraciones, diálogos, todo — está totalmente localizada. La aplicación se distribuye en **doce idiomas**: inglés, español, francés, alemán, japonés, coreano, chino simplificado, portugués brasileño, ruso, italiano, polaco y ucraniano — intercambiables en cualquier momento desde el menú de idioma sin reiniciar. Si bifurcas (fork) PopBot, cada configuración regional es un solo catálogo de mensajes, así que añadir o ajustar un idioma es un cambio contenido en lugar de una búsqueda del tesoro por toda la interfaz.
 
 ## Preferencias
 

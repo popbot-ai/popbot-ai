@@ -53,7 +53,7 @@ The whole loop in one place: your **inbox** — assigned tickets from **Linear**
 - **Persistent, archivable chats.** Every chat is a durable transcript; close it to free its slot, and reopen it later with full history intact.
 - **Per-chat terminal & clickable code.** An embedded terminal pinned to the chat's workspace, and `file.ts:42` links that open in VS Code or Cursor.
 - **Autonomous, but never reckless.** Agents auto-run safe work inside their slot and pause for you on anything risky — `git push` / `p4 submit`, opening PRs, anything outside the workspace, network calls. Grants are per-chat, durable, and revocable — MCP servers included.
-- **Fully localized.** The entire interface ships in eight languages (English, Spanish, French, German, Japanese, Korean, Simplified Chinese, Brazilian Portuguese), switchable any time from the language menu.
+- **Fully localized.** The entire interface ships in twelve languages (English, Spanish, French, German, Japanese, Korean, Simplified Chinese, Brazilian Portuguese, Russian, Italian, Polish, Ukrainian), switchable any time from the language menu.
 - **Multi-repo.** Drive several repositories side by side, each with its own slot pool, color, provider, and branch conventions.
 
 ## How PopBot is different

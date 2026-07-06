@@ -1,5 +1,3 @@
-*Languages: [English](../CONFIGURATION.md) · **Español** · [Français](../fr/CONFIGURATION.md) · [Deutsch](../de/CONFIGURATION.md) · [日本語](../ja/CONFIGURATION.md) · [한국어](../ko/CONFIGURATION.md) · [简体中文](../zh-CN/CONFIGURATION.md) · [Português (Brasil)](../pt-BR/CONFIGURATION.md) · [Русский](../ru/CONFIGURATION.md) · [Italiano](../it/CONFIGURATION.md)*
-
 # Configurar PopBot
 
 Todo en PopBot se configura dentro de la aplicación a través de **Preferencias** (el engranaje en la barra de título, o `⌘,`) — no hay archivos de configuración para editar a mano. Esta guía recorre cada panel en el orden en que los lista la navegación, que es aproximadamente el orden en que los configurarías la primera vez.

@@ -1,5 +1,3 @@
-*Languages: [English](../POPBOT_DESIGN.md) · [Español](../es/POPBOT_DESIGN.md) · [Français](../fr/POPBOT_DESIGN.md) · [Deutsch](../de/POPBOT_DESIGN.md) · [日本語](../ja/POPBOT_DESIGN.md) · [한국어](../ko/POPBOT_DESIGN.md) · **简体中文** · [Português (Brasil)](../pt-BR/POPBOT_DESIGN.md) · [Русский](../ru/POPBOT_DESIGN.md) · [Italiano](../it/POPBOT_DESIGN.md)*
-
 # PopBot 设计
 
 一个面向 AutoRPG 的多智能体开发编排器。灵感来自 Conductor；增加了游戏内测试基础设施，让智能体可以启动真实的游戏、点击浏览，并验证其行为。

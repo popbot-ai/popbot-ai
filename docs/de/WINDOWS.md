@@ -1,5 +1,3 @@
-*Languages: [English](../WINDOWS.md) · [Español](../es/WINDOWS.md) · [Français](../fr/WINDOWS.md) · **Deutsch** · [日本語](../ja/WINDOWS.md) · [한국어](../ko/WINDOWS.md) · [简体中文](../zh-CN/WINDOWS.md) · [Português (Brasil)](../pt-BR/WINDOWS.md) · [Русский](../ru/WINDOWS.md) · [Italiano](../it/WINDOWS.md)*
-
 # PopBot unter Windows ausführen
 
 PopBot ist auf Electron + Node aufgebaut und läuft unter Windows, aber ein paar Setup-

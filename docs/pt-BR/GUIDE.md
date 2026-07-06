@@ -1,5 +1,3 @@
-*Languages: [English](../GUIDE.md) · [Español](../es/GUIDE.md) · [Français](../fr/GUIDE.md) · [Deutsch](../de/GUIDE.md) · [日本語](../ja/GUIDE.md) · [한국어](../ko/GUIDE.md) · [简体中文](../zh-CN/GUIDE.md) · **[Português (Brasil)](GUIDE.md)** · [Русский](../ru/GUIDE.md) · [Italiano](../it/GUIDE.md)*
-
 # PopBot — Guia de Recursos e Fluxo de Trabalho
 
 O PopBot é um cockpit desktop para rodar **muitos agentes de IA de codificação em paralelo**. Este guia cobre as ideias sobre as quais ele foi construído — por que existe, como as peças funcionam, o que moldou o design, e como uma equipe na Proof of Play o usou em um projeto real, pesado em assets, que foi lançado. É escrito para engenheiros que conseguem encontrar a UI por conta própria; o ponto aqui é o raciocínio, para que você possa adaptar a ferramenta ao seu próprio fluxo de trabalho em vez de seguir um roteiro.
@@ -284,7 +282,7 @@ Quando você aprova algo, pode conceder **uma vez**, **para a sessão**, ou **du
 
 ## Localização
 
-A interface inteira do PopBot — menus, configurações, diálogos, tudo — é totalmente localizada. O app é distribuído em **oito idiomas**: inglês, espanhol, francês, alemão, japonês, coreano, chinês simplificado, e português brasileiro — alternável a qualquer momento pelo menu de idioma sem reiniciar. (O site de marketing adicionalmente oferece russo e italiano.) Se você bifurcar o PopBot, cada locale é um único catálogo de mensagens, então adicionar ou ajustar um idioma é uma mudança contida em vez de uma caça ao tesouro pela UI.
+A interface inteira do PopBot — menus, configurações, diálogos, tudo — é totalmente localizada. O app é distribuído em **doze idiomas**: inglês, espanhol, francês, alemão, japonês, coreano, chinês simplificado, português brasileiro, russo, italiano, polonês e ucraniano — alternável a qualquer momento pelo menu de idioma sem reiniciar. Se você bifurcar o PopBot, cada locale é um único catálogo de mensagens, então adicionar ou ajustar um idioma é uma mudança contida em vez de uma caça ao tesouro pela UI.
 
 ## Preferências
 

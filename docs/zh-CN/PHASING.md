@@ -1,5 +1,3 @@
-*Languages: [English](../PHASING.md) · [Español](../es/PHASING.md) · [Français](../fr/PHASING.md) · [Deutsch](../de/PHASING.md) · [日本語](../ja/PHASING.md) · [한국어](../ko/PHASING.md) · **简体中文** · [Português (Brasil)](../pt-BR/PHASING.md) · [Русский](../ru/PHASING.md) · [Italiano](../it/PHASING.md)*
-
 # 阶段划分
 
 把 PopBot 从"设计 + 原型"推进到"日常好用的工具"的路线图。与

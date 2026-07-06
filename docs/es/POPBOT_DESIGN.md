@@ -1,5 +1,3 @@
-*Languages: [English](../POPBOT_DESIGN.md) · **Español** · [Français](../fr/POPBOT_DESIGN.md) · [Deutsch](../de/POPBOT_DESIGN.md) · [日本語](../ja/POPBOT_DESIGN.md) · [한국어](../ko/POPBOT_DESIGN.md) · [简体中文](../zh-CN/POPBOT_DESIGN.md) · [Português (Brasil)](../pt-BR/POPBOT_DESIGN.md) · [Русский](../ru/POPBOT_DESIGN.md) · [Italiano](../it/POPBOT_DESIGN.md)*
-
 # Diseño de PopBot
 
 Un orquestador de desarrollo multi-agente para AutoRPG. Inspirado en

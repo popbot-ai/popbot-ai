@@ -1,5 +1,3 @@
-*Languages: [English](../GUIDE.md) · [Español](../es/GUIDE.md) · [Français](../fr/GUIDE.md) · **Deutsch** · [日本語](../ja/GUIDE.md) · [한국어](../ko/GUIDE.md) · [简体中文](../zh-CN/GUIDE.md) · [Português (Brasil)](../pt-BR/GUIDE.md) · [Русский](../ru/GUIDE.md) · [Italiano](../it/GUIDE.md)*
-
 # PopBot — Feature- & Workflow-Guide
 
 PopBot ist ein Desktop-Cockpit, um **viele KI-Coding-Agents parallel** laufen zu lassen. Dieser Guide behandelt die Ideen, auf denen es aufbaut — warum es existiert, wie die Teile funktionieren, was das Design geprägt hat, und wie ein Team bei Proof of Play es auf einem echten, asset-lastigen Projekt eingesetzt hat, das released wurde. Er ist für Engineers geschrieben, die die UI selbst finden können; der Punkt hier ist die Begründung, damit ihr das Tool an euren eigenen Workflow anpassen könnt, statt einem Skript zu folgen.
@@ -284,7 +282,7 @@ Wenn ihr etwas genehmigt, könnt ihr es **einmalig**, **für die Session** oder 
 
 ## Lokalisierung
 
-Die gesamte Oberfläche von PopBot — Menüs, Einstellungen, Dialoge, alles — ist vollständig lokalisiert. Die App wird in **acht Sprachen** ausgeliefert: Englisch, Spanisch, Französisch, Deutsch, Japanisch, Koreanisch, vereinfachtes Chinesisch und brasilianisches Portugiesisch — jederzeit ohne Neustart über das Sprachmenü umschaltbar. (Die Marketing-Website bietet zusätzlich Russisch und Italienisch.) Wenn ihr PopBot forkt, ist jede Locale ein einzelner Message-Katalog, sodass das Hinzufügen oder Anpassen einer Sprache eine begrenzte Änderung ist, statt einer Schnitzeljagd durch die UI.
+Die gesamte Oberfläche von PopBot — Menüs, Einstellungen, Dialoge, alles — ist vollständig lokalisiert. Die App wird in **zwölf Sprachen** ausgeliefert: Englisch, Spanisch, Französisch, Deutsch, Japanisch, Koreanisch, vereinfachtes Chinesisch, brasilianisches Portugiesisch, Russisch, Italienisch, Polnisch und Ukrainisch — jederzeit ohne Neustart über das Sprachmenü umschaltbar. Wenn ihr PopBot forkt, ist jede Locale ein einzelner Message-Katalog, sodass das Hinzufügen oder Anpassen einer Sprache eine begrenzte Änderung ist, statt einer Schnitzeljagd durch die UI.
 
 ## Preferences
 

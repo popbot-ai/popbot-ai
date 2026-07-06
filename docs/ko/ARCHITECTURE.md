@@ -1,5 +1,3 @@
-*Languages: [English](../ARCHITECTURE.md) · [Español](../es/ARCHITECTURE.md) · [Français](../fr/ARCHITECTURE.md) · [Deutsch](../de/ARCHITECTURE.md) · [日本語](../ja/ARCHITECTURE.md) · [한국어](ARCHITECTURE.md) · [简体中文](../zh-CN/ARCHITECTURE.md) · [Português (Brasil)](../pt-BR/ARCHITECTURE.md) · [Русский](../ru/ARCHITECTURE.md) · [Italiano](../it/ARCHITECTURE.md)*
-
 # 아키텍처
 
 Electron 프로세스 모델과 각 서브시스템이 위치하는 곳에 대한 실용적인 지도입니다. "왜"에 대해서는 [POPBOT_DESIGN.md](POPBOT_DESIGN.md)를 참고하세요. 이 문서의 모든 내용이 걸려 있는 **객체 그래프 + 생명주기 + 소유권 규칙**에 대해서는 [CORE_MODEL.md](CORE_MODEL.md)를 참고하세요 — 아래 내용이 뜬금없게 느껴진다면 그것부터 먼저 읽으세요.

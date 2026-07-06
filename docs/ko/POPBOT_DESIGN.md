@@ -1,5 +1,3 @@
-*Languages: [English](../POPBOT_DESIGN.md) · [Español](../es/POPBOT_DESIGN.md) · [Français](../fr/POPBOT_DESIGN.md) · [Deutsch](../de/POPBOT_DESIGN.md) · [日本語](../ja/POPBOT_DESIGN.md) · [한국어](POPBOT_DESIGN.md) · [简体中文](../zh-CN/POPBOT_DESIGN.md) · [Português (Brasil)](../pt-BR/POPBOT_DESIGN.md) · [Русский](../ru/POPBOT_DESIGN.md) · [Italiano](../it/POPBOT_DESIGN.md)*
-
 # PopBot 설계
 
 AutoRPG를 위한 멀티 에이전트 개발 오케스트레이터입니다. Conductor에서 영감을 받았으며, 에이전트가 실제 게임을 실행하고, 클릭해서 조작하고, 동작을 검증할 수 있도록 인게임 테스트 인프라를 추가합니다.

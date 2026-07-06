@@ -1,5 +1,3 @@
-*Languages: [English](../POPBOT_DESIGN.md) · [Español](../es/POPBOT_DESIGN.md) · [Français](../fr/POPBOT_DESIGN.md) · [Deutsch](../de/POPBOT_DESIGN.md) · **[日本語](POPBOT_DESIGN.md)** · [한국어](../ko/POPBOT_DESIGN.md) · [简体中文](../zh-CN/POPBOT_DESIGN.md) · [Português (Brasil)](../pt-BR/POPBOT_DESIGN.md) · [Русский](../ru/POPBOT_DESIGN.md) · [Italiano](../it/POPBOT_DESIGN.md)*
-
 # PopBot 設計
 
 AutoRPG 向けのマルチエージェント開発オーケストレーター。Conductor に着想を得ており、エージェントが実際のゲームを起動し、画面を操作し、動作を検証できるよう、ゲーム内テストのインフラを追加している。

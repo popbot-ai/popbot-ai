@@ -1,5 +1,3 @@
-*Languages: [English](../ARCHITECTURE.md) · [Español](../es/ARCHITECTURE.md) · [Français](../fr/ARCHITECTURE.md) · [Deutsch](../de/ARCHITECTURE.md) · [日本語](../ja/ARCHITECTURE.md) · [한국어](../ko/ARCHITECTURE.md) · **简体中文** · [Português (Brasil)](../pt-BR/ARCHITECTURE.md) · [Русский](../ru/ARCHITECTURE.md) · [Italiano](../it/ARCHITECTURE.md)*
-
 # 架构
 
 关于 Electron 进程模型以及各子系统所在位置的一份实用地图。关于"为什么"，参见 [POPBOT_DESIGN.md](POPBOT_DESIGN.md)。关于本文档中一切内容所依托的**对象图 + 生命周期 + 所有权规则**，参见 [CORE_MODEL.md](CORE_MODEL.md)——如果下文有任何地方让你感觉缺乏动机，请先读那一篇。

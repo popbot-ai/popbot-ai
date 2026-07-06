@@ -1,5 +1,3 @@
-*Languages: [English](../ARCHITECTURE.md) · [Español](../es/ARCHITECTURE.md) · [Français](../fr/ARCHITECTURE.md) · [Deutsch](../de/ARCHITECTURE.md) · **[日本語](ARCHITECTURE.md)** · [한국어](../ko/ARCHITECTURE.md) · [简体中文](../zh-CN/ARCHITECTURE.md) · [Português (Brasil)](../pt-BR/ARCHITECTURE.md) · [Русский](../ru/ARCHITECTURE.md) · [Italiano](../it/ARCHITECTURE.md)*
-
 # アーキテクチャ
 
 Electron のプロセスモデルと各サブシステムの所在についての実用的な地図です。「なぜ」については [POPBOT_DESIGN.md](POPBOT_DESIGN.md) を参照してください。このドキュメントのすべてがぶら下がっている**オブジェクトグラフ + ライフサイクル + 所有権のルール**については [CORE_MODEL.md](CORE_MODEL.md) を参照してください — 以下の内容が動機不明に感じられたら、まずそちらを読んでください。

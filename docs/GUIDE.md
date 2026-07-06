@@ -282,7 +282,7 @@ When you approve something, you can grant it **once**, **for the session**, or *
 
 ## Localization
 
-PopBot's entire interface — menus, settings, dialogs, everything — is fully localized. The app ships in **eight languages**: English, Spanish, French, German, Japanese, Korean, Simplified Chinese, and Brazilian Portuguese — switchable any time from the language menu without restart. (The marketing site additionally offers Russian and Italian.) If you fork PopBot, each locale is a single message catalog, so adding or adjusting a language is a contained change rather than a scavenger hunt through the UI.
+PopBot's entire interface — menus, settings, dialogs, everything — is fully localized. The app ships in **twelve languages**: English, Spanish, French, German, Japanese, Korean, Simplified Chinese, Brazilian Portuguese, Russian, Italian, Polish, and Ukrainian — switchable any time from the language menu without restart. If you fork PopBot, each locale is a single message catalog, so adding or adjusting a language is a contained change rather than a scavenger hunt through the UI.
 
 ## Preferences
 

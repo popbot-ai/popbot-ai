@@ -1,5 +1,3 @@
-*Languages: [English](../RELEASING.md) · [Español](../es/RELEASING.md) · [Français](../fr/RELEASING.md) · [Deutsch](../de/RELEASING.md) · [日本語](../ja/RELEASING.md) · [한국어](../ko/RELEASING.md) · [简体中文](../zh-CN/RELEASING.md) · [Português (Brasil)](../pt-BR/RELEASING.md) · [Русский](RELEASING.md) · [Italiano](../it/RELEASING.md)*
-
 # Выпуск релизов PopBot
 
 Релизы собираются GitHub Actions на **macOS, Windows и Linux** и публикуются в GitHub Release этого репозитория. Каждая платформа собирается на своём собственном раннере — нативные модули (`better-sqlite3`, `node-pty`) должны компилироваться под ABI Electron для каждой ОС, так что кросс-компиляция не вариант.

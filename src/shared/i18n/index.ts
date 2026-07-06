@@ -15,6 +15,10 @@ import { ja } from './messages/ja';
 import { ko } from './messages/ko';
 import { zhCN } from './messages/zh-CN';
 import { ptBR } from './messages/pt-BR';
+import { ru } from './messages/ru';
+import { it } from './messages/it';
+import { pl } from './messages/pl';
+import { uk } from './messages/uk';
 import {
   DEFAULT_LOCALE,
   LOCALES,
@@ -44,6 +48,10 @@ const CATALOGS: Record<Locale, PartialMessages> = {
   ko,
   'zh-CN': zhCN,
   'pt-BR': ptBR,
+  ru,
+  it,
+  pl,
+  uk,
 };
 
 /** Settings key under which the chosen locale is persisted (SQLite
