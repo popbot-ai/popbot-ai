@@ -34,7 +34,7 @@ Cada chat de trabajo arrienda un **slot** — una copia de trabajo persistente m
 
 ### Copias ilimitadas en el disco de un solo repositorio
 
-El espacio de trabajo de un slot es una **carpeta de copia en escritura (copy-on-write)**: cada slot comparte una única imagen base y almacena solo lo que cambia. Así, una copia completa, en vivo y actualizada de un árbol de videojuego **a escala de terabytes** está lista en **segundos** — archivos editables reales, no una vista superficial — y copias ilimitadas cuestan el disco de un solo repositorio. Funciona en **Windows, macOS y Linux**, y es lo que permite que árboles de Perforce enormes se unan a la flota. [Por qué esto importa →](GUIDE.md#copia-en-escritura-copias-ilimitadas-en-el-disco-de-un-solo-repositorio)
+El espacio de trabajo de un slot es una **carpeta de copia en escritura (copy-on-write)**: cada slot comparte una única imagen base y almacena solo lo que cambia. Así, una copia completa, en vivo y actualizada de un árbol de videojuego **a escala de terabytes** está lista en **segundos** — archivos editables reales, no una vista superficial — y copias ilimitadas cuestan el disco de un solo repositorio. Esto funciona gracias a **[shado](https://github.com/popbot-ai/shado)**, nuestro motor de espacios de trabajo sombra de código abierto — funciona en **Windows, macOS y Linux** (VHDX diferencial en Windows; copia en escritura de APFS/XFS/btrfs en el resto), y es lo que permite que árboles de Perforce enormes se unan a la flota. [Por qué esto importa →](GUIDE.md#copia-en-escritura-copias-ilimitadas-en-el-disco-de-un-solo-repositorio)
 
 ### Git y Perforce, con revisión integrada
 
@@ -143,6 +143,10 @@ La **[Guía de Funcionalidades y Flujos de Trabajo](GUIDE.md)** explica el razon
 | [WINDOWS.md](WINDOWS.md) | Notas de configuración de Windows / WSL. |
 | [POPBOT_DESIGN.md](POPBOT_DESIGN.md) | La especificación de diseño original (histórica). |
 | [DEVELOPMENT.md](DEVELOPMENT.md) | Configuración de desarrollo local, scripts, convenciones. |
+
+## Proyectos relacionados
+
+- **[shado](https://github.com/popbot-ai/shado)** — el motor de espacios de trabajo sombra de copia en escritura detrás de los slots en caliente de PopBot. Un pequeño CLI de Go que le da a cada slot una copia completa, en vivo, de un repositorio enorme por el costo en disco de uno solo, usando VHDX diferencial en Windows y copia en escritura nativa (APFS `clonefile`, XFS/btrfs `reflink`) en macOS y Linux. Se distribuye junto con PopBot; se desarrolla en abierto como su propio repositorio.
 
 ## Licencia
 

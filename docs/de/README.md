@@ -34,7 +34,7 @@ Jeder aktive Chat least einen **Slot** — eine dauerhafte Arbeitskopie plus sei
 
 ### Unbegrenzte Kopien auf der Disk eines Repos
 
-Der Workspace eines Slots ist ein **Copy-on-Write-Ordner**: Jeder Slot teilt sich ein Basis-Image und speichert nur, was er ändert. So ist eine frische, lebendige, vollständige Kopie eines **terabyte-großen** Game-Trees in **Sekunden** bereit — echte editierbare Dateien, keine flache Ansicht — und unbegrenzte Kopien kosten die Disk eines einzigen Repos. Es funktioniert auf **Windows, macOS und Linux**, und es ist das, was riesigen Perforce-Trees überhaupt erst erlaubt, der Flotte beizutreten. [Warum das wichtig ist →](GUIDE.md#copy-on-write-unbegrenzte-kopien-auf-der-disk-eines-repos)
+Der Workspace eines Slots ist ein **Copy-on-Write-Ordner**: Jeder Slot teilt sich ein Basis-Image und speichert nur, was er ändert. So ist eine frische, lebendige, vollständige Kopie eines **terabyte-großen** Game-Trees in **Sekunden** bereit — echte editierbare Dateien, keine flache Ansicht — und unbegrenzte Kopien kosten die Disk eines einzigen Repos. Das wird angetrieben von **[shado](https://github.com/popbot-ai/shado)**, unserer Open-Source-Shadow-Workspace-Engine — es funktioniert auf **Windows, macOS und Linux** (differencing VHDX auf Windows; APFS/XFS/btrfs Copy-on-Write anderswo), und es ist das, was riesigen Perforce-Trees überhaupt erst erlaubt, der Flotte beizutreten. [Warum das wichtig ist →](GUIDE.md#copy-on-write-unbegrenzte-kopien-auf-der-disk-eines-repos)
 
 ### Git und Perforce, mit eingebautem Review
 
@@ -143,6 +143,10 @@ Der **[Feature- & Workflow-Guide](GUIDE.md)** erklärt die Begründung hinter je
 | [WINDOWS.md](WINDOWS.md) | Windows-/WSL-Setup-Hinweise. |
 | [POPBOT_DESIGN.md](POPBOT_DESIGN.md) | Die ursprüngliche Design-Spezifikation (historisch). |
 | [DEVELOPMENT.md](DEVELOPMENT.md) | Lokales Dev-Setup, Skripte, Konventionen. |
+
+## Verwandte Projekte
+
+- **[shado](https://github.com/popbot-ai/shado)** — die Copy-on-Write-Shadow-Workspace-Engine hinter PopBots warmen Slots. Ein kleines Go-CLI, das jedem Slot eine vollständige, lebendige Kopie eines riesigen Repos für die Disk-Kosten eines einzigen gibt, mittels differencing VHDX auf Windows und nativem Copy-on-Write (APFS `clonefile`, XFS/btrfs `reflink`) auf macOS und Linux. Mit PopBot gebündelt; als eigenes Repo im Open entwickelt.
 
 ## Lizenz
 

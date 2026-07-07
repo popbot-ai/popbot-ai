@@ -36,7 +36,7 @@ Each working chat leases a **slot** — a persistent working copy plus its own w
 
 ### Unlimited copies on one repo's disk
 
-A slot's workspace is a **copy-on-write folder**: every slot shares one base image and stores only what it changes. So a fresh, live, full copy of a **terabyte-scale** game tree is ready in **seconds** — real editable files, not a shallow view — and unlimited copies cost the disk of a single repo. It works on **Windows, macOS, and Linux**, and it's what lets huge Perforce trees join the fleet at all. [Why this matters →](docs/GUIDE.md#copy-on-write-unlimited-copies-on-one-repos-disk)
+A slot's workspace is a **copy-on-write folder**: every slot shares one base image and stores only what it changes. So a fresh, live, full copy of a **terabyte-scale** game tree is ready in **seconds** — real editable files, not a shallow view — and unlimited copies cost the disk of a single repo. This is powered by **[shado](https://github.com/popbot-ai/shado)**, our open-source shadow-workspace engine — it works on **Windows, macOS, and Linux** (differencing VHDX on Windows; APFS/XFS/btrfs copy-on-write elsewhere), and it's what lets huge Perforce trees join the fleet at all. [Why this matters →](docs/GUIDE.md#copy-on-write-unlimited-copies-on-one-repos-disk)
 
 ### Git and Perforce, with review built in
 
@@ -145,6 +145,10 @@ The **[Feature & Workflow Guide](docs/GUIDE.md)** explains the reasoning behind 
 | [WINDOWS.md](docs/WINDOWS.md) | Windows / WSL setup notes. |
 | [POPBOT_DESIGN.md](docs/POPBOT_DESIGN.md) | The original design spec (historical). |
 | [DEVELOPMENT.md](docs/DEVELOPMENT.md) | Local dev setup, scripts, conventions. |
+
+## Related projects
+
+- **[shado](https://github.com/popbot-ai/shado)** — the copy-on-write shadow-workspace engine behind PopBot's warm slots. A small Go CLI that gives every slot a full, live copy of a huge repo for the disk cost of one, using differencing VHDX on Windows and native copy-on-write (APFS `clonefile`, XFS/btrfs `reflink`) on macOS and Linux. Bundled with PopBot; developed in the open as its own repo.
 
 ## License
 
