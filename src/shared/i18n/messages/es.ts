@@ -1221,4 +1221,7 @@ export const es = {
   'whatsNew.f2.h': 'Claude Sonnet 5',
   'whatsNew.f2.p': 'El modelo rápido de Anthropic, con calidad cercana a Opus, se une a Opus 4.8 y Fable 5 en el selector de modelos.',
   'whatsNew.gotIt': 'Entendido',
+  // --- Auto-update prompts (persisted via the notification system) ---
+  'app.update.restartAction': 'Reiniciar e instalar',
+  'app.update.downloadAction': 'Descargar',
 } satisfies PartialMessages;

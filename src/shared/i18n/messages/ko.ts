@@ -1217,4 +1217,7 @@ export const ko = {
   'whatsNew.f2.h': 'Claude Sonnet 5',
   'whatsNew.f2.p': 'Opus에 가까운 품질의 Anthropic 고속 모델이 Opus 4.8, Fable 5와 함께 모델 선택기에 추가되었습니다.',
   'whatsNew.gotIt': '확인',
+  // --- Auto-update prompts (persisted via the notification system) ---
+  'app.update.restartAction': '다시 시작하고 설치',
+  'app.update.downloadAction': '다운로드',
 } satisfies PartialMessages;

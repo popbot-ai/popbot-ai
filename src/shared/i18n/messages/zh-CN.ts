@@ -1223,4 +1223,7 @@ export const zhCN = {
   'whatsNew.f2.h': 'Claude Sonnet 5',
   'whatsNew.f2.p': 'Anthropic 的高速模型,质量接近 Opus,现已与 Opus 4.8、Fable 5 一同加入模型选择器。',
   'whatsNew.gotIt': '知道了',
+  // --- Auto-update prompts (persisted via the notification system) ---
+  'app.update.restartAction': '重启并安装',
+  'app.update.downloadAction': '下载',
 } satisfies PartialMessages;

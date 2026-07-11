@@ -32,7 +32,6 @@ import type { LinearIssueDto } from '@shared/linear';
 import { TICKET_PROVIDERS, type TicketProviderId } from '@shared/ticketProvider';
 import { useLinearIssues } from './lib/useLinearIssues';
 import { usePrStatusByChat } from './lib/usePrStatusByChat';
-import { Toast } from './components/Toast';
 import { useSettings } from './lib/useSettings';
 import { useUpdates } from './lib/useUpdates';
 import { HighlightProvider } from './lib/highlightBus';
@@ -910,9 +909,6 @@ export default function App(): JSX.Element {
     }
   };
 
-  // Legacy single-toast slot used by the update-checker (the rich
-  // notification toasts use `notifToasts` below).
-  const [toast, setToast] = useState<{ message: string; detail?: string; onClick?: () => void } | null>(null);
   // Live stack of notification-style rich toasts (max 4). Populated by
   // the notifications subscriber; dismissed individually after TTL.
   const [notifToasts, setNotifToasts] = useState<NotificationRecord[]>([]);
@@ -953,6 +949,13 @@ export default function App(): JSX.Element {
         window.open(action.url, '_blank');
         return;
       case 'internal':
+        // A staged auto-update: quit and relaunch into the new version.
+        // Routed as an action (rather than a bare toast click) so it stays
+        // reachable from the bell dropdown after the toast auto-dismisses.
+        if (action.targetKind === 'update-install') {
+          installUpdateRef.current();
+          return;
+        }
         // Special-case 'review': the review-tab row click already
         // spawns / focuses the chat, so an "internal" review action
         // just navigates + pulses (the "Spawn" action below handles
@@ -1032,9 +1035,6 @@ export default function App(): JSX.Element {
     }
   }, [t]);
 
-  // Surface "newer release on GitHub" pushes from main as a clickable
-  // toast that opens the release page. Reuses the review-toast slot —
-  // collisions are rare given the main-side 3h quiet window.
   // Native macOS app menu → "About PopBot" opens our custom dialog.
   useEffect(() => window.popbot.updates.onShowAbout(() => setAboutOpen(true)), []);
 
@@ -1044,30 +1044,65 @@ export default function App(): JSX.Element {
     dismiss: dismissUpdate,
     install: installUpdate,
   } = useUpdates();
+  // `routeAction` is memoized with no deps, so it can't close over
+  // `installUpdate` directly without going stale. Read it through a ref.
+  const installUpdateRef = useRef(installUpdate);
+  installUpdateRef.current = installUpdate;
+  // Update prompts go through the notification system, like every other
+  // notification in the app. They previously used a bare single-slot Toast,
+  // which auto-dismissed after 6s and left no durable record — so a missed
+  // update prompt was unrecoverable from the UI, even with the installer
+  // already staged on disk. Dispatching pops the same toast AND persists it
+  // in the bell dropdown, so it can be acted on later. Deduped by version so
+  // the 6h update poll doesn't stack duplicates.
+
   // Manual-download fallback (unsigned build / updater error): open the
-  // release page in the browser.
+  // download page in the browser.
   useEffect(() => {
     if (!update) return;
-    setToast({
-      message: t('app.update.available', { name: update.name }),
-      detail: t('app.update.availableDetail', { current: update.current, latest: update.latest }),
-      onClick: () => {
-        window.open(update.htmlUrl, '_blank');
-        dismissUpdate();
-        setToast(null);
-      },
+    void window.popbot.notifications.dispatch({
+      kind: 'system',
+      urgency: 'med',
+      source: 'PopBot',
+      title: t('app.update.available', { name: update.name }),
+      subtitle: t('app.update.availableDetail', { current: update.current, latest: update.latest }),
+      summary: '',
+      actions: [
+        {
+          kind: 'external',
+          label: t('app.update.downloadAction'),
+          url: update.htmlUrl,
+          primary: true,
+        },
+      ],
+      dedupKey: `update:available:${update.latest}`,
     });
+    dismissUpdate();
   }, [update, dismissUpdate, t]);
-  // In-app auto-update staged and ready: clicking quits and relaunches into
-  // the new version.
+
+  // In-app auto-update staged and ready: the action quits and relaunches
+  // into the new version (routed via `update-install` in `routeAction`).
   useEffect(() => {
     if (!updateReady) return;
-    setToast({
-      message: t('app.update.ready', { name: updateReady.name }),
-      detail: t('app.update.readyDetail', { version: updateReady.version }),
-      onClick: () => installUpdate(),
+    void window.popbot.notifications.dispatch({
+      kind: 'system',
+      urgency: 'high',
+      source: 'PopBot',
+      title: t('app.update.ready', { name: updateReady.name }),
+      subtitle: t('app.update.readyDetail', { version: updateReady.version }),
+      summary: '',
+      actions: [
+        {
+          kind: 'internal',
+          label: t('app.update.restartAction'),
+          targetKind: 'update-install',
+          targetId: updateReady.version,
+          primary: true,
+        },
+      ],
+      dedupKey: `update:ready:${updateReady.version}`,
     });
-  }, [updateReady, installUpdate, t]);
+  }, [updateReady, t]);
 
   /** Best-effort default repo for "no-prompt" chat creation paths
    *  (review chats, Slack chats) — they don't surface the
@@ -1507,14 +1542,6 @@ export default function App(): JSX.Element {
           detail={busy.detail}
           error={busy.error}
           onDismiss={busy.error ? () => setBusy(null) : undefined}
-        />
-      )}
-      {toast && (
-        <Toast
-          message={toast.message}
-          detail={toast.detail}
-          onClick={toast.onClick}
-          onDismiss={() => setToast(null)}
         />
       )}
       <NotificationToastStack
