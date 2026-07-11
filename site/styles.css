@@ -192,6 +192,19 @@ code{font-family:var(--font-mono);font-size:0.86em;background:rgba(255,255,255,0
   background:rgba(255,255,255,0.10);border:1px solid rgba(255,255,255,0.18);color:#fff;font-size:14px;font-weight:500;}
 .hero-pill i{font-size:11px;color:#ffd9b0;}
 .hero-actions{display:flex;gap:13px;flex-wrap:wrap;}
+/* "New in this release" panel under the hero download actions. */
+.hero-whatsnew{margin-top:18px;padding:14px 16px;border:1px solid rgba(107,124,255,.35);
+  border-radius:12px;background:rgba(107,124,255,.08);max-width:560px;}
+.hero-whatsnew .wn-head{display:flex;align-items:center;gap:8px;margin-bottom:8px;
+  font-weight:700;font-size:13.5px;color:var(--ink-0);}
+.hero-whatsnew .wn-chip{background:var(--acc);color:#fff;font-size:10.5px;font-weight:800;
+  letter-spacing:.6px;padding:2px 8px;border-radius:999px;}
+.hero-whatsnew .wn-ver{color:var(--ink-2);font-weight:600;}
+.hero-whatsnew .wn-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;
+  gap:6px;font-size:13.5px;line-height:1.5;color:var(--ink-1);}
+.hero-whatsnew .wn-list li{display:flex;gap:9px;align-items:baseline;}
+.hero-whatsnew .wn-list i{color:var(--acc-hi);flex:0 0 auto;}
+.hero-whatsnew .wn-list strong{color:var(--ink-0);}
 
 /* floating UI window in hero */
 .win-tilt{transform:perspective(1700px) rotateY(-13deg) rotateX(4deg) scale(1.02);transform-origin:left center;}
