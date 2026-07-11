@@ -6,14 +6,20 @@ import type {
   CodexReasoningEffort,
 } from '@shared/persistence';
 import {
+  CLAUDE_MODELS,
+  CLAUDE_MODEL_LABELS,
   CLAUDE_REASONING_EFFORTS,
+  CODEX_MODELS,
+  CODEX_MODEL_LABELS,
   CODEX_REASONING_EFFORTS,
   DEFAULT_CLAUDE_MODEL,
   DEFAULT_CLAUDE_REASONING_EFFORT,
   DEFAULT_CODEX_MODEL,
   DEFAULT_CODEX_REASONING_EFFORT,
   closestReasoningEffort,
+  codexReasoningEffortsForModel,
   normalizeClaudeModel,
+  normalizeCodexModel,
 } from '@shared/persistence';
 import type { MessageKey, Translator } from '@shared/i18n';
 import { useTranslation } from '../lib/i18n';
@@ -40,25 +46,19 @@ export interface AgentEffortDefaultsSettings {
 export type NormalizedAgentEffortDefaults = Required<AgentEffortDefaultsSettings>;
 
 const MODEL_OPTIONS = [
-  {
-    value: `claude:${DEFAULT_CLAUDE_MODEL}`,
-    label: 'Claude Opus 4.8',
+  ...CLAUDE_MODELS.map((model) => ({
+    value: `claude:${model}`,
+    label: CLAUDE_MODEL_LABELS[model],
     agent: 'claude' as const,
-    model: DEFAULT_CLAUDE_MODEL,
-  },
-  {
-    value: 'claude:claude-fable-5',
-    label: 'Claude Fable 5',
-    agent: 'claude' as const,
-    model: 'claude-fable-5' as const,
-  },
-  {
-    value: `codex:${DEFAULT_CODEX_MODEL}`,
-    label: 'GPT-5.5',
+    model,
+  })),
+  ...CODEX_MODELS.map((model) => ({
+    value: `codex:${model}`,
+    label: CODEX_MODEL_LABELS[model],
     agent: 'codex' as const,
-    model: DEFAULT_CODEX_MODEL,
-  },
-] as const;
+    model,
+  })),
+];
 
 /** i18n keys for each reasoning-effort label — resolved via `t()` so the
  *  option labels follow the active locale. */
@@ -134,10 +134,10 @@ export function normalizeAgentCreateConfig(value: unknown): AgentCreateConfig {
       CLAUDE_REASONING_EFFORTS,
       DEFAULT_CLAUDE_REASONING_EFFORT,
     ),
-    codexModel: DEFAULT_CODEX_MODEL,
+    codexModel: normalizeCodexModel(raw.codexModel),
     codexReasoningEffort: closestReasoningEffort(
       raw.codexReasoningEffort,
-      CODEX_REASONING_EFFORTS,
+      codexReasoningEffortsForModel(raw.codexModel),
       DEFAULT_CODEX_REASONING_EFFORT,
     ),
   };
@@ -170,10 +170,10 @@ export function compactAgentCreateConfig(value: AgentCreateConfig): AgentCreateC
       CLAUDE_REASONING_EFFORTS,
       DEFAULT_CLAUDE_REASONING_EFFORT,
     ),
-    codexModel: DEFAULT_CODEX_MODEL,
+    codexModel: normalizeCodexModel(value.codexModel),
     codexReasoningEffort: closestReasoningEffort(
       value.codexReasoningEffort,
-      CODEX_REASONING_EFFORTS,
+      codexReasoningEffortsForModel(value.codexModel),
       DEFAULT_CODEX_REASONING_EFFORT,
     ),
   };
@@ -188,15 +188,18 @@ export function AgentCreateControls({
 }): JSX.Element {
   const { t } = useTranslation();
   const agent = value.agent;
+  const claudeModel = normalizeClaudeModel(value.claudeModel);
+  const codexModel = normalizeCodexModel(value.codexModel);
   const claudeEffort = value.claudeReasoningEffort ?? DEFAULT_CLAUDE_REASONING_EFFORT;
   const codexEffort = value.codexReasoningEffort ?? DEFAULT_CODEX_REASONING_EFFORT;
+  const codexEffortOptions = codexReasoningEffortsForModel(codexModel);
   const effort = agent === 'codex'
-    ? closestReasoningEffort(codexEffort, CODEX_REASONING_EFFORTS, DEFAULT_CODEX_REASONING_EFFORT)
+    ? closestReasoningEffort(codexEffort, codexEffortOptions, DEFAULT_CODEX_REASONING_EFFORT)
     : closestReasoningEffort(claudeEffort, CLAUDE_REASONING_EFFORTS, DEFAULT_CLAUDE_REASONING_EFFORT);
-  const effortOptions = agent === 'codex' ? CODEX_REASONING_EFFORTS : CLAUDE_REASONING_EFFORTS;
+  const effortOptions = agent === 'codex' ? codexEffortOptions : CLAUDE_REASONING_EFFORTS;
   const selectedModelValue = agent === 'codex'
-    ? `codex:${DEFAULT_CODEX_MODEL}`
-    : `claude:${DEFAULT_CLAUDE_MODEL}`;
+    ? `codex:${codexModel}`
+    : `claude:${claudeModel}`;
 
   return (
     <div style={{ marginBottom: 12 }}>

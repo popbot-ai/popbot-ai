@@ -11,12 +11,27 @@ import type { PickedAttachment } from '@shared/ipc';
 import {
   DEFAULT_CODEX_MODEL,
   DEFAULT_CODEX_REASONING_EFFORT,
+  codexReasoningEffortsForModel,
 } from '@shared/persistence';
 import type { AgentBackend, AgentSession, SpawnOpts } from './types';
 import { dlog } from '../diagLog';
 
-function toCodexSdkReasoningEffort(effort: typeof DEFAULT_CODEX_REASONING_EFFORT | SpawnOpts['codexReasoningEffort']): ModelReasoningEffort {
-  return effort === 'none' ? 'minimal' : effort ?? DEFAULT_CODEX_REASONING_EFFORT;
+function toCodexSdkReasoningEffort(
+  model: string,
+  effort: typeof DEFAULT_CODEX_REASONING_EFFORT | SpawnOpts['codexReasoningEffort'],
+): ModelReasoningEffort {
+  const resolved = effort ?? DEFAULT_CODEX_REASONING_EFFORT;
+  if (resolved === 'none') return 'minimal';
+  // `max` is GPT-5.6 Sol's top reasoning rung. The SDK forwards the value
+  // verbatim as `model_reasoning_effort`, but its type union hasn't caught
+  // up to the CLI yet — hence the cast. Clamp to xhigh for models that
+  // don't support max (Terra/Luna/5.5).
+  if (resolved === 'max') {
+    return codexReasoningEffortsForModel(model).includes('max')
+      ? ('max' as ModelReasoningEffort)
+      : 'xhigh';
+  }
+  return resolved;
 }
 
 /**
@@ -61,7 +76,7 @@ class CodexSession implements AgentSession {
 
     const model = opts.codexModel ?? DEFAULT_CODEX_MODEL;
     const reasoningEffort = opts.codexReasoningEffort ?? DEFAULT_CODEX_REASONING_EFFORT;
-    const sdkReasoningEffort = toCodexSdkReasoningEffort(reasoningEffort);
+    const sdkReasoningEffort = toCodexSdkReasoningEffort(model, reasoningEffort);
     const codex = new Codex({
       codexPathOverride: opts.pathToCodexExecutable ?? undefined,
     });
