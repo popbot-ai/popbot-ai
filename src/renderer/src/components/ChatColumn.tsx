@@ -1,7 +1,10 @@
 import { useCallback, useEffect, useRef, useState, type CSSProperties, type KeyboardEvent, type MouseEvent } from 'react';
 import {
+  CLAUDE_MODELS,
+  CLAUDE_MODEL_LABELS,
   CLAUDE_REASONING_EFFORTS,
-  CODEX_REASONING_EFFORTS,
+  CODEX_MODELS,
+  CODEX_MODEL_LABELS,
   DEFAULT_CLAUDE_MODEL,
   DEFAULT_CLAUDE_REASONING_EFFORT,
   DEFAULT_CODEX_MODEL,
@@ -13,6 +16,7 @@ import {
   type CodexModelId,
   type CodexReasoningEffort,
   closestReasoningEffort,
+  codexReasoningEffortsForModel,
 } from '@shared/persistence';
 import type { PickedAttachment } from '@shared/ipc';
 import type { GitPrInfo } from '@shared/git';
@@ -116,28 +120,23 @@ function PrChip({ pr, t }: { pr: GitPrInfo; t: Translator }): JSX.Element {
 }
 
 const MODEL_OPTIONS = [
-  {
-    value: `claude:${DEFAULT_CLAUDE_MODEL}`,
-    label: 'Claude Opus 4.8',
+  ...CLAUDE_MODELS.map((model) => ({
+    value: `claude:${model}`,
+    label: CLAUDE_MODEL_LABELS[model],
     agent: 'claude' as const,
-    claudeModel: DEFAULT_CLAUDE_MODEL,
-    reasoningEfforts: CLAUDE_REASONING_EFFORTS,
-  },
-  {
-    value: 'claude:claude-fable-5',
-    label: 'Claude Fable 5',
-    agent: 'claude' as const,
-    claudeModel: 'claude-fable-5' as const,
-    reasoningEfforts: CLAUDE_REASONING_EFFORTS,
-  },
-  {
-    value: `codex:${DEFAULT_CODEX_MODEL}`,
-    label: 'GPT-5.5',
+    claudeModel: model,
+    codexModel: undefined,
+    reasoningEfforts: CLAUDE_REASONING_EFFORTS as readonly (ClaudeReasoningEffort | CodexReasoningEffort)[],
+  })),
+  ...CODEX_MODELS.map((model) => ({
+    value: `codex:${model}`,
+    label: CODEX_MODEL_LABELS[model],
     agent: 'codex' as const,
-    codexModel: DEFAULT_CODEX_MODEL,
-    reasoningEfforts: CODEX_REASONING_EFFORTS,
-  },
-] as const;
+    claudeModel: undefined,
+    codexModel: model,
+    reasoningEfforts: codexReasoningEffortsForModel(model) as readonly (ClaudeReasoningEffort | CodexReasoningEffort)[],
+  })),
+];
 
 const REASONING_LABEL_KEYS: Record<ClaudeReasoningEffort | CodexReasoningEffort, MessageKey> = {
   none: 'chat.reasoning.none',
@@ -229,7 +228,7 @@ export function ChatColumn({
   const selectedReasoningEffort = agent === 'codex'
     ? closestReasoningEffort(
       chat.codexReasoningEffort,
-      CODEX_REASONING_EFFORTS,
+      codexReasoningEffortsForModel(chat.codexModel),
       DEFAULT_CODEX_REASONING_EFFORT,
     )
     : closestReasoningEffort(
@@ -413,7 +412,7 @@ export function ChatColumn({
       codexModel: next.codexModel,
       codexReasoningEffort: closestReasoningEffort(
         chat.codexReasoningEffort,
-        CODEX_REASONING_EFFORTS,
+        codexReasoningEffortsForModel(next.codexModel),
         DEFAULT_CODEX_REASONING_EFFORT,
       ),
     } satisfies PendingAgentSwitch;

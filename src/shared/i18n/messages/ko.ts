@@ -1210,4 +1210,11 @@ export const ko = {
   'work.reviewNumber': 'Swarm 리뷰 #{number}',
   'prefs.repos.wizard.agentCwd.title': '에이전트 작업 디렉터리',
   'prefs.repos.wizard.agentCwd.desc': '에이전트가 시작하는 작업 공간 루트 아래 경로입니다(/ = 루트 자체). /depot/PopBotGame 같은 하위 경로로 지정하면 저장소에 커밋된 .claude/skills를 Claude가 찾을 수 있습니다.',
+  // --- What's-new popup (WhatsNewDialog.tsx) — update each release ---
+  'whatsNew.title': 'PopBot의 새로운 기능',
+  'whatsNew.f1.h': 'OpenAI GPT-5.6 모델',
+  'whatsNew.f1.p': '새로운 GPT-5.6 제품군(Sol, Terra, Luna)으로 에이전트를 실행하세요. 가장 어려운 문제를 위한 Sol의 새로운 Max 추론 강도도 지원합니다.',
+  'whatsNew.f2.h': 'Claude Sonnet 5',
+  'whatsNew.f2.p': 'Opus에 가까운 품질의 Anthropic 고속 모델이 Opus 4.8, Fable 5와 함께 모델 선택기에 추가되었습니다.',
+  'whatsNew.gotIt': '확인',
 } satisfies PartialMessages;

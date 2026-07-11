@@ -10,20 +10,34 @@ export const RAW_CHAT_REPO_ID = '__none__';
 
 export type AgentBackendId = 'claude' | 'codex';
 
-export const CLAUDE_MODELS = ['claude-opus-4-8', 'claude-fable-5'] as const;
+export const CLAUDE_MODELS = ['claude-opus-4-8', 'claude-sonnet-5', 'claude-fable-5'] as const;
+export const CODEX_MODELS = ['gpt-5.6-sol', 'gpt-5.6-terra', 'gpt-5.6-luna', 'gpt-5.5'] as const;
 export const DEFAULT_CLAUDE_MODEL = 'claude-opus-4-8' as const;
-export const DEFAULT_CODEX_MODEL = 'gpt-5.5' as const;
+export const DEFAULT_CODEX_MODEL = 'gpt-5.6-sol' as const;
 export const DEFAULT_CLAUDE_REASONING_EFFORT = 'high' as const;
 export const DEFAULT_CODEX_REASONING_EFFORT = 'medium' as const;
 
 export const CLAUDE_REASONING_EFFORTS = ['low', 'medium', 'high', 'xhigh', 'max'] as const;
-export const CODEX_REASONING_EFFORTS = ['none', 'low', 'medium', 'high', 'xhigh'] as const;
+export const CODEX_REASONING_EFFORTS = ['none', 'low', 'medium', 'high', 'xhigh', 'max'] as const;
 
 export type ClaudeModelId = (typeof CLAUDE_MODELS)[number];
-export type CodexModelId = typeof DEFAULT_CODEX_MODEL;
+export type CodexModelId = (typeof CODEX_MODELS)[number];
 export type ClaudeReasoningEffort = (typeof CLAUDE_REASONING_EFFORTS)[number];
 export type CodexReasoningEffort = (typeof CODEX_REASONING_EFFORTS)[number];
 export type AgentReasoningEffort = ClaudeReasoningEffort | CodexReasoningEffort;
+
+/** Display names for the model pickers. Product names, not localized. */
+export const CLAUDE_MODEL_LABELS: Record<ClaudeModelId, string> = {
+  'claude-opus-4-8': 'Claude Opus 4.8',
+  'claude-sonnet-5': 'Claude Sonnet 5',
+  'claude-fable-5': 'Claude Fable 5',
+};
+export const CODEX_MODEL_LABELS: Record<CodexModelId, string> = {
+  'gpt-5.6-sol': 'GPT-5.6 Sol',
+  'gpt-5.6-terra': 'GPT-5.6 Terra',
+  'gpt-5.6-luna': 'GPT-5.6 Luna',
+  'gpt-5.5': 'GPT-5.5',
+};
 
 /** Coerce a persisted/raw model string to a known Claude model, falling
  *  back to the default for unknown or legacy values. Single source of
@@ -33,6 +47,23 @@ export function normalizeClaudeModel(value: string | null | undefined): ClaudeMo
   return CLAUDE_MODELS.includes(value as ClaudeModelId)
     ? (value as ClaudeModelId)
     : DEFAULT_CLAUDE_MODEL;
+}
+
+/** Codex counterpart of {@link normalizeClaudeModel}. */
+export function normalizeCodexModel(value: string | null | undefined): CodexModelId {
+  return CODEX_MODELS.includes(value as CodexModelId)
+    ? (value as CodexModelId)
+    : DEFAULT_CODEX_MODEL;
+}
+
+/** The `max` reasoning tier is GPT-5.6 Sol's new top rung — other GPT
+ *  models cap at `xhigh`. Claude models all support `max`. */
+export function codexReasoningEffortsForModel(
+  model: CodexModelId | string | null | undefined,
+): readonly CodexReasoningEffort[] {
+  return normalizeCodexModel(model) === 'gpt-5.6-sol'
+    ? CODEX_REASONING_EFFORTS
+    : CODEX_REASONING_EFFORTS.filter((effort) => effort !== 'max');
 }
 
 const REASONING_EFFORT_RANK: Record<AgentReasoningEffort, number> = {

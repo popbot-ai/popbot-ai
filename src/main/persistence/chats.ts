@@ -13,10 +13,10 @@ import {
   CLAUDE_REASONING_EFFORTS,
   CODEX_REASONING_EFFORTS,
   DEFAULT_CLAUDE_REASONING_EFFORT,
-  DEFAULT_CODEX_MODEL,
   DEFAULT_CODEX_REASONING_EFFORT,
   closestReasoningEffort,
   normalizeClaudeModel,
+  normalizeCodexModel,
 } from '@shared/persistence';
 import type { ChatStatus } from '@shared/domain';
 import { db } from './db';
@@ -129,10 +129,6 @@ function rowToRecord(r: ChatRow): ChatRecord {
 
 function normalizeAgent(value: string | null | undefined): AgentBackendId {
   return value === 'codex' ? 'codex' : 'claude';
-}
-
-function normalizeCodexModel(value: string | null | undefined): CodexModelId {
-  return value === 'gpt-5.5' ? value : DEFAULT_CODEX_MODEL;
 }
 
 function normalizeClaudeReasoningEffort(value: string | null | undefined): ClaudeReasoningEffort {

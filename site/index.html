@@ -124,6 +124,21 @@
         <a id="dl-main" class="btn btn-primary btn-lg" style="min-width:260px;justify-content:center" href="https://download.popbot.app/stable/" rel="noopener" onclick="return typeof report_download==='function'?report_download(this.href):true"><i class="fa-solid fa-download"></i> Free Download</a>
       </div>
       <div style="opacity:.72;font-size:13.5px;margin-top:13px"><span data-i18n="common.also">Also:</span> <a id="dl-alt1" href="https://download.popbot.app/stable/" style="color:inherit;text-decoration:underline"><i class="fa-brands fa-windows"></i> Windows</a> · <a id="dl-alt2" href="https://download.popbot.app/stable/" style="color:inherit;text-decoration:underline"><i class="fa-brands fa-linux"></i> Linux</a> · <span data-i18n="hero.signed">signed &amp; notarized</span> · <a href="#features" style="color:inherit;text-decoration:underline" data-i18n="hero.seehow">see how it works</a>.</div>
+      <!-- NEW IN THIS RELEASE — sits under the download actions; version fills
+           from version.json via the shared [data-version] hook. Each release,
+           update the two whatsnew.f* lines here AND their translations in
+           i18n.js with the one or two headline features. -->
+      <div class="hero-whatsnew">
+        <div class="wn-head">
+          <span class="wn-chip" data-i18n="whatsnew.chip">NEW</span>
+          <span class="wn-title" data-i18n="whatsnew.title">New in this release</span>
+          <span class="wn-ver" data-version>v…</span>
+        </div>
+        <ul class="wn-list">
+          <li><i class="fa-solid fa-wand-magic-sparkles"></i> <span data-i18n-html="whatsnew.f1">Support for OpenAI&rsquo;s new <strong>GPT-5.6 models</strong> — Sol, Terra &amp; Luna — including Sol&rsquo;s Max reasoning effort.</span></li>
+          <li><i class="fa-solid fa-bolt"></i> <span data-i18n-html="whatsnew.f2"><strong>Claude Sonnet 5</strong> joins Claude Opus 4.8 and Fable 5 in the model picker.</span></li>
+        </ul>
+      </div>
     </div>
 
     <!-- floating UI slice -->

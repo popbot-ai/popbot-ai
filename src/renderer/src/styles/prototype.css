@@ -170,6 +170,12 @@ input, textarea { font: inherit; color: inherit; background: none; border: 0; ou
 .about-update a:hover,
 .about-links a:hover { text-decoration: underline; }
 
+/* What's-new dialog (WhatsNewDialog.tsx) — reuses the about-modal shell. */
+.whatsnew-modal { width: 420px; }
+.whatsnew-feature h3 { margin: 0 0 4px; font-size: 14px; }
+.whatsnew-feature h3 i { margin-right: 8px; color: var(--acc-hi, #8aa0ff); }
+.whatsnew-feature p { margin: 0; font-size: 13px; color: var(--fg-2); line-height: 1.45; }
+
 /* Menu bar — theme-matched replacement for the native Windows menu bar. */
 .menubar { display: flex; align-items: stretch; height: 100%; -webkit-app-region: no-drag; }
 /* App icon is a caption (drag) region so the OS shows the native system
