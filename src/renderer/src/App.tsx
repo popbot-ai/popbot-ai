@@ -2,6 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProp
 import { RAW_CHAT_REPO_ID, type ChatRecord } from '@shared/persistence';
 import { Titlebar } from './components/Titlebar';
 import { AboutDialog } from './components/AboutDialog';
+import { WhatsNewDialog } from './components/WhatsNewDialog';
 import { PanelA } from './components/PanelA';
 import { PanelB } from './components/PanelB';
 import { MonitorCard } from './components/MonitorCard';
@@ -213,7 +214,24 @@ export default function App(): JSX.Element {
   const [noSlotsOpen, setNoSlotsOpen] = useState(false);
   /** About dialog (Help ▸ About PopBot, or the native macOS app menu). */
   const [aboutOpen, setAboutOpen] = useState(false);
+  /** Running app version when the what's-new popup should show; null once
+   *  dismissed (or when this version was already seen). */
+  const [whatsNewVersion, setWhatsNewVersion] = useState<string | null>(null);
   const { get: getSetting, set: setAppSetting, loading: settingsLoading } = useSettings();
+  // Show the what's-new popup once per version: compare the running version
+  // against the last version the user dismissed it for.
+  useEffect(() => {
+    if (settingsLoading) return;
+    void window.popbot.app.getVersion().then((version) => {
+      if (!version) return;
+      if (getSetting<string>('whatsNew.lastSeenVersion') !== version) {
+        setWhatsNewVersion(version);
+      }
+    });
+    // settingsLoading flips exactly once when the initial settings fetch
+    // lands — that's the only moment this gate should run.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [settingsLoading]);
   const [gitPanelOpen, setGitPanelOpen] = useState<boolean>(false);
   // Hydrate sidebar state once settings have loaded; remembers last
   // open/closed across restarts.
@@ -1543,6 +1561,15 @@ export default function App(): JSX.Element {
       )}
       {modal && <Modal kind={modal} onClose={() => setModal(null)} />}
       {aboutOpen && <AboutDialog onClose={() => setAboutOpen(false)} />}
+      {whatsNewVersion && !aboutOpen && (
+        <WhatsNewDialog
+          version={whatsNewVersion}
+          onClose={() => {
+            void setAppSetting('whatsNew.lastSeenVersion', whatsNewVersion);
+            setWhatsNewVersion(null);
+          }}
+        />
+      )}
     </div>
     </HighlightProvider>
   );

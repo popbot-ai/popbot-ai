@@ -1219,4 +1219,11 @@ export const it = {
     'Scegli la lingua che PopBot usa per la sua interfaccia. La maggior parte dei testi e dei menu si aggiorna subito; alcune stringhe di sistema completano l’aggiornamento dopo un riavvio.',
   'language.label': 'Lingua di visualizzazione',
   'language.systemNote': 'Anche le nuove finestre e il menu dell’app usano questa lingua.',
+  // --- What's-new popup (WhatsNewDialog.tsx) — update each release ---
+  'whatsNew.title': 'Novità di PopBot',
+  'whatsNew.f1.h': 'Modelli OpenAI GPT-5.6',
+  'whatsNew.f1.p': 'Esegui i tuoi agenti con la nuova famiglia GPT-5.6 — Sol, Terra e Luna — incluso il nuovo livello di ragionamento Max di Sol per i problemi più difficili.',
+  'whatsNew.f2.h': 'Claude Sonnet 5',
+  'whatsNew.f2.p': 'Il modello veloce di Anthropic, con qualità quasi Opus, si aggiunge a Opus 4.8 e Fable 5 nel selettore dei modelli.',
+  'whatsNew.gotIt': 'Capito',
 } satisfies PartialMessages;

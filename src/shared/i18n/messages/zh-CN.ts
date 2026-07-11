@@ -1216,4 +1216,11 @@ export const zhCN = {
   'work.reviewNumber': 'Swarm 审查 #{number}',
   'prefs.repos.wizard.agentCwd.title': '代理工作目录',
   'prefs.repos.wizard.agentCwd.desc': '代理启动所在的工作区根目录下的路径（/ 表示根目录本身）。设为 /depot/PopBotGame 之类的子路径可让 Claude 找到仓库中提交的 .claude/skills。',
+  // --- What's-new popup (WhatsNewDialog.tsx) — update each release ---
+  'whatsNew.title': 'PopBot 新功能',
+  'whatsNew.f1.h': 'OpenAI GPT-5.6 模型',
+  'whatsNew.f1.p': '现在可以用全新的 GPT-5.6 系列(Sol、Terra、Luna)运行你的智能体,包括 Sol 面向最难问题的全新 Max 推理档位。',
+  'whatsNew.f2.h': 'Claude Sonnet 5',
+  'whatsNew.f2.p': 'Anthropic 的高速模型,质量接近 Opus,现已与 Opus 4.8、Fable 5 一同加入模型选择器。',
+  'whatsNew.gotIt': '知道了',
 } satisfies PartialMessages;

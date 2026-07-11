@@ -1214,4 +1214,11 @@ export const de = {
   'work.reviewNumber': 'Swarm-Review #{number}',
   'prefs.repos.wizard.agentCwd.title': 'Agent-Arbeitsverzeichnis',
   'prefs.repos.wizard.agentCwd.desc': 'Pfad unter dem Arbeitsbereich-Stammverzeichnis, in dem der Agent startet (/ = das Stammverzeichnis selbst). Ein Unterpfad wie /depot/PopBotGame lässt Claude dort eingecheckte .claude/skills finden.',
+  // --- What's-new popup (WhatsNewDialog.tsx) — update each release ---
+  'whatsNew.title': 'Neu in PopBot',
+  'whatsNew.f1.h': 'OpenAI GPT-5.6-Modelle',
+  'whatsNew.f1.p': 'Führe deine Agenten mit der neuen GPT-5.6-Familie aus — Sol, Terra und Luna — inklusive Sols neuer Max-Reasoning-Stufe für die schwierigsten Probleme.',
+  'whatsNew.f2.h': 'Claude Sonnet 5',
+  'whatsNew.f2.p': 'Anthropics schnelles Modell mit nahezu Opus-Qualität ergänzt Opus 4.8 und Fable 5 in der Modellauswahl.',
+  'whatsNew.gotIt': 'Verstanden',
 } satisfies PartialMessages;

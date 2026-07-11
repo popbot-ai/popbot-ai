@@ -1222,4 +1222,11 @@ export const fr = {
   'work.reviewNumber': 'Revue Swarm n° {number}',
   'prefs.repos.wizard.agentCwd.title': 'Répertoire de travail de l’agent',
   'prefs.repos.wizard.agentCwd.desc': 'Chemin sous la racine de l’espace de travail où l’agent démarre (/ = la racine elle-même). Un sous-chemin comme /depot/PopBotGame permet à Claude d’y découvrir les .claude/skills du dépôt.',
+  // --- What's-new popup (WhatsNewDialog.tsx) — update each release ---
+  'whatsNew.title': 'Nouveautés de PopBot',
+  'whatsNew.f1.h': 'Modèles GPT-5.6 d’OpenAI',
+  'whatsNew.f1.p': 'Exécutez vos agents avec la nouvelle famille GPT-5.6 — Sol, Terra et Luna — y compris le nouvel effort de raisonnement Max de Sol pour les problèmes les plus difficiles.',
+  'whatsNew.f2.h': 'Claude Sonnet 5',
+  'whatsNew.f2.p': 'Le modèle rapide d’Anthropic, d’une qualité proche d’Opus, rejoint Opus 4.8 et Fable 5 dans le sélecteur de modèles.',
+  'whatsNew.gotIt': 'Compris',
 } satisfies PartialMessages;
