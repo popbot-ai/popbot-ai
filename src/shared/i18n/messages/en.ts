@@ -137,7 +137,9 @@ export const en = {
   'app.update.available': 'Update available — {name}',
   'app.update.availableDetail': 'You’re on v{current}. Click to download v{latest}.',
   'app.update.ready': 'Update ready — {name}',
-  'app.update.readyDetail': 'v{version} downloaded. Click to restart and install.',
+  'app.update.readyDetail': 'v{version} downloaded. Restart to install.',
+  'app.update.restartAction': 'Restart and install',
+  'app.update.downloadAction': 'Download',
   'app.thumbstrip.emptyTitle': 'Thumbnails Panel',
   'app.thumbstrip.emptyBody':
     'Miniature versions of your chats will display here when you open chats.',

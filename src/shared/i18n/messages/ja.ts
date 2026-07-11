@@ -1229,4 +1229,7 @@ export const ja = {
   'whatsNew.f2.h': 'Claude Sonnet 5',
   'whatsNew.f2.p': 'Opus に迫る品質を持つ Anthropic の高速モデルが、Opus 4.8・Fable 5 と並んでモデル選択に加わりました。',
   'whatsNew.gotIt': 'OK',
+  // --- Auto-update prompts (persisted via the notification system) ---
+  'app.update.restartAction': '再起動してインストール',
+  'app.update.downloadAction': 'ダウンロード',
 } satisfies PartialMessages;
