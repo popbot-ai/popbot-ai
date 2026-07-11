@@ -34,7 +34,7 @@ Ogni chat di lavoro assegna in leasing uno **slot** — una copia di lavoro pers
 
 ### Copie illimitate sul disco di un solo repository
 
-Lo spazio di lavoro di uno slot è una **cartella copy-on-write**: ogni slot condivide un'unica immagine base e memorizza solo ciò che cambia. Così una copia fresca, live e completa di un albero di gioco su **scala terabyte** è pronta in **secondi** — file reali e modificabili, non una vista superficiale — e copie illimitate costano il disco di un singolo repository. Funziona su **Windows, macOS e Linux**, ed è ciò che permette ad alberi Perforce enormi di unirsi alla flotta. [Perché è importante →](GUIDE.md#copy-on-write-copie-illimitate-sul-disco-di-un-solo-repo)
+Lo spazio di lavoro di uno slot è una **cartella copy-on-write**: ogni slot condivide un'unica immagine base e memorizza solo ciò che cambia. Così una copia fresca, live e completa di un albero di gioco su **scala terabyte** è pronta in **secondi** — file reali e modificabili, non una vista superficiale — e copie illimitate costano il disco di un singolo repository. Tutto questo è alimentato da **[shado](https://github.com/popbot-ai/shado)**, il nostro motore open-source di shadow workspace — funziona su **Windows, macOS e Linux** (differencing VHDX su Windows; copy-on-write APFS/XFS/btrfs altrove), ed è ciò che permette ad alberi Perforce enormi di unirsi alla flotta. [Perché è importante →](GUIDE.md#copy-on-write-copie-illimitate-sul-disco-di-un-solo-repo)
 
 ### Git e Perforce, con la revisione integrata
 
@@ -143,6 +143,10 @@ La **[Guida a funzionalità e flussi di lavoro](GUIDE.md)** spiega il ragionamen
 | [WINDOWS.md](WINDOWS.md) | Note di configurazione Windows / WSL. |
 | [POPBOT_DESIGN.md](POPBOT_DESIGN.md) | La specifica di design originale (storica). |
 | [DEVELOPMENT.md](DEVELOPMENT.md) | Configurazione dello sviluppo locale, script, convenzioni. |
+
+## Progetti correlati
+
+- **[shado](https://github.com/popbot-ai/shado)** — il motore di shadow workspace copy-on-write dietro gli slot caldi di PopBot. Una piccola CLI in Go che offre a ogni slot una copia completa e live di un repository enorme al costo di disco di uno solo, usando differencing VHDX su Windows e copy-on-write nativo (APFS `clonefile`, XFS/btrfs `reflink`) su macOS e Linux. Distribuito con PopBot; sviluppato apertamente come proprio repository.
 
 ## Licenza
 
