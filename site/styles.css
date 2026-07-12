@@ -658,3 +658,21 @@ footer .lic a{color:var(--ink-1);border-bottom:1px solid rgba(255,255,255,0.2);}
 .logo-tile img{width:24px;height:24px;object-fit:contain;display:block;}
 /* Beta highlight icons: real brand logos (webp) share the orange beta tile. */
 .beta-highlights .ic-img img{width:24px;height:24px;object-fit:contain;display:block;}
+
+/* ============ HANDHELD NOTICE ============ */
+/* Shown only to phone/tablet visitors who tap a download button (PopBot is
+   desktop-only). Desktop visitors never render this — the interstitial
+   handler that reveals it is not even registered on desktop. */
+.hh-scrim{position:fixed;inset:0;z-index:20000;display:flex;align-items:center;justify-content:center;
+  padding:22px;background:rgba(6,8,14,.82);backdrop-filter:blur(4px);}
+.hh-scrim[hidden]{display:none;}
+.hh-card{max-width:420px;width:100%;text-align:center;padding:30px 26px;border-radius:16px;
+  background:var(--bg-1,#12151f);border:1px solid var(--line-2,#2a313e);
+  box-shadow:0 30px 80px rgba(0,0,0,.6);}
+.hh-icon{width:60px;height:60px;margin:0 auto 16px;border-radius:14px;display:flex;align-items:center;
+  justify-content:center;font-size:26px;color:#fff;background:linear-gradient(96deg,#ff8a4d,#f0567f);}
+.hh-card h2{font-size:22px;margin:0 0 12px;color:var(--ink-0,#eef0fb);}
+.hh-card p{font-size:15px;line-height:1.6;color:var(--ink-1,#c2c6e4);margin:0 0 12px;}
+.hh-card p strong{color:var(--ink-0,#eef0fb);}
+.hh-card .hh-hint{font-size:13.5px;color:var(--ink-2,#9094bd);margin-bottom:20px;}
+.hh-close{width:100%;justify-content:center;}

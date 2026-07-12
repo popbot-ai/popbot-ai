@@ -678,6 +678,51 @@
     win:  {name:'Windows', icon:'fa-brands fa-windows', file:function(v){return 'PopBot-'+v+'-win-x64.exe';}},
     linux:{name:'Linux',   icon:'fa-brands fa-linux',   file:function(v){return 'PopBot-'+v+'-linux-amd64.deb';}}
   };
+  // PopBot is a desktop app — there is no mobile build. Detect phones/tablets
+  // BEFORE the desktop sniff below, because that sniff has no mobile branch and
+  // silently mis-buckets them: Android matches its `linux` test, and iOS falls
+  // through to the `mac` default. Either way a mobile visitor was handed a
+  // desktop installer they can't run, and the click fired a paid download
+  // conversion. Now they get an explanation instead, and no conversion fires.
+  //
+  // `maxTouchPoints` catches iPadOS, which deliberately reports itself as
+  // desktop Safari ("Macintosh") and is otherwise indistinguishable from a Mac.
+  // Bias hard toward FALSE. A false negative costs one junk conversion; a false
+  // positive blocks a real customer from downloading, which is far worse. So we
+  // only ever return true on POSITIVE evidence of a mobile OS — never on a
+  // heuristic that a desktop could plausibly trip.
+  //
+  // Deliberately NOT used as signals:
+  //   • a bare `mobile` substring — desktop Firefox and UA-spoofing extensions
+  //     can carry that token, and it would silently block those users;
+  //   • touch support / maxTouchPoints alone — touchscreen laptops and some Mac
+  //     trackpad configs report multiple touch points and are plainly desktops;
+  //   • viewport width — a narrow desktop window is still a desktop.
+  function detectHandheld(){
+    var ua=(navigator.userAgent||'').toLowerCase();
+    var uad=navigator.userAgentData;
+    // Chromium client hint. True only for PHONES (Android tablets report
+    // false), so it can confirm handheld but never rule it out.
+    if(uad&&uad.mobile===true) return true;
+    // Named mobile/tablet OSes. Anchored to real platform tokens — `android`
+    // with no `mobile` token is how Android TABLETS present.
+    if(/android|iphone|ipod|ipad|windows phone|iemobile|blackberry|opera mini|silk|kindle|playbook/.test(ua)) return true;
+    // iPadOS 13+ is the one genuinely ambiguous case: it claims "Macintosh" and
+    // is otherwise identical to a desktop Mac. Require BOTH the touch-point tell
+    // AND the absence of a fine pointer (mouse/trackpad) — a touchscreen Mac or
+    // a Mac with a touch display still reports `pointer: fine` and stays a
+    // desktop. If matchMedia is unavailable we do NOT guess: default to desktop.
+    if(/macintosh/.test(ua)&&navigator.maxTouchPoints>1
+       &&typeof window.matchMedia==='function'
+       &&window.matchMedia('(pointer: coarse)').matches
+       &&!window.matchMedia('(pointer: fine)').matches) return true;
+    return false;
+  }
+  var isHandheld=detectHandheld();
+  // Escape hatch: ?desktop=1 forces the desktop path, so a misdetected visitor
+  // (or you, debugging) is never permanently locked out of downloading.
+  if(/(^|[?&])desktop=1(&|$)/.test(location.search)) isHandheld=false;
+
   function detect(){
     var s=((navigator.userAgentData&&navigator.userAgentData.platform)||navigator.platform||navigator.userAgent||'').toLowerCase();
     if(s.includes('win')) return 'win';
@@ -736,6 +781,41 @@
   // flipping the global "Show Beta on Website" flag (only you, with the param,
   // see it). Read here so applyBeta below can consult it.
   var preview=/(^|[?&])betapreview(=|&|$)/.test(location.search);
+
+  // ---- HANDHELD INTERSTITIAL ----
+  // On a phone/tablet, a download click can't lead anywhere useful — there is
+  // no mobile build. Intercept it, explain that PopBot is desktop-only, and
+  // offer to email the link so the visitor can pick it up on a real machine.
+  //
+  // Registered in the CAPTURE phase on `document` so it runs BEFORE the inline
+  // `onclick="report_download(...)"` on each button. preventDefault() there is
+  // not enough: the inline handler would still have fired the paid conversion.
+  // stopImmediatePropagation() is what actually suppresses it.
+  var DL_BTN_IDS={'dl-main':1,'dl-alt1':1,'dl-alt2':1,'bdl-main':1,'bdl-alt1':1,'bdl-alt2':1};
+  if(isHandheld){
+    document.addEventListener('click',function(e){
+      var a=e.target&&e.target.closest&&e.target.closest('a[id]');
+      if(!a||!DL_BTN_IDS[a.id]) return;
+      e.preventDefault();
+      e.stopImmediatePropagation();   // suppress the inline conversion handler
+      showHandheldNotice();
+    },true);
+  }
+
+  function showHandheldNotice(){
+    var el=document.getElementById('handheld-notice');
+    if(el){ el.hidden=false; el.querySelector('.hh-close').focus(); }
+  }
+  function hideHandheldNotice(){
+    var el=document.getElementById('handheld-notice');
+    if(el) el.hidden=true;
+  }
+  document.addEventListener('click',function(e){
+    if(e.target&&e.target.closest&&e.target.closest('[data-hh-dismiss]')) hideHandheldNotice();
+  });
+  document.addEventListener('keydown',function(e){
+    if(e.key==='Escape') hideHandheldNotice();
+  });
 
   // ---- STABLE (hero) ----
   var main=document.getElementById('dl-main');
@@ -870,5 +950,19 @@
     .catch(function(){});
 })();
 </script>
+
+<!-- HANDHELD NOTICE — shown when a phone/tablet visitor taps a download button.
+     PopBot is desktop-only, so the tap can't lead anywhere useful; explain that
+     rather than handing them an installer they can't run. Hidden by default and
+     revealed by the interstitial handler above (desktop visitors never see it). -->
+<div class="hh-scrim" id="handheld-notice" hidden>
+  <div class="hh-card" role="dialog" aria-modal="true" aria-labelledby="hh-title">
+    <div class="hh-icon"><i class="fa-solid fa-desktop"></i></div>
+    <h2 id="hh-title" data-i18n="handheld.title">PopBot is a desktop app</h2>
+    <p data-i18n-html="handheld.body">PopBot runs on <strong>Windows, macOS, and Linux</strong>. It drives real coding agents against your actual project — building, running, and testing your app — so it needs a desktop machine. There’s no phone or tablet version.</p>
+    <p class="hh-hint" data-i18n="handheld.hint">Open popbot.app on your computer to download it.</p>
+    <button type="button" class="btn btn-primary hh-close" data-hh-dismiss data-i18n="handheld.gotIt">Got it</button>
+  </div>
+</div>
 </body>
 </html>
