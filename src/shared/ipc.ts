@@ -270,6 +270,11 @@ export const IpcChannel = {
   /** Quit and install the staged update (autoUpdater.quitAndInstall). */
   UpdatesInstall: 'pb:updates:install',
 
+  /** Query the staged update, if any. Returns UpdateReady | null.
+   *  `UpdateDownloaded` is a transient broadcast, so a renderer that
+   *  mounted after it fired needs to ask rather than wait. */
+  UpdatesGetStaged: 'pb:updates:get-staged',
+
   /** On-demand update check (About dialog). Returns UpdateCheckResult. */
   UpdatesCheck: 'pb:updates:check',
 
@@ -927,6 +932,10 @@ export interface PopBotApi {
     install(): void;
     /** Run an on-demand update check (About dialog). */
     check(): Promise<UpdateCheckResult>;
+    /** The staged update, if one is pending. `onDownloaded` only fires for
+     *  renderers already listening, so call this on mount to catch an
+     *  update staged before (or between) window lifetimes. */
+    getStaged(): Promise<UpdateReady | null>;
     /** Subscribe to "open the About dialog" pushes (native macOS menu).
      *  Returns an unsubscribe function. */
     onShowAbout(handler: () => void): () => void;

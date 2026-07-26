@@ -68,7 +68,12 @@ import { pruneOlderThan } from './persistence/notifications';
 import { attachWebContents as attachTermWindow, disposeAll as disposeAllPtys } from './term/ptyManager';
 import { disposeAllWatches } from './p4/watcher';
 import { checkForUpdates } from './updates/check';
-import { startAutoUpdater, stopAutoUpdater, quitAndInstallUpdate } from './updates/autoUpdate';
+import {
+  startAutoUpdater,
+  stopAutoUpdater,
+  quitAndInstallUpdate,
+  getStagedUpdate,
+} from './updates/autoUpdate';
 
 const isDev = !app.isPackaged;
 
@@ -324,6 +329,7 @@ function registerCoreHandlers(): void {
   ipcMain.handle(IpcChannel.AppGetVersion, () => app.getVersion());
   ipcMain.handle(IpcChannel.UpdatesCheck, () => checkForUpdates());
   ipcMain.on(IpcChannel.UpdatesInstall, () => quitAndInstallUpdate());
+  ipcMain.handle(IpcChannel.UpdatesGetStaged, () => getStagedUpdate());
   // Quit from the custom titlebar menu (Windows, where the native menu
   // bar is hidden). Routes through app.quit() so the before-quit flush
   // (SDK session JSONLs) still runs.

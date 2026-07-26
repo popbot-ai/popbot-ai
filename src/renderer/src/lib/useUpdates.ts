@@ -29,7 +29,19 @@ export function useUpdates(): {
       setProgress(null);
       setDownloaded(info);
     });
+
+    // `onDownloaded` is a live push with no replay: an update staged before
+    // this renderer subscribed — during startup, or while no window was
+    // open — reached nobody, leaving a downloaded installer with no UI for
+    // it. Seed from the persisted record so it surfaces on the next launch.
+    let cancelled = false;
+    void window.popbot.updates.getStaged().then((staged) => {
+      // Don't clobber a live push that landed while this was in flight.
+      if (!cancelled && staged) setDownloaded((prev) => prev ?? staged);
+    });
+
     return () => {
+      cancelled = true;
       offAvailable();
       offProgress();
       offDownloaded();

@@ -242,6 +242,7 @@ const api: PopBotApi = {
     },
     install: () => ipcRenderer.send(IpcChannel.UpdatesInstall),
     check: () => ipcRenderer.invoke(IpcChannel.UpdatesCheck),
+    getStaged: () => ipcRenderer.invoke(IpcChannel.UpdatesGetStaged),
     onShowAbout: (handler: () => void) => {
       const listener = (): void => handler();
       ipcRenderer.on(IpcChannel.ShowAbout, listener);
