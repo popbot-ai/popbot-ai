@@ -44,11 +44,13 @@ The next version is computed from the latest final `v*` tag (tags containing
 `-` are ignored), bumped per **bump**. A `prerelease` additionally gets an
 `-rc.<run_number>` suffix and lands in `beta/`; a `release` lands in `stable/`.
 
-**The repo's `package.json` version is never updated and is permanently
-stale — don't read it as the current version, and don't bump it by hand.**
-The workflow derives the version from tags and applies it at build time with
-`npm version --no-git-tag-version`, which is never committed. Git tags are the
-source of truth.
+**Git tags are the source of truth for the version, not `package.json`.**
+The workflow never reads `package.json` to decide the next version, and never
+commits one back: it derives the version from tags and applies it at build
+time with `npm version --no-git-tag-version`. Keep the committed
+`package.json` version in step with the release anyway (bump it in the
+release PR) so the repo and local dev builds don't show a stale number — just
+know the build ignores it.
 
 ## What gets produced
 

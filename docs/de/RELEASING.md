@@ -5,27 +5,54 @@ und auf einem GitHub Release dieses Repos veröffentlicht. Jede Plattform baut a
 eigenen Runner — die nativen Module (`better-sqlite3`, `node-pty`) müssen
 gegen die ABI von Electron pro OS kompilieren, sodass Cross-Compiling keine Option ist.
 
+## Vor dem Release: Release-Notes aktualisieren
+
+Drei Stellen tragen den nutzersichtbaren „Was ist neu“-Text, und alle drei
+werden **von Hand gepflegt** — nichts generiert sie. Aktualisiert sie im
+selben PR wie das Feature, damit ein Release nie das vorherige beschreibt:
+
+1. **What's-New-Popup in der App** — `whatsNew.f1.*` / `whatsNew.f2.*` in
+   `src/shared/i18n/messages/*.ts`. **Alle 12 Sprachen.** Wird einmal pro
+   Version beim ersten Start nach einem Update gezeigt.
+2. **Hero-Band auf der Website** — die zwei `whatsnew.f*`-Zeilen in
+   `site/index.html` **und** ihre Übersetzungen in `site/i18n.js`.
+   **Alle 12 Sprachen.**
+3. **Tabelle `## Recent releases` oben in `README.md`** — die neue Version
+   ergänzen und die älteste entfernen, sodass drei bleiben. **Nur die
+   englische README** — die übersetzten Kopien unter
+   `docs/<locale>/README.md` tragen diese Tabelle bewusst nicht, damit sie
+   nicht in 11 weiteren Sprachen veraltet.
+
+Haltet 1 und 2 auf ein bis zwei Kernfeatures begrenzt. Weist auf alles hin,
+was das Verhalten bestehender Chats ändert (z. B. ein eingestelltes Modell,
+das automatisch weitergeführt wird) — das merken Nutzer ohnehin.
+
+Betas laufen getrennt: Die Punkte des Beta-Bands kommen aus
+`beta-highlights.json`, das `scripts/gen-manifest.mjs` in das
+Download-Manifest einbackt.
+
 ## Ein Release schneiden
 
-Von einem sauberen Arbeitsbaum auf `main`:
+Releases laufen **vollständig über GitHub Actions** — es gibt keinen lokalen
+Release-Schritt (`npm run release` ist nur noch ein Stub, der hierher verweist).
 
-```bash
-npm run release            # patch bump (default)
-npm run release -- minor   # minor bump
-npm run release -- major   # major bump
-```
+GitHub → **Actions** → **Release** → **Run workflow**:
 
-`scripts/release.sh` erhöht die Version, committet, erstellt einen annotierten
-`vX.Y.Z`-Tag und pusht beides. Der gepushte Tag löst den **Build**-
-Workflow aus, der alle drei Plattformen baut und das GitHub-
-Release mit den angehängten Artefakten veröffentlicht. Verfolgt es mit `gh run watch` oder dem
-Actions-Tab.
+- **bump**: `patch` | `minor` | `major`
+- **channel**: `prerelease` (signierter Testbuild) | `release` (als „latest“ veröffentlichen)
 
-Die nächste Version wird aus dem neuesten `v*`-Tag berechnet, erhöht gemäß dem
-oben genannten Argument. Bevor irgendein Tag existiert, fällt es auf die Version in
-`package.json` zurück (sodass das erste Release der nächste Bump darüber ist). Das
-Skript weigert sich, von einem anderen Branch als `main` aus zu laufen (überschreibbar mit
-`RELEASE_BRANCH=<name>`).
+Die nächste Version wird aus dem neuesten finalen `v*`-Tag berechnet (Tags mit
+`-` werden ignoriert) und gemäß **bump** erhöht. Ein `prerelease` erhält
+zusätzlich das Suffix `-rc.<run_number>` und landet in `beta/`; ein `release`
+landet in `stable/`.
+
+**Für die Version sind Git-Tags die maßgebliche Quelle, nicht `package.json`.**
+Der Workflow liest `package.json` nie, um die nächste Version zu bestimmen, und
+committet auch keine zurück: Er leitet die Version aus den Tags ab und setzt sie
+zur Build-Zeit mit `npm version --no-git-tag-version`. Haltet die committete
+Version in `package.json` trotzdem aktuell (im Release-PR erhöhen), damit Repo
+und lokale Dev-Builds keine veraltete Nummer zeigen — der Build ignoriert sie
+allerdings.
 
 ## Was produziert wird
 
@@ -121,12 +148,13 @@ Release (es gibt nichts Neueres zum Abrufen). Macht dies einmal, nachdem Signing
    Secrets aus der Tabelle oben hinzu. Das erste signierte Release muss erfolgreich sein —
    auf macOS können unsignierte/nicht notarisierte Builds heruntergeladen werden, aber die
    Installation **schlägt fehl**, daher ist dieser gesamte Test ohne Signierung bedeutungslos.
-2. **Schneidet Release N**, z. B. `npm run release` → `v0.0.18`. Wartet, bis der
-   Workflow das Release mit Assets + `latest*.yml` veröffentlicht.
+2. **Schneidet Release N** — Actions → Release → bump `patch`, channel
+   `release` (z. B. → `v0.1.2`). Wartet, bis der Workflow das Release mit
+   Assets + `latest*.yml` veröffentlicht.
 3. **Installiert N aus dem veröffentlichten Release** auf jedem unterstützten OS
    (macOS `.dmg`, Windows `.exe`, Linux `.deb`). Startet es — verifiziert, dass
    Help ▸ About die richtige Version zeigt.
-4. **Schneidet Release N+1**, z. B. `npm run release` → `v0.0.19`.
+4. **Schneidet Release N+1** genauso (z. B. → `v0.1.3`).
 5. **Lässt die N-Installation laufen.** Innerhalb von ~30s nach dem Start (und danach alle
    6h) prüft es; bei einem signierten Build lädt es N+1 still herunter und zeigt dann
    den **"Restart to install"**-Toast. Klickt ihn an.

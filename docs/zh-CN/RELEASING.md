@@ -5,25 +5,45 @@
 原生模块（`better-sqlite3`、`node-pty`）必须针对 Electron 的 ABI 按各操作系统分别编译，
 因此交叉编译不是一个可行选项。
 
+## 发布前：更新版本说明
+
+面向用户的“新功能”文案分布在三个地方，且三处都是**手写的**——没有任何自动生成。
+请在实现功能的同一个 PR 中一并更新，避免新版本发布时仍在描述上一个版本：
+
+1. **应用内的 What's New 弹窗** —— `src/shared/i18n/messages/*.ts` 中的
+   `whatsNew.f1.*` / `whatsNew.f2.*`。**全部 12 种语言。** 更新后首次启动时
+   按版本展示一次。
+2. **官网 hero 区的横幅** —— `site/index.html` 中的两行 `whatsnew.f*`
+   **以及** `site/i18n.js` 中的翻译。**全部 12 种语言。**
+3. **`README.md` 顶部的 `## Recent releases` 表格** —— 添加新版本并移除最旧的
+   一行，始终保留三行。**仅限英文 README**：`docs/<locale>/README.md` 下的
+   翻译版本有意不包含该表格，以免在另外 11 种语言中过时。
+
+第 1、2 项请控制在一到两个核心功能。凡是会改变既有对话行为的变更（例如某个模型
+停用后自动迁移）都要说明——不写用户也会发现。
+
+Beta 是单独的：beta 横幅的条目来自 `beta-highlights.json`，由
+`scripts/gen-manifest.mjs` 打包进下载清单。
+
 ## 切一个新版本
 
-在 `main` 分支上、工作树干净的状态下：
+发布**完全通过 GitHub Actions 执行**——没有本地发布步骤
+（`npm run release` 只是一个指向本文档的存根）。
 
-```bash
-npm run release            # patch bump (default)
-npm run release -- minor   # minor bump
-npm run release -- major   # major bump
-```
+GitHub → **Actions** → **Release** → **Run workflow**：
 
-`scripts/release.sh` 会提升版本号、提交、创建一个带注释的
-`vX.Y.Z` 标签，并将两者一并推送。推送的标签会触发 **Build**
-工作流，该工作流会构建全部三个平台，并发布带有产物附件的 GitHub
-Release。可以用 `gh run watch` 或 Actions 标签页来观察进度。
+- **bump**：`patch` | `minor` | `major`
+- **channel**：`prerelease`（已签名的测试构建） | `release`（发布为 latest）
 
-下一个版本号是根据最新的 `v*` 标签、按上述参数递增计算出来的。
-在任何标签存在之前，会回退使用 `package.json` 中的版本号（因此第一个版本
-就是在那个版本号之上的下一次递增）。该脚本拒绝在 `main` 以外的任何分支上运行
-（可通过 `RELEASE_BRANCH=<name>` 覆盖）。
+下一个版本号根据最新的最终 `v*` 标签（含 `-` 的标签会被忽略）按 **bump** 递增
+计算。`prerelease` 会额外带上 `-rc.<run_number>` 后缀并进入 `beta/`；`release`
+则进入 `stable/`。
+
+**版本号以 Git 标签为准，而不是 `package.json`。** 工作流不会读取
+`package.json` 来决定下一个版本，也不会把版本号提交回仓库：它从标签推导版本，
+并在构建时通过 `npm version --no-git-tag-version` 应用。即便如此，仍请在发布
+PR 中同步提升 `package.json` 里的版本号，以免仓库和本地开发构建显示过时的
+版本——只是要清楚构建本身会忽略它。
 
 ## 会产出什么
 
@@ -112,12 +132,12 @@ Release，并附上各平台的安装程序——它确实是这么做的。开�
 1. **确认签名已开启。** 添加上表中的 macOS（以及可选的 Windows）密钥。
    第一个已签名的 release 必须成功——在 macOS 上，未签名/未公证的构建
    可以下载但**无法安装**，所以如果不签名，整个测试就没有意义。
-2. **切出版本 N**，例如 `npm run release` → `v0.0.18`。等待
-   工作流发布带有附件 + `latest*.yml` 的 Release。
+2. **切出版本 N** —— Actions → Release → bump `patch`、channel `release`
+   （例如 → `v0.1.2`）。等待工作流发布带有附件 + `latest*.yml` 的 Release。
 3. **在你支持的每个操作系统上安装版本 N**（macOS `.dmg`、Windows `.exe`、
    Linux `.deb`）来自已发布的 Release。启动它——确认
    Help ▸ About 显示的版本号正确。
-4. **切出版本 N+1**，例如 `npm run release` → `v0.0.19`。
+4. **以同样方式切出版本 N+1**（例如 → `v0.1.3`）。
 5. **让版本 N 的安装保持运行。** 启动后约 30 秒内（此后每 6 小时一次）
    它会检查一次；在已签名的构建上，它会静默下载 N+1，然后展示
    **"重启以安装"**的提示条。点击它。
