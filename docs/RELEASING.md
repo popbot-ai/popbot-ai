@@ -144,12 +144,13 @@ releases** — not in dev (it's disabled) and not against a single release
    secrets from the table above. The first signed release must succeed —
    on macOS, unsigned/un-notarized builds can download but **fail to
    install**, so this whole test is meaningless unsigned.
-2. **Cut release N**, e.g. `npm run release` → `v0.0.18`. Wait for the
-   workflow to publish the Release with assets + `latest*.yml`.
+2. **Cut release N** — Actions → Release → bump `patch`, channel `release`
+   (e.g. → `v0.1.2`). Wait for the workflow to publish the Release with
+   assets + `latest*.yml`.
 3. **Install N from the published Release** on each OS you support
    (macOS `.dmg`, Windows `.exe`, Linux `.deb`). Launch it — verify
    Help ▸ About shows the right version.
-4. **Cut release N+1**, e.g. `npm run release` → `v0.0.19`.
+4. **Cut release N+1** the same way (e.g. → `v0.1.3`).
 5. **Leave the N install running.** Within ~30s of launch (and then every
    6h) it checks; on a signed build it downloads N+1 silently, then shows
    the **"Restart to install"** toast. Click it.
