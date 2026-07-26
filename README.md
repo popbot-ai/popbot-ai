@@ -14,7 +14,7 @@ A battle-tested desktop tool for running a team of AI coding agents in parallel 
 
 ## Recent releases
 
-PopBot is actively developed — here are the last few releases. Each one auto-updates in place; the app also shows what's new on first launch after an update.
+PopBot is actively developed — here are the last few releases. On macOS and Windows the app auto-updates in place (Linux `.deb` installs are updated manually), and it shows what's new on first launch after an update.
 
 | Version | Highlights |
 | --- | --- |

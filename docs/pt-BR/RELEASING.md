@@ -1,7 +1,8 @@
 # Lançando o PopBot
 
 Releases são construídos pelo GitHub Actions em **macOS, Windows e Linux**
-e publicados em um GitHub Release neste repositório. Cada plataforma compila em seu
+e publicados no **Cloudflare R2** (`download.popbot.app`) — *não* em GitHub
+Releases. Cada plataforma compila em seu
 próprio runner — os módulos nativos (`better-sqlite3`, `node-pty`) precisam compilar
 contra o ABI do Electron por SO, então cross-compiling não é uma opção.
 
@@ -38,20 +39,23 @@ Os releases rodam **inteiramente pelo GitHub Actions** — não há etapa local
 GitHub → **Actions** → **Release** → **Run workflow**:
 
 - **bump**: `patch` | `minor` | `major`
-- **channel**: `prerelease` (build de teste assinada) | `release` (publicar como "latest")
+- **channel**: `prerelease` (build de teste em `beta/`; assinada apenas se os secrets
+  de assinatura estiverem definidos — uma prerelease sem assinatura é permitida) |
+  `release` (publicar em `stable/` como "latest"; no macOS a assinatura +
+  notarização é **obrigatória**, caso contrário o job falha)
 
 A próxima versão é calculada a partir da tag `v*` final mais recente (tags que
 contêm `-` são ignoradas), incrementada conforme **bump**. Um `prerelease`
 recebe ainda o sufixo `-rc.<run_number>` e vai para `beta/`; um `release` vai
 para `stable/`.
 
-**As tags do Git são a fonte da verdade para a versão, não o `package.json`.**
-O workflow nunca lê o `package.json` para decidir a próxima versão nem commita
-nenhuma de volta: ele deriva a versão das tags e a aplica em tempo de build com
+**As tags do Git são a fonte da verdade para a versão.** O workflow baseia a
+próxima versão na tag final mais recente; ele só recorre ao `package.json` quando
+ainda não existe nenhuma tag `v*` final (ou seja, no primeiro release). Ele nunca
+commita uma versão de volta: aplica a calculada em tempo de build com
 `npm version --no-git-tag-version`. Ainda assim, mantenha a versão do
-`package.json` em dia (incremente-a no PR do release) para que o repositório e
-as builds locais de desenvolvimento não mostrem um número desatualizado —
-sabendo que a build a ignora.
+`package.json` em dia (incremente-a no PR do release) para que o repositório e as
+builds locais de desenvolvimento não mostrem um número desatualizado.
 
 ## O que é produzido
 
@@ -62,16 +66,16 @@ sabendo que a build a ignora.
 | Linux    | `.deb` (sem auto-atualização — veja a nota do Linux abaixo) |
 
 Os arquivos `latest*.yml` + `.blockmap` são metadados do electron-updater
-(a configuração `publish: github` em [`electron-builder.yml`](../../electron-builder.yml)
+(a configuração `publish: generic` em [`electron-builder.yml`](../../electron-builder.yml)
 os gera). O auto-atualizador dentro do app os consome para detectar, baixar,
 e preparar atualizações — veja a seção de Auto-atualização abaixo.
 
-Workflow: [`.github/workflows/build.yml`](../../.github/workflows/build.yml).
+Workflow: [`.github/workflows/release.yml`](../../.github/workflows/release.yml).
 
 ## Gatilhos de CI
 
 - **Push de tag `v*`** → compila todas as plataformas (assinado se os secrets estiverem definidos) +
-  publica um GitHub Release.
+  envia para `…/<channel>/<version>/` e promove o feed do canal.
 - **Pull request para `main`** (não-docs) → apenas build de validação, **sempre
   não assinado**; artefatos são anexados à execução, nada é publicado, nenhum secret é usado.
 - **Manual** → "Run workflow" (workflow_dispatch), não assinado.
@@ -116,11 +120,12 @@ Um build de tag assina quando `WIN_CSC_LINK` está presente; caso contrário, n�
 
 A auto-atualização dentro do app é conectada com o **electron-updater**
 ([`src/main/updates/autoUpdate.ts`](../../src/main/updates/autoUpdate.ts)).
-Em builds empacotadas, ele faz polling dos releases deste repositório, **baixa silenciosamente**
+Em builds empacotadas, ele faz polling do feed R2 do canal
+(`download.popbot.app/<channel>/`), **baixa silenciosamente**
 uma versão mais nova em segundo plano, e mostra um toast de **"Restart to install"**
 quando estiver preparada — clicar nele sai e relança na nova versão. Ele
 lê os metadados `latest*.yml` + `.blockmap` que o workflow de release anexa; a
-configuração `publish: github` em `electron-builder.yml` incorpora o
+configuração `publish: generic` em `electron-builder.yml` incorpora o
 `app-update.yml` que o cliente precisa.
 
 **Assinatura é necessária para a etapa de instalação.** O macOS rejeita atualizações
@@ -149,7 +154,8 @@ assinados** — não em dev (está desabilitado) e não contra um único release
    ao instalar**, então este teste inteiro não faz sentido sem assinatura.
 2. **Corte o release N** — Actions → Release → bump `patch`, channel
    `release` (ex.: → `v0.1.2`). Espere o workflow publicar o Release com os
-   assets + `latest*.yml`.
+   que `download.popbot.app/stable/<version>/` tem os instaladores e que a raiz do
+   canal `download.popbot.app/stable/` tem o `latest*.yml` promovido.
 3. **Instale N a partir do Release publicado** em cada SO que você suporta
    (macOS `.dmg`, Windows `.exe`, Linux `.deb`). Lance-o — verifique que
    Help ▸ About mostra a versão correta.

@@ -1,7 +1,8 @@
 # PopBot veröffentlichen
 
 Releases werden von GitHub Actions über **macOS, Windows und Linux** gebaut
-und auf einem GitHub Release dieses Repos veröffentlicht. Jede Plattform baut auf ihrem
+und nach **Cloudflare R2** (`download.popbot.app`) veröffentlicht — *nicht* als GitHub
+Release. Jede Plattform baut auf ihrem
 eigenen Runner — die nativen Module (`better-sqlite3`, `node-pty`) müssen
 gegen die ABI von Electron pro OS kompilieren, sodass Cross-Compiling keine Option ist.
 
@@ -39,20 +40,22 @@ Release-Schritt (`npm run release` ist nur noch ein Stub, der hierher verweist).
 GitHub → **Actions** → **Release** → **Run workflow**:
 
 - **bump**: `patch` | `minor` | `major`
-- **channel**: `prerelease` (signierter Testbuild) | `release` (als „latest“ veröffentlichen)
+- **channel**: `prerelease` (Testbuild in `beta/`; nur signiert, wenn die Signing-Secrets
+  gesetzt sind — ein unsignierter Prerelease ist erlaubt) | `release` (nach `stable/` als
+  „latest“; macOS **muss** signiert + notarisiert sein, sonst schlägt der Job fehl)
 
 Die nächste Version wird aus dem neuesten finalen `v*`-Tag berechnet (Tags mit
 `-` werden ignoriert) und gemäß **bump** erhöht. Ein `prerelease` erhält
 zusätzlich das Suffix `-rc.<run_number>` und landet in `beta/`; ein `release`
 landet in `stable/`.
 
-**Für die Version sind Git-Tags die maßgebliche Quelle, nicht `package.json`.**
-Der Workflow liest `package.json` nie, um die nächste Version zu bestimmen, und
-committet auch keine zurück: Er leitet die Version aus den Tags ab und setzt sie
-zur Build-Zeit mit `npm version --no-git-tag-version`. Haltet die committete
-Version in `package.json` trotzdem aktuell (im Release-PR erhöhen), damit Repo
-und lokale Dev-Builds keine veraltete Nummer zeigen — der Build ignoriert sie
-allerdings.
+**Für die Version sind Git-Tags die maßgebliche Quelle.** Der Workflow leitet die
+nächste Version vom neuesten finalen Tag ab; auf `package.json` fällt er nur
+zurück, wenn noch kein finaler `v*`-Tag existiert (also beim allerersten
+Release). Er committet nie eine Version zurück — er setzt die berechnete zur
+Build-Zeit mit `npm version --no-git-tag-version`. Haltet die committete Version
+in `package.json` trotzdem aktuell (im Release-PR erhöhen), damit Repo und
+lokale Dev-Builds keine veraltete Nummer zeigen.
 
 ## Was produziert wird
 
@@ -63,22 +66,20 @@ allerdings.
 | Linux    | `.deb` (kein Auto-Update — siehe Linux-Hinweis unten) |
 
 Die `latest*.yml` + `.blockmap`-Dateien sind electron-updater-Metadaten
-([`electron-builder.yml`](../../electron-builder.yml) `publish: github`
+([`electron-builder.yml`](../../electron-builder.yml) `publish: generic`
 erzeugt sie). Der In-App-Auto-Updater konsumiert sie, um Updates zu erkennen, herunterzuladen
 und bereitzustellen — siehe den Abschnitt Auto-Update unten.
 
-Workflow: [`.github/workflows/build.yml`](../../.github/workflows/build.yml).
+Workflow: [`.github/workflows/release.yml`](../../.github/workflows/release.yml).
 
 ## CI-Trigger
 
-- **`v*`-Tag-Push** → baut alle Plattformen (signiert, falls Secrets gesetzt sind) +
-  veröffentlicht ein GitHub Release.
+- **Release-Workflow** (manuell, über die Actions-UI) → baut alle Plattformen,
+  lädt nach `…/<channel>/<version>/` hoch und promotet dann den Channel-Feed.
 - **Pull Request nach `main`** (nicht-docs) → nur Validierungs-Build, **immer
   unsigniert**; Artefakte werden an den Run angehängt, nichts wird veröffentlicht, keine Secrets verwendet.
-- **Manuell** → "Run workflow" (workflow_dispatch), unsigniert.
 
-Signieren läuft ausschließlich bei einem `v*`-Tag-Push, was nur der Repo-Owner tun
-kann. GitHub gibt Secrets niemals an fork-ausgelöste PR-Runs weiter, sodass
+GitHub gibt Secrets niemals an fork-ausgelöste PR-Runs weiter, sodass
 Contributor-PRs die Signing-Zertifikate nicht erreichen können.
 
 ## Code-Signing
@@ -117,11 +118,12 @@ Ein Tag-Build signiert, wenn `WIN_CSC_LINK` vorhanden ist; sonst unsigniert.
 
 In-App-Auto-Update ist mit **electron-updater** verdrahtet
 ([`src/main/updates/autoUpdate.ts`](../../src/main/updates/autoUpdate.ts)).
-In gepackten Builds pollt es die Releases dieses Repos, lädt eine
+In gepackten Builds pollt es den R2-Feed des Channels
+(`download.popbot.app/<channel>/`), lädt eine
 neuere Version **still** im Hintergrund herunter und zeigt einen **"Restart to install"**-Toast,
 sobald sie bereitsteht — ein Klick darauf beendet die App und startet sie neu in der neuen Version. Es
 liest die `latest*.yml` + `.blockmap`-Metadaten, die der Release-Workflow
-anhängt; die `publish: github`-Konfiguration in `electron-builder.yml` bettet die
+anhängt; die `publish: generic`-Konfiguration in `electron-builder.yml` bettet die
 `app-update.yml` ein, die der Client braucht.
 
 **Signieren ist für den Installationsschritt erforderlich.** macOS lehnt unsignierte
@@ -134,9 +136,9 @@ leichtgewichtigen GitHub-Check in
 leichtgewichtige Check unterstützt auch das On-Demand-"Check for
 updates" des About-Dialogs und funktioniert überall, einschließlich in Dev- und unsignierten Builds.
 
-Damit irgendetwas davon ein Release zutage fördert, muss der Workflow
-**non-draft, non-prerelease**-Releases mit den angehängten Plattform-Installern
-veröffentlichen — was er tut. Auto-Update ist in Dev deaktiviert.
+Damit das funktioniert, muss der Workflow den Channel-Feed unter
+`download.popbot.app/<channel>/` promoten — was er tut. Auto-Update ist in Dev
+deaktiviert.
 
 ### Auto-Update verifizieren (erster End-to-End-Test)
 
@@ -149,9 +151,10 @@ Release (es gibt nichts Neueres zum Abrufen). Macht dies einmal, nachdem Signing
    auf macOS können unsignierte/nicht notarisierte Builds heruntergeladen werden, aber die
    Installation **schlägt fehl**, daher ist dieser gesamte Test ohne Signierung bedeutungslos.
 2. **Schneidet Release N** — Actions → Release → bump `patch`, channel
-   `release` (z. B. → `v0.1.2`). Wartet, bis der Workflow das Release mit
-   Assets + `latest*.yml` veröffentlicht.
-3. **Installiert N aus dem veröffentlichten Release** auf jedem unterstützten OS
+   `release` (z. B. → `v0.1.2`). Wartet, bis der Run fertig ist, und prüft dann,
+   dass `download.popbot.app/stable/<version>/` die Installer enthält und im
+   Channel-Root `download.popbot.app/stable/` die promotete `latest*.yml` liegt.
+3. **Installiert N aus diesem Versionsordner** auf jedem unterstützten OS
    (macOS `.dmg`, Windows `.exe`, Linux `.deb`). Startet es — verifiziert, dass
    Help ▸ About die richtige Version zeigt.
 4. **Schneidet Release N+1** genauso (z. B. → `v0.1.3`).

@@ -1,7 +1,7 @@
 # PopBot 릴리스하기
 
 릴리스는 **macOS, Windows, Linux** 전체에서 GitHub Actions로 빌드되어 이
-리포지토리의 GitHub Release에 게시됩니다. 각 플랫폼은 자신의 러너에서
+**Cloudflare R2**(`download.popbot.app`)에 게시됩니다 — GitHub Release가 *아닙니다*. 각 플랫폼은 자신의 러너에서
 빌드됩니다 — 네이티브 모듈(`better-sqlite3`, `node-pty`)은 OS별로
 Electron의 ABI에 맞춰 컴파일되어야 하므로, 크로스 컴파일은 선택지가
 아닙니다.
@@ -37,17 +37,19 @@ Electron의 ABI에 맞춰 컴파일되어야 하므로, 크로스 컴파일은 �
 GitHub → **Actions** → **Release** → **Run workflow**:
 
 - **bump**: `patch` | `minor` | `major`
-- **channel**: `prerelease`(서명된 테스트 빌드) | `release`(latest로 게시)
+- **channel**: `prerelease`(`beta/`에 올라가는 테스트 빌드. 서명 시크릿이 설정된 경우에만
+  서명되며, 서명되지 않은 prerelease도 허용) | `release`(`stable/`에 latest로 게시.
+  macOS는 서명 + 공증이 **필수**이며, 그렇지 않으면 잡이 실패)
 
 다음 버전은 가장 최근의 최종 `v*` 태그(`-`가 포함된 태그는 무시)에서 계산되며
 **bump**에 따라 올라갑니다. `prerelease`에는 `-rc.<run_number>` 접미사가 추가되어
 `beta/`에, `release`는 `stable/`에 배치됩니다.
 
-**버전의 기준은 `package.json`이 아니라 Git 태그입니다.** 워크플로는 다음 버전을
-정하기 위해 `package.json`을 읽지 않으며, 되돌려 커밋하지도 않습니다. 태그에서
-버전을 도출해 빌드 시점에 `npm version --no-git-tag-version`으로 적용합니다.
-그래도 저장소와 로컬 개발 빌드가 낡은 번호를 보여주지 않도록 `package.json`의
-버전도 릴리스 PR에서 함께 올려 두세요(빌드는 이를 무시합니다).
+**버전의 기준은 Git 태그입니다.** 워크플로는 가장 최근의 최종 태그를 기준으로 다음
+버전을 정하며, 최종 `v*` 태그가 아직 없을 때(즉 최초 릴리스)에만 `package.json`으로
+대체합니다. 버전을 되돌려 커밋하지는 않고, 계산된 값을 빌드 시점에
+`npm version --no-git-tag-version`으로 적용합니다. 그래도 저장소와 로컬 개발 빌드가
+낡은 번호를 보여주지 않도록 `package.json`의 버전도 릴리스 PR에서 함께 올려 두세요.
 
 ## 생성되는 산출물
 
@@ -58,16 +60,16 @@ GitHub → **Actions** → **Release** → **Run workflow**:
 | Linux    | `.deb`(자동 업데이트 없음 — 아래 Linux 노트 참고) |
 
 `latest*.yml` + `.blockmap` 파일은 electron-updater 메타데이터입니다
-([`electron-builder.yml`](../../electron-builder.yml)의 `publish: github`이
+([`electron-builder.yml`](../../electron-builder.yml)의 `publish: generic`이
 이를 생성합니다). 앱 내 자동 업데이터는 이를 소비하여 업데이트를 감지,
 다운로드, 스테이징합니다 — 아래의 자동 업데이트 섹션을 참고하세요.
 
-워크플로: [`.github/workflows/build.yml`](../../.github/workflows/build.yml).
+워크플로: [`.github/workflows/release.yml`](../../.github/workflows/release.yml).
 
 ## CI 트리거
 
 - **`v*` 태그 푸시** → 모든 플랫폼 빌드(시크릿이 설정되어 있으면 서명됨) +
-  GitHub Release 게시.
+  `…/<channel>/<version>/`에 업로드한 뒤 채널 피드를 승격.
 - **`main`으로의 풀 리퀘스트**(문서 제외) → 검증 빌드만, **항상
   서명되지 않음**; 아티팩트는 실행에 첨부되지만 아무것도 게시되지 않고
   시크릿도 사용되지 않습니다.
@@ -149,8 +151,9 @@ github` 설정이 클라이언트에 필요한 `app-update.yml`을 생성합니�
    실패**하므로, 이 테스트 전체가 서명되지 않은 상태에서는 의미가
    없습니다.
 2. **릴리스 N을 만듭니다** — Actions → Release → bump `patch`, channel
-   `release`(예: → `v0.1.2`). 워크플로가 에셋 + `latest*.yml`과 함께
-   Release를 게시할 때까지 기다립니다.
+   `release`(예: → `v0.1.2`). 실행이 끝나면
+   `download.popbot.app/stable/<version>/`에 설치 파일이 있고 채널 루트
+   `download.popbot.app/stable/`에 승격된 `latest*.yml`이 있는지 확인합니다.
 3. 지원하는 각 OS에서 **게시된 Release로부터 N을 설치합니다**(macOS
    `.dmg`, Windows `.exe`, Linux `.deb`). 실행한 뒤 — Help ▸ About이 올바른
    버전을 보여주는지 확인합니다.

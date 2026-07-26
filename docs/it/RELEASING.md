@@ -1,7 +1,8 @@
 # Rilasciare PopBot
 
 I rilasci vengono costruiti da GitHub Actions su **macOS, Windows e Linux**
-e pubblicati come GitHub Release su questo repository. Ogni piattaforma
+e pubblicati su **Cloudflare R2** (`download.popbot.app`) — *non* come GitHub
+Release. Ogni piattaforma
 viene costruita sul proprio runner — i moduli nativi (`better-sqlite3`,
 `node-pty`) devono essere compilati contro l'ABI di Electron per ciascun
 sistema operativo, quindi la cross-compilazione non è un'opzione.
@@ -40,20 +41,23 @@ passaggio locale (`npm run release` è solo uno stub che rimanda qui).
 GitHub → **Actions** → **Release** → **Run workflow**:
 
 - **bump**: `patch` | `minor` | `major`
-- **channel**: `prerelease` (build di test firmata) | `release` (pubblicare come «latest»)
+- **channel**: `prerelease` (build di test in `beta/`; firmata solo se i secret di
+  firma sono impostati — una prerelease non firmata è ammessa) | `release`
+  (pubblicare in `stable/` come «latest»; macOS **deve** essere firmato +
+  notarizzato, altrimenti il job fallisce)
 
 La versione successiva viene calcolata a partire dall'ultimo tag `v*` finale
 (i tag che contengono `-` vengono ignorati), incrementato secondo **bump**. Una
 `prerelease` riceve in più il suffisso `-rc.<run_number>` e finisce in `beta/`;
 una `release` finisce in `stable/`.
 
-**Per la versione fanno fede i tag Git, non `package.json`.** Il workflow non
-legge mai `package.json` per decidere la versione successiva e non ne committa
-alcuna: ricava la versione dai tag e la applica in fase di build con
-`npm version --no-git-tag-version`. Mantenere comunque aggiornata la versione
-in `package.json` (incrementarla nella PR di rilascio), così il repository e le
-build di sviluppo locali non mostrano un numero obsoleto — tenendo presente che
-la build la ignora.
+**Per la versione fanno fede i tag Git.** Il workflow calcola la versione
+successiva a partire dall'ultimo tag finale; ricade su `package.json` solo se non
+esiste ancora alcun tag `v*` finale (cioè al primo rilascio in assoluto). Non
+committa mai una versione: applica quella calcolata in fase di build con
+`npm version --no-git-tag-version`. Mantenere comunque aggiornata la versione in
+`package.json` (incrementarla nella PR di rilascio), così il repository e le build
+di sviluppo locali non mostrano un numero obsoleto.
 
 ## Cosa viene prodotto
 
@@ -64,16 +68,16 @@ la build la ignora.
 | Linux    | `.deb` (nessun aggiornamento automatico — vedi la nota su Linux più sotto) |
 
 I file `latest*.yml` + `.blockmap` sono metadati di electron-updater (generati
-dalla configurazione `publish: github` in [`electron-builder.yml`](../../electron-builder.yml)).
+dalla configurazione `publish: generic` in [`electron-builder.yml`](../../electron-builder.yml)).
 L'auto-updater in-app li consuma per rilevare, scaricare e preparare gli
 aggiornamenti — vedi la sezione Auto-aggiornamento più sotto.
 
-Workflow: [`.github/workflows/build.yml`](../../.github/workflows/build.yml).
+Workflow: [`.github/workflows/release.yml`](../../.github/workflows/release.yml).
 
 ## Trigger della CI
 
 - **Push di un tag `v*`** → compila tutte le piattaforme (firmate se i
-  secret sono impostati) + pubblica una GitHub Release.
+  secret sono impostati) + carica su `…/<channel>/<version>/` e promuove il feed del canale.
 - **Pull request verso `main`** (non-docs) → solo build di validazione,
   **sempre non firmata**; gli artefatti vengono allegati alla run, nulla
   viene pubblicato, nessun secret viene usato.
@@ -123,12 +127,13 @@ firmata.
 
 L'auto-aggiornamento in-app è predisposto con **electron-updater**
 ([`src/main/updates/autoUpdate.ts`](../../src/main/updates/autoUpdate.ts)).
-Nelle build pacchettizzate, effettua il polling dei rilasci di questo
+Nelle build pacchettizzate, effettua il polling del feed R2 del canale
+(`download.popbot.app/<channel>/`) di questo
 repository, **scarica silenziosamente** una versione più recente in
 background, e mostra un toast **"Restart to install"** quando è pronta —
 cliccandolo si chiude e si rilancia nella nuova versione. Legge i metadati
 `latest*.yml` + `.blockmap` allegati dal workflow di rilascio; la
-configurazione `publish: github` in `electron-builder.yml` incorpora
+configurazione `publish: generic` in `electron-builder.yml` incorpora
 l'`app-update.yml` di cui il client ha bisogno.
 
 **La firma è obbligatoria per il passaggio di installazione.** macOS
@@ -144,9 +149,8 @@ finestra di dialogo About e funziona ovunque, incluse le build di sviluppo
 e non firmate.
 
 Perché tutto questo possa far emergere un rilascio, il workflow deve
-pubblicare Release **non-draft, non-prerelease** con gli installer per
-piattaforma allegati — cosa che fa. L'auto-aggiornamento è disabilitato in
-sviluppo.
+promuovere il feed del canale su `download.popbot.app/<channel>/` — cosa che
+fa. L'auto-aggiornamento è disabilitato in sviluppo.
 
 ### Verifica dell'auto-aggiornamento (primo test end-to-end)
 
@@ -162,7 +166,8 @@ Farlo una sola volta, dopo che la firma è stata configurata:
    l'intero test è privo di senso se non firmato.
 2. **Effettuare il rilascio N** — Actions → Release → bump `patch`, channel
    `release` (ad es. → `v0.1.2`). Attendere che il workflow pubblichi la
-   Release con gli asset + `latest*.yml`.
+   che `download.popbot.app/stable/<version>/` contenga gli installer e che la
+   radice del canale `download.popbot.app/stable/` abbia il `latest*.yml` promosso.
 3. **Installare N dalla Release pubblicata** su ogni sistema operativo
    supportato (macOS `.dmg`, Windows `.exe`, Linux `.deb`). Avviarlo —
    verificare che Help ▸ About mostri la versione corretta.
