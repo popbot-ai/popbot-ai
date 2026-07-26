@@ -1224,10 +1224,10 @@ export const ja = {
   'prefs.repos.wizard.agentCwd.desc': 'エージェントが起動するワークスペースルート配下のパス（/ はルート自体）。/depot/PopBotGame のようなサブパスにすると、リポジトリにコミットされた .claude/skills を Claude が検出できます。',
   // --- What's-new popup (WhatsNewDialog.tsx) — update each release ---
   'whatsNew.title': 'PopBot の新機能',
-  'whatsNew.f1.h': 'OpenAI GPT-5.6 モデル',
-  'whatsNew.f1.p': '新しい GPT-5.6 ファミリー(Sol・Terra・Luna)でエージェントを実行できます。最難関の問題に向けた Sol の新しい Max 推論エフォートにも対応。',
-  'whatsNew.f2.h': 'Claude Sonnet 5',
-  'whatsNew.f2.p': 'Opus に迫る品質を持つ Anthropic の高速モデルが、Opus 4.8・Fable 5 と並んでモデル選択に加わりました。',
+  'whatsNew.f1.h': 'Claude Opus 5',
+  'whatsNew.f1.p': 'Anthropic の新しいフラッグシップモデルが登場し、Claude エージェントの既定になりました。長時間のエージェント型コーディングで大きく前進します。',
+  'whatsNew.f2.h': 'チャットが最新モデルへ自動で移行',
+  'whatsNew.f2.p': '提供終了したモデルのチャットは自動的に移行します。以前の Opus は Opus 5 へ、GPT-5.5 は速度と料金が最も近い GPT-5.6 Terra へ切り替わります。',
   'whatsNew.gotIt': 'OK',
   // --- Auto-update prompts (persisted via the notification system) ---
   'app.update.restartAction': '再起動してインストール',

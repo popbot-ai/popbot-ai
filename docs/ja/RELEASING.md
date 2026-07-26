@@ -1,22 +1,31 @@
 # PopBot をリリースする
 
-リリースは **macOS、Windows、Linux** をまたいで GitHub Actions によってビルドされ、このリポジトリの GitHub Release に公開されます。各プラットフォームは自身のランナー上でビルドされます — ネイティブモジュール（`better-sqlite3`、`node-pty`）は OS ごとに Electron の ABI に対してコンパイルする必要があるため、クロスコンパイルは選択肢にありません。
+リリースは **macOS、Windows、Linux** をまたいで GitHub Actions によってビルドされ、**Cloudflare R2**（`download.popbot.app`）に公開されます（GitHub Release では *ありません*）。各プラットフォームは自身のランナー上でビルドされます — ネイティブモジュール（`better-sqlite3`、`node-pty`）は OS ごとに Electron の ABI に対してコンパイルする必要があるため、クロスコンパイルは選択肢にありません。
 
 ## リリースを切る
 
-`main` 上のクリーンな作業ツリーから。
+リリースは **すべて GitHub Actions から実行します**。ローカルのリリース手順はありません（`npm run release` はこのドキュメントへ誘導するだけのスタブです）。
 
-```bash
-npm run release            # パッチバンプ（デフォルト）
-npm run release -- minor   # マイナーバンプ
-npm run release -- major   # メジャーバンプ
-```
+GitHub → **Actions** → **Release** → **Run workflow**:
 
-`scripts/release.sh` はバージョンをバンプし、コミットし、注釈付きの
-`vX.Y.Z` タグを作成し、両方をプッシュします。プッシュされたタグは **Build**
-ワークフローをトリガーし、これが 3 プラットフォームすべてをビルドして、アーティファクトを添付した GitHub Release を公開します。`gh run watch` または Actions タブで進捗を確認できます。
+- **bump**: `patch` | `minor` | `major`
+- **channel**: `prerelease`（`beta/` へのテストビルド。署名シークレットが設定されている場合のみ署名され、未署名の prerelease も許容） | `release`（`stable/` に latest として公開。macOS は署名 + 公証が **必須** で、無ければジョブは失敗）
 
-次のバージョンは最新の `v*` タグから計算され、上記の引数に従ってバンプされます。タグがまだ存在しない場合は、`package.json` のバージョンにフォールバックします（そのため最初のリリースは、そのバージョンの次のバンプになります）。このスクリプトは `main` 以外のブランチからの実行を拒否します（`RELEASE_BRANCH=<name>` で上書き可能）。
+次のバージョンは最新の最終 `v*` タグ（`-` を含むタグは無視）から計算され、**bump** に従って上がります。`prerelease` にはさらに `-rc.<run_number>` が付き `beta/` に、`release` は `stable/` に配置されます。
+
+**バージョンの正となるのは Git タグです。** ワークフローは最新の最終タグを基準に次のバージョンを決め、最終 `v*` タグがまだ存在しない場合（つまり最初のリリース）にのみ `package.json` にフォールバックします。バージョンをコミットし返すことはなく、算出した値をビルド時に `npm version --no-git-tag-version` で適用します。とはいえ、リポジトリやローカルの開発ビルドが古い番号を表示しないよう、`package.json` のバージョンもリリース PR で更新しておいてください。
+
+## リリース前に: リリースノートを更新する
+
+ユーザーに見える「新機能」の文言は 3 か所にあり、いずれも**手書き**です（自動生成されるものはありません）。機能と同じ PR で更新し、リリースが前回の内容を説明したまま出ないようにします。
+
+1. **アプリ内の What's New ポップアップ** — `src/shared/i18n/messages/*.ts` の `whatsNew.f1.*` / `whatsNew.f2.*`。**全 12 言語。** 更新後の初回起動時にバージョンごとに 1 回表示されます。
+2. **サイトのヒーローバンド** — `site/index.html` の 2 行の `whatsnew.f*` **と** `site/i18n.js` にある翻訳。**全 12 言語。**
+3. **`README.md` 冒頭の `## Recent releases` 表** — 新しいバージョンを追加し、最も古い行を削除して 3 行を保ちます。**英語版 README のみ**です。`docs/<locale>/README.md` の翻訳版は、他の 11 言語で古くならないよう意図的にこの表を持ちません。
+
+1 と 2 は主要な機能 1〜2 点に絞ってください。既存のチャットの挙動が変わるもの（例: 提供終了したモデルが自動的に移行される）は必ず記載します。書かなくてもユーザーは気づくためです。
+
+ベータは別扱いです。ベータバンドの項目は `beta-highlights.json` から取得され、`scripts/gen-manifest.mjs` がダウンロードマニフェストに埋め込みます。
 
 ## 生成されるもの
 
@@ -27,15 +36,15 @@ npm run release -- major   # メジャーバンプ
 | Linux    | `.deb`（自動更新なし — 下記の Linux に関する注記を参照） |
 
 `latest*.yml` + `.blockmap` ファイルは electron-updater のメタデータです
-（[`electron-builder.yml`](../../electron-builder.yml) の `publish: github`
+（[`electron-builder.yml`](../../electron-builder.yml) の `publish: generic`
 がこれらを生成します）。アプリ内自動アップデーターはこれらを使って更新を検出し、ダウンロードし、ステージします — 下記の自動更新セクションを参照してください。
 
-ワークフロー: [`.github/workflows/build.yml`](../../.github/workflows/build.yml)。
+ワークフロー: [`.github/workflows/release.yml`](../../.github/workflows/release.yml)。
 
 ## CI トリガー
 
 - **`v*` タグのプッシュ** → 全プラットフォームをビルド（シークレットが設定されていれば署名）+
-  GitHub Release を公開。
+  `…/<channel>/<version>/` にアップロードし、チャンネルフィードを昇格。
 - **`main` へのプルリクエスト**（ドキュメント以外） → 検証ビルドのみで、**常に未署名**。アーティファクトはその実行に添付されますが、何も公開されず、シークレットも使われません。
 - **手動** → 「Run workflow」（workflow_dispatch）、未署名。
 
@@ -72,10 +81,10 @@ variables → Actions）によって駆動されます。これらは暗号化�
 ## 自動更新
 
 アプリ内自動更新は **electron-updater**
-（[`src/main/updates/autoUpdate.ts`](../../src/main/updates/autoUpdate.ts)）で配線されています。パッケージ済みビルドでは、このリポジトリのリリースをポーリングし、新しいバージョンをバックグラウンドで**サイレントにダウンロードし**、ステージが完了すると
+（[`src/main/updates/autoUpdate.ts`](../../src/main/updates/autoUpdate.ts)）で配線されています。パッケージ済みビルドでは、チャンネルの R2 フィード（`download.popbot.app/<channel>/`）をポーリングし、新しいバージョンをバックグラウンドで**サイレントにダウンロードし**、ステージが完了すると
 **「Restart to install」**トーストを表示します — クリックすると終了し、新バージョンへ再起動します。これはリリースワークフローが添付する
 `latest*.yml` + `.blockmap` のメタデータを読み取ります。`electron-builder.yml` の
-`publish: github` 設定が、クライアントに必要な `app-update.yml` を埋め込みます。
+`publish: generic` 設定が、クライアントに必要な `app-update.yml` を埋め込みます。
 
 **インストール手順には署名が必須です。** macOS は未署名の更新を拒否するため、アプリ内インストールはリリースが署名 + 公証されて初めて機能します（Apple のシークレットが設定されたタグビルドの経路）。それまでは — そしてアップデーターがエラー（メタデータなし、ネットワーク障害）に遭遇したときはいつでも —
 手動の「Download」トーストに**フォールバック**し、リリースページを開きます。これは
@@ -91,9 +100,9 @@ updates」も支えており、開発ビルドや未署名ビルドを含め、�
 
 1. **署名がオンになっていることを確認します。** 上の表の macOS（および任意で Windows）のシークレットを追加します。最初の署名済みリリースは成功する必要があります —
    macOS では、未署名/未公証のビルドはダウンロードはできても**インストールに失敗する**ため、署名されていなければこのテスト全体が無意味です。
-2. **リリース N を切ります**（例: `npm run release` → `v0.0.18`）。ワークフローがアセット + `latest*.yml` を伴う Release を公開するのを待ちます。
+2. **リリース N を切ります** — Actions → Release → bump `patch`、channel `release`（例: → `v0.1.2`）。実行完了後、`download.popbot.app/stable/<version>/` にインストーラーが揃い、チャンネルルート `download.popbot.app/stable/` に昇格済みの `latest*.yml` があることを確認します。
 3. サポートする各 OS 上で、**公開された Release から N をインストールします**（macOS `.dmg`、Windows `.exe`、Linux `.deb`）。起動し、Help ▸ About が正しいバージョンを示すことを確認します。
-4. **リリース N+1 を切ります**（例: `npm run release` → `v0.0.19`）。
+4. **リリース N+1 を同じ手順で切ります**（例: → `v0.1.3`）。
 5. **N のインストールを実行したままにします。** 起動後約 30 秒以内に（その後は 6 時間ごとに）チェックが行われます。署名済みビルドでは N+1 をサイレントにダウンロードし、
    **「Restart to install」**トーストを表示します。それをクリックします。
 6. **N+1 へ再起動したことを確認します** — Help ▸ About が新しいバージョンを示すはずです。これにより、そのOS上で download → stage → quitAndInstall → relaunch が機能することが証明されます。

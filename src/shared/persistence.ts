@@ -10,9 +10,9 @@ export const RAW_CHAT_REPO_ID = '__none__';
 
 export type AgentBackendId = 'claude' | 'codex';
 
-export const CLAUDE_MODELS = ['claude-opus-4-8', 'claude-sonnet-5', 'claude-fable-5'] as const;
-export const CODEX_MODELS = ['gpt-5.6-sol', 'gpt-5.6-terra', 'gpt-5.6-luna', 'gpt-5.5'] as const;
-export const DEFAULT_CLAUDE_MODEL = 'claude-opus-4-8' as const;
+export const CLAUDE_MODELS = ['claude-opus-5', 'claude-sonnet-5', 'claude-fable-5'] as const;
+export const CODEX_MODELS = ['gpt-5.6-sol', 'gpt-5.6-terra', 'gpt-5.6-luna'] as const;
+export const DEFAULT_CLAUDE_MODEL = 'claude-opus-5' as const;
 export const DEFAULT_CODEX_MODEL = 'gpt-5.6-sol' as const;
 export const DEFAULT_CLAUDE_REASONING_EFFORT = 'high' as const;
 export const DEFAULT_CODEX_REASONING_EFFORT = 'medium' as const;
@@ -28,7 +28,7 @@ export type AgentReasoningEffort = ClaudeReasoningEffort | CodexReasoningEffort;
 
 /** Display names for the model pickers. Product names, not localized. */
 export const CLAUDE_MODEL_LABELS: Record<ClaudeModelId, string> = {
-  'claude-opus-4-8': 'Claude Opus 4.8',
+  'claude-opus-5': 'Claude Opus 5',
   'claude-sonnet-5': 'Claude Sonnet 5',
   'claude-fable-5': 'Claude Fable 5',
 };
@@ -36,24 +36,40 @@ export const CODEX_MODEL_LABELS: Record<CodexModelId, string> = {
   'gpt-5.6-sol': 'GPT-5.6 Sol',
   'gpt-5.6-terra': 'GPT-5.6 Terra',
   'gpt-5.6-luna': 'GPT-5.6 Luna',
-  'gpt-5.5': 'GPT-5.5',
 };
 
 /** Coerce a persisted/raw model string to a known Claude model, falling
  *  back to the default for unknown or legacy values. Single source of
  *  truth shared by the renderer create-config normalizers and the
- *  main-side row mappers. */
+ *  main-side row mappers.
+ *
+ *  Retired Opus versions (4.8, 4.7, 4.6, …) deliberately roll forward to
+ *  the current Opus rather than staying pinned: unlike the Codex tiers,
+ *  which are distinct concurrent models, the Opus line is a single model
+ *  that supersedes itself, and old versions are eventually retired
+ *  upstream. A chat pinned to a retired ID would fail at request time,
+ *  so we always point it at the latest Opus. */
 export function normalizeClaudeModel(value: string | null | undefined): ClaudeModelId {
-  return CLAUDE_MODELS.includes(value as ClaudeModelId)
-    ? (value as ClaudeModelId)
-    : DEFAULT_CLAUDE_MODEL;
+  if (CLAUDE_MODELS.includes(value as ClaudeModelId)) return value as ClaudeModelId;
+  // Any prior Opus (claude-opus-4-8, -4-7, -4-6, -4-5, -4-1, …) → current Opus.
+  if (typeof value === 'string' && value.startsWith('claude-opus-')) return 'claude-opus-5';
+  return DEFAULT_CLAUDE_MODEL;
 }
+
+/** Retired Codex models mapped to their closest current price/performance
+ *  tier, so a chat rolls forward to an equivalent rather than jumping to
+ *  the (pricier) default. GPT-5.5 sat where Terra now sits. */
+const RETIRED_CODEX_MODELS: Record<string, CodexModelId> = {
+  'gpt-5.5': 'gpt-5.6-terra',
+};
 
 /** Codex counterpart of {@link normalizeClaudeModel}. */
 export function normalizeCodexModel(value: string | null | undefined): CodexModelId {
-  return CODEX_MODELS.includes(value as CodexModelId)
-    ? (value as CodexModelId)
-    : DEFAULT_CODEX_MODEL;
+  if (CODEX_MODELS.includes(value as CodexModelId)) return value as CodexModelId;
+  if (typeof value === 'string' && value in RETIRED_CODEX_MODELS) {
+    return RETIRED_CODEX_MODELS[value];
+  }
+  return DEFAULT_CODEX_MODEL;
 }
 
 /** The `max` reasoning tier is GPT-5.6 Sol's new top rung — other GPT

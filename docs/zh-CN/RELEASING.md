@@ -1,29 +1,49 @@
 # 发布 PopBot
 
 版本由 GitHub Actions 跨 **macOS、Windows 和 Linux** 三个平台构建，
-并发布到本仓库的 GitHub Release 上。每个平台在各自的 runner 上构建——
+并发布到 **Cloudflare R2**（`download.popbot.app`）——*而非* GitHub Release。每个平台在各自的 runner 上构建——
 原生模块（`better-sqlite3`、`node-pty`）必须针对 Electron 的 ABI 按各操作系统分别编译，
 因此交叉编译不是一个可行选项。
 
+## 发布前：更新版本说明
+
+面向用户的“新功能”文案分布在三个地方，且三处都是**手写的**——没有任何自动生成。
+请在实现功能的同一个 PR 中一并更新，避免新版本发布时仍在描述上一个版本：
+
+1. **应用内的 What's New 弹窗** —— `src/shared/i18n/messages/*.ts` 中的
+   `whatsNew.f1.*` / `whatsNew.f2.*`。**全部 12 种语言。** 更新后首次启动时
+   按版本展示一次。
+2. **官网 hero 区的横幅** —— `site/index.html` 中的两行 `whatsnew.f*`
+   **以及** `site/i18n.js` 中的翻译。**全部 12 种语言。**
+3. **`README.md` 顶部的 `## Recent releases` 表格** —— 添加新版本并移除最旧的
+   一行，始终保留三行。**仅限英文 README**：`docs/<locale>/README.md` 下的
+   翻译版本有意不包含该表格，以免在另外 11 种语言中过时。
+
+第 1、2 项请控制在一到两个核心功能。凡是会改变既有对话行为的变更（例如某个模型
+停用后自动迁移）都要说明——不写用户也会发现。
+
+Beta 是单独的：beta 横幅的条目来自 `beta-highlights.json`，由
+`scripts/gen-manifest.mjs` 打包进下载清单。
+
 ## 切一个新版本
 
-在 `main` 分支上、工作树干净的状态下：
+发布**完全通过 GitHub Actions 执行**——没有本地发布步骤
+（`npm run release` 只是一个指向本文档的存根）。
 
-```bash
-npm run release            # patch bump (default)
-npm run release -- minor   # minor bump
-npm run release -- major   # major bump
-```
+GitHub → **Actions** → **Release** → **Run workflow**：
 
-`scripts/release.sh` 会提升版本号、提交、创建一个带注释的
-`vX.Y.Z` 标签，并将两者一并推送。推送的标签会触发 **Build**
-工作流，该工作流会构建全部三个平台，并发布带有产物附件的 GitHub
-Release。可以用 `gh run watch` 或 Actions 标签页来观察进度。
+- **bump**：`patch` | `minor` | `major`
+- **channel**：`prerelease`（发往 `beta/` 的测试构建；仅在配置了签名 secret 时才签名，允许未签名的 prerelease） | `release`（发布到 `stable/` 作为 latest；macOS **必须**签名 + 公证，否则任务失败）
 
-下一个版本号是根据最新的 `v*` 标签、按上述参数递增计算出来的。
-在任何标签存在之前，会回退使用 `package.json` 中的版本号（因此第一个版本
-就是在那个版本号之上的下一次递增）。该脚本拒绝在 `main` 以外的任何分支上运行
-（可通过 `RELEASE_BRANCH=<name>` 覆盖）。
+下一个版本号根据最新的最终 `v*` 标签（含 `-` 的标签会被忽略）按 **bump** 递增
+计算。`prerelease` 会额外带上 `-rc.<run_number>` 后缀并进入 `beta/`；`release`
+则进入 `stable/`。
+
+**版本号以 Git 标签为准。** 工作流以最新的最终标签为基准计算下一个版本；只有在尚不
+存在最终 `v*` 标签时（即首次发布）才回退到 `package.json`。它不会把版本号提交回
+仓库，而是在构建时通过 `npm version --no-git-tag-version` 应用计算出的版本。即便
+如此，仍请在发布 PR 中同步提升 `package.json` 里的版本号，以免仓库和本地开发构建
+显示过时的版本。
 
 ## 会产出什么
 
@@ -34,16 +54,16 @@ Release。可以用 `gh run watch` 或 Actions 标签页来观察进度。
 | Linux    | `.deb`（无自动更新——参见下方的 Linux 说明） |
 
 `latest*.yml` + `.blockmap` 文件是 electron-updater 的元数据
-（由 [`electron-builder.yml`](../../electron-builder.yml) 中的 `publish: github`
+（由 [`electron-builder.yml`](../../electron-builder.yml) 中的 `publish: generic`
 生成）。应用内自动更新器会消费这些文件来检测、下载并暂存更新——
 参见下方的自动更新一节。
 
-工作流：[`.github/workflows/build.yml`](../../.github/workflows/build.yml)。
+工作流：[`.github/workflows/release.yml`](../../.github/workflows/release.yml)。
 
 ## CI 触发条件
 
 - **推送 `v*` 标签** → 构建所有平台（如果设置了密钥则进行签名）+
-  发布一个 GitHub Release。
+  上传到 `…/<channel>/<version>/`，然后提升该频道的更新源。
 - **针对 `main` 的 Pull Request**（非文档类）→ 仅做校验性构建，**始终
   不签名**；产物会附加到该次运行上，不发布任何东西，也不使用任何密钥。
 - **手动触发** → "Run workflow"（workflow_dispatch），不签名。
@@ -86,11 +106,11 @@ Gatekeeper / Windows SmartScreen 会在首次启动时警告），但 CI 仍然�
 
 应用内自动更新是用 **electron-updater** 接入的
 （[`src/main/updates/autoUpdate.ts`](../../src/main/updates/autoUpdate.ts)）。
-在打包好的构建版本中，它会轮询本仓库的 release，在后台**静默下载**
+在打包好的构建版本中，它会轮询该频道的 R2 更新源（`download.popbot.app/<channel>/`），在后台**静默下载**
 一个更新版本，并在准备就绪时展示一个**"重启以安装"**的提示条——
 点击它会退出并重新启动进入新版本。它读取 release 工作流附加的
 `latest*.yml` + `.blockmap` 元数据；`electron-builder.yml` 中的
-`publish: github` 配置会生成客户端所需的 `app-update.yml`。
+`publish: generic` 配置会生成客户端所需的 `app-update.yml`。
 
 **安装这一步需要签名。** macOS 会拒绝未签名的更新，因此应用内安装
 只有在 release 已签名 + 公证之后才能生效（即设置了 Apple 密钥的标签构建路径）。
@@ -100,8 +120,8 @@ Gatekeeper / Windows SmartScreen 会在首次启动时警告），但 CI 仍然�
 GitHub 检查驱动。同一个轻量级检查也支撑着关于对话框中的按需"检查更新"，
 并且在任何地方都能用，包括开发环境和未签名的构建版本。
 
-要让任何东西呈现出一个 release，工作流必须发布**非草稿、非预发布**的
-Release，并附上各平台的安装程序——它确实是这么做的。开发环境中自动更新是禁用的。
+要让这一切生效，工作流必须提升 `download.popbot.app/<channel>/` 上的频道更新源——
+它确实会这么做。开发模式下自动更新是禁用的。
 
 ### 验证自动更新（首次端到端测试）
 
@@ -112,12 +132,14 @@ Release，并附上各平台的安装程序——它确实是这么做的。开�
 1. **确认签名已开启。** 添加上表中的 macOS（以及可选的 Windows）密钥。
    第一个已签名的 release 必须成功——在 macOS 上，未签名/未公证的构建
    可以下载但**无法安装**，所以如果不签名，整个测试就没有意义。
-2. **切出版本 N**，例如 `npm run release` → `v0.0.18`。等待
-   工作流发布带有附件 + `latest*.yml` 的 Release。
+2. **切出版本 N** —— Actions → Release → bump `patch`、channel `release`
+   （例如 → `v0.1.2`）。等待运行完成，然后确认
+   `download.popbot.app/stable/<version>/` 中有安装包，且频道根目录
+   `download.popbot.app/stable/` 有已提升的 `latest*.yml`。
 3. **在你支持的每个操作系统上安装版本 N**（macOS `.dmg`、Windows `.exe`、
    Linux `.deb`）来自已发布的 Release。启动它——确认
    Help ▸ About 显示的版本号正确。
-4. **切出版本 N+1**，例如 `npm run release` → `v0.0.19`。
+4. **以同样方式切出版本 N+1**（例如 → `v0.1.3`）。
 5. **让版本 N 的安装保持运行。** 启动后约 30 秒内（此后每 6 小时一次）
    它会检查一次；在已签名的构建上，它会静默下载 N+1，然后展示
    **"重启以安装"**的提示条。点击它。

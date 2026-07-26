@@ -1,31 +1,55 @@
 # PopBot 릴리스하기
 
 릴리스는 **macOS, Windows, Linux** 전체에서 GitHub Actions로 빌드되어 이
-리포지토리의 GitHub Release에 게시됩니다. 각 플랫폼은 자신의 러너에서
+**Cloudflare R2**(`download.popbot.app`)에 게시됩니다 — GitHub Release가 *아닙니다*. 각 플랫폼은 자신의 러너에서
 빌드됩니다 — 네이티브 모듈(`better-sqlite3`, `node-pty`)은 OS별로
 Electron의 ABI에 맞춰 컴파일되어야 하므로, 크로스 컴파일은 선택지가
 아닙니다.
 
+## 릴리스 전에: 릴리스 노트 업데이트하기
+
+사용자에게 보이는 "새로운 기능" 문구는 세 곳에 있으며, 셋 다 **직접 작성**합니다
+(자동 생성되는 것은 없습니다). 기능과 같은 PR에서 함께 업데이트해, 릴리스가 이전
+내용을 설명한 채 나가지 않도록 하세요.
+
+1. **앱 내 What's New 팝업** — `src/shared/i18n/messages/*.ts`의
+   `whatsNew.f1.*` / `whatsNew.f2.*`. **12개 언어 전부.** 업데이트 후 첫 실행 시
+   버전당 한 번 표시됩니다.
+2. **웹사이트 히어로 밴드** — `site/index.html`의 `whatsnew.f*` 두 줄 **및**
+   `site/i18n.js`의 번역. **12개 언어 전부.**
+3. **`README.md` 상단의 `## Recent releases` 표** — 새 버전을 추가하고 가장
+   오래된 항목을 빼서 세 줄을 유지합니다. **영문 README만** 해당합니다.
+   `docs/<locale>/README.md`의 번역본은 나머지 11개 언어에서 낡지 않도록
+   의도적으로 이 표를 두지 않습니다.
+
+1과 2는 핵심 기능 한두 가지로 제한하세요. 기존 채팅의 동작이 바뀌는 사항(예:
+지원이 종료된 모델이 자동으로 이전됨)은 반드시 알리세요. 적지 않아도 사용자는
+알아차립니다.
+
+베타는 별도입니다. 베타 밴드의 항목은 `beta-highlights.json`에서 오며,
+`scripts/gen-manifest.mjs`가 이를 다운로드 매니페스트에 넣습니다.
+
 ## 릴리스 만들기
 
-`main`의 깨끗한 워킹 트리에서 실행합니다.
+릴리스는 **전적으로 GitHub Actions에서** 실행합니다. 로컬 릴리스 단계는 없습니다
+(`npm run release`는 이 문서로 안내하는 스텁일 뿐입니다).
 
-```bash
-npm run release            # patch bump (default)
-npm run release -- minor   # minor bump
-npm run release -- major   # major bump
-```
+GitHub → **Actions** → **Release** → **Run workflow**:
 
-`scripts/release.sh`는 버전을 올리고, 커밋하고, 주석이 달린 `vX.Y.Z` 태그를
-만들고, 둘 다 푸시합니다. 푸시된 태그는 **Build** 워크플로를 트리거하며,
-이 워크플로는 세 플랫폼 모두를 빌드하고 아티팩트가 첨부된 GitHub Release를
-게시합니다. `gh run watch`나 Actions 탭으로 지켜보세요.
+- **bump**: `patch` | `minor` | `major`
+- **channel**: `prerelease`(`beta/`에 올라가는 테스트 빌드. 서명 시크릿이 설정된 경우에만
+  서명되며, 서명되지 않은 prerelease도 허용) | `release`(`stable/`에 latest로 게시.
+  macOS는 서명 + 공증이 **필수**이며, 그렇지 않으면 잡이 실패)
 
-다음 버전은 가장 최근의 `v*` 태그로부터 계산되며, 위 인자에 따라
-올려집니다. 태그가 하나도 없는 상태에서는 `package.json`의 버전으로
-대체됩니다(그래서 첫 릴리스는 그 버전보다 한 단계 위가 됩니다). 이
-스크립트는 `main` 외의 브랜치에서는 실행을 거부합니다(`RELEASE_BRANCH=<name>`으로
-재정의 가능).
+다음 버전은 가장 최근의 최종 `v*` 태그(`-`가 포함된 태그는 무시)에서 계산되며
+**bump**에 따라 올라갑니다. `prerelease`에는 `-rc.<run_number>` 접미사가 추가되어
+`beta/`에, `release`는 `stable/`에 배치됩니다.
+
+**버전의 기준은 Git 태그입니다.** 워크플로는 가장 최근의 최종 태그를 기준으로 다음
+버전을 정하며, 최종 `v*` 태그가 아직 없을 때(즉 최초 릴리스)에만 `package.json`으로
+대체합니다. 버전을 되돌려 커밋하지는 않고, 계산된 값을 빌드 시점에
+`npm version --no-git-tag-version`으로 적용합니다. 그래도 저장소와 로컬 개발 빌드가
+낡은 번호를 보여주지 않도록 `package.json`의 버전도 릴리스 PR에서 함께 올려 두세요.
 
 ## 생성되는 산출물
 
@@ -36,16 +60,16 @@ npm run release -- major   # major bump
 | Linux    | `.deb`(자동 업데이트 없음 — 아래 Linux 노트 참고) |
 
 `latest*.yml` + `.blockmap` 파일은 electron-updater 메타데이터입니다
-([`electron-builder.yml`](../../electron-builder.yml)의 `publish: github`이
+([`electron-builder.yml`](../../electron-builder.yml)의 `publish: generic`이
 이를 생성합니다). 앱 내 자동 업데이터는 이를 소비하여 업데이트를 감지,
 다운로드, 스테이징합니다 — 아래의 자동 업데이트 섹션을 참고하세요.
 
-워크플로: [`.github/workflows/build.yml`](../../.github/workflows/build.yml).
+워크플로: [`.github/workflows/release.yml`](../../.github/workflows/release.yml).
 
 ## CI 트리거
 
 - **`v*` 태그 푸시** → 모든 플랫폼 빌드(시크릿이 설정되어 있으면 서명됨) +
-  GitHub Release 게시.
+  `…/<channel>/<version>/`에 업로드한 뒤 채널 피드를 승격.
 - **`main`으로의 풀 리퀘스트**(문서 제외) → 검증 빌드만, **항상
   서명되지 않음**; 아티팩트는 실행에 첨부되지만 아무것도 게시되지 않고
   시크릿도 사용되지 않습니다.
@@ -126,12 +150,14 @@ github` 설정이 클라이언트에 필요한 `app-update.yml`을 생성합니�
    macOS에서 서명되지 않은/공증되지 않은 빌드는 다운로드는 되지만 **설치에
    실패**하므로, 이 테스트 전체가 서명되지 않은 상태에서는 의미가
    없습니다.
-2. **릴리스 N을 만듭니다**, 예: `npm run release` → `v0.0.18`. 워크플로가
-   에셋 + `latest*.yml`과 함께 Release를 게시할 때까지 기다립니다.
+2. **릴리스 N을 만듭니다** — Actions → Release → bump `patch`, channel
+   `release`(예: → `v0.1.2`). 실행이 끝나면
+   `download.popbot.app/stable/<version>/`에 설치 파일이 있고 채널 루트
+   `download.popbot.app/stable/`에 승격된 `latest*.yml`이 있는지 확인합니다.
 3. 지원하는 각 OS에서 **게시된 Release로부터 N을 설치합니다**(macOS
    `.dmg`, Windows `.exe`, Linux `.deb`). 실행한 뒤 — Help ▸ About이 올바른
    버전을 보여주는지 확인합니다.
-4. **릴리스 N+1을 만듭니다**, 예: `npm run release` → `v0.0.19`.
+4. **릴리스 N+1을 같은 방식으로 만듭니다**(예: → `v0.1.3`).
 5. **N 설치본을 계속 실행해 둡니다.** 실행 후 약 30초 이내(그 후에는 6시간
    마다) 확인 작업이 실행되며, 서명된 빌드에서는 N+1을 조용히 다운로드한
    뒤 **"Restart to install"** 토스트를 보여줍니다. 클릭하세요.

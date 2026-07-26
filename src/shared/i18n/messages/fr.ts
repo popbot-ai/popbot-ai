@@ -1224,10 +1224,10 @@ export const fr = {
   'prefs.repos.wizard.agentCwd.desc': 'Chemin sous la racine de l’espace de travail où l’agent démarre (/ = la racine elle-même). Un sous-chemin comme /depot/PopBotGame permet à Claude d’y découvrir les .claude/skills du dépôt.',
   // --- What's-new popup (WhatsNewDialog.tsx) — update each release ---
   'whatsNew.title': 'Nouveautés de PopBot',
-  'whatsNew.f1.h': 'Modèles GPT-5.6 d’OpenAI',
-  'whatsNew.f1.p': 'Exécutez vos agents avec la nouvelle famille GPT-5.6 — Sol, Terra et Luna — y compris le nouvel effort de raisonnement Max de Sol pour les problèmes les plus difficiles.',
-  'whatsNew.f2.h': 'Claude Sonnet 5',
-  'whatsNew.f2.p': 'Le modèle rapide d’Anthropic, d’une qualité proche d’Opus, rejoint Opus 4.8 et Fable 5 dans le sélecteur de modèles.',
+  'whatsNew.f1.h': 'Claude Opus 5',
+  'whatsNew.f1.p': 'Le nouveau modèle phare d’Anthropic est là, et devient le modèle par défaut des agents Claude — un vrai bond en avant sur les longues sessions de codage agentique.',
+  'whatsNew.f2.h': 'Vos conversations passent aux derniers modèles',
+  'whatsNew.f2.p': 'Les conversations sur un modèle retiré basculent d’elles-mêmes : les anciennes versions d’Opus passent à Opus 5, et GPT-5.5 passe à GPT-5.6 Terra, son équivalent en vitesse et en prix.',
   'whatsNew.gotIt': 'Compris',
   // --- Auto-update prompts (persisted via the notification system) ---
   'app.update.restartAction': 'Redémarrer et installer',
