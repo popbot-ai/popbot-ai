@@ -1219,8 +1219,8 @@ export const uk = {
   'whatsNew.title': 'Що нового в PopBot',
   'whatsNew.f1.h': 'Моделі OpenAI GPT-5.6',
   'whatsNew.f1.p': 'Запускайте агентів на новому сімействі GPT-5.6 — Sol, Terra та Luna, зокрема з новим рівнем міркувань Max у Sol для найскладніших задач.',
-  'whatsNew.f2.h': 'Claude Sonnet 5',
-  'whatsNew.f2.p': 'Швидка модель Anthropic з якістю, близькою до Opus, тепер доступна у списку моделей поруч з Opus 4.8 і Fable 5.',
+  'whatsNew.f2.h': 'Claude Opus 5',
+  'whatsNew.f2.p': 'Нова флагманська модель Opus від Anthropic тепер є типовою для агентів Claude. Наявні чати Opus переходять на неї автоматично.',
   'whatsNew.gotIt': 'Зрозуміло',
   // --- Auto-update prompts (persisted via the notification system) ---
   'app.update.restartAction': 'Перезапустити та встановити',

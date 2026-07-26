@@ -1220,8 +1220,8 @@ export const zhCN = {
   'whatsNew.title': 'PopBot 新功能',
   'whatsNew.f1.h': 'OpenAI GPT-5.6 模型',
   'whatsNew.f1.p': '现在可以用全新的 GPT-5.6 系列(Sol、Terra、Luna)运行你的智能体,包括 Sol 面向最难问题的全新 Max 推理档位。',
-  'whatsNew.f2.h': 'Claude Sonnet 5',
-  'whatsNew.f2.p': 'Anthropic 的高速模型,质量接近 Opus,现已与 Opus 4.8、Fable 5 一同加入模型选择器。',
+  'whatsNew.f2.h': 'Claude Opus 5',
+  'whatsNew.f2.p': 'Anthropic 全新旗舰 Opus 现已成为 Claude 智能体的默认模型。现有的 Opus 对话会自动迁移。',
   'whatsNew.gotIt': '知道了',
   // --- Auto-update prompts (persisted via the notification system) ---
   'app.update.restartAction': '重启并安装',

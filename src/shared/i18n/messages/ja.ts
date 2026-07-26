@@ -1226,8 +1226,8 @@ export const ja = {
   'whatsNew.title': 'PopBot の新機能',
   'whatsNew.f1.h': 'OpenAI GPT-5.6 モデル',
   'whatsNew.f1.p': '新しい GPT-5.6 ファミリー(Sol・Terra・Luna)でエージェントを実行できます。最難関の問題に向けた Sol の新しい Max 推論エフォートにも対応。',
-  'whatsNew.f2.h': 'Claude Sonnet 5',
-  'whatsNew.f2.p': 'Opus に迫る品質を持つ Anthropic の高速モデルが、Opus 4.8・Fable 5 と並んでモデル選択に加わりました。',
+  'whatsNew.f2.h': 'Claude Opus 5',
+  'whatsNew.f2.p': 'Anthropic の新しいフラッグシップ Opus が Claude エージェントの既定モデルになりました。既存の Opus チャットは自動的に移行します。',
   'whatsNew.gotIt': 'OK',
   // --- Auto-update prompts (persisted via the notification system) ---
   'app.update.restartAction': '再起動してインストール',

@@ -1214,8 +1214,8 @@ export const ko = {
   'whatsNew.title': 'PopBot의 새로운 기능',
   'whatsNew.f1.h': 'OpenAI GPT-5.6 모델',
   'whatsNew.f1.p': '새로운 GPT-5.6 제품군(Sol, Terra, Luna)으로 에이전트를 실행하세요. 가장 어려운 문제를 위한 Sol의 새로운 Max 추론 강도도 지원합니다.',
-  'whatsNew.f2.h': 'Claude Sonnet 5',
-  'whatsNew.f2.p': 'Opus에 가까운 품질의 Anthropic 고속 모델이 Opus 4.8, Fable 5와 함께 모델 선택기에 추가되었습니다.',
+  'whatsNew.f2.h': 'Claude Opus 5',
+  'whatsNew.f2.p': 'Anthropic의 새로운 플래그십 Opus가 Claude 에이전트의 기본 모델이 되었습니다. 기존 Opus 채팅은 자동으로 이전됩니다.',
   'whatsNew.gotIt': '확인',
   // --- Auto-update prompts (persisted via the notification system) ---
   'app.update.restartAction': '다시 시작하고 설치',

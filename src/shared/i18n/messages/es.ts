@@ -1218,8 +1218,8 @@ export const es = {
   'whatsNew.title': 'Novedades de PopBot',
   'whatsNew.f1.h': 'Modelos GPT-5.6 de OpenAI',
   'whatsNew.f1.p': 'Ejecuta tus agentes con la nueva familia GPT-5.6 — Sol, Terra y Luna — incluido el nuevo esfuerzo de razonamiento Max de Sol para los problemas más difíciles.',
-  'whatsNew.f2.h': 'Claude Sonnet 5',
-  'whatsNew.f2.p': 'El modelo rápido de Anthropic, con calidad cercana a Opus, se une a Opus 4.8 y Fable 5 en el selector de modelos.',
+  'whatsNew.f2.h': 'Claude Opus 5',
+  'whatsNew.f2.p': 'El nuevo Opus insignia de Anthropic ya es el modelo predeterminado para los agentes de Claude. Los chats existentes de Opus se migran automáticamente.',
   'whatsNew.gotIt': 'Entendido',
   // --- Auto-update prompts (persisted via the notification system) ---
   'app.update.restartAction': 'Reiniciar e instalar',

@@ -109,8 +109,8 @@ export const en = {
   'whatsNew.title': 'What’s new in PopBot',
   'whatsNew.f1.h': 'OpenAI GPT-5.6 models',
   'whatsNew.f1.p': 'Run your agents on the new GPT-5.6 family — Sol, Terra, and Luna — including Sol’s new Max reasoning effort for the hardest problems.',
-  'whatsNew.f2.h': 'Claude Sonnet 5',
-  'whatsNew.f2.p': 'Anthropic’s fast, near-Opus-quality coding model joins Opus 4.8 and Fable 5 in the model picker.',
+  'whatsNew.f2.h': 'Claude Opus 5',
+  'whatsNew.f2.p': 'Anthropic’s new flagship Opus is now the default for Claude agents. Existing Opus chats move to it automatically.',
   'whatsNew.gotIt': 'Got it',
 
   // ---------------------------------------------------------------------------
