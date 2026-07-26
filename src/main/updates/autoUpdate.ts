@@ -19,6 +19,7 @@ import electronUpdater from 'electron-updater';
 import { IpcChannel } from '@shared/ipc';
 import type { UpdateInfo, UpdateProgress, UpdateReady } from '@shared/updates';
 import { dlog } from '../diagLog';
+import { deleteSetting, getSetting, setSetting } from '../persistence/settings';
 import { fetchLatest, isNewer } from './check';
 
 // electron-updater is CommonJS — default-import then destructure.
@@ -27,9 +28,20 @@ const { autoUpdater } = electronUpdater;
 const STARTUP_DELAY_MS = 30 * 1000;
 const POLL_INTERVAL_MS = 6 * 60 * 60 * 1000;
 
+/**
+ * Settings key holding the version staged by electron-updater, or null.
+ *
+ * `UpdateDownloaded` is a fire-and-forget broadcast to whatever windows
+ * exist at that instant — an update staged before the renderer subscribed
+ * (or after its window closed) reached nobody, and the in-memory flag reset
+ * on the next launch. The installer sat on disk with the UI showing no sign
+ * of it. Persisting the staged version makes the state queryable, so a
+ * renderer that missed the broadcast can still ask on mount.
+ */
+const STAGED_KEY = 'updates.stagedVersion';
+
 let startupTimer: NodeJS.Timeout | null = null;
 let pollTimer: NodeJS.Timeout | null = null;
-let downloaded = false;
 let firedManualFallback = false;
 
 function broadcast(channel: string, payload: unknown): void {
@@ -39,12 +51,29 @@ function broadcast(channel: string, payload: unknown): void {
 }
 
 /**
+ * The staged update, if one is still pending for *this* install.
+ *
+ * A staged version at or below the running version means the update already
+ * applied (or the user installed over it by hand) — clear it so a stale
+ * record can't offer a pointless restart forever.
+ */
+export function getStagedUpdate(): UpdateReady | null {
+  const version = getSetting<string>(STAGED_KEY);
+  if (typeof version !== 'string' || !version) return null;
+  if (!isNewer(version, app.getVersion())) {
+    deleteSetting(STAGED_KEY);
+    return null;
+  }
+  return { version, name: `PopBot v${version}` };
+}
+
+/**
  * Surface the latest release as a manual download. Used when the in-app
  * updater can't apply the update itself (no metadata, network error, etc.).
  * Fires at most once per run, and never after a successful download.
  */
 async function manualFallback(): Promise<void> {
-  if (firedManualFallback || downloaded) return;
+  if (firedManualFallback || getStagedUpdate()) return;
   const latest = await fetchLatest();
   if (!latest) return;
   const current = app.getVersion();
@@ -76,7 +105,10 @@ export function startAutoUpdater(): void {
     broadcast(IpcChannel.UpdateProgress, progress);
   });
   autoUpdater.on('update-downloaded', (info: { version: string; releaseName?: string | null }) => {
-    downloaded = true;
+    // Persist before broadcasting: if no window is listening (startup race,
+    // or the window closed), the record is what surfaces the update on the
+    // next launch.
+    setSetting(STAGED_KEY, info.version);
     dlog('update.downloaded', { version: info.version });
     const ready: UpdateReady = {
       version: info.version,
@@ -101,9 +133,15 @@ export function stopAutoUpdater(): void {
   if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
 }
 
-/** Quit and install the staged update. No-op if nothing's downloaded. */
+/**
+ * Quit and install the staged update. No-op if nothing's staged.
+ *
+ * Reads the persisted record rather than a per-run flag, so "Restart and
+ * install" still works in a session that didn't do the downloading —
+ * electron-updater keeps the installer in its own cache across restarts.
+ */
 export function quitAndInstallUpdate(): void {
-  if (!downloaded) return;
+  if (!getStagedUpdate()) return;
   // isSilent=false (show the Windows installer UI), isForceRunAfter=true
   // (relaunch the app once the update is applied).
   autoUpdater.quitAndInstall(false, true);
