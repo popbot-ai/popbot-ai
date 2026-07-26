@@ -5,27 +5,50 @@ and published to a GitHub Release on this repo. Each platform builds on its
 own runner — the native modules (`better-sqlite3`, `node-pty`) must compile
 against Electron's ABI per-OS, so cross-compiling isn't an option.
 
+## Before you cut: update the release notes
+
+Three places carry the user-facing "what's new" copy, and all three are
+**authored by hand** — nothing generates them. Update them in the same PR
+as the feature, so a release never ships describing the previous one:
+
+1. **In-app What's New popup** — `whatsNew.f1.*` / `whatsNew.f2.*` in
+   `src/shared/i18n/messages/*.ts`. **All 12 locales.** Shown once per
+   version on first launch after an update.
+2. **Marketing site hero band** — the two `whatsnew.f*` lines in
+   `site/index.html` **and** their translations in `site/i18n.js`.
+   **All 12 locales.**
+3. **`## Recent releases` table at the top of `README.md`** — add the new
+   version and drop the oldest, keeping three. It's how someone browsing
+   the repo sees the project is current. **English README only** — the
+   translated copies under `docs/<locale>/README.md` deliberately don't
+   carry this table, so it never goes stale in 11 other languages.
+
+Keep 1 and 2 to the one or two headline features. Call out anything that
+changes behavior on existing chats (e.g. a model being retired and rolled
+forward), since users notice those whether or not you mention them.
+
+Betas are separate: the beta band's bullets come from `beta-highlights.json`,
+which `scripts/gen-manifest.mjs` bakes into the download manifest.
+
 ## Cutting a release
 
-From a clean working tree on `main`:
+Releases run **entirely from GitHub Actions** — there is no local release
+step (`npm run release` is a stub that redirects here).
 
-```bash
-npm run release            # patch bump (default)
-npm run release -- minor   # minor bump
-npm run release -- major   # major bump
-```
+GitHub → **Actions** → **Release** → **Run workflow**:
 
-`scripts/release.sh` bumps the version, commits, creates an annotated
-`vX.Y.Z` tag, and pushes both. The pushed tag triggers the **Build**
-workflow, which builds all three platforms and publishes the GitHub
-Release with the artifacts attached. Watch it with `gh run watch` or the
-Actions tab.
+- **bump**: `patch` | `minor` | `major`
+- **channel**: `prerelease` (signed test build) | `release` (publish as latest)
 
-The next version is computed from the latest `v*` tag, bumped per the
-argument above. Before any tag exists, it falls back to the version in
-`package.json` (so the first release is the next bump above that). The
-script refuses to run from any branch other than `main` (override with
-`RELEASE_BRANCH=<name>`).
+The next version is computed from the latest final `v*` tag (tags containing
+`-` are ignored), bumped per **bump**. A `prerelease` additionally gets an
+`-rc.<run_number>` suffix and lands in `beta/`; a `release` lands in `stable/`.
+
+**The repo's `package.json` version is never updated and is permanently
+stale — don't read it as the current version, and don't bump it by hand.**
+The workflow derives the version from tags and applies it at build time with
+`npm version --no-git-tag-version`, which is never committed. Git tags are the
+source of truth.
 
 ## What gets produced
 

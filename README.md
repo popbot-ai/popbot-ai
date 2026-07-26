@@ -4,13 +4,23 @@
 
 A battle-tested desktop tool for running a team of AI coding agents in parallel — one per ticket, bug, or review, each isolated in its own warm "slot," each able to build, run, and test your app end-to-end.
 
-[Why PopBot](#why-popbot) · [Features](#defining-features) · [How it works](#anatomy-of-the-workspace) · [A day with PopBot](#a-day-with-popbot) · [Install](#install) · [Make it yours](#make-it-yours)
+[Recent releases](#recent-releases) · [Why PopBot](#why-popbot) · [Features](#defining-features) · [How it works](#anatomy-of-the-workspace) · [A day with PopBot](#a-day-with-popbot) · [Install](#install) · [Make it yours](#make-it-yours)
 
 </div>
 
 *Languages: **English** · [Español](docs/es/README.md) · [Français](docs/fr/README.md) · [Deutsch](docs/de/README.md) · [日本語](docs/ja/README.md) · [한국어](docs/ko/README.md) · [简体中文](docs/zh-CN/README.md) · [Português (Brasil)](docs/pt-BR/README.md) · [Русский](docs/ru/README.md) · [Italiano](docs/it/README.md)*
 
 ---
+
+## Recent releases
+
+PopBot is actively developed — here are the last few releases. Each one auto-updates in place; the app also shows what's new on first launch after an update.
+
+| Version | Highlights |
+| --- | --- |
+| **v0.1.2** | **Claude Opus 5** — Anthropic's new flagship, now the default for Claude agents. Chats on a retired model roll forward on their own: older Opus versions to Opus 5, GPT-5.5 to GPT-5.6 Terra. |
+| **v0.1.1** | **GPT-5.6 (Sol, Terra, Luna)** and **Claude Sonnet 5**, including Sol's Max reasoning effort. Added the what's-new popup on launch and the "New in this release" panel on the site. |
+| **v0.1.0** | **Perforce + Helix Swarm reviews**, **macOS and Linux support**, the folder-first **Add-Repository wizard**, **Jira** and **GitHub Issues** as ticket sources, and full **localization in 12 languages**. |
 
 ## Why PopBot
 
