@@ -1218,10 +1218,10 @@ export const zhCN = {
   'prefs.repos.wizard.agentCwd.desc': '代理启动所在的工作区根目录下的路径（/ 表示根目录本身）。设为 /depot/PopBotGame 之类的子路径可让 Claude 找到仓库中提交的 .claude/skills。',
   // --- What's-new popup (WhatsNewDialog.tsx) — update each release ---
   'whatsNew.title': 'PopBot 新功能',
-  'whatsNew.f1.h': 'OpenAI GPT-5.6 模型',
-  'whatsNew.f1.p': '现在可以用全新的 GPT-5.6 系列(Sol、Terra、Luna)运行你的智能体,包括 Sol 面向最难问题的全新 Max 推理档位。',
-  'whatsNew.f2.h': 'Claude Opus 5',
-  'whatsNew.f2.p': 'Anthropic 全新旗舰 Opus 现已成为 Claude 智能体的默认模型。现有的 Opus 对话会自动迁移。',
+  'whatsNew.f1.h': 'Claude Opus 5',
+  'whatsNew.f1.p': 'Anthropic 全新旗舰模型已上线,并成为 Claude 智能体的默认模型——在长时间的智能体编码任务中提升显著。',
+  'whatsNew.f2.h': '对话自动迁移到最新模型',
+  'whatsNew.f2.p': '使用已停用模型的对话会自动迁移:旧版 Opus 迁移到 Opus 5,GPT-5.5 迁移到速度与价格最接近的 GPT-5.6 Terra。',
   'whatsNew.gotIt': '知道了',
   // --- Auto-update prompts (persisted via the notification system) ---
   'app.update.restartAction': '重启并安装',

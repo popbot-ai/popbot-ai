@@ -1221,10 +1221,10 @@ export const it = {
   'language.systemNote': 'Anche le nuove finestre e il menu dell’app usano questa lingua.',
   // --- What's-new popup (WhatsNewDialog.tsx) — update each release ---
   'whatsNew.title': 'Novità di PopBot',
-  'whatsNew.f1.h': 'Modelli OpenAI GPT-5.6',
-  'whatsNew.f1.p': 'Esegui i tuoi agenti con la nuova famiglia GPT-5.6 — Sol, Terra e Luna — incluso il nuovo livello di ragionamento Max di Sol per i problemi più difficili.',
-  'whatsNew.f2.h': 'Claude Opus 5',
-  'whatsNew.f2.p': 'Il nuovo Opus di punta di Anthropic è ora il modello predefinito per gli agenti Claude. Le chat Opus esistenti passano automaticamente a esso.',
+  'whatsNew.f1.h': 'Claude Opus 5',
+  'whatsNew.f1.p': 'Il nuovo modello di punta di Anthropic è arrivato ed è il nuovo predefinito per gli agenti Claude: un grande passo avanti nelle lunghe sessioni di coding agentico.',
+  'whatsNew.f2.h': 'Le tue chat passano ai modelli più recenti',
+  'whatsNew.f2.p': 'Le chat su un modello ritirato si spostano da sole: le versioni precedenti di Opus passano a Opus 5 e GPT-5.5 passa a GPT-5.6 Terra, il suo equivalente per velocità e prezzo.',
   'whatsNew.gotIt': 'Capito',
   // --- Auto-update prompts (persisted via the notification system) ---
   'app.update.restartAction': 'Riavvia e installa',
