@@ -10,15 +10,35 @@ export const RAW_CHAT_REPO_ID = '__none__';
 
 export type AgentBackendId = 'claude' | 'codex';
 
-export const CLAUDE_MODELS = ['claude-opus-5', 'claude-sonnet-5', 'claude-fable-5'] as const;
-export const CODEX_MODELS = ['gpt-5.6-sol', 'gpt-5.6-terra', 'gpt-5.6-luna'] as const;
+/**
+ * The model pickers, in display order. Each provider's default comes
+ * first, then the rest of the current line-up.
+ *
+ * The newest tier on each side — Claude Fable 5.1 and GPT-6 Astra — is
+ * listed but deliberately NOT the default and never a roll-forward
+ * target (see {@link normalizeClaudeModel} / {@link normalizeCodexModel}).
+ * Both are limited-availability launches at top-tier pricing: Fable
+ * needs usage credits on the Claude side, and Codex only serves Astra to
+ * API-key logins for now (a ChatGPT-account login gets a 400). A chat
+ * lands on one of them only because the user picked it, so nobody's
+ * running Opus/Sol chat quietly turns into a Fable/Astra bill.
+ */
+export const CLAUDE_MODELS = [
+  'claude-opus-5',
+  'claude-sonnet-5',
+  'claude-fable-5',
+  'claude-fable-5-1',
+] as const;
+export const CODEX_MODELS = ['gpt-5.6-sol', 'gpt-5.6-terra', 'gpt-5.6-luna', 'gpt-6-astra'] as const;
 export const DEFAULT_CLAUDE_MODEL = 'claude-opus-5' as const;
 export const DEFAULT_CODEX_MODEL = 'gpt-5.6-sol' as const;
 export const DEFAULT_CLAUDE_REASONING_EFFORT = 'high' as const;
 export const DEFAULT_CODEX_REASONING_EFFORT = 'medium' as const;
 
 export const CLAUDE_REASONING_EFFORTS = ['low', 'medium', 'high', 'xhigh', 'max'] as const;
-export const CODEX_REASONING_EFFORTS = ['none', 'low', 'medium', 'high', 'xhigh', 'max'] as const;
+/** Every rung any Codex model accepts; see {@link codexReasoningEffortsForModel}
+ *  for the per-model subset. `none` is PopBot's name for the API's `minimal`. */
+export const CODEX_REASONING_EFFORTS = ['none', 'low', 'medium', 'high', 'xhigh', 'max', 'ultra'] as const;
 
 export type ClaudeModelId = (typeof CLAUDE_MODELS)[number];
 export type CodexModelId = (typeof CODEX_MODELS)[number];
@@ -31,11 +51,13 @@ export const CLAUDE_MODEL_LABELS: Record<ClaudeModelId, string> = {
   'claude-opus-5': 'Claude Opus 5',
   'claude-sonnet-5': 'Claude Sonnet 5',
   'claude-fable-5': 'Claude Fable 5',
+  'claude-fable-5-1': 'Claude Fable 5.1',
 };
 export const CODEX_MODEL_LABELS: Record<CodexModelId, string> = {
   'gpt-5.6-sol': 'GPT-5.6 Sol',
   'gpt-5.6-terra': 'GPT-5.6 Terra',
   'gpt-5.6-luna': 'GPT-5.6 Luna',
+  'gpt-6-astra': 'GPT-6 Astra',
 };
 
 /** Coerce a persisted/raw model string to a known Claude model, falling
@@ -48,7 +70,12 @@ export const CODEX_MODEL_LABELS: Record<CodexModelId, string> = {
  *  which are distinct concurrent models, the Opus line is a single model
  *  that supersedes itself, and old versions are eventually retired
  *  upstream. A chat pinned to a retired ID would fail at request time,
- *  so we always point it at the latest Opus. */
+ *  so we always point it at the latest Opus.
+ *
+ *  Fable is the one line that does NOT roll forward: a chat on Claude
+ *  Fable 5 stays there even though Fable 5.1 exists. Both are still
+ *  served, and moving between Fable tiers is a pricing/availability
+ *  decision that belongs to the user. */
 export function normalizeClaudeModel(value: string | null | undefined): ClaudeModelId {
   if (CLAUDE_MODELS.includes(value as ClaudeModelId)) return value as ClaudeModelId;
   // Any prior Opus (claude-opus-4-8, -4-7, -4-6, -4-5, -4-1, …) → current Opus.
@@ -58,7 +85,9 @@ export function normalizeClaudeModel(value: string | null | undefined): ClaudeMo
 
 /** Retired Codex models mapped to their closest current price/performance
  *  tier, so a chat rolls forward to an equivalent rather than jumping to
- *  the (pricier) default. GPT-5.5 sat where Terra now sits. */
+ *  the (pricier) default. GPT-5.5 sat where Terra now sits. GPT-6 Astra
+ *  is never a target here for the same reason: it costs more than every
+ *  GPT-5.6 tier and isn't available on every Codex login. */
 const RETIRED_CODEX_MODELS: Record<string, CodexModelId> = {
   'gpt-5.5': 'gpt-5.6-terra',
 };
@@ -72,14 +101,27 @@ export function normalizeCodexModel(value: string | null | undefined): CodexMode
   return DEFAULT_CODEX_MODEL;
 }
 
-/** The `max` reasoning tier is GPT-5.6 Sol's new top rung — other GPT
- *  models cap at `xhigh`. Claude models all support `max`. */
+/** Reasoning efforts each Codex model accepts, per the model catalog in
+ *  the Codex CLI the SDK bundles (0.153.x). Two things vary:
+ *
+ *  - The floor. `none` (the API's `minimal`) exists on the GPT-5.6 line
+ *    but GPT-6 Astra rejects it at the API layer — Astra starts at `low`.
+ *  - The ceiling. `ultra` — maximum reasoning plus automatic task
+ *    delegation — is the newest top rung on Sol, Terra and Astra; Luna
+ *    caps at `max`.
+ *
+ *  Claude models all take the full {@link CLAUDE_REASONING_EFFORTS} ladder. */
+const CODEX_MODEL_REASONING_EFFORTS: Record<CodexModelId, readonly CodexReasoningEffort[]> = {
+  'gpt-5.6-sol': ['none', 'low', 'medium', 'high', 'xhigh', 'max', 'ultra'],
+  'gpt-5.6-terra': ['none', 'low', 'medium', 'high', 'xhigh', 'max', 'ultra'],
+  'gpt-5.6-luna': ['none', 'low', 'medium', 'high', 'xhigh', 'max'],
+  'gpt-6-astra': ['low', 'medium', 'high', 'xhigh', 'max', 'ultra'],
+};
+
 export function codexReasoningEffortsForModel(
   model: CodexModelId | string | null | undefined,
 ): readonly CodexReasoningEffort[] {
-  return normalizeCodexModel(model) === 'gpt-5.6-sol'
-    ? CODEX_REASONING_EFFORTS
-    : CODEX_REASONING_EFFORTS.filter((effort) => effort !== 'max');
+  return CODEX_MODEL_REASONING_EFFORTS[normalizeCodexModel(model)];
 }
 
 const REASONING_EFFORT_RANK: Record<AgentReasoningEffort, number> = {
@@ -89,6 +131,7 @@ const REASONING_EFFORT_RANK: Record<AgentReasoningEffort, number> = {
   high: 3,
   xhigh: 4,
   max: 5,
+  ultra: 6,
 };
 
 export function closestReasoningEffort<T extends AgentReasoningEffort>(

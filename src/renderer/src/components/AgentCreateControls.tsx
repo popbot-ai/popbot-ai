@@ -69,6 +69,7 @@ const REASONING_LABEL_KEYS: Record<ClaudeReasoningEffort | CodexReasoningEffort,
   high: 'agent.effort.high',
   xhigh: 'agent.effort.xhigh',
   max: 'agent.effort.max',
+  ultra: 'agent.effort.ultra',
 };
 
 /** Localized label for a reasoning-effort value. Takes the caller's `t()`

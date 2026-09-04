@@ -11,6 +11,7 @@ import type { PickedAttachment } from '@shared/ipc';
 import {
   DEFAULT_CODEX_MODEL,
   DEFAULT_CODEX_REASONING_EFFORT,
+  closestReasoningEffort,
   codexReasoningEffortsForModel,
 } from '@shared/persistence';
 import type { AgentBackend, AgentSession, SpawnOpts } from './types';
@@ -20,18 +21,18 @@ function toCodexSdkReasoningEffort(
   model: string,
   effort: typeof DEFAULT_CODEX_REASONING_EFFORT | SpawnOpts['codexReasoningEffort'],
 ): ModelReasoningEffort {
-  const resolved = effort ?? DEFAULT_CODEX_REASONING_EFFORT;
-  if (resolved === 'none') return 'minimal';
-  // `max` is GPT-5.6 Sol's top reasoning rung. The SDK forwards the value
-  // verbatim as `model_reasoning_effort`, but its type union hasn't caught
-  // up to the CLI yet — hence the cast. Clamp to xhigh for models that
-  // don't support max (Terra/Luna/5.5).
-  if (resolved === 'max') {
-    return codexReasoningEffortsForModel(model).includes('max')
-      ? ('max' as ModelReasoningEffort)
-      : 'xhigh';
-  }
-  return resolved;
+  // Snap to a rung this model actually accepts. The floor and ceiling
+  // both vary — GPT-6 Astra has no `none` (it starts at `low`), and
+  // `max` / `ultra` aren't on every model — so a chat that switches
+  // models keeps the nearest equivalent instead of sending a value the
+  // API would reject.
+  const resolved = closestReasoningEffort(
+    effort ?? DEFAULT_CODEX_REASONING_EFFORT,
+    codexReasoningEffortsForModel(model),
+    DEFAULT_CODEX_REASONING_EFFORT,
+  );
+  // PopBot calls the API's `minimal` rung `none` in the UI.
+  return resolved === 'none' ? 'minimal' : resolved;
 }
 
 /**

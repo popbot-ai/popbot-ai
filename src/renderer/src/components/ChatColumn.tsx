@@ -145,6 +145,7 @@ const REASONING_LABEL_KEYS: Record<ClaudeReasoningEffort | CodexReasoningEffort,
   high: 'chat.reasoning.high',
   xhigh: 'chat.reasoning.xhigh',
   max: 'chat.reasoning.max',
+  ultra: 'chat.reasoning.ultra',
 };
 
 const STATUS_LABEL_KEYS: Record<string, MessageKey> = {
