@@ -1229,10 +1229,10 @@ export const de = {
   'prefs.repos.wizard.agentCwd.desc': 'Pfad unter dem Arbeitsbereich-Stammverzeichnis, in dem der Agent startet (/ = das Stammverzeichnis selbst). Ein Unterpfad wie /depot/PopBotGame lässt Claude dort eingecheckte .claude/skills finden.',
   // --- What's-new popup (WhatsNewDialog.tsx) — update each release ---
   'whatsNew.title': 'Neu in PopBot',
-  'whatsNew.f1.h': 'Claude Opus 5',
-  'whatsNew.f1.p': 'Anthropics neues Spitzenmodell ist da und jetzt der Standard für Claude-Agenten — ein großer Fortschritt bei langen agentischen Coding-Läufen.',
-  'whatsNew.f2.h': 'Deine Chats wechseln zu den neuesten Modellen',
-  'whatsNew.f2.p': 'Chats mit einem eingestellten Modell wechseln jetzt automatisch: ältere Opus-Versionen zu Opus 5 und GPT-5.5 zu GPT-5.6 Terra, dem nächsten Äquivalent bei Tempo und Preis.',
+  'whatsNew.f1.h': 'Claude Fable 5.1 und GPT-6 Astra',
+  'whatsNew.f1.p': 'Die neuesten Spitzenmodelle von Anthropic und OpenAI stehen in der Modellauswahl. Beide sind nur eingeschränkt verfügbar und deshalb Opt-in: deine Chats behalten ihr Modell, und Opus 5 und GPT-5.6 Sol bleiben die Standards.',
+  'whatsNew.f2.h': 'Kontextanzeige, Komprimierung und ein aufgeräumterer Arbeitsbereich',
+  'whatsNew.f2.p': 'Ein Ring im Eingabebereich zeigt, wie voll das Kontextfenster ist — mit Komprimierung per Klick. Ziehe Vorschaubilder, um Chats neu anzuordnen, klicke auf einen Spaltentitel, um ihn umzubenennen, und RE-REVIEW bleibt jetzt, bis du wirklich erneut reviewst.',
   'whatsNew.gotIt': 'Verstanden',
   // --- Auto-update prompts (persisted via the notification system) ---
   'app.update.restartAction': 'Neu starten und installieren',

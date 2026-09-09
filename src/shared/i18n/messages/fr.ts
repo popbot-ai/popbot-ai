@@ -1237,10 +1237,10 @@ export const fr = {
   'prefs.repos.wizard.agentCwd.desc': 'Chemin sous la racine de l’espace de travail où l’agent démarre (/ = la racine elle-même). Un sous-chemin comme /depot/PopBotGame permet à Claude d’y découvrir les .claude/skills du dépôt.',
   // --- What's-new popup (WhatsNewDialog.tsx) — update each release ---
   'whatsNew.title': 'Nouveautés de PopBot',
-  'whatsNew.f1.h': 'Claude Opus 5',
-  'whatsNew.f1.p': 'Le nouveau modèle phare d’Anthropic est là, et devient le modèle par défaut des agents Claude — un vrai bond en avant sur les longues sessions de codage agentique.',
-  'whatsNew.f2.h': 'Vos conversations passent aux derniers modèles',
-  'whatsNew.f2.p': 'Les conversations sur un modèle retiré basculent d’elles-mêmes : les anciennes versions d’Opus passent à Opus 5, et GPT-5.5 passe à GPT-5.6 Terra, son équivalent en vitesse et en prix.',
+  'whatsNew.f1.h': 'Claude Fable 5.1 et GPT-6 Astra',
+  'whatsNew.f1.p': 'Les tout derniers modèles de pointe d’Anthropic et d’OpenAI sont dans le sélecteur de modèles. Tous deux sont des lancements à disponibilité limitée, donc facultatifs : vos conversations gardent leur modèle, et Opus 5 et GPT-5.6 Sol restent les modèles par défaut.',
+  'whatsNew.f2.h': 'Jauge de contexte, compactage et un espace de travail plus net',
+  'whatsNew.f2.p': 'Un anneau dans la zone de saisie indique le remplissage de la fenêtre de contexte, avec compactage en un clic. Glissez les vignettes pour réorganiser les conversations, cliquez sur le titre d’une colonne pour la renommer, et RE-REVIEW reste affiché tant que vous n’avez pas vraiment relu.',
   'whatsNew.gotIt': 'Compris',
   // --- Auto-update prompts (persisted via the notification system) ---
   'app.update.restartAction': 'Redémarrer et installer',

@@ -1,7 +1,7 @@
 {
   "name": "popbot",
   "productName": "PopBot",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "private": true,
   "description": "Battle-tested multi-chat, multi-slot agentic coding tool",
   "main": "./out/main/index.js",

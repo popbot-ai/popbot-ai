@@ -1237,10 +1237,10 @@ export const ja = {
   'prefs.repos.wizard.agentCwd.desc': 'エージェントが起動するワークスペースルート配下のパス（/ はルート自体）。/depot/PopBotGame のようなサブパスにすると、リポジトリにコミットされた .claude/skills を Claude が検出できます。',
   // --- What's-new popup (WhatsNewDialog.tsx) — update each release ---
   'whatsNew.title': 'PopBot の新機能',
-  'whatsNew.f1.h': 'Claude Opus 5',
-  'whatsNew.f1.p': 'Anthropic の新しいフラッグシップモデルが登場し、Claude エージェントの既定になりました。長時間のエージェント型コーディングで大きく前進します。',
-  'whatsNew.f2.h': 'チャットが最新モデルへ自動で移行',
-  'whatsNew.f2.p': '提供終了したモデルのチャットは自動的に移行します。以前の Opus は Opus 5 へ、GPT-5.5 は速度と料金が最も近い GPT-5.6 Terra へ切り替わります。',
+  'whatsNew.f1.h': 'Claude Fable 5.1 と GPT-6 Astra',
+  'whatsNew.f1.p': 'Anthropic と OpenAI の最新フロンティアモデルがモデル選択に加わりました。どちらも提供が限定されているためオプトインです。既存のチャットは現在のモデルを維持し、既定は引き続き Opus 5 と GPT-5.6 Sol です。',
+  'whatsNew.f2.h': 'コンテキストゲージ、圧縮、そして整理しやすいワークスペース',
+  'whatsNew.f2.p': '入力エリアのリングでコンテキストウィンドウの使用量を確認でき、ワンクリックで圧縮できます。サムネイルをドラッグしてチャットを並べ替え、列のタイトルをクリックして名前を変更でき、RE-REVIEW は実際に再レビューするまで表示され続けます。',
   'whatsNew.gotIt': 'OK',
   // --- Auto-update prompts (persisted via the notification system) ---
   'app.update.restartAction': '再起動してインストール',

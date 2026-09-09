@@ -1225,10 +1225,10 @@ export const ko = {
   'prefs.repos.wizard.agentCwd.desc': '에이전트가 시작하는 작업 공간 루트 아래 경로입니다(/ = 루트 자체). /depot/PopBotGame 같은 하위 경로로 지정하면 저장소에 커밋된 .claude/skills를 Claude가 찾을 수 있습니다.',
   // --- What's-new popup (WhatsNewDialog.tsx) — update each release ---
   'whatsNew.title': 'PopBot의 새로운 기능',
-  'whatsNew.f1.h': 'Claude Opus 5',
-  'whatsNew.f1.p': 'Anthropic의 새로운 플래그십 모델이 출시되어 Claude 에이전트의 기본값이 되었습니다. 긴 에이전트 코딩 작업에서 크게 향상되었습니다.',
-  'whatsNew.f2.h': '채팅이 최신 모델로 자동 이전',
-  'whatsNew.f2.p': '지원이 종료된 모델의 채팅은 자동으로 이전됩니다. 이전 Opus 버전은 Opus 5로, GPT-5.5는 속도와 가격이 가장 비슷한 GPT-5.6 Terra로 옮겨집니다.',
+  'whatsNew.f1.h': 'Claude Fable 5.1 및 GPT-6 Astra',
+  'whatsNew.f1.p': 'Anthropic과 OpenAI의 최신 프런티어 모델이 모델 선택기에 추가되었습니다. 둘 다 제한적으로 제공되므로 직접 선택해야 합니다. 기존 채팅은 현재 모델을 유지하며, 기본값은 여전히 Opus 5와 GPT-5.6 Sol입니다.',
+  'whatsNew.f2.h': '컨텍스트 게이지, 압축, 더 정돈된 작업 공간',
+  'whatsNew.f2.p': '입력 영역의 링이 컨텍스트 창이 얼마나 찼는지 보여주고, 한 번의 클릭으로 압축할 수 있습니다. 썸네일을 드래그해 채팅 순서를 바꾸고, 열 제목을 클릭해 이름을 바꿀 수 있으며, RE-REVIEW는 실제로 다시 검토할 때까지 유지됩니다.',
   'whatsNew.gotIt': '확인',
   // --- Auto-update prompts (persisted via the notification system) ---
   'app.update.restartAction': '다시 시작하고 설치',

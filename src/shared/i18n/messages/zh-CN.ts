@@ -1231,10 +1231,10 @@ export const zhCN = {
   'prefs.repos.wizard.agentCwd.desc': '代理启动所在的工作区根目录下的路径（/ 表示根目录本身）。设为 /depot/PopBotGame 之类的子路径可让 Claude 找到仓库中提交的 .claude/skills。',
   // --- What's-new popup (WhatsNewDialog.tsx) — update each release ---
   'whatsNew.title': 'PopBot 新功能',
-  'whatsNew.f1.h': 'Claude Opus 5',
-  'whatsNew.f1.p': 'Anthropic 全新旗舰模型已上线,并成为 Claude 智能体的默认模型——在长时间的智能体编码任务中提升显著。',
-  'whatsNew.f2.h': '对话自动迁移到最新模型',
-  'whatsNew.f2.p': '使用已停用模型的对话会自动迁移:旧版 Opus 迁移到 Opus 5,GPT-5.5 迁移到速度与价格最接近的 GPT-5.6 Terra。',
+  'whatsNew.f1.h': 'Claude Fable 5.1 与 GPT-6 Astra',
+  'whatsNew.f1.p': 'Anthropic 和 OpenAI 最新的前沿模型已加入模型选择器。两者目前都仅限量提供，因此需要手动选用：现有对话保留原模型，默认仍是 Opus 5 和 GPT-5.6 Sol。',
+  'whatsNew.f2.h': '上下文仪表、压缩，以及更整洁的工作区',
+  'whatsNew.f2.p': '输入区的环形仪表显示上下文窗口的占用情况，并支持一键压缩。拖动缩略图即可重新排列对话，点击列标题即可重命名，RE-REVIEW 现在会一直保留，直到你真正重新审查。',
   'whatsNew.gotIt': '知道了',
   // --- Auto-update prompts (persisted via the notification system) ---
   'app.update.restartAction': '重启并安装',

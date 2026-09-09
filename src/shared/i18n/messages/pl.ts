@@ -1230,10 +1230,10 @@ export const pl = {
   'language.systemNote': 'Nowe okna i menu aplikacji również będą używać tego języka.',
   // --- What's-new popup (WhatsNewDialog.tsx) — update each release ---
   'whatsNew.title': 'Co nowego w PopBot',
-  'whatsNew.f1.h': 'Claude Opus 5',
-  'whatsNew.f1.p': 'Nowy flagowy model Anthropic jest już dostępny i stał się domyślnym dla agentów Claude — duży skok jakości przy długich sesjach kodowania z agentami.',
-  'whatsNew.f2.h': 'Twoje czaty przechodzą na najnowsze modele',
-  'whatsNew.f2.p': 'Czaty na wycofanym modelu przenoszą się same: starsze wersje Opus przechodzą na Opus 5, a GPT-5.5 na GPT-5.6 Terra — jego odpowiednik pod względem szybkości i ceny.',
+  'whatsNew.f1.h': 'Claude Fable 5.1 i GPT-6 Astra',
+  'whatsNew.f1.p': 'Najnowsze modele frontier od Anthropic i OpenAI są w wyborze modelu. Oba to premiery o ograniczonej dostępności, więc są opcjonalne: twoje czaty zachowują swój model, a Opus 5 i GPT-5.6 Sol pozostają domyślne.',
+  'whatsNew.f2.h': 'Wskaźnik kontekstu, kompaktowanie i porządek w obszarze roboczym',
+  'whatsNew.f2.p': 'Pierścień w polu wpisywania pokazuje, jak zapełnione jest okno kontekstu, z kompaktowaniem jednym kliknięciem. Przeciągaj miniatury, aby zmieniać kolejność czatów, kliknij tytuł kolumny, aby zmienić nazwę, a RE-REVIEW pozostaje teraz, dopóki naprawdę nie przejrzysz ponownie.',
   'whatsNew.gotIt': 'Rozumiem',
   // --- Auto-update prompts (persisted via the notification system) ---
   'app.update.restartAction': 'Uruchom ponownie i zainstaluj',

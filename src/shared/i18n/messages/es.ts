@@ -1229,10 +1229,10 @@ export const es = {
   'prefs.repos.wizard.agentCwd.desc': 'Ruta bajo la raíz del área de trabajo donde arranca el agente (/ = la propia raíz). Una subruta como /depot/PopBotGame permite a Claude descubrir allí los .claude/skills del repositorio.',
   // --- What's-new popup (WhatsNewDialog.tsx) — update each release ---
   'whatsNew.title': 'Novedades de PopBot',
-  'whatsNew.f1.h': 'Claude Opus 5',
-  'whatsNew.f1.p': 'El nuevo modelo insignia de Anthropic ya está aquí y es el predeterminado para los agentes de Claude: un gran salto en sesiones largas de programación con agentes.',
-  'whatsNew.f2.h': 'Tus chats pasan a los modelos más recientes',
-  'whatsNew.f2.p': 'Los chats con un modelo retirado se migran solos: las versiones antiguas de Opus pasan a Opus 5, y GPT-5.5 pasa a GPT-5.6 Terra, su equivalente en velocidad y precio.',
+  'whatsNew.f1.h': 'Claude Fable 5.1 y GPT-6 Astra',
+  'whatsNew.f1.p': 'Los modelos de frontera más recientes de Anthropic y OpenAI ya están en el selector de modelos. Ambos son lanzamientos de disponibilidad limitada, así que son opcionales: tus chats conservan su modelo, y Opus 5 y GPT-5.6 Sol siguen siendo los predeterminados.',
+  'whatsNew.f2.h': 'Indicador de contexto, compactación y un espacio más ordenado',
+  'whatsNew.f2.p': 'Un anillo en el área de redacción muestra cuán llena está la ventana de contexto, con compactación en un clic. Arrastra las miniaturas para reordenar los chats, haz clic en el título de una columna para renombrarla, y RE-REVIEW ahora permanece hasta que realmente vuelvas a revisar.',
   'whatsNew.gotIt': 'Entendido',
   // --- Auto-update prompts (persisted via the notification system) ---
   'app.update.restartAction': 'Reiniciar e instalar',

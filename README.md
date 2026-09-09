@@ -18,9 +18,9 @@ PopBot is actively developed — here are the last few releases. On macOS and Wi
 
 | Version | Highlights |
 | --- | --- |
+| **v0.1.3** | **Claude Fable 5.1** and **GPT-6 Astra** as opt-in models (defaults unchanged). A context-usage gauge with one-click compaction, drag-to-reorder thumbnails, click-to-rename chats, and RE-REVIEW that sticks until you re-review. |
 | **v0.1.2** | **Claude Opus 5** — Anthropic's new flagship, now the default for Claude agents. Chats on a retired model roll forward on their own: older Opus versions to Opus 5, GPT-5.5 to GPT-5.6 Terra. |
 | **v0.1.1** | **GPT-5.6 (Sol, Terra, Luna)** and **Claude Sonnet 5**, including Sol's Max reasoning effort. Added the what's-new popup on launch and the "New in this release" panel on the site. |
-| **v0.1.0** | **Perforce + Helix Swarm reviews**, **macOS and Linux support**, the folder-first **Add-Repository wizard**, **Jira** and **GitHub Issues** as ticket sources, and full **localization in 12 languages**. |
 
 ## Why PopBot
 

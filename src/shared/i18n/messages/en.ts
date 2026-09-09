@@ -107,10 +107,10 @@ export const en = {
   // one or two headline features. Keys stay stable; only the copy changes.
   // ---------------------------------------------------------------------------
   'whatsNew.title': 'What’s new in PopBot',
-  'whatsNew.f1.h': 'Claude Opus 5',
-  'whatsNew.f1.p': 'Anthropic’s new flagship model is here, and it’s the new default for Claude agents — a big step up on long agentic coding runs.',
-  'whatsNew.f2.h': 'Your chats move to the latest models',
-  'whatsNew.f2.p': 'Chats on a retired model now roll forward on their own: older Opus versions move to Opus 5, and GPT-5.5 moves to GPT-5.6 Terra, its closest match on speed and price.',
+  'whatsNew.f1.h': 'Claude Fable 5.1 and GPT-6 Astra',
+  'whatsNew.f1.p': 'Anthropic’s and OpenAI’s newest frontier models are in the model picker. Both are limited-availability launches, so they’re opt-in: your chats keep their model, and Opus 5 and GPT-5.6 Sol stay the defaults.',
+  'whatsNew.f2.h': 'Context gauge, compaction, and a tidier workspace',
+  'whatsNew.f2.p': 'A ring in the composer shows how full the context window is, with one-click compaction. Drag thumbnails to re-arrange chats, click a column title to rename it, and RE-REVIEW now stays until you actually re-review.',
   'whatsNew.gotIt': 'Got it',
 
   // ---------------------------------------------------------------------------
