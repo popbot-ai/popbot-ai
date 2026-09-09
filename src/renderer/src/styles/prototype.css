@@ -817,6 +817,57 @@ input, textarea { font: inherit; color: inherit; background: none; border: 0; ou
 }
 .chat-thinking .tline-cursor { margin-left: 0; }
 
+/* System notice — an explained non-answer (API overloaded, connection
+   dropped, empty turn) that automatic recovery could not resolve. Muted
+   on purpose: red is reserved for genuine faults. */
+.msg.system-notice .body {
+  color: var(--fg-3);
+  font-size: var(--fs-sm);
+  padding: 2px 10px;
+}
+
+.msg.model-switch {
+  justify-content: center;
+}
+
+.msg.model-switch .body {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--fg-2);
+  background: transparent;
+  border: 0;
+  font-size: 12px;
+  padding: 5px 10px;
+}
+
+/* Context compacted — the outcome of a /compact (from the gauge, a typed
+   slash command, or the CLI's autocompact), written to the transcript.
+   `.busy` is the ephemeral in-progress row. */
+.msg.context-compact { justify-content: center; }
+.msg.context-compact .body {
+  display: flex; align-items: center; gap: 7px;
+  color: var(--fg-2); background: transparent; border: 0;
+  font-size: 12px; padding: 5px 10px;
+}
+.msg.context-compact.busy .body { color: var(--fg-3); }
+
+/* System warning — an ordinary limit (tokens used up, usage resets at
+   2pm, re-auth needed). A yellow notification, deliberately NOT the red
+   error treatment: nothing is broken, the user just has to wait or act. */
+.msg.system-warning .body {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  background: rgba(214, 178, 90, 0.10);
+  border: 1px solid rgba(214, 178, 90, 0.45);
+  color: #e8d3a0;
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: var(--fs-sm);
+}
+.msg.system-warning .msg-warning-icon { color: #e0c07a; }
+
 /* System error message in the chat body — distinct red treatment so a
    backend / SDK error is unmistakable amongst normal prose. */
 .msg.system-error .body {
@@ -1340,6 +1391,17 @@ input, textarea { font: inherit; color: inherit; background: none; border: 0; ou
   flex: 1 1 auto; min-width: 0;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
+.col-head .col-title { cursor: text; }
+/* Click-to-rename: the title swaps for an input of the same size, so the
+   header doesn't jump while editing. */
+.col-head .col-title-input {
+  font: inherit; font-size: 14px; font-weight: 600; letter-spacing: -0.01em;
+  color: var(--fg-0); background: var(--bg-1);
+  border: 1px solid var(--acc); border-radius: 3px;
+  padding: 0 4px; margin: -1px 0;
+  flex: 1 1 auto; min-width: 120px; max-width: 100%;
+  outline: none;
+}
 .col-head .col-meta { display: flex; align-items: center; gap: 4px; }
 /* "Open in browser" icon next to the chat title — surfaces the
  * underlying PR or Linear ticket. Sized like .col-close (small,
@@ -1831,6 +1893,72 @@ input, textarea { font: inherit; color: inherit; background: none; border: 0; ou
   font-family: var(--font-mono); font-size: 10px; color: var(--fg-3);
 }
 .input-row .token-counter b { color: var(--fg-1); font-weight: 500; }
+
+/* Drag-and-drop in the thumbnail strip: the lifted card fades, and the
+   card under the cursor shows an insertion bar on the side the drop will
+   land on. The bar is a box-shadow, not a pseudo-element: it lives in the
+   6px gap between cards, and the card clips its own content with
+   overflow:hidden, which would swallow anything positioned outside it —
+   a shadow isn't subject to that clip. */
+.monitor.is-dragging { opacity: 0.4; }
+.monitor.drop-before,
+.monitor.drop-after {
+  background: var(--bg-3);
+  transition: none;
+}
+.monitor.drop-before { box-shadow: -5px 0 0 0 var(--acc); }
+.monitor.drop-after { box-shadow: 5px 0 0 0 var(--acc); }
+
+/* Context gauge — a ring in the composer showing how full the agent's
+   context window is (measured against the point the CLI will autocompact
+   at). Click / right-click opens the compaction menu. */
+.input-row .ctx-gauge {
+  display: inline-flex; align-items: center; gap: 4px; height: 24px; padding: 0 5px;
+  border: 0; border-radius: 3px; background: transparent; cursor: pointer;
+  color: var(--fg-3); font-family: var(--font-mono); font-size: 10px;
+}
+.input-row .ctx-gauge:hover { background: var(--bg-3); color: var(--fg-1); }
+.ctx-gauge svg { display: block; }
+.ctx-gauge-track { fill: none; stroke: var(--bg-3); stroke-width: 2.5; }
+.ctx-gauge-fill {
+  fill: none; stroke: var(--st-run); stroke-width: 2.5; stroke-linecap: round;
+  transform: rotate(-90deg); transform-origin: 50% 50%; transform-box: fill-box;
+  transition: stroke-dasharray 0.4s ease, stroke 0.3s ease;
+}
+.ctx-gauge.warn .ctx-gauge-fill { stroke: var(--st-wait); }
+.ctx-gauge.crit .ctx-gauge-fill { stroke: var(--st-err); }
+.ctx-gauge.crit .ctx-gauge-pct { color: var(--st-err); }
+.ctx-gauge.unreported .ctx-gauge-track { stroke-dasharray: 2 2; }
+.ctx-gauge.compacting .ctx-gauge-fill {
+  stroke: var(--acc); stroke-dasharray: 12 29; transition: none;
+  animation: ctx-gauge-spin 0.9s linear infinite;
+}
+@keyframes ctx-gauge-spin {
+  from { transform: rotate(-90deg); }
+  to   { transform: rotate(270deg); }
+}
+
+.ctx-gauge-menu {
+  position: fixed; background: var(--bg-2); border: 1px solid var(--line-1);
+  border-radius: 6px; padding: 4px; z-index: 100; min-width: 220px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+}
+.ctx-gauge-menu-head {
+  padding: 4px 10px 6px; margin-bottom: 4px;
+  font-family: var(--font-mono); font-size: 10px; color: var(--fg-3);
+  border-bottom: 1px solid var(--line-2); white-space: nowrap;
+}
+.ctx-gauge-menu-item {
+  display: flex; align-items: center; gap: 8px;
+  width: 100%; padding: 6px 10px; background: transparent; border: 0;
+  color: var(--fg-1); cursor: pointer; font-size: 12px; text-align: left;
+  border-radius: 3px; font-family: inherit;
+}
+.ctx-gauge-menu-item i { width: 14px; text-align: center; color: var(--fg-2); }
+.ctx-gauge-menu-item:hover:not(:disabled) { background: var(--bg-3); }
+.ctx-gauge-menu-item:disabled { color: var(--fg-3); cursor: default; }
+.ctx-gauge-menu-item:disabled i { color: var(--fg-3); }
+.ctx-gauge-menu-hint { padding: 2px 10px 6px; font-size: 10px; color: var(--fg-3); }
 
 /* Picked attachments — chips above the textarea, before send. */
 .attachment-chips {
@@ -4807,6 +4935,90 @@ input.input.mono, select.input.mono { font-family: var(--font-mono); font-size: 
   font-weight: 600;
 }
 
+/* Pills that navigate. Same look as a static pill, but clickable and
+   with a small external-link glyph so it reads as a link rather than a
+   label. Used for the [? YOU] / no-reviews pills on a review row and
+   the PR link in a chat header. */
+.pill.pill-link {
+  cursor: pointer;
+  font: inherit;
+  border-style: solid;
+}
+.pill.pill-link:hover { filter: brightness(1.25); }
+.pill-ext { margin-left: 4px; opacity: 0.7; font-size: 0.85em; }
+.col-branch-prlink {
+  background: none;
+  border: 0;
+  padding: 0;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  text-decoration: underline dotted;
+  text-underline-offset: 2px;
+}
+.col-branch-prlink:hover { color: var(--fg-0); }
+
+/* Toggled-on state for a panel icon button (the "show only what I'm on"
+   filter), so it's obvious the list is being narrowed. */
+.iconbtn.is-on {
+  color: var(--fg-0);
+  background: var(--bg-3);
+  box-shadow: inset 0 0 0 1px var(--line-2);
+}
+
+/* Section heading in the Reviews list — "Waiting on you" / "Your team" /
+   "Needs someone". Sticky so you always know which pile you're in while
+   scrolling a few hundred rows. */
+.review-group-head {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px 4px;
+  background: var(--bg-1);
+  border-bottom: 1px solid var(--line-1);
+  color: var(--fg-2);
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.review-group-count {
+  margin-left: auto;
+  color: var(--fg-3);
+  font-weight: 500;
+  letter-spacing: 0;
+}
+
+/* Radio list in Preferences (Code reviews ▸ which reviews to surface).
+   Each row is label + explanatory line, so the choice reads without
+   having to consult the section blurb above it. */
+.pref-radio-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+.pref-radio {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  cursor: pointer;
+}
+.pref-radio input { margin-top: 3px; flex: none; }
+.pref-radio-label {
+  display: block;
+  color: var(--fg-0);
+  font-size: var(--fs-sm);
+}
+.pref-radio-desc {
+  display: block;
+  color: var(--fg-3);
+  font-size: var(--fs-xs);
+}
+
 /* Shared selector layout for the Integrations "config box" sections
    (Ticket source AND Game engine): one line (label + dropdown), then a
    grouped config box for the selected option. */
@@ -5352,7 +5564,9 @@ input.input.mono, select.input.mono { font-family: var(--font-mono); font-size: 
   box-shadow: 0 16px 48px rgba(0,0,0,0.55);
 }
 .confirm-head { padding: 12px 16px; border-bottom: 1px solid var(--line-1); font-weight: 600; color: var(--fg-0); font-size: 13px; }
-.confirm-body { padding: 16px; color: var(--fg-1); font-size: 12px; line-height: 1.5; }
+/* pre-wrap so a dialog can lay out a list of items on their own lines
+   (e.g. the pinned reviews the changed rules would drop). */
+.confirm-body { padding: 16px; color: var(--fg-1); font-size: 12px; line-height: 1.5; white-space: pre-wrap; }
 .confirm-foot {
   padding: 10px 16px; border-top: 1px solid var(--line-1);
   display: flex; justify-content: flex-end; gap: 8px;

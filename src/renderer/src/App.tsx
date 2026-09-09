@@ -97,7 +97,7 @@ function relativeTime(ts: number, t: Translator): string {
 
 export default function App(): JSX.Element {
   const { t } = useTranslation();
-  const { chats, closedChats, loading, create, close, reopen, attachSlot, remove, refresh } = useChats();
+  const { chats, closedChats, loading, create, close, reopen, attachSlot, remove, refresh, reorder, rename } = useChats();
   // The visible columns are a contiguous window of `chats`. windowStart is
   // the index of the leftmost visible chat. Click a thumbnail to scroll
   // the window so that chat is visible (and active).
@@ -314,6 +314,28 @@ export default function App(): JSX.Element {
   const columnsRef = useRef<HTMLDivElement | null>(null);
   const centerHeadRef = useRef<HTMLDivElement | null>(null);
   const thumbstripRef = useRef<HTMLDivElement | null>(null);
+
+  // Drag-and-drop re-ordering of the thumbnail strip. HTML5 drag on the
+  // cards; which side of the hovered card the drop lands on follows the
+  // cursor's half of it. The persisted order drives the columns too, so
+  // arranging the strip arranges the whole workspace.
+  const [dragChatId, setDragChatId] = useState<string | null>(null);
+  const [dropTarget, setDropTarget] = useState<{ id: string; side: 'before' | 'after' } | null>(null);
+  const endDrag = (): void => {
+    setDragChatId(null);
+    setDropTarget(null);
+  };
+  const dropChat = (targetId: string): void => {
+    const source = dragChatId;
+    const side = dropTarget?.id === targetId ? dropTarget.side : 'before';
+    endDrag();
+    if (!source || source === targetId) return;
+    const ids = chats.map((c) => c.id).filter((id) => id !== source);
+    const at = ids.indexOf(targetId);
+    if (at < 0) return;
+    ids.splice(side === 'after' ? at + 1 : at, 0, source);
+    void reorder(ids);
+  };
   const visibleStartRef = useRef<HTMLDivElement | null>(null);
   const visibleEndRef = useRef<HTMLDivElement | null>(null);
   const [overlayRect, setOverlayRect] = useState<{
@@ -833,6 +855,7 @@ export default function App(): JSX.Element {
       {
         name: t('app.chat.reviewName', { number: r.number, title: r.title.slice(0, 80) }),
         pr: r.number,
+        prUrl: r.url,
         type: 'lite',
         repoId: defaultRepoId(),
         ...codeReviewAgentConfig(),
@@ -872,6 +895,7 @@ export default function App(): JSX.Element {
         // header + thumbnail strip vs. work / ticket chats.
         name: t('app.chat.reviewName', { number: r.number, title: r.title.slice(0, 80) }),
         pr: r.number,
+        prUrl: r.url,
         type: 'lite',
         repoId,
         ...reviewAgentConfig,
@@ -1366,6 +1390,28 @@ export default function App(): JSX.Element {
                     onBringForward={() =>
                       setForegroundId((prev) => (prev === c.id ? null : c.id))
                     }
+                    onDragStart={(e) => {
+                      e.dataTransfer.effectAllowed = 'move';
+                      e.dataTransfer.setData('text/plain', c.id);
+                      setDragChatId(c.id);
+                    }}
+                    onDragOver={(e) => {
+                      if (!dragChatId) return;
+                      e.preventDefault();
+                      e.dataTransfer.dropEffect = 'move';
+                      const r = e.currentTarget.getBoundingClientRect();
+                      const side = e.clientX < r.left + r.width / 2 ? 'before' : 'after';
+                      setDropTarget((prev) =>
+                        prev?.id === c.id && prev.side === side ? prev : { id: c.id, side },
+                      );
+                    }}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      dropChat(c.id);
+                    }}
+                    onDragEnd={endDrag}
+                    isDragging={dragChatId === c.id}
+                    dropSide={dropTarget?.id === c.id && dragChatId !== c.id ? dropTarget.side : null}
                   />
                 );
               })}
@@ -1405,6 +1451,7 @@ export default function App(): JSX.Element {
                 onClose={() => void closeCol(chat.id)}
                 onOpenSettings={() => setSettingsForId(chat.id)}
                 onChatUpdated={() => void refresh()}
+                onRename={(name) => rename(chat.id, name)}
                 onOpenPrefs={openPrefsAt}
                 ticket={chat.ticket ? ticketByIdentifier.get(chat.ticket) ?? null : null}
                 pr={prByChatId.get(chat.id) ?? null}

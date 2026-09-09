@@ -1,4 +1,5 @@
 import type { WebContents } from 'electron';
+import { compactionNoteText } from '@shared/contextUsage';
 import { existsSync, mkdirSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
@@ -31,6 +32,7 @@ import {
   getChat,
   getChatPermissionRules,
   setChatCodexThreadId,
+  setChatProviderContextAt,
   setChatSessionId,
   updateChatAgentConfig,
   updateChatStatus,
@@ -54,6 +56,67 @@ import { ClaudeBackend } from './ClaudeBackend';
 import { CodexBackend } from './CodexBackend';
 import { getCodexBinaryPath } from './codexProbe';
 import { persistChatAttachments } from '../attachments/store';
+
+type ProviderAgent = 'claude' | 'codex';
+
+/**
+ * Render the part of PopBot's shared SQLite transcript a provider has not seen.
+ *
+ * Claude and Codex each keep their own native session, but the visible chat is
+ * one conversation. On a provider switch this bridge is prepended invisibly to
+ * the next user turn. It contains text only: replaying tool records would imply
+ * that tools should run again, which is both misleading and unsafe.
+ *
+ * The bridge is bounded just like restartWithContext: preserve the opening
+ * turns (usually the task definition), then as much recent context as fits.
+ */
+function providerContextBridge(
+  messages: ReturnType<typeof listMessages>,
+  contextAt: number,
+  provider: ProviderAgent,
+): string {
+  const missed: Array<{ role: 'user' | 'agent'; text: string; at: number }> = [];
+  for (const message of messages) {
+    if (message.updatedAt <= contextAt || message.kind !== 'text') continue;
+    if (message.role !== 'user' && message.role !== 'agent') continue;
+    try {
+      const text = (JSON.parse(message.body) as MessageBodyText).text ?? '';
+      if (text.trim()) missed.push({ role: message.role, text, at: message.updatedAt });
+    } catch {
+      // A malformed historical row must not prevent the next provider turn.
+    }
+  }
+  if (missed.length === 0) return '';
+
+  const HEAD_KEEP = 3;
+  const MAX_CHARS = 80_000;
+  const head = contextAt === 0 ? missed.slice(0, HEAD_KEEP) : [];
+  const candidates = contextAt === 0 ? missed.slice(HEAD_KEEP) : missed;
+  let total = head.reduce((n, item) => n + item.text.length, 0);
+  const tail: typeof missed = [];
+  for (let i = candidates.length - 1; i >= 0; i -= 1) {
+    if (total + candidates[i].text.length > MAX_CHARS && tail.length > 0) break;
+    tail.unshift(candidates[i]);
+    total += candidates[i].text.length;
+  }
+  const omitted = candidates.length - tail.length;
+  const render = (item: (typeof missed)[number]): string =>
+    `### ${item.role === 'user' ? 'User' : 'Assistant'}\n${item.text}`;
+  const transcript = [
+    ...head.map(render),
+    ...(omitted > 0 ? [`### ... [${omitted} older turn${omitted === 1 ? '' : 's'} omitted] ...`] : []),
+    ...tail.map(render),
+  ].join('\n\n');
+  const label = provider === 'codex' ? 'Codex' : 'Claude';
+  return (
+    `[PopBot context synchronization for ${label}]\n`
+    + 'This is the same PopBot chat, continued across another model. '
+    + 'The following transcript turns happened outside your native session. '
+    + 'Absorb them as prior conversation; do not summarize or respond to this block separately.\n\n'
+    + transcript
+    + '\n\n[End PopBot context synchronization]\n\n'
+  );
+}
 
 /**
  * Where the Claude SDK stores per-session JSONLs. The SDK encodes a
@@ -181,6 +244,10 @@ function rawChatCwd(): string {
 class AgentHostImpl {
   private webContents: WebContents | null = null;
   private readonly sessions = new Map<string, AgentSession>();
+  /** Latest failure text per chat, kept until a real reply lands. Lets a
+   *  manual Retry tell "the native session is gone" from a passing API
+   *  error, and keep the conversation handle in the latter case. */
+  private readonly lastErrorText = new Map<string, string>();
   // Chats that were just reopened from the inactive list. The next first-message
   // preamble re-states the current working directory (it may have moved slots),
   // then the flag is cleared. Set by the reopen handler.
@@ -200,6 +267,88 @@ class AgentHostImpl {
   // (long thinking, big tool calls, stale-chat resume) used to false-flag
   // under the old 15s watchdog. The state-machine path catches the actual
   // failure modes, the timer never did.
+  //
+  // EXCEPT for one failure the state machine provably cannot see: the
+  // upstream request hangs. The CLI accepts the turn (we get
+  // `claude.init`) and then the API call never produces a token — logs
+  // show real cases at duration_api_ms 612271 with output_tokens 0. No
+  // iterator throw, no result message, no subprocess exit; the session
+  // stays isAlive() so every later send just queues behind the wedged
+  // turn. The chat spins forever with no error, and only a dispose
+  // (close/reopen the chat, or quit the app) clears it.
+  //
+  // stallTimers is a NARROW watchdog for exactly that: armed when a user
+  // turn is handed to the backend, disarmed by the first byte of model
+  // output. It never runs during tool execution or a permission wait —
+  // those disarm it — so the old watchdog's false-flag mode can't recur.
+  private readonly stallTimers = new Map<string, NodeJS.Timeout>();
+  // Nothing here used to track how many user turns were outstanding, and
+  // that is the other half of the "sent it, got nothing back" report.
+  // Status was derived 1:1 from the SDK: the agent finishes the turn it
+  // was on, we see `result`, we set idle. But the composer lets you hit
+  // Enter mid-turn (only the Send BUTTON is swapped for Stop), so a
+  // message sent while the agent is busy just queues inside the CLI. The
+  // in-flight turn then ends, we flip the chat to IDLE — and the message
+  // the user just typed has never been looked at. It reads exactly like
+  // "it spun for a second and then ignored me".
+  //
+  // queuedTurns counts user turns handed to the backend that no turn has
+  // STARTED on yet (turn-start resets it). While it's non-zero the chat
+  // is held in 'run' and the stall clock keeps running, so the queued
+  // message either gets answered or surfaces as a failure.
+  //
+  // Counting sends-since-turn-start rather than sends-minus-results is
+  // what makes this safe against the CLI coalescing several queued
+  // messages into one turn: coalesced messages are all queued BEFORE the
+  // turn starts, so turn-start zeroes them together and the single
+  // result correctly ends the chat as idle.
+  private readonly queuedTurns = new Map<string, number>();
+  // The counter above drains on turn-start, which assumes every dequeued
+  // message gets its own turn. It doesn't: the CLI can FOLD a message
+  // that arrives mid-turn into the turn already running, answer it
+  // there, and never emit a second init. Observed live — user asked a
+  // question at :06, agent answered at :11 inside the running turn, and
+  // the count was still 1 when that turn's result landed at :20.
+  //
+  // From the outside those two cases are indistinguishable: "answered
+  // inside the running turn" and "still sitting unqueued" produce the
+  // same events. So the hold is a heuristic, and a heuristic must not
+  // drive a destructive recovery. settleTimers bounds it — if no further
+  // turn materializes, the chat just goes quietly idle. Killing the
+  // session is reserved for the unambiguous case (see TURN_STALL_MS:
+  // a send that produced NO output whatsoever).
+  private readonly settleTimers = new Map<string, NodeJS.Timeout>();
+  /** Consecutive silent replays per chat, reset the moment a turn
+   *  produces real output or the user sends something new. */
+  private readonly autoRetries = new Map<string, number>();
+  /** How many times to quietly redo a turn that came back with nothing
+   *  before giving up and telling the user why. Two is enough to ride
+   *  out an overloaded upstream or a dropped stream without turning a
+   *  persistent failure into an endless loop. */
+  private static readonly MAX_AUTO_RETRIES = 5;
+
+  /** How long to hold a chat in 'run' waiting for a queued message to
+   *  get its own turn, before concluding it was folded into the turn
+   *  that just ended and settling to idle. */
+  private static readonly QUEUED_TURN_SETTLE_MS = 45_000;
+  /** Chats on a backend that reports turn starts (Claude). Only these
+   *  can be held in 'run' by queuedTurns — for a backend that never
+   *  emits turn-start the count would never drain and every chat would
+   *  wedge at 'run'. */
+  private readonly turnAwareChats = new Set<string>();
+  /** Chats between a backend-native turn-start and terminal status. Used as a
+   * hard guard against heuristic settle timers overriding real activity. */
+  private readonly activeTurns = new Set<string>();
+  /** Chats explicitly stopped by the user. Providers may report their
+   * cancellation as an error after stop() returns; those errors are an
+   * implementation detail, not a failed chat turn. The marker remains until
+   * the next send so delayed cancellation events cannot turn the chat red. */
+  private readonly stoppedChats = new Set<string>();
+  /** How long a turn may produce NOTHING before we call it wedged.
+   *  Generous by design: a healthy turn emits its first stream event in
+   *  seconds (includePartialMessages is on), so minutes of total silence
+   *  is never normal. */
+  private static readonly TURN_STALL_MS = 180_000;
 
   /** Wired at app boot so events can reach the renderer. */
   attachWindow(webContents: WebContents): void {
@@ -217,11 +366,28 @@ class AgentHostImpl {
   async send(chatId: string, text: string, attachments?: PickedAttachment[]): Promise<void> {
     const chat = getChat(chatId);
     if (!chat) throw new Error(`send: chat ${chatId} not found`);
+    // A new instruction ends the stopped state. Failures from this turn are
+    // genuine and must be surfaced normally.
+    this.stoppedChats.delete(chatId);
+    // A fresh user action gets a fresh self-heal budget. Recovery attempts are
+    // bounded per unanswered request, not forever across the life of a chat.
+    this.autoRetries.delete(chatId);
+    const provider: ProviderAgent = chat.agent === 'codex' ? 'codex' : 'claude';
+    const nativeHandle = provider === 'codex' ? chat.codexThreadId : chat.sessionId;
+    const providerContextAt = nativeHandle
+      ? (provider === 'codex' ? chat.codexContextAt : chat.claudeContextAt)
+      : 0;
+    // Snapshot before appending the new user message: the bridge is prior
+    // conversation only. The current instruction is sent once, normally.
+    const priorMessages = listMessages(chatId);
 
     dlog('agent.send', {
       chatId,
+      provider,
       textLen: text.length,
-      pinnedSessionId: chat.sessionId ?? null,
+      claudeSessionId: chat.sessionId ?? null,
+      codexThreadId: chat.codexThreadId ?? null,
+      providerContextAt,
       worktree: chat.worktreePath ?? null,
       branch: chat.branch ?? null,
     });
@@ -233,11 +399,18 @@ class AgentHostImpl {
     // gets its current cwd re-stated in case it moved slots. A live in-session
     // turn gets nothing — the agent already knows its cwd.
     const firstOfSession = !this.sessions.get(chatId)?.isAlive();
-    const isFresh = !listMessages(chatId).some((m) => m.role === 'agent');
+    const isFresh = !priorMessages.some((m) => m.role === 'agent');
     // Read (don't consume) the resume flag — we only clear it AFTER the message
     // is actually delivered, so a spawn/send failure preserves it for the retry.
     const resumed = this.resumedChats.has(chatId);
-    const preamble = firstOfSession ? firstMessageCwdPreamble(chat, isFresh, resumed) : '';
+    // A typed `/compact` is a command for the CLI, not prose for the model:
+    // anything prepended to it (the cwd preamble, the provider context
+    // bridge) would turn it into an ordinary message. Send it bare — the
+    // same thing the context gauge does.
+    const isCompactCommand = provider === 'claude' && /^\/compact(\s|$)/.test(text.trim());
+    const preamble = firstOfSession && !isCompactCommand
+      ? firstMessageCwdPreamble(chat, isFresh, resumed)
+      : '';
 
     const storedAttachments = await persistChatAttachments(chatId, attachments);
     const userMsg = appendMessage({
@@ -273,9 +446,18 @@ class AgentHostImpl {
 
     try {
       const session = await this.getOrSpawnSession(chatId);
+      const contextBridge = firstOfSession && !isCompactCommand
+        ? providerContextBridge(priorMessages, providerContextAt, provider)
+        : '';
       // The preamble (if any) rides on the first message to the agent only; it
       // is intentionally absent from the persisted/broadcast user bubble above.
-      await session.sendUser(preamble + text, storedAttachments);
+      await session.sendUser(preamble + contextBridge + text, storedAttachments);
+      // Advance only THIS provider's watermark. The other provider remains
+      // behind until it is selected and receives its own transcript bridge.
+      setChatProviderContextAt(chatId, provider, userMsg.updatedAt);
+      // Handed to the backend — from here the turn is on a clock until
+      // the agent shows any sign of life. See onTurnStalled.
+      this.noteTurnSent(chatId);
       // Delivered — now consume the resume flag so it doesn't re-fire next turn.
       if (resumed) this.resumedChats.delete(chatId);
     } catch (err) {
@@ -297,22 +479,259 @@ class AgentHostImpl {
     if (!isDbOpen()) return;
     const agent = getChat(chatId)?.agent ?? 'claude';
     const label = agent === 'codex' ? 'Codex' : 'Claude';
-    const note = appendMessage({
+    this.surfaceDiagnostic(
       chatId,
-      role: 'system',
-      kind: 'system',
-      body: {
-        text:
-          `error: failed to spawn the ${label} agent.\n` +
-          message + '\n\n' +
-          (agent === 'codex'
-            ? 'This usually means Codex is not authenticated or the `codex` CLI could not start. '
-            : 'This usually means the `claude` CLI isn\'t on PATH for the packaged app. ') +
-          'Try restarting PopBot, or check ~/Library/Logs/PopBot/popbot-agent.log.',
-      },
-    });
-    this.broadcast({ type: 'message-added', chatId, message: note, ts: Date.now() });
+      'error',
+      `failed to spawn the ${label} agent. ${message} — `
+      + (agent === 'codex'
+        ? 'Codex may not be authenticated, or the `codex` CLI could not start.'
+        : 'The `claude` CLI may not be on PATH for the packaged app.'),
+    );
     updateChatStatus(chatId, 'err');
+  }
+
+  /**
+   * Show a diagnostic WITHOUT writing it to the transcript.
+   *
+   * Diagnostics are never persisted: they're broadcast to the renderer,
+   * which holds them in memory and drops them the moment a real reply
+   * arrives (and on any reload). A transcript should be the
+   * conversation — a timeout that resolved itself two seconds later is
+   * not part of it, and shouldn't still be there tomorrow.
+   *
+   * `level` picks the treatment: 'notice' a small grey line, 'warning'
+   * a yellow notification, 'error' the red box.
+   */
+  private surfaceDiagnostic(
+    chatId: string,
+    level: 'error' | 'warning' | 'notice',
+    message: string,
+  ): void {
+    this.broadcast({ type: 'error', chatId, message, level, ts: Date.now() });
+  }
+
+  /** Record that a user turn has been handed to the backend: it's owed a
+   *  reply, and it's on the clock until the agent shows a sign of life. */
+  private noteTurnSent(chatId: string): void {
+    this.disarmSettleTimer(chatId);
+    this.queuedTurns.set(chatId, (this.queuedTurns.get(chatId) ?? 0) + 1);
+    this.armStallWatchdog(chatId);
+  }
+
+  /**
+   * Silently redo a turn that came back with nothing.
+   *
+   * The user's ask is an answer, not an explanation: when a turn
+   * produces no output at all — upstream overloaded, stream dropped,
+   * request hung, empty reply — the right move is to just do it again.
+   * Safe precisely because `retryable` means nothing was produced, so
+   * there is no partial work to duplicate.
+   *
+   * Respawns rather than reusing the session: a subprocess that just
+   * returned nothing is exactly the one that tends to keep returning
+   * nothing, and the pinned session_id means the retry resumes with
+   * full context anyway.
+   *
+   * Returns false once the budget is spent, at which point the caller
+   * surfaces the reason instead.
+   */
+  private tryAutoRetry(chatId: string, why: string): boolean {
+    const used = this.autoRetries.get(chatId) ?? 0;
+    if (used >= AgentHostImpl.MAX_AUTO_RETRIES) return false;
+    const all = listMessages(chatId);
+    const { text, attachments } = this.lastUserTurn(all);
+    if (!text.trim() && attachments.length === 0) return false;
+    this.autoRetries.set(chatId, used + 1);
+    dlog('agent.auto-retry', { chatId, attempt: used + 1, why });
+    // Account for the silence while it's happening. Ephemeral: the
+    // renderer drops it the instant the retry produces a reply.
+    this.surfaceDiagnostic(
+      chatId,
+      'notice',
+      `No response, retrying… (${used + 1}/${AgentHostImpl.MAX_AUTO_RETRIES})`,
+    );
+    // Keep the chat looking busy — from the user's side this is still
+    // the same request being worked on.
+    updateChatStatus(chatId, 'run');
+    this.broadcast({ type: 'session-status', chatId, status: 'running', ts: Date.now() });
+    void (async () => {
+      try {
+        const agent = getChat(chatId)?.agent ?? 'claude';
+        if (agent === 'codex') {
+          // An empty Codex completion commonly means the native thread itself
+          // is poisoned. Resuming it repeats the same empty success, so replace
+          // it and restore the whole conversation from SQLite in one step.
+          await this.restartWithContext(chatId, { continueLatestInstruction: true });
+          return;
+        }
+        await this.dispose(chatId);
+        const session = await this.getOrSpawnSession(chatId);
+        // Replay WITHOUT appending — the user's message is already in
+        // the transcript; this is a redo of it, not a new turn.
+        await session.sendUser(text, attachments);
+        this.noteTurnSent(chatId);
+      } catch (err) {
+        dlog('agent.auto-retry.failed', { chatId, error: (err as Error).message });
+        this.surfaceNotice(chatId, `${why} (retry failed: ${(err as Error).message})`);
+      }
+    })();
+    return true;
+  }
+
+  /** Tell the user why a turn produced no answer, without painting the
+   *  chat red — this is an explained non-answer, not a fault. */
+  private surfaceNotice(chatId: string, message: string): void {
+    this.surfaceDiagnostic(chatId, 'notice', message);
+    updateChatStatus(chatId, 'idle', message.slice(0, 140));
+    this.broadcast({ type: 'session-status', chatId, status: 'idle', ts: Date.now() });
+  }
+
+  /** True when the user has sent something no turn has started on yet —
+   *  i.e. the agent still owes them a reply even if the turn it was
+   *  working on has just finished. */
+  private hasQueuedTurn(chatId: string): boolean {
+    return this.turnAwareChats.has(chatId) && (this.queuedTurns.get(chatId) ?? 0) > 0;
+  }
+
+  /** Arm the turn-stall watchdog. Called right after a user turn is
+   *  handed to a backend. Re-arming replaces the previous timer, so a
+   *  follow-up message sent while the first is in flight extends the
+   *  window instead of stacking timers. */
+  private armStallWatchdog(chatId: string): void {
+    this.disarmStallWatchdog(chatId);
+    this.stallTimers.set(
+      chatId,
+      setTimeout(() => this.onTurnStalled(chatId), AgentHostImpl.TURN_STALL_MS),
+    );
+  }
+
+  private disarmStallWatchdog(chatId: string): void {
+    const timer = this.stallTimers.get(chatId);
+    if (!timer) return;
+    clearTimeout(timer);
+    this.stallTimers.delete(chatId);
+  }
+
+  private armSettleTimer(chatId: string): void {
+    this.disarmSettleTimer(chatId);
+    this.settleTimers.set(
+      chatId,
+      setTimeout(() => this.onQueuedTurnSettled(chatId), AgentHostImpl.QUEUED_TURN_SETTLE_MS),
+    );
+  }
+
+  private disarmSettleTimer(chatId: string): void {
+    const timer = this.settleTimers.get(chatId);
+    if (!timer) return;
+    clearTimeout(timer);
+    this.settleTimers.delete(chatId);
+  }
+
+  /**
+   * The hold expired with no new turn. Overwhelmingly this means the
+   * queued message was folded into the turn that just ended and has
+   * already been answered — so release the chat to idle and say
+   * nothing. No error, no session teardown: there is no evidence
+   * anything is wrong, only an absence of evidence that it's still
+   * working.
+   */
+  private onQueuedTurnSettled(chatId: string): void {
+    this.settleTimers.delete(chatId);
+    if (this.activeTurns.has(chatId)) {
+      dlog('agent.queued-turn.settle-skipped-active', { chatId });
+      return;
+    }
+    this.queuedTurns.delete(chatId);
+    if (!isDbOpen()) return;
+    const chat = getChat(chatId);
+    if (!chat || chat.status !== 'run') return;
+    dlog('agent.queued-turn.settled', { chatId });
+    updateChatStatus(chatId, 'idle');
+    this.broadcast({ type: 'session-status', chatId, status: 'idle', ts: Date.now() });
+  }
+
+  /** Events that prove the backend is really producing a turn — any one
+   *  of them disarms the watchdog. `session-status: running` is
+   *  deliberately excluded: that's our own echo of the send, not the
+   *  agent answering. A permission request counts (the turn is live and
+   *  now waiting on the user), and so does a tool-use — everything that
+   *  follows it is tool-execution silence, which must never be timed. */
+  private static respondedToTurn(event: AgentEvent): boolean {
+    switch (event.type) {
+      case 'message-start':
+      case 'text-delta':
+      case 'tool-use':
+      case 'tool-result':
+      case 'permission-request':
+      case 'message-end':
+      case 'usage':
+      case 'compaction':
+      case 'error':
+        return true;
+      case 'session-status':
+        return event.status !== 'running';
+      default:
+        return false;
+    }
+  }
+
+  /**
+   * The turn produced nothing whatsoever inside TURN_STALL_MS — no
+   * stream event, no tool call, no result, no error. The upstream
+   * request is hung, and because the SDK session is still technically
+   * alive, every later send just queues behind it.
+   *
+   * Heal it without user intervention: abort the wedged local session,
+   * clear its native handle, start a fresh provider session, and prime it
+   * from the canonical SQLite transcript. The recovery prompt continues
+   * the latest instruction, so every persisted user turn remains covered.
+   * A bounded retry budget prevents a broken upstream from looping forever.
+   */
+  private onTurnStalled(chatId: string): void {
+    this.stallTimers.delete(chatId);
+    if (!isDbOpen()) return;
+    const chat = getChat(chatId);
+    // Chat is gone, or already surfaced as failed — nothing to add.
+    // Deliberately NOT gated on status === 'run': the point of this
+    // path is that the status can be wrong.
+    if (!chat || chat.status === 'err') return;
+    dlog('agent.turn-stalled', {
+      chatId,
+      afterMs: AgentHostImpl.TURN_STALL_MS,
+      provider: chat.agent,
+      nativeHandle: chat.agent === 'codex' ? chat.codexThreadId : chat.sessionId,
+      queuedTurns: this.queuedTurns.get(chatId) ?? 0,
+      hadLiveSession: this.sessions.has(chatId),
+    });
+    this.queuedTurns.delete(chatId);
+    const used = this.autoRetries.get(chatId) ?? 0;
+    if (used >= AgentHostImpl.MAX_AUTO_RETRIES) {
+      dlog('agent.stall-recovery.exhausted', { chatId, attempts: used });
+      this.surfaceDiagnostic(
+        chatId,
+        'error',
+        `agent remained unresponsive after ${used} automatic session recoveries`,
+      );
+      updateChatStatus(chatId, 'err', 'automatic session recovery exhausted');
+      this.broadcast({ type: 'session-status', chatId, status: 'errored', ts: Date.now() });
+      return;
+    }
+
+    const attempt = used + 1;
+    this.autoRetries.set(chatId, attempt);
+    dlog('agent.stall-recovery.begin', { chatId, provider: chat.agent, attempt });
+    this.surfaceDiagnostic(
+      chatId,
+      'notice',
+      `No response — recovering the ${chat.agent === 'codex' ? 'OpenAI' : 'Claude'} session automatically…`,
+    );
+    void this.restartWithContext(chatId, { continueLatestInstruction: true }).catch((err) => {
+      dlog('agent.stall-recovery.failed', {
+        chatId,
+        attempt,
+        error: err instanceof Error ? err.message : String(err),
+      });
+    });
   }
 
   approve(chatId: string, permissionId: string, decision: PermissionDecision): void {
@@ -397,11 +816,76 @@ class AgentHostImpl {
     session.approve(permissionId, decision);
   }
 
+  /**
+   * Compact the chat's context on request — the composer's context
+   * gauge. Same thing as the user typing `/compact`, minus the user
+   * bubble in the transcript. The backend reports progress as
+   * `compaction` events: the renderer shows "Compacting…" while it runs,
+   * and the outcome is written to the transcript in persist().
+   *
+   * Runs as a turn: the CLI answers a `/compact` with its own init and
+   * result, so the ordinary bookkeeping (stall watchdog, queued-turn
+   * count, idle on result) applies unchanged.
+   */
+  async compact(chatId: string): Promise<void> {
+    const chat = getChat(chatId);
+    if (!chat) throw new Error(`compact: chat ${chatId} not found`);
+    if (chat.agent === 'codex') {
+      // Codex compacts on its own as its window fills; its SDK has no
+      // manual compaction call to make.
+      this.surfaceDiagnostic(
+        chatId,
+        'warning',
+        'Codex manages its own context and compacts it automatically — there is no manual compaction for Codex chats.',
+      );
+      return;
+    }
+    this.stoppedChats.delete(chatId);
+    const session = await this.getOrSpawnSession(chatId);
+    if (!session.compact) {
+      this.surfaceDiagnostic(chatId, 'warning', 'This agent does not support manual compaction.');
+      return;
+    }
+    dlog('agent.compact', { chatId, agent: chat.agent, sessionId: chat.sessionId ?? null });
+    updateChatStatus(chatId, 'run');
+    this.broadcast({ type: 'session-status', chatId, status: 'running', ts: Date.now() });
+    try {
+      await session.compact();
+      this.noteTurnSent(chatId);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      dlog('agent.compact.failed', { chatId, error: message });
+      updateChatStatus(chatId, 'idle');
+      this.broadcast({ type: 'session-status', chatId, status: 'idle', ts: Date.now() });
+      this.surfaceDiagnostic(chatId, 'error', `couldn’t start compaction: ${message}`);
+      throw err;
+    }
+  }
+
   stop(chatId: string): void {
+    // The user interrupting is a deliberate end to the turn, not a
+    // stall — don't let the watchdog fire behind it, and drop the
+    // outstanding-turn count so the chat can settle to idle.
+    this.disarmStallWatchdog(chatId);
+    this.disarmSettleTimer(chatId);
+    this.queuedTurns.delete(chatId);
+    this.activeTurns.delete(chatId);
+    this.stoppedChats.add(chatId);
     const session = this.sessions.get(chatId);
-    if (!session) return;
-    session.stop();
+    dlog('agent.stop', { chatId, hadLiveSession: !!session, agent: getChat(chatId)?.agent ?? null });
+    try {
+      session?.stop();
+    } catch (err) {
+      // A provider is allowed to implement stop by throwing/aborting. From the
+      // user's perspective the requested stop still succeeded.
+      dlog('agent.stop-error-suppressed', {
+        chatId,
+        source: 'stop-call',
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
     updateChatStatus(chatId, 'idle');
+    this.broadcast({ type: 'session-status', chatId, status: 'idle', ts: Date.now() });
   }
 
   async configureAgent(input: {
@@ -412,6 +896,7 @@ class AgentHostImpl {
     codexModel?: CodexModelId;
     codexReasoningEffort?: CodexReasoningEffort;
   }) {
+    const previous = getChat(input.chatId);
     const existing = this.sessions.get(input.chatId);
     if (existing) {
       await existing.dispose().catch(() => undefined);
@@ -435,6 +920,21 @@ class AgentHostImpl {
       status: updated.status === 'wait' ? 'paused' : 'idle',
       ts: Date.now(),
     });
+    if (previous && previous.agent !== input.agent) {
+      const provider = input.agent === 'codex' ? 'OpenAI' : 'Claude';
+      const note = appendMessage({
+        chatId: input.chatId,
+        role: 'system',
+        kind: 'system',
+        body: { text: `switch: Switched to ${provider} · conversation context will synchronize with your next message.` },
+      });
+      this.broadcast({
+        type: 'message-added',
+        chatId: input.chatId,
+        message: note,
+        ts: Date.now(),
+      });
+    }
     return getChat(input.chatId) ?? updated;
   }
 
@@ -455,8 +955,24 @@ class AgentHostImpl {
     // session JSONL on disk, or the previous rejection might have been
     // a transient SDK glitch. We give every candidate a fresh shot.
     this.badSessionIds.delete(chatId);
-    if (chat.agent === 'codex') clearChatCodexThreadId(chatId);
-    else clearChatSessionId(chatId);
+    // Keep the native conversation unless the failure said it was gone.
+    // Retry used to drop the handle unconditionally, so a passing API
+    // error — a model this login can't use, an expired token — cost the
+    // whole Codex thread, and the chat came back with its history
+    // bridged from SQLite instead of intact.
+    const lastError = this.lastErrorText.get(chatId) ?? '';
+    const handleLost = chat.agent === 'codex'
+      ? this.shouldRestartCodexWithContext(chatId, lastError)
+      : /no conversation found|session[^.]*(?:not found|missing)/i.test(lastError);
+    if (handleLost) {
+      dlog('agent.manual-retry.drop-handle', {
+        chatId,
+        agent: chat.agent,
+        lastError: lastError.slice(0, 200),
+      });
+      if (chat.agent === 'codex') clearChatCodexThreadId(chatId);
+      else clearChatSessionId(chatId);
+    }
     const existing = this.sessions.get(chatId);
     if (existing) {
       void existing.dispose().catch(() => undefined);
@@ -475,6 +991,7 @@ class AgentHostImpl {
     try {
       const session = await this.getOrSpawnSession(chatId);
       await session.sendUser(lastText, attachments);
+      this.noteTurnSent(chatId);
     } catch (err) {
       dlog('agent.manual-retry.failed', { chatId, error: (err as Error).message });
       updateChatStatus(chatId, 'err');
@@ -545,6 +1062,14 @@ class AgentHostImpl {
   /** Tear down the session for a chat (e.g. on close). Awaits the
    *  backend's flush so we don't lose in-flight session JSONL writes. */
   async dispose(chatId: string): Promise<void> {
+    // Always clear the timer, even with no live session — otherwise a
+    // closed chat can still fire onTurnStalled and resurrect itself
+    // into 'err' after the user walked away from it.
+    this.disarmStallWatchdog(chatId);
+    this.disarmSettleTimer(chatId);
+    this.queuedTurns.delete(chatId);
+    this.turnAwareChats.delete(chatId);
+    this.activeTurns.delete(chatId);
     const session = this.sessions.get(chatId);
     if (!session) return;
     this.sessions.delete(chatId);
@@ -558,6 +1083,10 @@ class AgentHostImpl {
    *  mid-write to its session JSONL. */
   async disposeAll(): Promise<void> {
     dlog('agent.disposeAll.begin', { activeSessions: this.sessions.size });
+    // Chats can hold a stall timer without a live session; clear the
+    // whole map so nothing fires against a closing DB on quit.
+    for (const chatId of [...this.stallTimers.keys()]) this.disarmStallWatchdog(chatId);
+    for (const chatId of [...this.settleTimers.keys()]) this.disarmSettleTimer(chatId);
     const all = [...this.sessions.keys()];
     await Promise.all(all.map((chatId) => this.dispose(chatId)));
     dlog('agent.disposeAll.done', {});
@@ -814,6 +1343,7 @@ class AgentHostImpl {
     try {
       const session = await this.getOrSpawnSession(chatId);
       await session.sendUser(lastText, attachments);
+      this.noteTurnSent(chatId);
     } catch (err) {
       dlog('agent.auto-recover.failed', { chatId, error: (err as Error).message });
       this.surfaceSessionLost(chatId);
@@ -921,6 +1451,7 @@ class AgentHostImpl {
     try {
       const session = await this.getOrSpawnSession(chatId);
       await session.sendUser(primer);
+      this.noteTurnSent(chatId);
     } catch (err) {
       dlog('agent.restart-with-context.failed', { chatId, error: (err as Error).message });
       updateChatStatus(chatId, 'err');
@@ -1056,12 +1587,135 @@ class AgentHostImpl {
     // app quit, after closeDb has already nulled out the connection.
     // Drop those silently — there's no UI to broadcast to either.
     if (!isDbOpen()) return;
+
+    // Cancellation commonly arrives as an asynchronous provider error after
+    // stop() has already returned. Do not persist it, show it, retry it, or let
+    // an accompanying errored status overwrite the deliberate idle state.
+    if (
+      this.stoppedChats.has(event.chatId)
+      && (event.type === 'error'
+        || (event.type === 'session-status' && event.status === 'errored'))
+    ) {
+      this.activeTurns.delete(event.chatId);
+      this.queuedTurns.delete(event.chatId);
+      this.disarmStallWatchdog(event.chatId);
+      this.disarmSettleTimer(event.chatId);
+      dlog('agent.stop-error-suppressed', {
+        chatId: event.chatId,
+        source: event.type,
+        error: event.type === 'error' ? event.message : 'errored session status',
+      });
+      return;
+    }
+
+    if (event.type === 'error') this.lastErrorText.set(event.chatId, event.message);
+    else if (event.type === 'message-start') this.lastErrorText.delete(event.chatId);
+
+    // A turn has actually started, so everything the user had queued is
+    // now being worked on. Purely internal bookkeeping — nothing to
+    // persist, and the renderer already shows 'run'.
+    if (event.type === 'turn-start') {
+      this.turnAwareChats.add(event.chatId);
+      this.activeTurns.add(event.chatId);
+      this.queuedTurns.delete(event.chatId);
+      this.disarmSettleTimer(event.chatId);
+      // RE-arm, never disarm. A turn STARTING is not a turn producing
+      // anything, and init-then-total-silence is the precise shape of
+      // the hang this watchdog exists for — observed live at 01:40:46:
+      // send, init 62ms later, then nothing for ten minutes. Disarming
+      // here cancelled the one timer that could have caught it. Arming
+      // instead restarts the clock from the turn's actual start, which
+      // is the right thing to measure.
+      this.armStallWatchdog(event.chatId);
+      return;
+    }
+
+    if (
+      event.type === 'session-status'
+      && (event.status === 'idle' || event.status === 'complete' || event.status === 'errored')
+    ) {
+      this.activeTurns.delete(event.chatId);
+    }
+
+    // 'idle' from the backend means "the turn I was working on is
+    // finished" — it does NOT mean the user has nothing outstanding. If
+    // they typed while that turn was running, their message is still
+    // queued behind it, and letting this through drops the chat to IDLE
+    // with the message unanswered and nothing to show for it. Hold the
+    // chat in 'run' and restart the stall clock: the queued message now
+    // either gets a turn or surfaces as a failure.
+    // A turn that produced nothing gets silently redone rather than
+    // reported — an answer is what was asked for. Swallow the event
+    // entirely while a replay is in flight; only when the retry budget
+    // is spent does the reason reach the chat.
+    if (event.type === 'error' && event.retryable) {
+      this.activeTurns.delete(event.chatId);
+      this.disarmStallWatchdog(event.chatId);
+      this.disarmSettleTimer(event.chatId);
+      this.queuedTurns.delete(event.chatId);
+      if (this.tryAutoRetry(event.chatId, event.message)) return;
+      dlog('agent.auto-retry.exhausted', { chatId: event.chatId, why: event.message });
+      // Retries are spent. A blip that never clears isn't a blip — it's
+      // a real failure, so this one earns the red box. A limit the user
+      // has to act on (sign-in expired, plan exhausted) stays yellow:
+      // nothing is broken, they just have to do the thing.
+      const expected = event.level === 'warning';
+      this.surfaceDiagnostic(
+        event.chatId,
+        expected ? 'warning' : 'error',
+        expected
+          ? `${event.message} (still failing after ${AgentHostImpl.MAX_AUTO_RETRIES} retries)`
+          : `no response after ${AgentHostImpl.MAX_AUTO_RETRIES} retries — ${event.message}`,
+      );
+      updateChatStatus(event.chatId, 'err', event.message.slice(0, 140));
+      this.broadcast({ type: 'session-status', chatId: event.chatId, status: 'errored', ts: Date.now() });
+      return;
+    }
+
+    // Real output means we're back on track: erase the provisional
+    // "retrying…" line so the answer stands in its place, and forget
+    // the retry history so a later hiccup gets a full budget of its own.
+    if (
+      event.type === 'text-delta'
+      || event.type === 'tool-use'
+      || event.type === 'tool-result'
+    ) {
+      this.autoRetries.delete(event.chatId);
+    }
+
+    // A failed turn is terminal and already visible to the user — drop
+    // the outstanding count so a held 'idle' can't strand the chat in
+    // 'run' after the error has been surfaced.
+    if (event.type === 'error' || (event.type === 'session-status' && event.status === 'errored')) {
+      this.queuedTurns.delete(event.chatId);
+    }
+
+    let live = event;
+    if (event.type === 'session-status' && event.status === 'idle' && this.hasQueuedTurn(event.chatId)) {
+      dlog('agent.idle-held', {
+        chatId: event.chatId,
+        queuedTurns: this.queuedTurns.get(event.chatId) ?? 0,
+      });
+      live = { ...event, status: 'running' };
+      // A bounded, NON-destructive hold — not the stall watchdog. The
+      // agent may well have already answered inside the turn that just
+      // ended; we can't tell, so the worst this may do is show 'run'
+      // for a few extra seconds.
+      this.armSettleTimer(event.chatId);
+    }
+
+    // The agent is demonstrably alive — stand the stall watchdog down
+    // before anything else, so a slow persist can't let it fire.
+    if (AgentHostImpl.respondedToTurn(live)) {
+      this.disarmStallWatchdog(live.chatId);
+      this.disarmSettleTimer(live.chatId);
+    }
     try {
-      this.persist(event);
+      this.persist(live);
     } catch (err) {
       console.error('AgentHost.persist failed', err);
     }
-    this.broadcast(event);
+    this.broadcast(live);
   }
 
   private persist(event: AgentEvent): void {
@@ -1109,6 +1763,13 @@ class AgentHostImpl {
 
       case 'message-end': {
         this.flushBuffer(event.messageId);
+        const active = getChat(event.chatId)?.agent;
+        if (active === 'claude' || active === 'codex') {
+          // The provider's own reply is part of its native context too. This
+          // watermark lets the other provider receive it on the next switch,
+          // while preventing it from being replayed back to its author.
+          setChatProviderContextAt(event.chatId, active, event.ts);
+        }
         // Snapshot a snippet for the chat thumbnail. Also detect the
         // "agent ended with a question" case — flip to wait so the
         // thumbnail goes yellow + the chat column rail tints.
@@ -1116,9 +1777,14 @@ class AgentHostImpl {
         if (buf) {
           const trimmed = buf.buffer.trimEnd();
           const endsInQuestion = looksLikeQuestion(trimmed);
-          const status = endsInQuestion ? 'wait' : 'idle';
+          // Same rule as the 'idle' hold in handleEvent: with a message
+          // still queued the agent isn't done, and a trailing question
+          // isn't waiting on the user either — they've already typed
+          // past it. Keep the snippet, keep the chat running.
+          const queued = this.hasQueuedTurn(event.chatId);
+          const status = queued ? 'run' : endsInQuestion ? 'wait' : 'idle';
           updateChatStatus(event.chatId, status, trimmed.slice(0, 140));
-          if (endsInQuestion) {
+          if (endsInQuestion && !queued) {
             // Broadcast a synthetic paused session-status so the
             // renderer's in-memory chat status mirrors the DB. The
             // result-message's session-status='idle' that follows is
@@ -1239,6 +1905,21 @@ class AgentHostImpl {
         return;
       }
 
+      case 'compaction': {
+        // Only the outcome belongs in the transcript. "Compacting…" and
+        // a failure are shown by the renderer as ephemeral rows, the way
+        // diagnostics are, and vanish with the next reply.
+        if (event.phase !== 'done') return;
+        const note = appendMessage({
+          chatId: event.chatId,
+          role: 'system',
+          kind: 'system',
+          body: { text: `context: ${compactionNoteText(event)}` },
+        });
+        this.broadcast({ type: 'message-added', chatId: event.chatId, message: note, ts: event.ts });
+        return;
+      }
+
       case 'error': {
         // Self-heal: when the SDK reports a stale resume session, clear
         // the pinned id and replay the most recent user message on a
@@ -1255,13 +1936,19 @@ class AgentHostImpl {
           void this.restartWithContext(event.chatId, { continueLatestInstruction: true });
           return;
         }
-        appendMessage({
-          chatId: event.chatId,
-          role: 'system',
-          kind: 'system',
-          body: { text: `error: ${event.message}` },
-        });
-        updateChatStatus(event.chatId, 'err', event.message.slice(0, 140));
+        // Deliberately NOT persisted — the renderer holds diagnostics in
+        // memory and drops them on the next real reply. Only the chat's
+        // status is durable:
+        //   notice  — being retried; chat carries on.
+        //   warning — an ordinary limit (tokens used up, resets at 2pm);
+        //             idle, because nothing is broken.
+        //   error   — actual breakage; 'err'.
+        const level = event.level ?? 'error';
+        updateChatStatus(
+          event.chatId,
+          level === 'error' ? 'err' : 'idle',
+          event.message.slice(0, 140),
+        );
         return;
       }
     }

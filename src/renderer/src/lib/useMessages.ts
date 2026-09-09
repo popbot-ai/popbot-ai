@@ -27,6 +27,15 @@ import { subscribeAgentEvents } from './agentEventBus';
  *   render the last few activity lines) to avoid hauling thousand-
  *   message transcripts across IPC + holding them in JS memory N times.
  */
+/** Marks a row that exists only in renderer memory — a diagnostic that
+ *  must never reach the DB and must not outlive the next real reply. */
+const EPHEMERAL_PREFIX = 'eph_';
+let ephemeralSeq = 0;
+const dropEphemeral = (rows: MessageRecord[]): MessageRecord[] =>
+  rows.some((m) => m.id.startsWith(EPHEMERAL_PREFIX))
+    ? rows.filter((m) => !m.id.startsWith(EPHEMERAL_PREFIX))
+    : rows;
+
 export function useMessages(chatId: string | undefined, tail?: number) {
   const [messages, setMessages] = useState<MessageRecord[]>([]);
   const [loading, setLoading] = useState(true);
@@ -60,12 +69,62 @@ export function useMessages(chatId: string | undefined, tail?: number) {
             if (prev.some((m) => m.id === event.message.id)) return prev;
             return [...prev, event.message];
           }
-          case 'message-start': {
-            // AgentHost has inserted a row; reflect it locally so we don't
-            // wait for a refetch. If the row already exists (race), keep it.
-            if (prev.some((m) => m.id === event.messageId)) return prev;
+          case 'message-removed': {
+            return prev.filter((m) => m.id !== event.messageId);
+          }
+          // Diagnostics live here and ONLY here — they are never written
+          // to the DB. A timeout that resolved itself isn't part of the
+          // conversation, so it must not survive the reply that fixed
+          // it, let alone still be sitting there on reload tomorrow.
+          case 'error': {
             return [
               ...prev,
+              {
+                id: `${EPHEMERAL_PREFIX}${event.ts}_${ephemeralSeq++}`,
+                chatId: event.chatId,
+                role: 'system',
+                kind: 'system',
+                body: JSON.stringify({
+                  text: `${event.level ?? 'error'}: ${event.message}`,
+                } satisfies MessageBodyText),
+                createdAt: event.ts,
+                updatedAt: event.ts,
+              },
+            ];
+          }
+          // Compaction progress is shown the way diagnostics are:
+          // "Compacting…" and a failure are ephemeral rows (dropped by the
+          // outcome, or by the next reply), while the completed note comes
+          // from AgentHost as a persisted row via message-added.
+          case 'compaction': {
+            const kept = dropEphemeral(prev);
+            if (event.phase === 'done') return kept;
+            const text = event.phase === 'started'
+              ? 'compacting:'
+              : `compactfail: ${event.error ?? ''}`;
+            return [
+              ...kept,
+              {
+                id: `${EPHEMERAL_PREFIX}${event.ts}_${ephemeralSeq++}`,
+                chatId: event.chatId,
+                role: 'system',
+                kind: 'system',
+                body: JSON.stringify({ text } satisfies MessageBodyText),
+                createdAt: event.ts,
+                updatedAt: event.ts,
+              },
+            ];
+          }
+          case 'message-start': {
+            // A real reply is starting — every diagnostic that preceded
+            // it is now moot (that's what "resolved" looks like), so
+            // clear them out rather than leaving them above the answer.
+            const kept = dropEphemeral(prev);
+            // AgentHost has inserted a row; reflect it locally so we don't
+            // wait for a refetch. If the row already exists (race), keep it.
+            if (kept.some((m) => m.id === event.messageId)) return kept;
+            return [
+              ...kept,
               {
                 id: event.messageId,
                 chatId: event.chatId,

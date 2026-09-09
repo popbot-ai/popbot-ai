@@ -159,6 +159,9 @@ export interface ChatRecord {
   ticket: string | null;
   /** GitHub PR number */
   pr: number | null;
+  /** Canonical review URL captured when the chat is created or first
+   * resolved. Persisted so the PR chip never depends on a live gh poll. */
+  prUrl: string | null;
   branch: string | null;
   type: ChatType;
   mode: ChatMode;
@@ -211,6 +214,11 @@ export interface ChatRecord {
    *  chat can switch backends without overwriting the other backend's
    *  native resume handle. */
   codexThreadId: string | null;
+  /** Newest shared-transcript message absorbed by each provider's native
+   * conversation. They advance independently so switching providers can replay
+   * only the turns that provider missed. */
+  claudeContextAt: number;
+  codexContextAt: number;
   /** Provider model + effort settings are stored independently so a
    *  chat can switch agents without forgetting the other provider's
    *  preferred setting. */

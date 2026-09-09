@@ -690,6 +690,41 @@ function MessageRowImpl({ message, renderAsQuestion, isStale, consumed, qaAnswer
     if (isSystemError) {
       return <SystemErrorRow text={body.text} chatId={chatId} stale={!!isStale} />;
     }
+    // A notice is a minor failure being retried automatically (timeout,
+    // no response, the usual things another attempt fixes). Small and
+    // grey; it disappears once the retry lands.
+    const isSystemNotice =
+      message.kind === 'system' && body.text.toLowerCase().startsWith('notice:');
+    if (isSystemNotice) {
+      return <SystemNoticeRow text={body.text} />;
+    }
+    // A warning is an ordinary limit the user has to wait out or act on
+    // — tokens used up, usage resets at 2pm, needs re-auth. Nothing is
+    // broken, so it's a yellow notification rather than a red error.
+    const isSystemWarning =
+      message.kind === 'system' && body.text.toLowerCase().startsWith('warning:');
+    if (isSystemWarning) {
+      return <SystemWarningRow text={body.text} />;
+    }
+    const isModelSwitch =
+      message.kind === 'system' && body.text.toLowerCase().startsWith('switch:');
+    if (isModelSwitch) {
+      return <ModelSwitchRow text={body.text} />;
+    }
+    if (message.kind === 'system') {
+      // Compaction: the persisted outcome, and the two ephemeral phases
+      // (see useMessages) — in progress, and failed.
+      const lower = body.text.toLowerCase();
+      if (lower.startsWith('context:')) {
+        return <ContextCompactRow text={body.text.replace(/^context:\s*/i, '')} />;
+      }
+      if (lower.startsWith('compacting:')) {
+        return <CompactingRow />;
+      }
+      if (lower.startsWith('compactfail:')) {
+        return <CompactFailedRow error={body.text.replace(/^compactfail:\s*/i, '').trim()} />;
+      }
+    }
     const cls = message.role === 'user' ? 'msg user' : 'msg agent';
     return (
       <div className={cls}>
@@ -813,6 +848,75 @@ function formatBytes(bytes: number): string {
  *  the error collapses to a single red line so the day-old transcript
  *  doesn't get cluttered with huge resolved-error cards. Click the row
  *  to re-expand if you want to read or retry it. */
+/**
+ * One muted line for a turn that came back with nothing — "No response,
+ * retrying…". The retry happens on its own; this exists purely so the
+ * silence is accounted for and the user can see why the answer is late.
+ *
+ * No button and no red: retrying is always what's wanted, so asking
+ * would just be a click in the way, and red is reserved for genuine
+ * breakage. The underlying reason rides along in the tooltip.
+ */
+function SystemNoticeRow({ text }: { text: string }): JSX.Element {
+  const line = text.replace(/^notice:\s*/i, '');
+  return (
+    <div className="msg system-notice">
+      <div className="body" title={line}>{line}</div>
+    </div>
+  );
+}
+
+function ModelSwitchRow({ text }: { text: string }): JSX.Element {
+  const clean = text.replace(/^switch:\s*/i, '');
+  return (
+    <div className="msg model-switch">
+      <div className="body">
+        <i className="fa-solid fa-arrow-right-arrow-left" aria-hidden="true" />
+        <span>{clean}</span>
+      </div>
+    </div>
+  );
+}
+
+/** The outcome of a compaction — from the composer's gauge, a typed
+ *  `/compact`, or the CLI's own autocompact — written to the transcript
+ *  so the user can see when it happened and how much room it made. */
+function ContextCompactRow({ text, busy }: { text: string; busy?: boolean }): JSX.Element {
+  return (
+    <div className={`msg context-compact${busy ? ' busy' : ''}`}>
+      <div className="body">
+        <i className={`fa-solid ${busy ? 'fa-spinner fa-spin' : 'fa-compress'}`} aria-hidden="true" />
+        <span>{text}</span>
+      </div>
+    </div>
+  );
+}
+
+function CompactingRow(): JSX.Element {
+  const { t } = useTranslation();
+  return <ContextCompactRow text={t('chat.context.compactingNote')} busy />;
+}
+
+function CompactFailedRow({ error }: { error: string }): JSX.Element {
+  const { t } = useTranslation();
+  return <SystemWarningRow text={t('chat.context.failedNote', { error: error || '…' })} />;
+}
+
+/** An ordinary limit — tokens used up, usage resets at 2pm, session
+ *  needs re-authenticating. Yellow notification box: the user has to
+ *  know and probably to wait, but nothing is broken, so it must not
+ *  look like an error. */
+function SystemWarningRow({ text }: { text: string }): JSX.Element {
+  return (
+    <div className="msg system-warning">
+      <div className="body">
+        <i className="fa-solid fa-circle-info msg-warning-icon" aria-hidden />
+        <span>{text.replace(/^warning:\s*/i, '')}</span>
+      </div>
+    </div>
+  );
+}
+
 function SystemErrorRow({ text, chatId, stale }: {
   text: string;
   chatId: string;

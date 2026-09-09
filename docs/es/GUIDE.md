@@ -57,10 +57,11 @@ PopBot no reimplementa estos agentes — **impulsa a los reales** a través de s
 
 Por chat, eliges el backend, el **modelo**, y el **esfuerzo de razonamiento** (`low` → `xhigh` / `max` — más esfuerzo significa pensamiento más profundo y uso de herramientas más exhaustivo, a mayor costo/latencia). Estableces **valores por defecto** sensatos — por separado para *chats nuevos* y para *revisiones de código*, ya que una revisión quiere una profundidad distinta a una construcción de funcionalidad — y los sobrescribes por chat cuando una tarea lo amerita.
 
-Dos controles de sesión importan para el trabajo de larga duración:
+Tres controles de sesión importan para el trabajo de larga duración:
 
 - **Cambiar a mitad de sesión.** Cambia el modelo o el esfuerzo en un chat en curso; PopBot reconfigura al agente sin perder el hilo.
 - **Reiniciar con contexto.** Levanta una sesión de agente *nueva* preparada con la transcripción de este chat (sus turnos iniciales más los más recientes), útil cuando una sesión se alarga demasiado o se atasca. El historial de la conversación se conserva; el agente simplemente obtiene un runtime limpio.
+- **Compactar el contexto.** El indicador circular del área de redacción muestra cuán lleno está la ventana de contexto del agente. Haz clic (o clic derecho) y elige *Compactar contexto* para que Claude resuma la conversación hasta ahora; la transcripción anota cuándo termina y cuánto espacio liberó. Escribir `/compact` hace lo mismo. Codex compacta por su cuenta, así que allí el indicador es solo informativo.
 
 Las credenciales de las integraciones se almacenan **localmente en tu máquina**, en la propia base de datos de la aplicación — nunca en este repositorio.
 

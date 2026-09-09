@@ -2,10 +2,13 @@ import {
   Codex,
   type Input as CodexInput,
   type ModelReasoningEffort,
+  type SandboxMode,
   type Thread,
   type ThreadEvent,
   type ThreadItem,
+  type WebSearchMode,
 } from '@openai/codex-sdk';
+import { randomUUID } from 'node:crypto';
 import type { AgentEvent, PermissionDecision } from '@shared/agent';
 import type { PickedAttachment } from '@shared/ipc';
 import {
@@ -16,6 +19,17 @@ import {
 } from '@shared/persistence';
 import type { AgentBackend, AgentSession, SpawnOpts } from './types';
 import { dlog } from '../diagLog';
+
+/**
+ * Turn failures that are the account's situation rather than a fault in
+ * PopBot or Codex: the model isn't offered to this login (GPT-6 Astra is
+ * API-key only today — a ChatGPT-account login gets "not supported when
+ * using Codex with a ChatGPT account"), or usage / rate limits are hit.
+ * Retrying can't help, and nothing is broken; the user just needs to know.
+ * Yellow, not red.
+ */
+const EXPECTED_CODEX_LIMIT =
+  /not supported when using codex|not (?:available|supported) (?:for|on|with) (?:your|this)|(?:do not|don't|doesn't) have access|usage limit|rate limit|quota|out of (?:usage|credits?)|insufficient (?:credit|quota|balance)|billing|payment|upgrade your plan|limit (?:will )?reset/i;
 
 function toCodexSdkReasoningEffort(
   model: string,
@@ -33,6 +47,39 @@ function toCodexSdkReasoningEffort(
   );
   // PopBot calls the API's `minimal` rung `none` in the UI.
   return resolved === 'none' ? 'minimal' : resolved;
+}
+
+/** Translate PopBot's provider-neutral permission policy into the coarser
+ * controls exposed by Codex. Unspecified/Ask capabilities fail closed because
+ * the SDK does not currently surface interactive approval events to PopBot. */
+function codexPermissions(opts: SpawnOpts): {
+  sandboxMode: SandboxMode;
+  networkAccessEnabled: boolean;
+  webSearchMode: WebSearchMode;
+} {
+  const decision = (tool: string) => opts.resolveRule?.(tool) ?? null;
+  const writesAllowed = ['Write', 'Edit', 'NotebookEdit'].every(
+    (tool) => decision(tool) === 'allow',
+  );
+  const broadFilesystemAllowed =
+    decision('Bash') === 'allow'
+    && decision('Read') === 'allow'
+    && writesAllowed;
+  // Both web capabilities must be allowed before arbitrary command execution
+  // receives network. This is deliberately fail-closed: once Bash has network,
+  // it can fetch URLs regardless of which executable performs the request.
+  const networkAccessEnabled =
+    decision('WebFetch') === 'allow' && decision('WebSearch') === 'allow';
+  const sandboxMode: SandboxMode = broadFilesystemAllowed && networkAccessEnabled
+    ? 'danger-full-access'
+    : writesAllowed
+      ? 'workspace-write'
+      : 'read-only';
+  return {
+    sandboxMode,
+    networkAccessEnabled,
+    webSearchMode: decision('WebSearch') === 'allow' ? 'live' : 'disabled',
+  };
 }
 
 /**
@@ -64,9 +111,25 @@ class CodexSession implements AgentSession {
   private readonly openMessages = new Set<string>();
   private readonly agentTextByItem = new Map<string, string>();
   private readonly toolNamesByItem = new Map<string, string>();
+  /** Codex item ids (`item_0`, `item_1`, …) restart on every turn. They are
+   * only turn-local, while PopBot message ids are SQLite primary keys. Give
+   * each backend instance + turn its own namespace so later turns cannot
+   * overwrite or fail to insert the earlier turn's visible output. */
+  private readonly itemNamespace = randomUUID().replace(/-/g, '').slice(0, 10);
+  private turnSequence = 0;
   private abortController: AbortController | null = null;
-  private running = false;
   private disposed = false;
+  /** Whether the current turn emitted anything that makes replay unsafe or
+   * unnecessary. A bare turn.started -> turn.completed is an empty response,
+   * even when the SDK reports usage for it. */
+  private turnHadVisibleActivity = false;
+  /** Codex `runStreamed` accepts one turn at a time. The UI intentionally lets
+   * users send while an agent is working, so serialize those sends instead of
+   * rejecting the second one after PopBot has already persisted it. */
+  private turnTail: Promise<void> = Promise.resolve();
+  /** Incremented by Stop. Queued callbacks capture the generation they were
+   * submitted in and become no-ops when that generation is cancelled. */
+  private queueGeneration = 0;
 
   constructor(opts: SpawnOpts) {
     this.chatId = opts.chatId;
@@ -78,6 +141,7 @@ class CodexSession implements AgentSession {
     const model = opts.codexModel ?? DEFAULT_CODEX_MODEL;
     const reasoningEffort = opts.codexReasoningEffort ?? DEFAULT_CODEX_REASONING_EFFORT;
     const sdkReasoningEffort = toCodexSdkReasoningEffort(model, reasoningEffort);
+    const permissions = codexPermissions(opts);
     const codex = new Codex({
       codexPathOverride: opts.pathToCodexExecutable ?? undefined,
     });
@@ -86,7 +150,11 @@ class CodexSession implements AgentSession {
       modelReasoningEffort: sdkReasoningEffort,
       ...(opts.cwd ? { workingDirectory: opts.cwd } : {}),
       skipGitRepoCheck: true,
-      sandboxMode: 'workspace-write' as const,
+      sandboxMode: permissions.sandboxMode,
+      networkAccessEnabled: permissions.networkAccessEnabled,
+      webSearchMode: permissions.webSearchMode,
+      // PopBot has already resolved the shared policy above. Ask fails closed
+      // for Codex until its SDK exposes approval requests to the host.
       approvalPolicy: 'never' as const,
     };
     this.thread = this.knownThreadId
@@ -99,30 +167,37 @@ class CodexSession implements AgentSession {
       resumeId: this.knownThreadId,
       model,
       reasoningEffort,
+      permissions,
       codexPath: opts.pathToCodexExecutable ?? null,
     });
   }
 
   async sendUser(text: string, attachments?: PickedAttachment[]): Promise<void> {
     if (this.disposed) return;
-    if (this.running) {
-      this.emit({
-        type: 'error',
-        chatId: this.chatId,
-        message: 'Codex is already running a turn for this chat.',
-        ts: Date.now(),
-      });
-      return;
-    }
+    const generation = this.queueGeneration;
+    const turn = this.turnTail.then(async () => {
+      if (this.disposed || generation !== this.queueGeneration) return;
+      await this.runTurn(text, attachments);
+    });
+    // Accept the turn as soon as it is queued. AgentHost must be able to arm
+    // its silence watchdog immediately; awaiting `runTurn` here means a hung
+    // Codex stream also hangs the IPC send and the watchdog never starts.
+    // Turn failures are emitted by runTurn through the normal event path.
+    this.turnTail = turn.catch(() => undefined);
+  }
 
-    this.running = true;
-    this.abortController = new AbortController();
+  private async runTurn(text: string, attachments?: PickedAttachment[]): Promise<void> {
+    if (this.disposed) return;
+
+    this.turnHadVisibleActivity = false;
+    const controller = new AbortController();
+    this.abortController = controller;
     this.emit({ type: 'session-status', chatId: this.chatId, status: 'running', ts: Date.now() });
 
     try {
       const input = buildCodexInput(text, attachments);
       const { events } = await this.thread.runStreamed(input, {
-        signal: this.abortController.signal,
+        signal: controller.signal,
       });
       for await (const event of events) {
         if (this.disposed) return;
@@ -132,22 +207,27 @@ class CodexSession implements AgentSession {
     } catch (err) {
       if (this.disposed) return;
       const message = err instanceof Error ? err.message : String(err);
+      if (controller.signal.aborted) {
+        dlog('codex.turn.stopped', { chatId: this.chatId });
+        this.emit({ type: 'session-status', chatId: this.chatId, status: 'idle', ts: Date.now() });
+        return;
+      }
       dlog('codex.turn.error', { chatId: this.chatId, error: message });
       this.emit({
         type: 'error',
         chatId: this.chatId,
-        message: this.abortController?.signal.aborted ? 'Codex turn stopped.' : message,
+        message,
+        level: EXPECTED_CODEX_LIMIT.test(message) ? 'warning' : 'error',
         ts: Date.now(),
       });
       this.emit({
         type: 'session-status',
         chatId: this.chatId,
-        status: this.abortController?.signal.aborted ? 'idle' : 'errored',
+        status: 'errored',
         ts: Date.now(),
       });
     } finally {
-      this.running = false;
-      this.abortController = null;
+      if (this.abortController === controller) this.abortController = null;
     }
   }
 
@@ -158,6 +238,12 @@ class CodexSession implements AgentSession {
   }
 
   stop(): void {
+    this.queueGeneration += 1;
+    dlog('codex.stop', {
+      chatId: this.chatId,
+      generation: this.queueGeneration,
+      hadActiveTurn: this.abortController !== null,
+    });
     this.abortController?.abort();
     this.emit({ type: 'session-status', chatId: this.chatId, status: 'idle', ts: Date.now() });
   }
@@ -166,7 +252,6 @@ class CodexSession implements AgentSession {
     this.disposed = true;
     this.abortController?.abort();
     this.abortController = null;
-    this.running = false;
   }
 
   isAlive(): boolean {
@@ -183,7 +268,12 @@ class CodexSession implements AgentSession {
         return;
       }
       case 'turn.started':
-        this.emit({ type: 'session-status', chatId: this.chatId, status: 'running', ts });
+        this.turnSequence += 1;
+        // This is stronger than our optimistic `running` emitted on send: the
+        // CLI has actually dequeued the prompt. AgentHost uses turn-start to
+        // clear queued-turn bookkeeping so an old settle timer cannot mark a
+        // demonstrably active Codex turn idle.
+        this.emit({ type: 'turn-start', chatId: this.chatId, ts });
         return;
       case 'item.started':
       case 'item.updated':
@@ -194,6 +284,22 @@ class CodexSession implements AgentSession {
         return;
       case 'turn.completed':
         this.finishOpenMessages(ts);
+        if (!this.turnHadVisibleActivity) {
+          dlog('codex.turn.empty', {
+            chatId: this.chatId,
+            threadId: this.knownThreadId,
+            usage: event.usage,
+          });
+          this.emit({
+            type: 'error',
+            chatId: this.chatId,
+            message: 'Codex completed the turn without producing a response.',
+            level: 'notice',
+            retryable: true,
+            ts,
+          });
+          return;
+        }
         this.emit({
           type: 'usage',
           chatId: this.chatId,
@@ -214,25 +320,38 @@ class CodexSession implements AgentSession {
           type: 'error',
           chatId: this.chatId,
           message: event.error.message,
+          // An access / usage limit is an ordinary condition the user has
+          // to act on (switch model, sign in with an API key, wait) —
+          // yellow. Anything else is genuinely unexpected — red.
+          level: EXPECTED_CODEX_LIMIT.test(event.error.message) ? 'warning' : 'error',
           ts,
         });
         this.emit({ type: 'session-status', chatId: this.chatId, status: 'errored', ts });
         return;
       case 'error':
-        this.emit({ type: 'error', chatId: this.chatId, message: event.message, ts });
+        this.emit({
+          type: 'error',
+          chatId: this.chatId,
+          message: event.message,
+          level: EXPECTED_CODEX_LIMIT.test(event.message) ? 'warning' : 'error',
+          ts,
+        });
         this.emit({ type: 'session-status', chatId: this.chatId, status: 'errored', ts });
         return;
     }
   }
 
   private handleItem(item: ThreadItem, terminal: boolean, ts: number): void {
+    const itemId = `${this.itemNamespace}_${this.turnSequence}_${item.id}`;
     switch (item.type) {
       case 'agent_message':
-        this.handleAgentMessage(item.id, item.text, terminal, ts);
+        if (item.text.trim()) this.turnHadVisibleActivity = true;
+        this.handleAgentMessage(itemId, item.text, terminal, ts);
         return;
       case 'command_execution':
+        this.turnHadVisibleActivity = true;
         this.handleToolItem(
-          item.id,
+          itemId,
           'Bash',
           { command: item.command },
           item.aggregated_output || `${item.status}`,
@@ -242,8 +361,9 @@ class CodexSession implements AgentSession {
         );
         return;
       case 'file_change':
+        this.turnHadVisibleActivity = true;
         this.handleToolItem(
-          item.id,
+          itemId,
           'ApplyPatch',
           { changes: item.changes },
           `Patch ${item.status}: ${item.changes.map((c) => `${c.kind} ${c.path}`).join(', ')}`,
@@ -253,8 +373,9 @@ class CodexSession implements AgentSession {
         );
         return;
       case 'mcp_tool_call':
+        this.turnHadVisibleActivity = true;
         this.handleToolItem(
-          item.id,
+          itemId,
           `${item.server}.${item.tool}`,
           { arguments: item.arguments },
           item.error?.message ?? stringifyForDisplay(item.result ?? item.status),
@@ -264,8 +385,9 @@ class CodexSession implements AgentSession {
         );
         return;
       case 'web_search':
+        this.turnHadVisibleActivity = true;
         this.handleToolItem(
-          item.id,
+          itemId,
           'WebSearch',
           { query: item.query },
           item.query,
@@ -275,8 +397,9 @@ class CodexSession implements AgentSession {
         );
         return;
       case 'todo_list':
+        this.turnHadVisibleActivity = true;
         this.handleToolItem(
-          item.id,
+          itemId,
           'TodoWrite',
           { items: item.items },
           item.items.map((todo) => `${todo.completed ? '[x]' : '[ ]'} ${todo.text}`).join('\n'),
@@ -286,10 +409,16 @@ class CodexSession implements AgentSession {
         );
         return;
       case 'reasoning':
-        dlog('codex.reasoning', { chatId: this.chatId, itemId: item.id, textLen: item.text.length });
+        dlog('codex.reasoning', { chatId: this.chatId, itemId, textLen: item.text.length });
         return;
       case 'error':
-        this.emit({ type: 'error', chatId: this.chatId, message: item.message, ts });
+        this.emit({
+          type: 'error',
+          chatId: this.chatId,
+          message: item.message,
+          level: EXPECTED_CODEX_LIMIT.test(item.message) ? 'warning' : 'error',
+          ts,
+        });
         return;
     }
   }

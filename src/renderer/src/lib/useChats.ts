@@ -122,5 +122,29 @@ export function useChats() {
     setClosedChats((prev) => prev.filter((c) => c.id !== chatId));
   }, []);
 
-  return { chats, closedChats, loading, refresh, create, close, reopen, attachSlot, remove };
+  /** Drag-and-drop arrangement. Optimistic — the strip settles under the
+   *  cursor at once — then persisted so a reload agrees. */
+  const reorder = useCallback(async (ids: string[]) => {
+    setChats((prev) => {
+      const byId = new Map(prev.map((c) => [c.id, c]));
+      const next = ids
+        .map((id) => byId.get(id))
+        .filter((c): c is ChatRecord => !!c);
+      const placed = new Set(ids);
+      for (const c of prev) if (!placed.has(c.id)) next.push(c);
+      return next;
+    });
+    await window.popbot.chats.reorder(ids);
+  }, []);
+
+  const rename = useCallback(async (chatId: string, name: string) => {
+    const updated = await window.popbot.chats.rename(chatId, name);
+    if (!updated) return;
+    const apply = (list: ChatRecord[]): ChatRecord[] =>
+      list.map((c) => (c.id === chatId ? { ...c, name: updated.name } : c));
+    setChats(apply);
+    setClosedChats(apply);
+  }, []);
+
+  return { chats, closedChats, loading, refresh, create, close, reopen, attachSlot, remove, reorder, rename };
 }

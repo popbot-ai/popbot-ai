@@ -57,6 +57,7 @@ export function ChatSettingsSheet({ chat, onClose }: ChatSettingsSheetProps): JS
   const [version, setVersion] = useState(0);
   const [search, setSearch] = useState('');
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [threadIdCopied, setThreadIdCopied] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -130,6 +131,14 @@ export function ChatSettingsSheet({ chat, onClose }: ChatSettingsSheetProps): JS
     chat.ticket ? chat.ticket :
     chat.pr ? `PR #${chat.pr}` :
     t('common.none');
+  const activeThreadId = chat.agent === 'codex' ? chat.codexThreadId : chat.sessionId;
+
+  const copyThreadId = async (): Promise<void> => {
+    if (!activeThreadId) return;
+    await navigator.clipboard.writeText(activeThreadId);
+    setThreadIdCopied(true);
+    window.setTimeout(() => setThreadIdCopied(false), 1400);
+  };
 
   return (
     <>
@@ -145,7 +154,18 @@ export function ChatSettingsSheet({ chat, onClose }: ChatSettingsSheetProps): JS
         <div className="sheet-body">
           <div className="section">
             <h3>{t('chatSettings.identity')}</h3>
-            <Field label={t('chatSettings.linked')}><span className="pill muted">{ticketLink}</span></Field>
+            <Field label={t('chatSettings.linked')}>
+              {chat.pr && chat.prUrl ? (
+                <button
+                  type="button"
+                  className="pill muted"
+                  title={t('chat.pr.chipTitle', { number: chat.pr, label: '' })}
+                  onClick={() => window.open(chat.prUrl!, '_blank')}
+                >
+                  PR #{chat.pr} <i className="fa-solid fa-arrow-up-right-from-square" aria-hidden />
+                </button>
+              ) : <span className="pill muted">{ticketLink}</span>}
+            </Field>
             <Field label={t('chatSettings.slot')}>
               <span className="mono">{chat.slotId == null ? t('chatSettings.slotNone') : t('chatSettings.slotN', { slotId: chat.slotId })}</span>
             </Field>
@@ -162,8 +182,22 @@ export function ChatSettingsSheet({ chat, onClose }: ChatSettingsSheetProps): JS
               </span>
             </Field>
             <Field label={chat.agent === 'codex' ? t('chatSettings.codexThread') : t('chatSettings.pinnedSession')}>
-              <span className="mono" style={{ fontSize: 11, color: 'var(--fg-2)' }}>
-                {(chat.agent === 'codex' ? chat.codexThreadId : chat.sessionId) ?? t('chatSettings.sessionNone')}
+              <span style={{ display: 'flex', alignItems: 'center', gap: 7, minWidth: 0 }}>
+                <span className="mono" style={{ fontSize: 11, color: 'var(--fg-2)', overflowWrap: 'anywhere' }}>
+                  {activeThreadId ?? t('chatSettings.sessionNone')}
+                </span>
+                {activeThreadId && (
+                  <button
+                    type="button"
+                    className="iconbtn"
+                    style={{ width: 25, height: 25, flex: '0 0 auto' }}
+                    title={t('common.copy')}
+                    aria-label={t('common.copy')}
+                    onClick={() => void copyThreadId()}
+                  >
+                    <i className={`fa-solid ${threadIdCopied ? 'fa-check' : 'fa-copy'}`} aria-hidden />
+                  </button>
+                )}
               </span>
             </Field>
           </div>

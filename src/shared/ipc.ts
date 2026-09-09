@@ -69,6 +69,10 @@ export const IpcChannel = {
   ChatsSearch: 'pb:chats:search',
   ChatsAttachSlot: 'pb:chats:attach-slot',
   ChatsClosePrep: 'pb:chats:close-prep',
+  /** Persist a drag-and-drop arrangement of the open chats. */
+  ChatsReorder: 'pb:chats:reorder',
+  /** Rename a chat (click on the column title). */
+  ChatsRename: 'pb:chats:rename',
   MessagesList: 'pb:messages:list',
 
   SettingsGet: 'pb:settings:get',
@@ -217,6 +221,10 @@ export const IpcChannel = {
 
   AgentSend: 'pb:agent:send',
   AgentStop: 'pb:agent:stop',
+  /** Compact the chat's agent context (summarize the transcript so far)
+   *  — the composer's context gauge. Progress arrives as `compaction`
+   *  agent events. */
+  AgentCompact: 'pb:agent:compact',
   AgentConfigure: 'pb:agent:configure',
   AgentApprove: 'pb:agent:approve',
   /** Probe whether the claude / codex CLIs are installed + runnable.
@@ -356,6 +364,7 @@ export interface CreateChatInput {
   name: string;
   ticket?: string;
   pr?: number;
+  prUrl?: string;
   branch?: string;
   type?: 'lite' | 'client_test' | 'server_test';
   /** Caller-chosen slot. When set, main verifies it's still free and
@@ -603,6 +612,12 @@ export interface PopBotApi {
     /** Attach a slot + worktree to an existing chat that doesn't yet
      *  have one (e.g. it was created before slots were configured). */
     attachSlot(chatId: string): Promise<CreateChatResult>;
+    /** Persist the open chats' left-to-right order after a drag-and-drop
+     *  in the thumbnail strip. `ids` is the full open set, in order. */
+    reorder(ids: string[]): Promise<void>;
+    /** Rename a chat. Resolves to the updated record, or null when the
+     *  chat is gone or the name was blank. */
+    rename(chatId: string, name: string): Promise<ChatRecord | null>;
     listMessages(chatId: string, tail?: number): Promise<MessageRecord[]>;
   };
   settings: {
@@ -882,6 +897,10 @@ export interface PopBotApi {
   agent: {
     send(input: SendMessageInput): Promise<void>;
     stop(chatId: string): Promise<void>;
+    /** Compact the chat's context. Claude only — for a Codex chat the
+     *  host answers with a warning diagnostic instead (Codex compacts on
+     *  its own). Progress comes back as `compaction` events on onEvent. */
+    compact(chatId: string): Promise<void>;
     configure(input: ConfigureAgentInput): Promise<ChatRecord>;
     approve(input: ApprovePermissionInput): Promise<void>;
     recover(chatId: string): Promise<void>;

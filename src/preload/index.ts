@@ -52,6 +52,8 @@ const api: PopBotApi = {
     search: (query: string, limit?: number) =>
       ipcRenderer.invoke(IpcChannel.ChatsSearch, query, limit),
     attachSlot: (chatId: string) => ipcRenderer.invoke(IpcChannel.ChatsAttachSlot, chatId),
+    reorder: (ids: string[]) => ipcRenderer.invoke(IpcChannel.ChatsReorder, ids),
+    rename: (chatId: string, name: string) => ipcRenderer.invoke(IpcChannel.ChatsRename, chatId, name),
     listMessages: (chatId: string, tail?: number) =>
       ipcRenderer.invoke(IpcChannel.MessagesList, chatId, tail),
   },
@@ -205,6 +207,7 @@ const api: PopBotApi = {
   agent: {
     send: (input: SendMessageInput) => ipcRenderer.invoke(IpcChannel.AgentSend, input),
     stop: (chatId: string) => ipcRenderer.invoke(IpcChannel.AgentStop, chatId),
+    compact: (chatId: string) => ipcRenderer.invoke(IpcChannel.AgentCompact, chatId),
     configure: (input: ConfigureAgentInput) =>
       ipcRenderer.invoke(IpcChannel.AgentConfigure, input),
     approve: (input: ApprovePermissionInput) =>
