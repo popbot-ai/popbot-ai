@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type MouseEvent } from 'react';
+import { useEffect, useMemo, useState, type DragEvent, type MouseEvent } from 'react';
 import { colAccentStyle } from '../lib/repoColor';
 import type {
   MessageBodyPermission,
@@ -65,6 +65,15 @@ interface MonitorCardProps {
   refSetter?: (el: HTMLDivElement | null) => void;
   onClick: () => void;
   onBringForward: () => void;
+  /** Drag-and-drop re-ordering in the thumbnail strip. All optional: a
+   *  card without handlers isn't draggable. `dropSide` draws the
+   *  insertion marker on the card the cursor is over. */
+  onDragStart?: (e: DragEvent<HTMLDivElement>) => void;
+  onDragOver?: (e: DragEvent<HTMLDivElement>) => void;
+  onDrop?: (e: DragEvent<HTMLDivElement>) => void;
+  onDragEnd?: () => void;
+  isDragging?: boolean;
+  dropSide?: 'before' | 'after' | null;
 }
 
 type AttentionKind = 'PLAN' | 'PERMISSION' | 'QUESTION' | 'WAIT';
@@ -106,7 +115,21 @@ function detectAttention(messages: MessageRecord[]): AttentionKind | null {
   return null;
 }
 
-export function MonitorCard({ chat, isFocused, isForeground, isVisible = true, refSetter, onClick, onBringForward }: MonitorCardProps): JSX.Element {
+export function MonitorCard({
+  chat,
+  isFocused,
+  isForeground,
+  isVisible = true,
+  refSetter,
+  onClick,
+  onBringForward,
+  onDragStart,
+  onDragOver,
+  onDrop,
+  onDragEnd,
+  isDragging = false,
+  dropSide = null,
+}: MonitorCardProps): JSX.Element {
   const { t } = useTranslation();
   // Thumbnail renders the last 6 activity lines, full stop — nothing
   // here ever scrolls. Cap the load to that.
@@ -162,8 +185,13 @@ export function MonitorCard({ chat, isFocused, isForeground, isVisible = true, r
   return (
     <div
       ref={refSetter}
-      className={`monitor ${chat.status} ${isFocused ? 'focused' : ''} ${isForeground ? 'is-foreground' : ''} ${isVisible ? 'is-visible' : 'is-offscreen'}`}
+      className={`monitor ${chat.status} ${isFocused ? 'focused' : ''} ${isForeground ? 'is-foreground' : ''} ${isVisible ? 'is-visible' : 'is-offscreen'} ${isDragging ? 'is-dragging' : ''} ${dropSide ? `drop-${dropSide}` : ''}`}
       onClick={onClick}
+      draggable={!!onDragStart}
+      onDragStart={onDragStart}
+      onDragOver={onDragOver}
+      onDrop={onDrop}
+      onDragEnd={onDragEnd}
       // Per-card accent → drives the focused border + foreground ring
       // in this chat's repo color, plus the perceptual `--col-accent-fg`
       // for chips on top of the accent. Falls back to apple-blue when

@@ -57,10 +57,11 @@ PopBot doesn't reimplement these agents — it **drives the real ones** through 
 
 Per chat, you choose the backend, the **model**, and the **reasoning effort** (`low` → `xhigh` / `max` — more effort means deeper thinking and more thorough tool use, at higher cost/latency). You set sensible **defaults** — separately for *new chats* and for *code reviews*, since a review wants different depth than a feature build — and override per chat when a task warrants it.
 
-Two session controls matter for long-running work:
+Three session controls matter for long-running work:
 
 - **Switch mid-session.** Change model or effort on an in-flight chat; PopBot reconfigures the agent without losing the thread.
 - **Restart with context.** Spin up a *fresh* agent session primed with this chat's transcript (its opening turns plus the most recent ones), useful when a session gets long or wedged. The conversation history is preserved; the agent simply gets a clean runtime.
+- **Compact the context.** The ring gauge in the composer shows how full the agent's context window is. Click it (or right-click) and choose *Compact context* to have Claude summarize the conversation so far; the transcript notes when it finishes and how much room it made. Typing `/compact` does the same. Codex compacts on its own, so the gauge is informational there.
 
 Credentials for the integrations are stored **locally on your machine**, in the app's own database — never in this repository.
 

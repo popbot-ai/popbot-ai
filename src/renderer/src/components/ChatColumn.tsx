@@ -20,7 +20,8 @@ import {
 } from '@shared/persistence';
 import type { PickedAttachment } from '@shared/ipc';
 import type { GitPrInfo } from '@shared/git';
-import { fmtTokens } from '../fixtures/data';
+import { subscribeAgentEvents } from '../lib/agentEventBus';
+import { ContextGauge } from './ContextGauge';
 import type { Readiness } from '../lib/useReadiness';
 import { hotkey } from '../lib/hotkeys';
 import { LiveChatBody } from './LiveChatBody';
@@ -28,7 +29,6 @@ import { useAppsRunning } from '../lib/useAppsRunning';
 import { useSettings } from '../lib/useSettings';
 import { LinearStateIcon, isPausedState, PAUSED_COLOR } from '../lib/linearIcons';
 import { colAccentStyle } from '../lib/repoColor';
-import { ConfirmDialog } from './ConfirmDialog';
 import { useTranslation } from '../lib/i18n';
 import type { MessageKey, Translator } from '@shared/i18n';
 import { engineEnabled, engineMeta, type GameEngineId, type GameEnginesSettings } from '@shared/gameEngine';
@@ -145,6 +145,7 @@ const REASONING_LABEL_KEYS: Record<ClaudeReasoningEffort | CodexReasoningEffort,
   high: 'chat.reasoning.high',
   xhigh: 'chat.reasoning.xhigh',
   max: 'chat.reasoning.max',
+  ultra: 'chat.reasoning.ultra',
 };
 
 const STATUS_LABEL_KEYS: Record<string, MessageKey> = {
@@ -154,7 +155,7 @@ const STATUS_LABEL_KEYS: Record<string, MessageKey> = {
   err: 'chat.status.error',
 };
 
-interface PendingAgentSwitch {
+interface AgentConfiguration {
   agent: 'claude' | 'codex';
   claudeModel?: ClaudeModelId;
   claudeReasoningEffort?: ClaudeReasoningEffort;
@@ -170,6 +171,8 @@ interface ChatColumnProps {
   onClose: () => void;
   onOpenSettings: () => void;
   onChatUpdated?: () => void;
+  /** Rename the chat — the column title is click-to-edit. */
+  onRename?: (name: string) => Promise<void> | void;
   /** Open Preferences (optionally jumping to a specific section).
    *  Used by SlotAppButtons to route Unity-not-configured to the
    *  Unity prefs page. */
@@ -197,17 +200,52 @@ export function ChatColumn({
   onClose,
   onOpenSettings,
   onChatUpdated,
+  onRename,
   onOpenPrefs,
   ticket,
   pr,
 }: ChatColumnProps): JSX.Element {
   const { t } = useTranslation();
+  // Click-to-rename on the column title. Blur is the single commit path
+  // (Enter and Escape both blur); Escape flags the edit as cancelled so
+  // the blur that follows it doesn't save the draft.
+  const [renaming, setRenaming] = useState(false);
+  const [draftName, setDraftName] = useState('');
+  const renameCancelledRef = useRef(false);
+  const startRename = (e: MouseEvent): void => {
+    e.stopPropagation();
+    renameCancelledRef.current = false;
+    setDraftName(chat.name);
+    setRenaming(true);
+  };
+  const finishRename = async (): Promise<void> => {
+    setRenaming(false);
+    if (renameCancelledRef.current) return;
+    const name = draftName.replace(/\s+/g, ' ').trim();
+    if (!name || name === chat.name) return;
+    try {
+      await onRename?.(name);
+    } catch (err) {
+      console.error('chats.rename failed', err);
+    }
+  };
   const [draft, setDraft] = useState('');
   const [sending, setSending] = useState(false);
   const [configuringAgent, setConfiguringAgent] = useState(false);
-  const [pendingAgentSwitch, setPendingAgentSwitch] = useState<PendingAgentSwitch | null>(null);
   const [inputHeight, setInputHeight] = useState<number>(36);
   const [attachments, setAttachments] = useState<PickedAttachment[]>([]);
+  // A compaction is in flight for this chat — the context gauge spins and
+  // its menu item is disabled until the backend reports the outcome.
+  // Purely in-memory: the outcome itself arrives as a transcript row.
+  const [compacting, setCompacting] = useState(false);
+  useEffect(() => {
+    setCompacting(false);
+    return subscribeAgentEvents((event) => {
+      if (event.chatId !== chat.id) return;
+      if (event.type === 'compaction') setCompacting(event.phase === 'started');
+      else if (event.type === 'session-status' && event.status !== 'running') setCompacting(false);
+    });
+  }, [chat.id]);
   // Latest `sending` value held in a ref so the memoized send handlers
   // below can early-out without changing identity each render. Without
   // this every keystroke (which flips a draft state, re-rendering
@@ -349,6 +387,14 @@ export function ChatColumn({
     }
   };
 
+  const compact = async () => {
+    try {
+      await window.popbot.agent.compact(chat.id);
+    } catch (err) {
+      console.error('agent.compact failed', err);
+    }
+  };
+
   const configureAgent = async (input: {
     agent: 'claude' | 'codex';
     claudeModel?: ClaudeModelId;
@@ -370,23 +416,6 @@ export function ChatColumn({
     }
   };
 
-  const switchAgentAndRestart = async (input: PendingAgentSwitch) => {
-    setConfiguringAgent(true);
-    try {
-      await window.popbot.agent.configure({
-        chatId: chat.id,
-        ...input,
-      });
-      await window.popbot.agent.restartWithContext(chat.id);
-      onChatUpdated?.();
-    } catch (err) {
-      console.error('agent switch/restart failed', err);
-    } finally {
-      setConfiguringAgent(false);
-      setPendingAgentSwitch(null);
-    }
-  };
-
   const changeModel = (value: string) => {
     const next = MODEL_OPTIONS.find((m) => m.value === value);
     if (!next) return;
@@ -399,12 +428,8 @@ export function ChatColumn({
           CLAUDE_REASONING_EFFORTS,
           DEFAULT_CLAUDE_REASONING_EFFORT,
         ),
-      } satisfies PendingAgentSwitch;
-      if (chat.agent !== 'claude') {
-        setPendingAgentSwitch(config);
-      } else {
-        void configureAgent(config);
-      }
+      } satisfies AgentConfiguration;
+      void configureAgent(config);
       return;
     }
     const config = {
@@ -415,12 +440,8 @@ export function ChatColumn({
         codexReasoningEffortsForModel(next.codexModel),
         DEFAULT_CODEX_REASONING_EFFORT,
       ),
-    } satisfies PendingAgentSwitch;
-    if (chat.agent !== 'codex') {
-      setPendingAgentSwitch(config);
-    } else {
-      void configureAgent(config);
-    }
+    } satisfies AgentConfiguration;
+    void configureAgent(config);
   };
 
   const changeReasoning = (value: ClaudeReasoningEffort | CodexReasoningEffort) => {
@@ -508,7 +529,32 @@ export function ChatColumn({
               and thumbnail strip so the three lists are read-equivalent.
               Inherits `--col-accent` from the col element. */}
           <span className="col-name-dot" aria-hidden="true" title={repoTitle} />
-          <span className="col-title">{chat.name}</span>
+          {renaming ? (
+            <input
+              className="col-title-input"
+              value={draftName}
+              autoFocus
+              aria-label={t('chat.col.renameTitle')}
+              onChange={(e) => setDraftName(e.target.value)}
+              onBlur={() => void finishRename()}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  e.currentTarget.blur();
+                } else if (e.key === 'Escape') {
+                  e.preventDefault();
+                  renameCancelledRef.current = true;
+                  e.currentTarget.blur();
+                }
+                e.stopPropagation();
+              }}
+              onMouseDown={(e) => e.stopPropagation()}
+            />
+          ) : (
+            <span className="col-title" title={t('chat.col.renameTitle')} onClick={startRename}>
+              {chat.name}
+            </span>
+          )}
           {/* Open-in-browser is now exposed as part of the runtime-
               strip ticket/PR chips below — having a second copy here
               was redundant noise. */}
@@ -535,7 +581,20 @@ export function ChatColumn({
         {ticket && chat.ticket && (
           <TicketChip identifier={chat.ticket} state={ticket.state} url={ticket.url} t={t} />
         )}
-        {pr && <PrChip pr={pr} t={t} />}
+        {pr ? (
+          <PrChip pr={pr} t={t} />
+        ) : chat.pr && chat.prUrl ? (
+          <button
+            type="button"
+            className="chat-status-chip"
+            title={t('chat.pr.chipTitle', { number: chat.pr, label: '' })}
+            onClick={() => window.open(chat.prUrl!, '_blank')}
+          >
+            <i className="fa-solid fa-code-pull-request" aria-hidden />
+            <span>PR #{chat.pr}</span>
+            <i className="fa-solid fa-arrow-up-right-from-square chat-status-chip-ext" aria-hidden />
+          </button>
+        ) : null}
       </div>
       <div className="col-body">
         <div className="col-branch-strip">
@@ -585,7 +644,25 @@ export function ChatColumn({
           <span className="col-branch-meta">
             {chat.type === 'lite' ? t('chat.type.lite') : t('chat.type.clientTest')}
             {chat.ticket ? ` · ${chat.ticket}` : ''}
-            {chat.pr ? ` · PR #${chat.pr}` : ''}
+            {chat.pr ? (
+              <>
+                {' · '}
+                {/* Straight to the review. The PrChip above links too, but
+                    only once detectPr has resolved — this is always here
+                    the moment the chat knows its PR number. */}
+                {pr?.url || chat.prUrl ? (
+                  <button
+                    type="button"
+                    className="col-branch-prlink"
+                    title={t('chat.pr.chipTitle', { number: chat.pr, label: '' })}
+                    onClick={() => window.open(pr?.url ?? chat.prUrl!, '_blank')}
+                  >
+                    PR #{chat.pr}
+                    <i className="fa-solid fa-arrow-up-right-from-square pill-ext" aria-hidden />
+                  </button>
+                ) : `PR #${chat.pr}`}
+              </>
+            ) : ''}
           </span>
         </div>
         <LiveChatBody
@@ -681,9 +758,14 @@ export function ChatColumn({
               ))}
             </select>
             <span className="spacer" />
-            <span className="token-counter">
-              <b>{fmtTokens(chat.tokensUsed)}</b> / {fmtTokens(chat.tokensBudget)}
-            </span>
+            <ContextGauge
+              used={chat.tokensUsed}
+              budget={chat.tokensBudget}
+              agent={agent}
+              compacting={compacting}
+              running={chat.status === 'run'}
+              onCompact={() => void compact()}
+            />
             {chat.status === 'run' ? (
               <button className="btn danger sm" title={t('chat.input.stopTitle')} onClick={stop}>
                 <i className="fa-solid fa-stop" /> {t('chat.input.stop')}
@@ -701,16 +783,6 @@ export function ChatColumn({
         </div>
       </div>
     </div>
-    {pendingAgentSwitch && (
-      <ConfirmDialog
-        title={t('chat.agentSwitch.title')}
-        message={t('chat.agentSwitch.message')}
-        cancelLabel={t('common.cancel')}
-        confirmLabel={t('chat.agentSwitch.confirm')}
-        onCancel={() => setPendingAgentSwitch(null)}
-        onConfirm={() => void switchAgentAndRestart(pendingAgentSwitch)}
-      />
-    )}
     </>
   );
 }

@@ -22,6 +22,14 @@ fixShellPath();
 // menu's first item.
 app.setName('PopBot');
 
+// Raise the GPU memory ceiling Chromium sizes its tile budget from. A
+// dozen wide chat columns at Retina scale — transcripts, diffs, the
+// thumbnail strip — outgrow the default and the compositor logs
+// "tile memory limits exceeded, some content may not draw", which means
+// exactly that: blank patches until the layer is re-rastered. The switch
+// is a cap, not a reservation. Override with POPBOT_GPU_MEM_MB.
+app.commandLine.appendSwitch('force-gpu-mem-available-mb', process.env.POPBOT_GPU_MEM_MB || '2048');
+
 // Linux graphics init (must run before the app `ready` event).
 if (process.platform === 'linux') {
   // Let Electron pick the right windowing backend instead of forcing
@@ -65,6 +73,7 @@ import { startSentryPoller, stopSentryPoller } from './sentry/poll';
 import { registerSlackHandlers } from './ipc/slack';
 import { startSlackPoller, stopSlackPoller } from './slack/poll';
 import { pruneOlderThan } from './persistence/notifications';
+import { purgePersistedDiagnostics } from './persistence/messages';
 import { attachWebContents as attachTermWindow, disposeAll as disposeAllPtys } from './term/ptyManager';
 import { disposeAllWatches } from './p4/watcher';
 import { checkForUpdates } from './updates/check';
@@ -529,6 +538,13 @@ void app.whenReady().then(async () => {
     pruneOlderThan(Date.now()); // delete everything
     setSetting('one-shot-notif-purge', { done: true });
   }
+  // Diagnostics are ephemeral as of this build (renderer-held, gone on
+  // the next reply). Sweep out the ones older builds persisted so
+  // reopening a chat doesn't resurface failures that were resolved
+  // days ago. Runs every boot: it's a cheap indexed delete, and it also
+  // catches rows written by an older build the user rolled back to.
+  const purged = purgePersistedDiagnostics();
+  if (purged > 0) dlog('messages.diagnostics-purged', { count: purged });
   const win = createMainWindow();
   attachTermWindow(win.webContents);
   startAutoUpdater();

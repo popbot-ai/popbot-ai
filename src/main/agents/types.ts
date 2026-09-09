@@ -84,10 +84,11 @@ export interface SpawnOpts {
    *  the Codex SDK falls back to its packaged CLI dependency. */
   pathToCodexExecutable?: string | null;
   /**
-   * Permission rule resolver. Called from the backend's `canUseTool`
-   * before prompting the user. Returns 'allow' or 'deny' to skip the
-   * prompt entirely (consults per-chat rules first, then global), or
-   * null to fall through and prompt as normal.
+   * Provider-neutral PopBot permission policy. Backends must consult this
+   * resolver rather than inventing provider-specific defaults. Providers with
+   * interactive per-tool approval (Claude) resolve it at call time; providers
+   * with coarser controls (Codex) translate it into their sandbox, filesystem,
+   * network, and web-search capabilities when spawning.
    */
   resolveRule?(toolName: string): 'allow' | 'deny' | null;
   /**
@@ -112,6 +113,12 @@ export interface AgentSession {
   approve(permissionId: string, decision: PermissionDecision): void;
   /** Cancel any in-flight work. The session can still receive new messages after stop(). */
   stop(): void;
+  /** Ask the backend to compact its conversation context — summarize the
+   *  transcript so far so the window has room again. Progress comes back
+   *  as `compaction` events. Optional: a backend with no manual
+   *  compaction primitive (Codex compacts on its own) leaves it out and
+   *  the host tells the user. */
+  compact?(): Promise<void>;
   /** Tear down the session. Async because real backends spawn a child
    *  `claude` process that needs a beat to flush its session JSONL —
    *  without awaiting it, ⌘Q can amputate writes mid-flight and the

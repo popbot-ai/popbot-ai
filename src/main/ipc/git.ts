@@ -26,7 +26,7 @@ import {
   clampMaxChangedFiles,
   type SourceControlSettings,
 } from '@shared/persistence';
-import { getChat } from '../persistence/chats';
+import { getChat, setChatPrUrl } from '../persistence/chats';
 import { backfillChatFields } from '../persistence/chatBackfill';
 import { getRepo, listRepos } from '../persistence/repos';
 import { getSetting } from '../persistence/settings';
@@ -307,8 +307,17 @@ export function registerGitHandlers(): void {
       if (cwd && existsSync(cwd) && existsSync(join(cwd, '.git'))) {
         // worktree path looks healthy; let `gh` resolve PR by branch
       } else {
-        // Slot-less or worktree gone — fall back to repo root.
-        cwd = getSetting<GitSettingsLite>('git')?.repoPath ?? null;
+        // Slot-less or worktree gone — fall back to a repo root.
+        //
+        // The chat's OWN repo first. This used to consult only the
+        // legacy single-repo `git` setting, which is unset for anyone
+        // who configured repos the modern way (the `repos` table) — so
+        // cwd came back null, every CR chat reported no-worktree, and
+        // the PR chip silently never rendered on exactly the chats
+        // that most need it. Same resolution order AgentHost uses.
+        cwd = (filled.repoId ? getRepo(filled.repoId)?.repoPath : null)
+          ?? getSetting<GitSettingsLite>('git')?.repoPath
+          ?? null;
         if (!cwd) return { ok: false, reason: 'no-worktree' };
         prNumber = filled.pr ?? undefined;
         if (prNumber === undefined) {
@@ -325,6 +334,7 @@ export function registerGitHandlers(): void {
       // and the chat doesn't have one yet, fold it into the chat
       // record. Idempotent — only writes when ticket is currently null.
       if (result.ok && result.pr) {
+        setChatPrUrl(chatId, result.pr.url);
         backfillChatFields(chatId, { prTitle: result.pr.title });
       }
       return result;

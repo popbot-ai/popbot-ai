@@ -19,6 +19,10 @@ export function registerAgentHandlers(): void {
     AgentHost.stop(chatId);
   });
 
+  ipcMain.handle(IpcChannel.AgentCompact, async (_e, chatId: string) => {
+    await AgentHost.compact(chatId);
+  });
+
   ipcMain.handle(IpcChannel.AgentConfigure, async (_e, input: ConfigureAgentInput) => {
     return AgentHost.configureAgent(input);
   });

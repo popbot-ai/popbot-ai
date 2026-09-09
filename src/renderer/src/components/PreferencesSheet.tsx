@@ -38,6 +38,16 @@ import {
   type RepoWorktreeMode,
 } from '@shared/persistence';
 import type { SourceControlProviderId } from '@shared/sourceControl';
+import {
+  DEFAULT_REVIEW_SCOPE,
+  providerIdForReviewSystem,
+  reviewInScope,
+  reviewIsIgnored,
+  type PinnedReview,
+  type ReviewItem,
+  type ReviewScope,
+} from '@shared/reviews';
+import { ConfirmDialog } from './ConfirmDialog';
 import type { BasePreflightInfo } from '@shared/ipc';
 import { isMcpTool, mcpServerOfTool, permissionRuleMatches } from '@shared/agent';
 import { useSettings } from '../lib/useSettings';
@@ -1639,6 +1649,24 @@ function TemplatesGroup({
   // Accordion: collapsed by default so a long list of templates stays compact.
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
 
+  // If this mounts before the settings store has loaded, the useState
+  // initializer above captured the built-in fallbacks — the editors would
+  // show defaults and a Save would write them back over the user's saved
+  // templates. Hydrate once, when the real values land. Guarded by a ref
+  // so a later save (which republishes `templates`) can't stomp on text
+  // the user is in the middle of editing.
+  const hydrated = useRef(false);
+  useEffect(() => {
+    if (loading || hydrated.current) return;
+    hydrated.current = true;
+    const out: Record<string, string> = {};
+    for (const f of fields) out[f.key] = initial[f.key] ?? f.fallback;
+    setValues(out);
+    // `initial`/`fields` are read at hydration time only — this must run
+    // exactly once, when loading flips.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading]);
+
   if (loading) return <div />;
 
   const dirty = fields.some((f) => values[f.key] !== (initial[f.key] ?? f.fallback));
@@ -1754,6 +1782,14 @@ function PrefsTemplates(): JSX.Element {
 interface ReviewsSettings {
   ignoreTitlePatterns?: string[];
   ignoreAuthors?: string[];
+  /** Your team's GitHub logins — PRs they author get their own tier. */
+  teamMembers?: string[];
+  /** Outside contributors treated as colleagues. */
+  vettedAuthors?: string[];
+  /** Show unvetted outside contributors at all. */
+  includeOutside?: boolean;
+  /** How wide a net the Reviews panel casts — see ReviewScope. */
+  scope?: ReviewScope;
 }
 
 const DEFAULT_REVIEW_TITLE_PATTERNS = ['DO NOT SUBMIT', 'Crowdin'];
@@ -1785,32 +1821,116 @@ function PrefsReviews(): JSX.Element {
     listToLines(initial.ignoreTitlePatterns ?? DEFAULT_REVIEW_TITLE_PATTERNS),
   );
   const [authors, setAuthors] = useState(() => listToLines(initial.ignoreAuthors));
+  const [scope, setScope] = useState<ReviewScope>(initial.scope ?? DEFAULT_REVIEW_SCOPE);
+  const [team, setTeam] = useState(() => listToLines(initial.teamMembers));
+  const [vetted, setVetted] = useState(() => listToLines(initial.vettedAuthors));
+  const [includeOutside, setIncludeOutside] = useState(initial.includeOutside === true);
   const [searchDays, setSearchDays] = useState(initialSearch.recentDays ?? DEFAULT_SEARCH_DAYS);
   const [savedAt, setSavedAt] = useState<number | null>(null);
+  /** Pinned reviews the just-saved rules would now exclude, awaiting the
+   *  user's yes/no. `kept` is the pin list to write on confirm. */
+  const [pendingPrune, setPendingPrune] = useState<
+    { matched: ReviewItem[]; kept: PinnedReview[] } | null
+  >(null);
 
-  // Sync once `useSettings` finishes loading — without this the
+  // Hydrate once `useSettings` finishes loading — without this the
   // initial useState value (default) wins over the persisted setting
-  // and a Save would clobber the user's saved preference.
-  useEffect(() => { setSearchDays(initialSearch.recentDays ?? DEFAULT_SEARCH_DAYS); }, [initialSearch.recentDays]);
+  // and a Save would clobber the user's saved preference. Covers the
+  // two textareas as well as the day count; they were previously left
+  // out, so saved ignore-patterns/authors reverted to defaults.
+  const hydrated = useRef(false);
+  useEffect(() => {
+    if (loading || hydrated.current) return;
+    hydrated.current = true;
+    setTitles(listToLines(initial.ignoreTitlePatterns ?? DEFAULT_REVIEW_TITLE_PATTERNS));
+    setAuthors(listToLines(initial.ignoreAuthors));
+    setScope(initial.scope ?? DEFAULT_REVIEW_SCOPE);
+    setTeam(listToLines(initial.teamMembers));
+    setVetted(listToLines(initial.vettedAuthors));
+    setIncludeOutside(initial.includeOutside === true);
+    setSearchDays(initialSearch.recentDays ?? DEFAULT_SEARCH_DAYS);
+    // Persisted values are read at hydration time only; re-running on
+    // every change would fight the user's in-progress edits.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading]);
 
   if (loading) return <div className="pref-section"><h3>{t('prefs.reviews.title')}</h3></div>;
 
   const dirty =
     listToLines(initial.ignoreTitlePatterns ?? DEFAULT_REVIEW_TITLE_PATTERNS) !== titles ||
     listToLines(initial.ignoreAuthors) !== authors ||
+    (initial.scope ?? DEFAULT_REVIEW_SCOPE) !== scope ||
+    listToLines(initial.teamMembers) !== team ||
+    listToLines(initial.vettedAuthors) !== vetted ||
+    (initial.includeOutside === true) !== includeOutside ||
     (initialSearch.recentDays ?? DEFAULT_SEARCH_DAYS) !== searchDays;
 
   const save = async (): Promise<void> => {
-    await set('reviews', {
-      ...(initial as Record<string, unknown>),
+    const rules = {
       ignoreTitlePatterns: linesToList(titles),
       ignoreAuthors: linesToList(authors),
+    };
+    // Only the filtering rules can change what belongs in the list —
+    // saving an unrelated field (the search window) must not nag about
+    // pins that were already exempt before this save.
+    const rulesChanged =
+      listToLines(initial.ignoreTitlePatterns ?? DEFAULT_REVIEW_TITLE_PATTERNS) !== titles ||
+      listToLines(initial.ignoreAuthors) !== authors ||
+      (initial.scope ?? DEFAULT_REVIEW_SCOPE) !== scope;
+    await set('reviews', {
+      ...(initial as Record<string, unknown>),
+      ...rules,
+      scope,
+      teamMembers: linesToList(team),
+      vettedAuthors: linesToList(vetted),
+      includeOutside,
     } satisfies ReviewsSettings);
     await set('panela.search', {
       ...(initialSearch as Record<string, unknown>),
       recentDays: searchDays,
     } satisfies PanelASearchSettings);
     setSavedAt(Date.now());
+    if (rulesChanged) await offerToApplyToPinned(rules);
+  };
+
+  /**
+   * The auto-list re-filters itself in main on the next poll, so new
+   * rules take care of it. Pinned reviews don't: pinning is an explicit
+   * override that survives every filter, so a review the user just
+   * muted would sit there forever. Offer to drop the ones that no
+   * longer qualify — never silently, since un-pinning is the user's
+   * curation to undo.
+   */
+  const offerToApplyToPinned = async (rules: {
+    ignoreTitlePatterns: string[];
+    ignoreAuthors: string[];
+  }): Promise<void> => {
+    const raw = get<Array<number | PinnedReview>>('panela.pinned.prs', []) ?? [];
+    if (!Array.isArray(raw) || raw.length === 0) return;
+    const pins: PinnedReview[] = raw.map((e) =>
+      typeof e === 'number' ? { scm: 'github', number: e } : e,
+    );
+    const fetched = await Promise.all(
+      pins.map(async (p) => {
+        const res = await window.popbot.reviews.getPr(p.number, providerIdForReviewSystem(p.scm));
+        // A pin we can't resolve (deleted PR, lost access) can't be
+        // judged against the rules — leave it alone rather than guess.
+        return res.ok ? { pin: p, review: res.pr } : null;
+      }),
+    );
+    const matched: Array<{ pin: PinnedReview; review: ReviewItem }> = [];
+    for (const entry of fetched) {
+      if (!entry) continue;
+      if (reviewIsIgnored(entry.review, rules) || !reviewInScope(entry.review, scope)) {
+        matched.push(entry);
+      }
+    }
+    if (matched.length === 0) return;
+    const drop = new Set(matched.map((m) => `${m.pin.scm}:${m.pin.number}`));
+    setPendingPrune({
+      matched: matched.map((m) => m.review),
+      kept: pins.filter((p) => !drop.has(`${p.scm}:${p.number}`)),
+    });
   };
 
   const reset = (): void => {
@@ -1822,8 +1942,29 @@ function PrefsReviews(): JSX.Element {
     <div className="pref-section">
       <h3>{t('prefs.reviews.title')}</h3>
       <p className="pref-section-desc">
-        {t('prefs.reviews.desc', { tag: 'ENG-####' })}
+        {t('prefs.reviews.desc')}
       </p>
+
+      <h4 className="pref-subhead" style={{ marginTop: 18 }}>{t('prefs.reviews.scope.title')}</h4>
+      <div className="pref-radio-group">
+        {([
+          { value: 'requested', label: 'prefs.reviews.scope.requested', desc: 'prefs.reviews.scope.requested.desc' },
+          { value: 'unreviewed', label: 'prefs.reviews.scope.unreviewed', desc: 'prefs.reviews.scope.unreviewed.desc' },
+        ] as const).map((opt) => (
+          <label key={opt.value} className="pref-radio">
+            <input
+              type="radio"
+              name="reviews-scope"
+              checked={scope === opt.value}
+              onChange={() => setScope(opt.value)}
+            />
+            <span>
+              <span className="pref-radio-label">{t(opt.label)}</span>
+              <span className="pref-radio-desc">{t(opt.desc, { tag: 'ENG-####' })}</span>
+            </span>
+          </label>
+        ))}
+      </div>
 
       <h4 className="pref-subhead" style={{ marginTop: 18 }}>{t('prefs.reviews.searchWindow.title')}</h4>
       <p className="pref-section-desc" style={{ marginBottom: 8 }}>
@@ -1844,7 +1985,44 @@ function PrefsReviews(): JSX.Element {
         <span style={{ color: 'var(--fg-3)', fontSize: 12 }}>{t('common.days')}</span>
       </div>
 
-      <h4 className="pref-subhead">{t('prefs.reviews.ignoreTitle.title')}</h4>
+      <h4 className="pref-subhead">{t('prefs.reviews.team.title')}</h4>
+      <p className="pref-section-desc" style={{ marginBottom: 8 }}>
+        {t('prefs.reviews.team.desc')}
+      </p>
+      <textarea
+        className="pref-template mono"
+        value={team}
+        onChange={(e) => setTeam(e.target.value)}
+        spellCheck={false}
+        rows={5}
+        placeholder={t('prefs.reviews.team.placeholder')}
+      />
+
+      <h4 className="pref-subhead" style={{ marginTop: 18 }}>{t('prefs.reviews.vetted.title')}</h4>
+      <p className="pref-section-desc" style={{ marginBottom: 8 }}>
+        {t('prefs.reviews.vetted.desc')}
+      </p>
+      <textarea
+        className="pref-template mono"
+        value={vetted}
+        onChange={(e) => setVetted(e.target.value)}
+        spellCheck={false}
+        rows={4}
+        placeholder={t('prefs.reviews.vetted.placeholder')}
+      />
+      <label className="pref-radio" style={{ marginTop: 10 }}>
+        <input
+          type="checkbox"
+          checked={includeOutside}
+          onChange={(e) => setIncludeOutside(e.target.checked)}
+        />
+        <span>
+          <span className="pref-radio-label">{t('prefs.reviews.includeOutside.label')}</span>
+          <span className="pref-radio-desc">{t('prefs.reviews.includeOutside.desc')}</span>
+        </span>
+      </label>
+
+      <h4 className="pref-subhead" style={{ marginTop: 18 }}>{t('prefs.reviews.ignoreTitle.title')}</h4>
       <textarea
         className="pref-template mono"
         value={titles}
@@ -1872,6 +2050,27 @@ function PrefsReviews(): JSX.Element {
           <span style={{ color: 'var(--fg-3)', fontSize: 11 }}>{t('common.saved')}</span>
         )}
       </div>
+
+      {pendingPrune && (
+        <ConfirmDialog
+          title={t('prefs.reviews.apply.title')}
+          message={t('prefs.reviews.apply.message', {
+            count: pendingPrune.matched.length,
+            list: pendingPrune.matched
+              .map((r) => `  • #${r.number}  ${r.title}`)
+              .join('\n'),
+          })}
+          confirmLabel={t('prefs.reviews.apply.confirm')}
+          cancelLabel={t('prefs.reviews.apply.keep')}
+          destructive
+          onConfirm={() => {
+            const kept = pendingPrune.kept;
+            setPendingPrune(null);
+            void set('panela.pinned.prs', kept);
+          }}
+          onCancel={() => setPendingPrune(null)}
+        />
+      )}
     </div>
   );
 }

@@ -107,10 +107,10 @@ export const en = {
   // one or two headline features. Keys stay stable; only the copy changes.
   // ---------------------------------------------------------------------------
   'whatsNew.title': 'What’s new in PopBot',
-  'whatsNew.f1.h': 'Claude Opus 5',
-  'whatsNew.f1.p': 'Anthropic’s new flagship model is here, and it’s the new default for Claude agents — a big step up on long agentic coding runs.',
-  'whatsNew.f2.h': 'Your chats move to the latest models',
-  'whatsNew.f2.p': 'Chats on a retired model now roll forward on their own: older Opus versions move to Opus 5, and GPT-5.5 moves to GPT-5.6 Terra, its closest match on speed and price.',
+  'whatsNew.f1.h': 'Claude Fable 5.1 and GPT-6 Astra',
+  'whatsNew.f1.p': 'Anthropic’s and OpenAI’s newest frontier models are in the model picker. Both are limited-availability launches, so they’re opt-in: your chats keep their model, and Opus 5 and GPT-5.6 Sol stay the defaults.',
+  'whatsNew.f2.h': 'Context gauge, compaction, and a tidier workspace',
+  'whatsNew.f2.p': 'A ring in the composer shows how full the context window is, with one-click compaction. Drag thumbnails to re-arrange chats, click a column title to rename it, and RE-REVIEW now stays until you actually re-review.',
   'whatsNew.gotIt': 'Got it',
 
   // ---------------------------------------------------------------------------
@@ -427,6 +427,7 @@ export const en = {
   'chat.reasoning.high': 'High',
   'chat.reasoning.xhigh': 'XHigh',
   'chat.reasoning.max': 'Max',
+  'chat.reasoning.ultra': 'Ultra',
   'chat.repo.none': 'No repo',
   'chat.repo.withName': 'Repo · {repoId}',
   'chat.col.closeTitle': 'Close chat',
@@ -437,6 +438,7 @@ export const en = {
   'chat.status.error': 'error',
   'chat.status.idle': 'idle',
   'chat.col.settingsTitle': 'Per-chat settings',
+  'chat.col.renameTitle': 'Click to rename',
   'chat.slot.workspaceTitle': 'Workspace slot {slotId} · {repoId}',
   'chat.slot.fallback': 'Slot {slotId}',
   'chat.slot.worktreeTitle': 'Worktree · {worktreePath}',
@@ -456,6 +458,17 @@ export const en = {
   'chat.input.effort': 'Effort',
   'chat.input.stopTitle': 'Stop agent',
   'chat.input.stop': 'Stop',
+  // Context gauge (ContextGauge.tsx) + compaction rows (LiveChatBody.tsx).
+  'chat.context.gaugeLabel': 'Context usage',
+  'chat.context.title': 'Context: {used} of {budget} tokens ({pct}%) · click for options',
+  'chat.context.compactingTitle': 'Compacting context…',
+  'chat.context.unreported': 'Codex doesn’t report context usage · last turn: {used} tokens',
+  'chat.context.menu.compact': 'Compact context',
+  'chat.context.menu.compacting': 'Compacting…',
+  'chat.context.menu.codexHint': 'Codex compacts its context automatically',
+  'chat.context.menu.runningHint': 'Wait for the agent to finish',
+  'chat.context.compactingNote': 'Compacting context…',
+  'chat.context.failedNote': 'Compaction failed: {error}',
   'chat.agentSwitch.title': 'Resume with a different agent?',
   'chat.agentSwitch.message':
     'The current agent session id will be kept, so you can switch back later. The new agent uses its own session and will be restarted with this chat transcript as context. Some private agent state may be lost.',
@@ -640,6 +653,7 @@ export const en = {
   'agent.effort.high': 'High',
   'agent.effort.xhigh': 'XHigh',
   'agent.effort.max': 'Max',
+  'agent.effort.ultra': 'Ultra',
   'agent.label': 'Agent',
   'agent.model': 'Model',
   'agent.effort': 'Effort',
@@ -966,10 +980,42 @@ export const en = {
   // Preferences — Code reviews pane.
   'prefs.reviews.title': 'Code reviews',
   'prefs.reviews.desc':
-    'The Reviews tab pulls open PRs that either request you as a reviewer or have no reviews yet (and have an {tag} tag in the title, unless you’re explicitly named). PRs you’ve already reviewed are dropped automatically. Use the lists below to mute additional noise.',
+    'Sorted into three sections: reviews that name you personally, PRs authored by your team, then everything else that still needs a reviewer. The last group hides drafts, bots, approved PRs and anything untouched for 30 days; the first is never filtered.',
   'prefs.reviews.searchWindow.title': 'Search cache window',
   'prefs.reviews.searchWindow.desc':
     'The + Add picker on the incoming panel fuzzy-matches against Linear issues + GitHub PRs updated in the last N days. Bigger window = more searchable, slightly slower refresh + more API budget. Tickets assigned to you are always included regardless of this cutoff.',
+  'prefs.reviews.apply.title': 'Apply to the current list?',
+  'prefs.reviews.apply.message':
+    'These pinned reviews no longer match your rules:\n\n{list}\n\nThe auto-list re-filters itself, but pinned reviews stay until you remove them. Remove these {count}? (Chats you already started from them are left alone.)',
+  'prefs.reviews.apply.confirm': 'Remove them',
+  'prefs.reviews.apply.keep': 'Keep them',
+  'prefs.reviews.scope.title': 'Which reviews to surface',
+  'prefs.reviews.scope.requested': 'Only ones I’m asked to review',
+  'prefs.reviews.scope.requested.desc':
+    'Just PRs and Swarm reviews that name you as a reviewer.',
+  'prefs.reviews.scope.unreviewed': 'Also ones nobody has reviewed yet',
+  'prefs.reviews.scope.unreviewed.desc':
+    'Adds untouched PRs carrying an {tag} tag, so you can pick up work before it’s assigned.',
+  'panelA.action.showActiveOnly': 'Show only what I\u2019m on',
+  'panelA.action.showAllReviews': 'Show the whole queue',
+  'reviews.empty.noActive': 'Nothing active. Pin a review, or start one \u2014 reviewing pins it.',
+  'reviews.row.requestedReviewerOpenTitle': 'You are named on this review \u2014 click to open it',
+  'reviews.row.noReviewsOpenTitle': 'Nobody has reviewed this yet \u2014 click to open it',
+  'reviews.tier.direct': 'Waiting on you',
+  'reviews.tier.team': 'Your team',
+  'reviews.tier.org': 'Comfy team',
+  'reviews.tier.external': 'Outside contributors',
+  'prefs.reviews.vetted.title': 'Vetted outside contributors (one login per line)',
+  'prefs.reviews.vetted.desc':
+    'Outside contributors you trust. Their PRs are grouped with the Comfy team rather than treated as drive-by contributions.',
+  'prefs.reviews.vetted.placeholder': 'some-contributor\nanother-one',
+  'prefs.reviews.includeOutside.label': 'Show outside contributors',
+  'prefs.reviews.includeOutside.desc':
+    'Off by default \u2014 unvetted open-source PRs are hidden. Shown regardless if org membership can\u2019t be determined, so a GitHub hiccup never hides colleagues\u2019 work.',
+  'prefs.reviews.team.title': 'Your team (one GitHub login per line)',
+  'prefs.reviews.team.desc':
+    'PRs these people AUTHOR get their own section, above everyone else’s. Reviews that name you personally always sort above both.',
+  'prefs.reviews.team.placeholder': 'christian-byrne\nDrJKL\nbenceruleanlu',
   'prefs.reviews.ignoreTitle.title': 'Ignore by title (one substring per line, case-insensitive)',
   'prefs.reviews.ignoreTitle.placeholder': 'DO NOT SUBMIT\nCrowdin',
   'prefs.reviews.ignoreAuthor.title': 'Ignore by GitHub author (one login per line)',
@@ -1076,7 +1122,7 @@ export const en = {
   'prefs.permissions.mcpAllTools': 'all tools',
   'prefs.permissions.title': 'Permissions',
   'prefs.permissions.desc':
-    'Global default for each tool. Ask prompts the chat each time (the default). Allow auto-approves without prompting. Deny auto-rejects. Per-chat rules — set from the permission card via "Allow this chat" / "Deny this chat" — override these globals, so a single chat can lock down a tool you’ve otherwise allowed everywhere.',
+    'One permission policy for every AI provider. Allow grants the capability and Deny blocks it. Ask prompts when the provider supports interactive approval; otherwise it fails closed. Per-chat rules — set from permission cards — override these global defaults.',
   'prefs.permissions.toolDefaultAria': '{tool} default',
   'prefs.permissions.state.ask': 'ask',
   'prefs.permissions.state.allow': 'allow',

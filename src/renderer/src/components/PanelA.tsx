@@ -1,15 +1,66 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { Fragment, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { LinearIssueDto, LinearWorkflowStateDto } from '@shared/linear';
-import type { ReviewItem, ReviewSystem } from '@shared/reviews';
-import type { SourceControlProviderId } from '@shared/sourceControl';
+import {
+  mergePinnedReviews,
+  providerIdForReviewSystem,
+  REVIEW_TIER_ORDER,
+  type ReviewTier,
+  type PinnedReview,
+  type ReviewItem,
+  type ReviewSystem,
+} from '@shared/reviews';
 
-/** A manually-pinned review, namespaced by system so a GitHub PR #27 and a
- *  Swarm review #27 don't collide. */
-type PinnedReview = { scm: ReviewSystem; number: number };
-/** Map a review system to the SCM provider id the reviews IPC expects. */
-const providerIdFor = (scm: ReviewSystem): SourceControlProviderId =>
-  scm === 'swarm' ? 'perforce' : 'git';
+/** PinnedReview + the system→provider mapping live in @shared/reviews so
+ *  Preferences can reason about the same pinned list when applying
+ *  changed rules to it. */
+const providerIdFor = providerIdForReviewSystem;
+
+/** Rough "2h / 3d / 5w ago" for tooltips — precision past the unit
+ *  isn't useful when triaging a queue. */
+function shortAge(iso: string): string {
+  const ms = Date.now() - new Date(iso).getTime();
+  if (!Number.isFinite(ms) || ms < 0) return '?';
+  const h = Math.floor(ms / 3_600_000);
+  if (h < 1) return 'just now';
+  if (h < 24) return `${h}h ago`;
+  const d = Math.floor(h / 24);
+  if (d < 14) return `${d}d ago`;
+  return `${Math.floor(d / 7)}w ago`;
+}
+
+/** Everything worth knowing about a review, for the portrait tooltip:
+ *  who wrote it, why it's in front of you, who else was asked, and how
+ *  stale it is. */
+function reviewTooltip(r: ReviewItem, t: Translator): string {
+  const why = t(REVIEW_TIER_LABEL[r.tier ?? 'org']);
+  const reviewers = (r.requestedLogins ?? []).filter(Boolean);
+  return [
+    `${r.author || 'unknown'} — #${r.number}`,
+    r.title,
+    '',
+    `${why} · updated ${shortAge(r.updatedAt)}`,
+    reviewers.length
+      ? `Reviewers: ${reviewers.join(', ')}`
+      : 'Reviewers: team only (nobody named individually)',
+    r.isDraft ? 'Draft' : '',
+  ].filter(Boolean).join('\n');
+}
+
+/** Section headings for the three review piles. */
+const REVIEW_TIER_LABEL: Record<ReviewTier, MessageKey> = {
+  direct: 'reviews.tier.direct',
+  team: 'reviews.tier.team',
+  org: 'reviews.tier.org',
+  external: 'reviews.tier.external',
+};
+
+/** Identity compare for a pin list — guards the settings-store sync from
+ *  re-setting state (and so re-fetching every pinned row) on every
+ *  unrelated settings write. */
+const pinKey = (p: PinnedReview): string => `${p.scm}:${p.number}`;
+const samePins = (a: PinnedReview[], b: PinnedReview[]): boolean =>
+  a.length === b.length && a.every((p, i) => pinKey(p) === pinKey(b[i]));
 import { TICKET_PROVIDERS, type TicketProviderId } from '@shared/ticketProvider';
 import type { MessageKey, Translator } from '@shared/i18n';
 import { useTranslation } from '../lib/i18n';
@@ -22,6 +73,7 @@ import {
 } from '../fixtures/data';
 import { useLinearIssues } from '../lib/useLinearIssues';
 import { useReviews } from '../lib/useReviews';
+import { useSettings } from '../lib/useSettings';
 import { LinearStateIcon } from '../lib/linearIcons';
 import { WorkItemSearch } from './WorkItemSearch';
 import { PrReviewActionDialog } from './PrReviewActionDialog';
@@ -140,6 +192,21 @@ export function PanelA({
   );
   const { status: reviewsStatus, refresh: refreshReviews } = useReviews({ onNew: handleNewReviews });
 
+  // The reviews scope (Preferences ▸ Code reviews) is applied in main at
+  // fetch time, so a change would otherwise only show up on the next
+  // poll — up to a minute of the switch looking like it did nothing.
+  // useSettings is a shared store, so saving in Preferences notifies us
+  // here; re-pull immediately. Skips the initial mount, which already
+  // has a fetch of its own in flight.
+  const { get: getAppSetting, set: setAppSetting, loading: settingsLoading } = useSettings();
+  const reviewScope = getAppSetting<{ scope?: string }>('reviews', {})?.scope;
+  const knownScope = useRef<string | undefined>(reviewScope);
+  useEffect(() => {
+    if (settingsLoading || knownScope.current === reviewScope) return;
+    knownScope.current = reviewScope;
+    refreshReviews();
+  }, [reviewScope, settingsLoading, refreshReviews]);
+
   // Persistent set of PR numbers the user has explicitly told us to
   // ignore. They get filtered out of the Reviews tab on render. Loaded
   // once on mount; updated via the action dialog. Lives in app
@@ -156,6 +223,15 @@ export function PanelA({
   const [pinnedTicketsData, setPinnedTicketsData] = useState<LinearIssueDto[]>([]);
   const [pinnedPrsData, setPinnedPrsData] = useState<ReviewItem[]>([]);
   const [addPinOpen, setAddPinOpen] = useState(false);
+  // "Show only active" — collapses the queue to what you've actually
+  // committed to (pinned, which includes anything you've reviewed) and
+  // hides the speculative piles you *could* pick up but probably won't.
+  const [activeOnly, setActiveOnly] = useState(false);
+  const activeOnlySetting = getAppSetting<boolean>('panela.reviews.activeOnly');
+  useEffect(() => {
+    if (settingsLoading) return;
+    setActiveOnly(!!activeOnlySetting);
+  }, [activeOnlySetting, settingsLoading]);
   // Search-cache: recent issues across the configured team (regardless
   // of assignee) and recent open PRs in the configured repo. Pulled
   // on refresh + first mount so WorkItemSearch fuzzy-matches against
@@ -164,23 +240,18 @@ export function PanelA({
   const [recentTickets, setRecentTickets] = useState<LinearIssueDto[]>([]);
   const [recentPrs, setRecentPrs] = useState<ReviewItem[]>([]);
   // Re-review chips the user has clicked (i.e. "I'm on it now"). Keyed
-  // by PR number → `updatedAt` at click time. When the author pushes
-  // again and the PR's updatedAt advances past the stored value, the
-  // dismissal is invalidated and the chip surfaces again — the next
-  // round of fixes needs a fresh re-review.
+  // by PR number → `updatedAt` at click time, and held in memory only.
+  // It bridges the gap between the click and the next poll, which sees
+  // the re-review chat's activity as fresh engagement and drops the flag
+  // for real. RE-REVIEW is a fact about the PR — the author pushed after
+  // your last look — so nothing but re-reviewing clears it: not "mark
+  // seen", not a restart. If the author pushes again, updatedAt moves
+  // past the stored value and the chip is back.
   const [dismissedReReviews, setDismissedReReviews] = useState<Record<number, string>>({});
-  useEffect(() => {
-    void window.popbot.settings
-      .get<Record<number, string>>('panela.dismissed.rereviews')
-      .then((v) => { if (v && typeof v === 'object') setDismissedReReviews(v); });
-  }, []);
   const dismissReReview = useCallback((prNumber: number, updatedAt: string) => {
-    setDismissedReReviews((prev) => {
-      if (prev[prNumber] === updatedAt) return prev;
-      const next = { ...prev, [prNumber]: updatedAt };
-      void window.popbot.settings.set('panela.dismissed.rereviews', next);
-      return next;
-    });
+    setDismissedReReviews((prev) => (
+      prev[prNumber] === updatedAt ? prev : { ...prev, [prNumber]: updatedAt }
+    ));
   }, []);
   useEffect(() => {
     void window.popbot.settings
@@ -192,14 +263,21 @@ export function PanelA({
     void window.popbot.settings
       .get<string[]>('panela.pinned.tickets')
       .then((v) => { if (Array.isArray(v)) setPinnedTicketIds(v); });
-    void window.popbot.settings
-      .get<Array<number | PinnedReview>>('panela.pinned.prs')
-      .then((v) => {
-        if (!Array.isArray(v)) return;
-        // Migrate the legacy number[] (all GitHub) to the {scm, number} shape.
-        setPinnedPrNumbers(v.map((e) => (typeof e === 'number' ? { scm: 'github', number: e } : e)));
-      });
   }, []);
+
+  // Pinned reviews come from the shared settings store rather than a
+  // one-shot read, because Preferences can PRUNE this list (when you
+  // apply changed review rules to the current list) and that write has
+  // to land here without a restart.
+  const pinnedPrsSetting = getAppSetting<Array<number | PinnedReview>>('panela.pinned.prs');
+  useEffect(() => {
+    if (settingsLoading || !Array.isArray(pinnedPrsSetting)) return;
+    // Migrate the legacy number[] (all GitHub) to the {scm, number} shape.
+    const next: PinnedReview[] = pinnedPrsSetting.map((e) =>
+      typeof e === 'number' ? { scm: 'github', number: e } : e,
+    );
+    setPinnedPrNumbers((prev) => (samePins(prev, next) ? prev : next));
+  }, [pinnedPrsSetting, settingsLoading]);
   const ignorePr = useCallback(async (n: number) => {
     setIgnoredPrs((prev) => {
       if (prev.includes(n)) return prev;
@@ -235,9 +313,30 @@ export function PanelA({
       pins.map((p) => window.popbot.reviews.getPr(p.number, providerIdFor(p.scm))),
     );
     const next: ReviewItem[] = [];
-    for (const res of results) if (res.ok) next.push(res.pr);
+    const landed: PinnedReview[] = [];
+    for (let i = 0; i < results.length; i += 1) {
+      const res = results[i];
+      if (!res.ok) continue;
+      // A pin means "I'm engaged with this one" — reviewing pins it
+      // automatically, which is what keeps it visible after your own
+      // review would otherwise filter it out. Merging or closing ends
+      // that engagement, so the pin retires with it. Nothing else would
+      // ever retire one: pins are fetched by number and bypass every
+      // filter, so without this they'd accumulate forever.
+      if (res.pr.closed) { landed.push(pins[i]); continue; }
+      next.push(res.pr);
+    }
     setPinnedPrsData(next);
-  }, []);
+    if (landed.length > 0) {
+      const drop = new Set(landed.map((p) => `${p.scm}:${p.number}`));
+      setPinnedPrNumbers((prev) => {
+        const keep = prev.filter((p) => !drop.has(`${p.scm}:${p.number}`));
+        if (keep.length === prev.length) return prev;
+        void setAppSetting('panela.pinned.prs', keep);
+        return keep;
+      });
+    }
+  }, [setAppSetting]);
 
   // `ticketProvider` in the deps so switching trackers re-fetches the pinned
   // rows against the new provider instead of leaving the prior provider's
@@ -319,7 +418,7 @@ export function PanelA({
     if (!alreadyPinned) {
       setPinnedPrNumbers((prev) => {
         const next = [...prev, { scm: system, number: prNumber }];
-        void window.popbot.settings.set('panela.pinned.prs', next);
+        void setAppSetting('panela.pinned.prs', next);
         return next;
       });
     }
@@ -342,7 +441,7 @@ export function PanelA({
     setPinnedPrNumbers((prev) => {
       if (!prev.some((p) => p.scm === system && p.number === prNumber)) return prev;
       const next = prev.filter((p) => !(p.scm === system && p.number === prNumber));
-      void window.popbot.settings.set('panela.pinned.prs', next);
+      void setAppSetting('panela.pinned.prs', next);
       return next;
     });
     setPinnedPrsData((prev) => prev.filter((p) => !(p.scm === system && p.number === prNumber)));
@@ -463,16 +562,18 @@ export function PanelA({
     return { ...linearStatus, issues: merged };
   })();
   const mergedReviewsStatus = (() => {
+    // Pinned = the ones you're actively on. Flagged rather than moved:
+    // they stay in whichever category they belong to and rise to the top
+    // OF THAT CATEGORY, so each section leads with its live work instead
+    // of the active items being pulled out into a pile of their own.
+    const asPinned = (r: ReviewItem): ReviewItem => ({ ...r, pinned: true });
     if (reviewsStatus.kind !== 'ok') {
       if (pinnedPrsData.length === 0) return reviewsStatus;
-      return { kind: 'ok' as const, reviews: pinnedPrsData, refreshing: false };
+      return { kind: 'ok' as const, reviews: pinnedPrsData.map(asPinned), refreshing: false };
     }
-    const pinnedNumbers = new Set(pinnedPrsData.map((p) => p.number));
-    const merged: ReviewItem[] = [
-      ...pinnedPrsData,
-      ...reviewsStatus.reviews.filter((r) => !pinnedNumbers.has(r.number)),
-    ];
-    return { ...reviewsStatus, reviews: merged };
+    // One row per PR, carrying what BOTH fetches learned — the pin's copy
+    // must not erase the live row's RE-REVIEW flag (or vice versa).
+    return { ...reviewsStatus, reviews: mergePinnedReviews(pinnedPrsData, reviewsStatus.reviews) };
   })();
 
   // Single-source-of-truth visible lists: same filter chain the
@@ -530,23 +631,9 @@ export function PanelA({
       setSeenReviews(next);
       void window.popbot.settings.set('panela.seen.reviews', [...next]);
     }
-    // "Mark all seen" also acknowledges the current round of every
-    // re-review on the list — without this, re-review rows kept the
-    // badge count up because `unseenReviews` gates on the dismissed
-    // map (not just the seen-set).
-    setDismissedReReviews((prev) => {
-      let changed = false;
-      const draft: Record<number, string> = { ...prev };
-      for (const r of reviewsList) {
-        if (r.flags.reReview && draft[r.number] !== r.updatedAt) {
-          draft[r.number] = r.updatedAt;
-          changed = true;
-        }
-      }
-      if (!changed) return prev;
-      void window.popbot.settings.set('panela.dismissed.rereviews', draft);
-      return draft;
-    });
+    // Deliberately NOT touching re-reviews. "Seen" is an acknowledgment,
+    // and a RE-REVIEW row isn't asking to be acknowledged — it's asking
+    // to be reviewed again. It stays, and keeps counting, until you do.
   }, [reviewsList, seenReviews]);
   const markTicketsSeen = useCallback(() => {
     if (!ticketsList || !seenTickets) return;
@@ -567,19 +654,8 @@ export function PanelA({
       void window.popbot.settings.set('panela.seen.reviews', [...next]);
       return next;
     });
-    // Also dismiss any active re-review for this PR — same intent as
-    // markReviewsSeen but scoped to one row. Without this, marking
-    // seen on a re-review row didn't tick the badge down.
-    const row = reviewsList?.find((x) => x.number === n);
-    if (row?.flags.reReview) {
-      setDismissedReReviews((prev) => {
-        if (prev[n] === row.updatedAt) return prev;
-        const draft = { ...prev, [n]: row.updatedAt };
-        void window.popbot.settings.set('panela.dismissed.rereviews', draft);
-        return draft;
-      });
-    }
-  }, [reviewsList]);
+    // A RE-REVIEW row is left alone on purpose — see markReviewsSeen.
+  }, []);
   const markOneTicketSeen = useCallback((id: string) => {
     setSeenTickets((prev) => {
       if (!prev || prev.has(id)) return prev;
@@ -716,6 +792,20 @@ export function PanelA({
           )}
         </div>
         <div className="panel-actions">
+          {tab === 'reviews' && (
+            <button
+              className={`iconbtn ${activeOnly ? 'is-on' : ''}`}
+              title={t(activeOnly ? 'panelA.action.showAllReviews' : 'panelA.action.showActiveOnly')}
+              aria-pressed={activeOnly}
+              onClick={() => {
+                const next = !activeOnly;
+                setActiveOnly(next);
+                void setAppSetting('panela.reviews.activeOnly', next);
+              }}
+            >
+              <i className={`fa-solid ${activeOnly ? 'fa-thumbtack' : 'fa-list'}`} />
+            </button>
+          )}
           {tab === 'tickets' && unseenTickets > 0 && (
             <button
               className="iconbtn"
@@ -795,7 +885,8 @@ export function PanelA({
         {tab === 'reviews' && (
           <ReviewList
             status={mergedReviewsStatus}
-            onSpawn={onSpawnFromReview}
+            activeOnly={activeOnly}
+            onSpawn={(r) => { onSpawnFromReview(r); void pinPr(r.number, r.scm); }}
             onOpenPrefs={onOpenPrefs}
             reviewChats={reviewChats}
             ignoredPrs={ignoredPrs}
@@ -847,6 +938,11 @@ export function PanelA({
             const r = pendingReview;
             setPendingReview(null);
             onSpawnFromReview(r, agentConfig);
+            // Reviewing it IS engaging with it, so pin it — same meaning
+            // as a manual pin. Without this the row vanishes from the
+            // queue the moment you post a review (the human-reviewed
+            // rule fires) and you lose track of your own in-flight work.
+            void pinPr(r.number, r.scm);
           }}
           onIgnore={() => {
             const r = pendingReview;
@@ -939,6 +1035,9 @@ interface ReviewListProps {
   /** PR numbers the user has chosen to ignore — filtered out of the
    *  rendered list. */
   ignoredPrs?: number[];
+  /** Collapse the list to just the reviews you're actively on (pinned,
+   *  which includes anything you've reviewed). */
+  activeOnly?: boolean;
   /** Whether a PR row should render with the NEW chip. */
   isNew?: (n: number) => boolean;
   /** Click handler for the NEW chip — dismisses just that row. */
@@ -1057,6 +1156,7 @@ function ReviewList({
   onOpenPrefs,
   reviewChats,
   ignoredPrs,
+  activeOnly,
   isNew,
   onMarkSeen,
   isReReviewDismissed,
@@ -1080,7 +1180,21 @@ function ReviewList({
   // PRs are ones the user already dismissed, the panel should read as
   // empty, not "0 PRs to review" with hidden rows underneath.
   const ignoredSet = new Set(ignoredPrs ?? []);
-  const visibleReviews = status.reviews.filter((r) => !ignoredSet.has(r.number));
+  const visibleReviews = status.reviews
+    .filter((r) => !ignoredSet.has(r.number))
+    // "Active only": the ones you're on — plus anything that names you
+    // personally. Those aren't speculative work you might pick up; they
+    // were addressed to you, so they stay visible in every view and
+    // leave only by being dismissed.
+    .filter((r) => !activeOnly || r.pinned || r.tier === 'direct');
+  if (visibleReviews.length === 0 && activeOnly) {
+    return (
+      <div className="empty reviews-readiness">
+        <div className="ico"><i className="fa-solid fa-thumbtack" /></div>
+        <div className="reviews-empty-note">{t('reviews.empty.noActive')}</div>
+      </div>
+    );
+  }
   if (visibleReviews.length === 0) {
     // Everything's connected — show just the "nothing waiting" note, no
     // config checklist. We only surface the readiness steps when a step
@@ -1092,9 +1206,36 @@ function ReviewList({
       </div>
     );
   }
+  // Group by tier so the three piles are visually distinct. Sorting
+  // alone isn't enough — with hundreds of rows the one PR that names
+  // you personally is invisible if it merely sits at the top of an
+  // undifferentiated list.
+  const groups = REVIEW_TIER_ORDER
+    .map((tier) => ({
+      tier,
+      // Active first within the category — EXCEPT in "Waiting on you",
+      // where sinking an unattended direct ask below ones you've already
+      // picked up defeats the point of the section.
+      rows: visibleReviews
+        .filter((r) => (r.tier ?? 'org') === tier)
+        .sort((a, b) => {
+          if (tier === 'direct') return 0;
+          // A re-review counts as active alongside a pin: it's work you
+          // already started that has come back to you.
+          const active = (r: ReviewItem): number => Number(!!r.pinned || !!r.flags.reReview);
+          return active(b) - active(a);
+        }),
+    }))
+    .filter((g) => g.rows.length > 0);
   return (
     <>
-      {visibleReviews.map((r) => {
+      {groups.map((g) => (
+        <Fragment key={g.tier}>
+          <div className="review-group-head">
+            {t(REVIEW_TIER_LABEL[g.tier])}
+            <span className="review-group-count">{g.rows.length}</span>
+          </div>
+          {g.rows.map((r) => {
         const linked = reviewChats?.get(r.number);
         const linkedTitle = linked?.focused
           ? t('reviews.row.linkedFocused')
@@ -1124,7 +1265,9 @@ function ReviewList({
             onContextMenu={onContextMenu}
           />
         );
-      })}
+          })}
+        </Fragment>
+      ))}
     </>
   );
 }
@@ -1170,20 +1313,37 @@ function ReviewRow({ review: r, linked, onClick, avatarColor, linkedTitle, isNew
             }}
             aria-label={linkedTitle}
           >
-            <span className="avatar" style={{ background: avatarColor(r.author || '?') }}>
+            {/* The portrait carries the detail. The row body deliberately
+                has no `title` — a tooltip following the cursor across the
+                whole row fights the right-click menu — but the avatar is a
+                small, precise target, so it's the natural place to hang
+                "who is this and why am I seeing it". */}
+            <span
+              className="avatar"
+              style={{ background: avatarColor(r.author || '?') }}
+              title={reviewTooltip(r, t)}
+            >
               {(r.author || '?').slice(0, 2)}
             </span>
             {reReview && (
               <button
                 type="button"
                 className="row-new-chip row-rereview-chip"
-                title={linked
-                  ? t('reviews.row.reReviewLinkedTitle')
-                  : t('reviews.row.reReviewNewTitle')}
+                title={t(linked
+                  ? 'reviews.row.reReviewLinkedTitle'
+                  : 'reviews.row.reReviewNewTitle')}
                 onClick={(e) => {
                   e.stopPropagation();
-                  if (linked) onReReview?.(r);
-                  else onClick();
+                  // ALWAYS initiate the re-review. This used to fall back
+                  // to the generic spawn dialog whenever no chat was
+                  // currently open — including when the chat merely got
+                  // closed — so clicking the badge asked "create a chat?"
+                  // instead of doing the thing the badge names. The
+                  // handler already covers both cases: it focuses an
+                  // existing chat (reopening a closed one) and sends the
+                  // re-review prompt, or opens a fresh chat with that
+                  // same prompt.
+                  onReReview?.(r);
                 }}
               >
                 {t('reviews.row.reReviewChip')}
@@ -1211,12 +1371,30 @@ function ReviewRow({ review: r, linked, onClick, avatarColor, linkedTitle, isNew
                 </span>
               )}
               {r.flags.requestedReviewer && (
-                <span className="pill wait" title={t('reviews.row.requestedReviewerTitle')}>
+                // Clickable: this pill only appears when the PR names you
+                // personally, so it's the row's most direct "go read it"
+                // affordance. stopPropagation so it opens the PR rather
+                // than falling through to the row's spawn-a-chat click.
+                <button
+                  type="button"
+                  className="pill wait pill-link"
+                  title={t('reviews.row.requestedReviewerOpenTitle')}
+                  onClick={(e) => { e.stopPropagation(); window.open(r.url, '_blank'); }}
+                >
                   <span className="glyph">?</span>{t('reviews.row.requestedReviewerLabel')}
-                </span>
+                  <i className="fa-solid fa-arrow-up-right-from-square pill-ext" aria-hidden />
+                </button>
               )}
               {r.flags.noReviewsYet && !r.flags.requestedReviewer && (
-                <span className="pill muted" title={t('reviews.row.noReviewsTitle')}>{t('reviews.row.noReviewsLabel')}</span>
+                <button
+                  type="button"
+                  className="pill muted pill-link"
+                  title={t('reviews.row.noReviewsOpenTitle')}
+                  onClick={(e) => { e.stopPropagation(); window.open(r.url, '_blank'); }}
+                >
+                  {t('reviews.row.noReviewsLabel')}
+                  <i className="fa-solid fa-arrow-up-right-from-square pill-ext" aria-hidden />
+                </button>
               )}
               {r.isDraft && <span className="pill muted">{t('reviews.row.draft')}</span>}
               {/* Open-in-browser is now exposed via right-click → "Open

@@ -57,10 +57,11 @@ PopBot reimplementiert diese Agents nicht — es **steuert die echten**, über i
 
 Pro Chat wählt ihr das Backend, das **Modell** und den **Reasoning-Effort** (`low` → `xhigh` / `max` — mehr Effort bedeutet tieferes Denken und gründlicheren Tool-Einsatz, bei höheren Kosten/Latenz). Ihr setzt sinnvolle **Standardwerte** — separat für *neue Chats* und für *Code-Reviews*, da ein Review eine andere Tiefe will als ein Feature-Build — und überschreibt sie pro Chat, wenn eine Aufgabe es rechtfertigt.
 
-Zwei Session-Steuerelemente sind für lang laufende Arbeit wichtig:
+Drei Session-Steuerelemente sind für lang laufende Arbeit wichtig:
 
 - **Mitten in der Session wechseln.** Modell oder Effort bei einem laufenden Chat ändern; PopBot rekonfiguriert den Agent, ohne den Faden zu verlieren.
 - **Mit Kontext neustarten.** Eine *frische* Agent-Session starten, geprimt mit dem Transcript dieses Chats (seinen Eröffnungszügen plus den jüngsten), nützlich, wenn eine Session lang oder verkeilt wird. Die Konversationshistorie bleibt erhalten, der Agent bekommt lediglich eine saubere Laufzeitumgebung.
+- **Kontext komprimieren.** Die Ringanzeige im Eingabebereich zeigt, wie voll das Kontextfenster des Agenten ist. Klicken (oder Rechtsklick) und *Kontext komprimieren* wählen, damit Claude das bisherige Gespräch zusammenfasst; das Transkript vermerkt, wann es fertig ist und wie viel Platz frei wurde. `/compact` einzutippen tut dasselbe. Codex komprimiert von selbst, dort ist die Anzeige nur informativ.
 
 Credentials für die Integrationen werden **lokal auf eurer Maschine** gespeichert, in der eigenen Datenbank der App — niemals in diesem Repository.
 

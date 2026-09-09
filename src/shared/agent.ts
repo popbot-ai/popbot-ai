@@ -15,6 +15,7 @@ export type AgentEventType =
   | 'message-end'
   | 'session-status'
   | 'usage'
+  | 'compaction'
   | 'error';
 
 export interface MessageStartEvent {
@@ -72,6 +73,22 @@ export interface MessageEndEvent {
   ts: number;
 }
 
+/**
+ * The backend has actually STARTED a turn — Claude's SDK `system`/`init`
+ * message. Distinct from `session-status: 'running'`, which AgentHost
+ * emits itself the moment a user hits send; this one means the CLI
+ * dequeued the message and is working on it.
+ *
+ * That difference is what lets AgentHost tell "the agent finished
+ * everything you asked" from "the agent finished the previous thing and
+ * your message is still sitting in its queue".
+ */
+export interface TurnStartEvent {
+  type: 'turn-start';
+  chatId: string;
+  ts: number;
+}
+
 export interface SessionStatusEvent {
   type: 'session-status';
   chatId: string;
@@ -86,10 +103,56 @@ export interface UsageEvent {
   ts: number;
 }
 
+/**
+ * Compaction lifecycle — the backend summarizing its own conversation
+ * context, whether the user asked for it (the composer's context gauge,
+ * or a typed `/compact`) or the CLI did it on its own as the window
+ * filled up. `started` and `failed` are transient (the renderer shows
+ * them as ephemeral rows, like diagnostics); only `done` is written to
+ * the transcript.
+ */
+export interface CompactionEvent {
+  type: 'compaction';
+  chatId: string;
+  phase: 'started' | 'done' | 'failed';
+  /** Who asked: the user, or the CLI's autocompact. Known on `done`. */
+  trigger?: 'manual' | 'auto';
+  /** Context tokens before and after the summary, when reported. */
+  preTokens?: number;
+  postTokens?: number;
+  durationMs?: number;
+  /** Why it failed, e.g. "Not enough messages to compact." */
+  error?: string;
+  ts: number;
+}
+
 export interface ErrorEvent {
   type: 'error';
   chatId: string;
   message: string;
+  /**
+   * How loudly to surface this.
+   *
+   *  - 'notice' — an explained non-answer that is being retried
+   *    automatically: overloaded, timed out, connection dropped, empty
+   *    reply. A small grey line, erased once the retry succeeds.
+   *  - 'warning' — nothing is broken, but the user has to know and
+   *    probably has to wait or act: usage limit reached, quota
+   *    exhausted, session needs re-authenticating. A yellow
+   *    notification box. Retrying wouldn't help, so we don't.
+   *  - 'error'  (default) — a genuine, UNEXPECTED fault. Red. If a
+   *    condition is a normal part of using the product (running out of
+   *    tokens is), it belongs in 'warning', not here.
+   */
+  level?: 'error' | 'warning' | 'notice';
+  /**
+   * True when the turn produced NOTHING before failing — no text, no
+   * tool calls, nothing persisted. That makes replaying the user's
+   * message provably safe: there is no partial work to duplicate.
+   * AgentHost uses it to silently retry instead of reporting, because
+   * what the user wants is an answer, not an explanation.
+   */
+  retryable?: boolean;
   ts: number;
 }
 
@@ -118,6 +181,19 @@ export interface PermissionDecidedEvent {
   ts: number;
 }
 
+/**
+ * A row AgentHost has removed from the transcript. Used for messages
+ * that were only ever provisional — the "no response, retrying…" notice
+ * is deleted the moment the retry produces a real reply, so a
+ * successful recovery leaves no trace of the hiccup behind.
+ */
+export interface MessageRemovedEvent {
+  type: 'message-removed';
+  chatId: string;
+  messageId: string;
+  ts: number;
+}
+
 export type AgentEvent =
   | MessageStartEvent
   | TextDeltaEvent
@@ -127,8 +203,11 @@ export type AgentEvent =
   | PermissionDecidedEvent
   | MessageEndEvent
   | MessageAddedEvent
+  | MessageRemovedEvent
+  | TurnStartEvent
   | SessionStatusEvent
   | UsageEvent
+  | CompactionEvent
   | ErrorEvent;
 
 /**

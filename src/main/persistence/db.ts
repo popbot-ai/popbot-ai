@@ -334,6 +334,39 @@ const SCHEMA = [
   `
   ALTER TABLE chats ADD COLUMN p4_shelf_cl INTEGER;
   `,
+  // v20 — provider-specific transcript synchronization watermarks.
+  //
+  // Claude and Codex keep independent native conversations, while PopBot's
+  // SQLite messages table is the shared, provider-neutral transcript. When a
+  // chat switches providers, the provider being switched TO must receive the
+  // turns that happened while the other provider was active. These timestamps
+  // record the newest SQLite message each native conversation has absorbed.
+  //
+  // Migration policy: the currently selected provider is assumed to own the
+  // existing native context, so it starts caught up at last_active_at. The
+  // inactive provider starts at zero and receives a one-time full transcript
+  // bridge the next time it is selected. This avoids duplicating history in
+  // the active provider while repairing continuity on the first switch.
+  `
+  ALTER TABLE chats ADD COLUMN claude_context_at INTEGER NOT NULL DEFAULT 0;
+  ALTER TABLE chats ADD COLUMN codex_context_at INTEGER NOT NULL DEFAULT 0;
+  UPDATE chats
+     SET claude_context_at = CASE WHEN agent = 'claude' THEN last_active_at ELSE 0 END,
+         codex_context_at = CASE WHEN agent = 'codex' THEN last_active_at ELSE 0 END;
+  `,
+  // v21 — canonical review URL. Code-review creation already knows this URL;
+  // persisting it makes the PR chip immediate and independent of `gh` polling.
+  `
+  ALTER TABLE chats ADD COLUMN pr_url TEXT;
+  `,
+  // v22 — user-arranged chat order (thumbnail strip + columns). Seeded
+  // from created_at so existing chats keep their left-to-right order; a
+  // new chat appends (MAX+1), a reopened one leads (MIN-1), and a
+  // drag-and-drop renumbers the open set.
+  `
+  ALTER TABLE chats ADD COLUMN sort_order INTEGER NOT NULL DEFAULT 0;
+  UPDATE chats SET sort_order = created_at;
+  `,
 ];
 
 export function initDb(): Database.Database {

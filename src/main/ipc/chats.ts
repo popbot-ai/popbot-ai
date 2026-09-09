@@ -12,6 +12,8 @@ import {
 import {
   allocateSlotPreferring,
   closeChat,
+  renameChat,
+  reorderChats,
   createChat,
   deleteChat,
   getChat,
@@ -162,6 +164,7 @@ export function registerChatHandlers(): void {
         name: input.name,
         ticket: input.ticket ?? null,
         pr: input.pr ?? null,
+        prUrl: input.prUrl ?? null,
         branch: input.branch ?? null,
         type: input.type ?? 'lite',
         slotId: null,
@@ -213,6 +216,7 @@ export function registerChatHandlers(): void {
         name: input.name,
         ticket: input.ticket ?? null,
         pr: input.pr ?? null,
+        prUrl: input.prUrl ?? null,
         branch,
         type: input.type ?? 'lite',
         slotId: null,
@@ -310,6 +314,7 @@ export function registerChatHandlers(): void {
       name: input.name,
       ticket: input.ticket ?? null,
       pr: input.pr ?? null,
+      prUrl: input.prUrl ?? null,
       branch,
       type: input.type ?? 'lite',
       slotId,
@@ -590,6 +595,15 @@ export function registerChatHandlers(): void {
       return { ok: true, chat: reopened };
     },
   );
+
+  ipcMain.handle(IpcChannel.ChatsReorder, (_e, ids: string[]) => {
+    if (!Array.isArray(ids)) return;
+    reorderChats(ids.filter((id): id is string => typeof id === 'string'));
+  });
+
+  ipcMain.handle(IpcChannel.ChatsRename, (_e, chatId: string, name: string) => {
+    return renameChat(chatId, typeof name === 'string' ? name : '');
+  });
 
   ipcMain.handle(IpcChannel.ChatsDelete, async (_e, chatId: string) => {
     const chat = getChat(chatId);

@@ -31,6 +31,7 @@ interface ChatRow {
   name: string;
   ticket: string | null;
   pr: number | null;
+  pr_url: string | null;
   branch: string | null;
   type: string;
   mode: string;
@@ -44,6 +45,8 @@ interface ChatRow {
   p4_shelf_cl: number | null;
   session_id: string | null;
   codex_thread_id: string | null;
+  claude_context_at: number;
+  codex_context_at: number;
   claude_model: string;
   claude_reasoning_effort: string;
   codex_model: string;
@@ -64,9 +67,10 @@ interface ChatRow {
  *  mode + slot prefix appear on every ChatRecord without a per-call
  *  repos lookup. */
 const CHAT_COLUMNS = `
-  c.id, c.name, c.ticket, c.pr, c.branch, c.type, c.mode, c.agent, c.status,
+  c.id, c.name, c.ticket, c.pr, c.pr_url, c.branch, c.type, c.mode, c.agent, c.status,
   c.snippet, c.tokens_used, c.tokens_budget, c.slot_id, c.worktree_path, c.p4_shelf_cl,
-  c.session_id, c.codex_thread_id, c.claude_model, c.claude_reasoning_effort,
+  c.session_id, c.codex_thread_id, c.claude_context_at, c.codex_context_at,
+  c.claude_model, c.claude_reasoning_effort,
   c.codex_model, c.codex_reasoning_effort,
   c.permission_rules, c.created_at, c.last_active_at, c.closed_at,
   c.repo_id, r.color AS repo_color, r.mode AS repo_mode, r.scm AS repo_scm, r.slot_prefix AS repo_slot_prefix
@@ -95,6 +99,7 @@ function rowToRecord(r: ChatRow): ChatRecord {
     name: r.name,
     ticket: r.ticket,
     pr: r.pr,
+    prUrl: r.pr_url,
     branch: r.branch,
     type: r.type as ChatType,
     mode: r.mode as 'interactive' | 'autonomous',
@@ -108,6 +113,8 @@ function rowToRecord(r: ChatRow): ChatRecord {
     p4ShelfCl: r.p4_shelf_cl,
     sessionId: r.session_id,
     codexThreadId: r.codex_thread_id,
+    claudeContextAt: r.claude_context_at,
+    codexContextAt: r.codex_context_at,
     claudeModel: normalizeClaudeModel(r.claude_model),
     claudeReasoningEffort: normalizeClaudeReasoningEffort(r.claude_reasoning_effort),
     codexModel: normalizeCodexModel(r.codex_model),
@@ -148,13 +155,14 @@ function normalizeCodexReasoningEffort(value: string | null | undefined): CodexR
 }
 
 export function listOpenChats(): ChatRecord[] {
-  // Oldest first → newest last. Lays out left-to-right in the column +
-  // thumbnail strip with the most recently created chat on the far right.
+  // The user's arrangement (drag-and-drop in the thumbnail strip), which
+  // starts out oldest-first → newest-last so a new chat lands on the far
+  // right of the column + thumbnail strip.
   const rows = db()
     .prepare<[], ChatRow>(
       `SELECT ${CHAT_COLUMNS} ${CHAT_FROM}
         WHERE c.closed_at IS NULL AND c.deleted_at IS NULL
-        ORDER BY c.created_at ASC`,
+        ORDER BY c.sort_order ASC, c.created_at ASC`,
     )
     .all();
   return rows.map(rowToRecord);
@@ -175,17 +183,25 @@ export function listClosedChats(limit = 100): ChatRecord[] {
  *  the open chats list. The transcript and all metadata are preserved.
  *  Refuses to reopen a soft-deleted chat. Optionally re-attaches a
  *  workspace slot + worktree (the IPC handler does the git work). */
+/** A reopened chat leads the open set — the renderer prepends it, and
+ *  the stored order has to agree so a reload doesn't shuffle it. */
+const REOPEN_SORT_ORDER =
+  '(SELECT COALESCE(MIN(o.sort_order), 0) - 1 FROM chats o WHERE o.closed_at IS NULL AND o.deleted_at IS NULL)';
+
 export function reopenChat(
   id: string,
   attach?: { slotId: number | null; worktreePath: string | null },
 ): ChatRecord | null {
   if (attach) {
     db().prepare(
-      'UPDATE chats SET closed_at = NULL, slot_id = ?, worktree_path = ?, last_active_at = ? WHERE id = ? AND deleted_at IS NULL',
+      `UPDATE chats SET closed_at = NULL, slot_id = ?, worktree_path = ?, last_active_at = ?,
+              sort_order = ${REOPEN_SORT_ORDER}
+        WHERE id = ? AND deleted_at IS NULL`,
     ).run(attach.slotId, attach.worktreePath, Date.now(), id);
   } else {
     db().prepare(
-      'UPDATE chats SET closed_at = NULL, last_active_at = ? WHERE id = ? AND deleted_at IS NULL',
+      `UPDATE chats SET closed_at = NULL, last_active_at = ?, sort_order = ${REOPEN_SORT_ORDER}
+        WHERE id = ? AND deleted_at IS NULL`,
     ).run(Date.now(), id);
   }
   return getChat(id);
@@ -243,6 +259,7 @@ export interface CreateChatArgs {
   name: string;
   ticket?: string | null;
   pr?: number | null;
+  prUrl?: string | null;
   branch?: string | null;
   type?: ChatType;
   slotId?: number | null;
@@ -269,17 +286,20 @@ export function createChat(args: CreateChatArgs): ChatRecord {
   db()
     .prepare(
       `INSERT INTO chats (
-         id, name, ticket, pr, branch, type, mode, agent, status, snippet,
+         id, name, ticket, pr, pr_url, branch, type, mode, agent, status, snippet,
          tokens_used, tokens_budget, slot_id, worktree_path, created_at, last_active_at,
-         repo_id, claude_model, claude_reasoning_effort, codex_model, codex_reasoning_effort
+         repo_id, claude_model, claude_reasoning_effort, codex_model, codex_reasoning_effort,
+         sort_order
        )
-       VALUES (?, ?, ?, ?, ?, ?, 'interactive', ?, 'idle', '', 0, 1000000, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       VALUES (?, ?, ?, ?, ?, ?, ?, 'interactive', ?, 'idle', '', 0, 1000000, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+               (SELECT COALESCE(MAX(o.sort_order), 0) + 1 FROM chats o))`,
     )
     .run(
       id,
       args.name,
       args.ticket ?? null,
       args.pr ?? null,
+      args.prUrl ?? null,
       args.branch ?? null,
       args.type ?? 'lite',
       agent,
@@ -358,6 +378,26 @@ export function listSlotOccupantsForRepo(repoId: string): Map<number, SlotOccupa
  *  chat is currently attached to a slot, blank otherwise. Clearing it
  *  here means a closed chat never carries a stale path that could be
  *  read after the slot was reassigned to someone else. */
+/** Persist a drag-and-drop arrangement: `ids` is the open set in its new
+ *  left-to-right order. Chats not listed keep their relative order after
+ *  the listed ones (they'd only be missing on a stale renderer). */
+export function reorderChats(ids: string[]): void {
+  const update = db().prepare('UPDATE chats SET sort_order = ? WHERE id = ?');
+  db().transaction(() => {
+    ids.forEach((id, i) => update.run(i + 1, id));
+  })();
+}
+
+/** Rename a chat. Returns the updated row, or null when the chat is gone
+ *  or the name is blank. Names are capped so a pasted paragraph can't
+ *  become a column title. */
+export function renameChat(id: string, name: string): ChatRecord | null {
+  const clean = name.replace(/\s+/g, ' ').trim().slice(0, 200);
+  if (!clean) return null;
+  db().prepare('UPDATE chats SET name = ? WHERE id = ? AND deleted_at IS NULL').run(clean, id);
+  return getChat(id);
+}
+
 export function closeChat(id: string): void {
   db()
     .prepare(`UPDATE chats SET closed_at = ?, slot_id = NULL, worktree_path = '' WHERE id = ?`)
@@ -494,6 +534,22 @@ export function setChatCodexThreadId(id: string, threadId: string): void {
 
 export function clearChatCodexThreadId(id: string): void {
   db().prepare('UPDATE chats SET codex_thread_id = NULL WHERE id = ?').run(id);
+}
+
+export function setChatPrUrl(id: string, url: string): void {
+  db().prepare('UPDATE chats SET pr_url = ? WHERE id = ?').run(url, id);
+}
+
+/** Mark a provider's native conversation as having absorbed the shared
+ * transcript through `contextAt`. The two columns are intentionally separate:
+ * switching providers must never make one provider claim the other's context. */
+export function setChatProviderContextAt(
+  id: string,
+  agent: AgentBackendId,
+  contextAt: number,
+): void {
+  const column = agent === 'codex' ? 'codex_context_at' : 'claude_context_at';
+  db().prepare(`UPDATE chats SET ${column} = MAX(${column}, ?) WHERE id = ?`).run(contextAt, id);
 }
 
 export function updateChatAgentConfig(

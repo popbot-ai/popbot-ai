@@ -97,9 +97,58 @@ export function appendMessage(args: AppendMessageArgs): MessageRecord {
   };
 }
 
+/**
+ * Drop every persisted diagnostic row (`error:` / `warning:` / `notice:`
+ * system messages) from the transcripts.
+ *
+ * Diagnostics are ephemeral now — they live in renderer memory and
+ * vanish on the next reply. This clears the ones written by older
+ * builds, which otherwise greet you with the last five failures every
+ * time you reopen a chat, long after they stopped mattering.
+ *
+ * Returns how many rows were removed.
+ */
+export function purgePersistedDiagnostics(): number {
+  const res = db()
+    .prepare(
+      `DELETE FROM messages
+        WHERE kind = 'system'
+          AND role = 'system'
+          AND (
+            json_extract(body, '$.text') LIKE 'error:%'
+            OR json_extract(body, '$.text') LIKE 'warning:%'
+            OR json_extract(body, '$.text') LIKE 'notice:%'
+          )`,
+    )
+    .run();
+  return res.changes;
+}
+
+export function deleteMessage(id: string): void {
+  db().prepare('DELETE FROM messages WHERE id = ?').run(id);
+}
+
 export function updateMessageBody(id: string, body: unknown): void {
   const serialized = typeof body === 'string' ? body : JSON.stringify(body);
   db()
     .prepare('UPDATE messages SET body = ?, updated_at = ? WHERE id = ?')
     .run(serialized, Date.now(), id);
+}
+
+/**
+ * When the user last said something in each chat — the newest `user`
+ * row's created_at, keyed by chat id. Drives review re-engagement: a
+ * prompt from the user is the signal that they looked again, whereas
+ * the chat's last_active_at is bumped by the agent's own activity and
+ * so would count an original review that merely finished after the
+ * author pushed as a re-review. One grouped query over the index; ~0.1s
+ * on a multi-GB database.
+ */
+export function lastUserMessageAtByChat(): Map<string, number> {
+  const rows = db()
+    .prepare<[], { chat_id: string; at: number }>(
+      "SELECT chat_id, MAX(created_at) AS at FROM messages WHERE role = 'user' GROUP BY chat_id",
+    )
+    .all();
+  return new Map(rows.map((r) => [r.chat_id, r.at]));
 }
