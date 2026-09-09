@@ -25,6 +25,18 @@ interface Options {
 const keyOf = (r: ReviewItem): string => `${r.scm}:${r.number}`;
 
 /**
+ * What "the same item, unchanged" means for alerting.
+ *
+ * Identity alone isn't enough: a PR you've already been shown becomes
+ * newsworthy AGAIN when the author pushes on top of your review. Folding
+ * the re-review state and its timestamp into the signature makes that
+ * transition look like arrival, so it alerts — while an unchanged row
+ * stays quiet.
+ */
+const alertSigOf = (r: ReviewItem): string =>
+  `${r.flags.reReview ? `rr:${r.updatedAt}` : 'x'}`;
+
+/**
  * Polls each review-capable provider on its OWN interval and merges the
  * results into one list. GitHub and Swarm are independent: each provider
  * reports its own `pollIntervalMs` (Swarm deliberately slower to protect a
@@ -46,7 +58,9 @@ export function useReviews({ onNew }: Options = {}): {
   const providersRef = useRef<ReviewProviderInfo[]>([]);
   const slicesRef = useRef<Map<string, ReviewItem[]>>(new Map()); // provider id → last OK reviews
   const errorsRef = useRef<Map<string, ReviewsError>>(new Map()); // provider id → last hard error
-  const seenRef = useRef<Map<string, Set<string>>>(new Map()); // provider id → known review keys
+  // provider id → (review key → alert signature). Signature, not a bare
+  // set, so a re-review push on an already-known PR still alerts.
+  const seenRef = useRef<Map<string, Map<string, string>>>(new Map());
   const timersRef = useRef<Map<string, ReturnType<typeof setInterval>>>(new Map());
   const refreshingRef = useRef(false);
 
@@ -99,10 +113,17 @@ export function useReviews({ onNew }: Options = {}): {
         // fetch, then alert on genuinely-new items after.
         const prev = seenRef.current.get(p.id);
         if (prev) {
-          const fresh = res.reviews.filter((r) => !prev.has(keyOf(r)));
+          // Alert on a review we haven't shown, OR one whose re-review
+          // state has changed — the author pushing onto your review is
+          // exactly as newsworthy as the review arriving in the first
+          // place, and used to pass silently.
+          const fresh = res.reviews.filter((r) => {
+            const before = prev.get(keyOf(r));
+            return before === undefined || before !== alertSigOf(r);
+          });
           if (fresh.length) onNewRef.current?.(fresh);
         }
-        seenRef.current.set(p.id, new Set(res.reviews.map(keyOf)));
+        seenRef.current.set(p.id, new Map(res.reviews.map((r) => [keyOf(r), alertSigOf(r)])));
         slicesRef.current.set(p.id, res.reviews);
       } else if (res.reason === 'no-repo') {
         // Configured but nothing to show (e.g. Swarm not wired / not logged in)

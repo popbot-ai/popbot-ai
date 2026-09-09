@@ -10,13 +10,16 @@
  */
 import { existsSync } from 'node:fs';
 import type { SourceControlProviderId } from '@shared/sourceControl';
-import type {
-  GetReviewResult,
-  ListRecentReviewsResult,
-  ListReviewsResult,
-  ReviewItem,
-  ReviewProviderInfo,
-  ReviewSystem,
+import {
+  DEFAULT_REVIEW_SCOPE,
+  reviewInScope,
+  type GetReviewResult,
+  type ListRecentReviewsResult,
+  type ListReviewsResult,
+  type ReviewItem,
+  type ReviewProviderInfo,
+  type ReviewScope,
+  type ReviewSystem,
 } from '@shared/reviews';
 import { getSetting } from '../persistence/settings';
 import { listRepos } from '../persistence/repos';
@@ -71,13 +74,36 @@ export function reviewProviders(): ReviewProviderInfo[] {
   }));
 }
 
+/**
+ * The user's chosen breadth for the panel. Lives alongside the ignore
+ * lists under the `reviews` settings blob. Anything unrecognized (or
+ * unset) falls back to the historical behaviour.
+ */
+function reviewScope(): ReviewScope {
+  const scope = getSetting<{ scope?: ReviewScope }>('reviews')?.scope;
+  return scope === 'requested' || scope === 'unreviewed' ? scope : DEFAULT_REVIEW_SCOPE;
+}
+
+/**
+ * Narrow a provider's result to reviews that name the user, when that's
+ * the configured scope. Applied here rather than inside each provider so
+ * GitHub and Swarm honour the setting identically — both already set
+ * `flags.requestedReviewer` from their own notion of "I'm a reviewer".
+ */
+function applyScope(reviews: ReviewItem[]): ReviewItem[] {
+  const scope = reviewScope();
+  if (scope !== 'requested') return reviews;
+  return reviews.filter((r) => reviewInScope(r, scope));
+}
+
 /** Pending reviews for ONE provider (the per-provider poll path). */
 export async function listPendingReviewsFor(
   scm: SourceControlProviderId,
 ): Promise<ListReviewsResult> {
   const group = reviewGroups().find((g) => g.scm === scm);
   if (!group) return { ok: false, reason: 'no-repo' };
-  return getSourceControlProvider(scm).listPendingReviews(group.paths);
+  const result = await getSourceControlProvider(scm).listPendingReviews(group.paths);
+  return result.ok ? { ok: true, reviews: applyScope(result.reviews) } : result;
 }
 
 /**
@@ -99,7 +125,7 @@ export async function listPendingReviews(): Promise<ListReviewsResult> {
     else if (!firstError && r.reason !== 'no-repo') firstError = r;
   }
   if (reviews.length === 0 && firstError) return firstError;
-  return { ok: true, reviews };
+  return { ok: true, reviews: applyScope(reviews) };
 }
 
 /**
