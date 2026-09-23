@@ -11,12 +11,15 @@ import {
   DEFAULT_CLAUDE_REASONING_EFFORT,
   DEFAULT_CODEX_MODEL,
   DEFAULT_CODEX_REASONING_EFFORT,
+  CODEX_SETTINGS_KEY,
   RAW_CHAT_REPO_ID,
+  codexUsesAppServer,
   type ClaudeModelId,
   type ChatRecord,
   type ClaudeReasoningEffort,
   type CodexModelId,
   type CodexReasoningEffort,
+  type CodexSettings,
   type MessageBodyPermission,
   type MessageBodyText,
   type MessageBodyTool,
@@ -54,6 +57,7 @@ import type { AgentBackend, AgentSession } from './types';
 import { StubBackend } from './StubBackend';
 import { ClaudeBackend } from './ClaudeBackend';
 import { CodexBackend } from './CodexBackend';
+import { CodexAppServerBackend } from './CodexAppServerBackend';
 import { getCodexBinaryPath } from './codexProbe';
 import { persistChatAttachments } from '../attachments/store';
 
@@ -244,6 +248,11 @@ function rawChatCwd(): string {
 class AgentHostImpl {
   private webContents: WebContents | null = null;
   private readonly sessions = new Map<string, AgentSession>();
+  /** Which backend spawned each live session. Lets a settings change
+   *  (Codex exec SDK ⇄ app-server) take effect on a chat's next message
+   *  instead of only after the chat is reopened. Weak: a disposed
+   *  session takes its entry with it, no cleanup to forget. */
+  private readonly sessionBackends = new WeakMap<AgentSession, AgentBackend>();
   /** Latest failure text per chat, kept until a real reply lands. Lets a
    *  manual Retry tell "the native session is gone" from a passing API
    *  error, and keep the conversation handle in the latter case. */
@@ -339,6 +348,12 @@ class AgentHostImpl {
   /** Chats between a backend-native turn-start and terminal status. Used as a
    * hard guard against heuristic settle timers overriding real activity. */
   private readonly activeTurns = new Set<string>();
+  /** Active turns that have shown a sign of life (text, a tool call, usage…).
+   *  A message steered into one of these must not leave the stall clock
+   *  running: from here on the turn's silences are tool execution, which
+   *  is never timed. A steer into a turn that has produced NOTHING keeps
+   *  the clock — that is still the hang the watchdog exists for. */
+  private readonly turnsWithOutput = new Set<string>();
   /** Chats explicitly stopped by the user. Providers may report their
    * cancellation as an error after stop() returns; those errors are an
    * implementation detail, not a failed chat turn. The marker remains until
@@ -830,20 +845,18 @@ class AgentHostImpl {
   async compact(chatId: string): Promise<void> {
     const chat = getChat(chatId);
     if (!chat) throw new Error(`compact: chat ${chatId} not found`);
-    if (chat.agent === 'codex') {
-      // Codex compacts on its own as its window fills; its SDK has no
-      // manual compaction call to make.
-      this.surfaceDiagnostic(
-        chatId,
-        'warning',
-        'Codex manages its own context and compacts it automatically — there is no manual compaction for Codex chats.',
-      );
-      return;
-    }
     this.stoppedChats.delete(chatId);
     const session = await this.getOrSpawnSession(chatId);
     if (!session.compact) {
-      this.surfaceDiagnostic(chatId, 'warning', 'This agent does not support manual compaction.');
+      // The Codex exec SDK has no compaction call; Codex still compacts on
+      // its own as the window fills. The app-server backend does have one.
+      this.surfaceDiagnostic(
+        chatId,
+        'warning',
+        chat.agent === 'codex'
+          ? 'Codex compacts its context automatically. Manual compaction needs the app-server connection (Preferences ▸ Agents).'
+          : 'This agent does not support manual compaction.',
+      );
       return;
     }
     dlog('agent.compact', { chatId, agent: chat.agent, sessionId: chat.sessionId ?? null });
@@ -1095,19 +1108,28 @@ class AgentHostImpl {
   // ---- internals ----
 
   private async getOrSpawnSession(chatId: string): Promise<AgentSession> {
+    const backend = this.pickBackend(chatId);
     const existing = this.sessions.get(chatId);
-    if (existing && existing.isAlive()) return existing;
+    if (existing && existing.isAlive()) {
+      // Still the backend this chat should be on? The Codex transport is a
+      // preference, and it can change under a live session. Swap between
+      // turns only — a running turn is never pulled out from under itself;
+      // it moves over on the first message after it ends.
+      const spawnedBy = this.sessionBackends.get(existing);
+      if (!spawnedBy || spawnedBy === backend || this.activeTurns.has(chatId)) return existing;
+      dlog('agent.backend-changed', { chatId, backend: backend.id });
+    }
     if (existing) {
       // Zombie session — its SDK query has finished iterating, so any
       // sendUser would push into a queue nobody's reading. Drop it
       // and spawn a fresh one (which will resume into the pinned
-      // session_id, so context is preserved).
+      // session_id, so context is preserved). Same path for a session
+      // on a backend the chat has moved off.
       void existing.dispose().catch(() => undefined);
       this.sessions.delete(chatId);
       this.flushAllBuffersForChat(chatId);
     }
 
-    const backend = this.pickBackend(chatId);
     const chat = getChat(chatId);
     // Resolve the backend-native session this chat should resume into.
     // Claude uses chats.session_id + our SQLite SessionStore; Codex
@@ -1246,6 +1268,7 @@ class AgentHostImpl {
       },
     });
     this.sessions.set(chatId, session);
+    this.sessionBackends.set(session, backend);
     return session;
   }
 
@@ -1573,7 +1596,13 @@ class AgentHostImpl {
     // when you don't want to burn API credits).
     if (process.env.POPBOT_USE_STUB === '1') return StubBackend;
     if (chat.agent === 'claude') return ClaudeBackend;
-    if (chat.agent === 'codex') return CodexBackend;
+    if (chat.agent === 'codex') {
+      // Opt-in (Preferences ▸ Agents): the app-server protocol, which can
+      // steer a running turn. Default is the exec SDK, unchanged.
+      return codexUsesAppServer(getSetting<CodexSettings>(CODEX_SETTINGS_KEY))
+        ? CodexAppServerBackend
+        : CodexBackend;
+    }
     return ClaudeBackend;
   }
 
@@ -1614,9 +1643,24 @@ class AgentHostImpl {
     // A turn has actually started, so everything the user had queued is
     // now being worked on. Purely internal bookkeeping — nothing to
     // persist, and the renderer already shows 'run'.
+    // A message went INTO the running turn rather than behind it. It will
+    // never get a turn — or a turn-start — of its own, so take it off the
+    // queued count now; otherwise the chat is held in 'run' after the turn
+    // ends, waiting for a turn that isn't coming. And put the stall clock
+    // back the way the send found it (see turnsWithOutput).
+    if (event.type === 'turn-steered') {
+      const left = (this.queuedTurns.get(event.chatId) ?? 0) - 1;
+      if (left > 0) this.queuedTurns.set(event.chatId, left);
+      else this.queuedTurns.delete(event.chatId);
+      if (this.turnsWithOutput.has(event.chatId)) this.disarmStallWatchdog(event.chatId);
+      dlog('agent.turn-steered', { chatId: event.chatId, queuedTurns: Math.max(left, 0) });
+      return;
+    }
+
     if (event.type === 'turn-start') {
       this.turnAwareChats.add(event.chatId);
       this.activeTurns.add(event.chatId);
+      this.turnsWithOutput.delete(event.chatId);
       this.queuedTurns.delete(event.chatId);
       this.disarmSettleTimer(event.chatId);
       // RE-arm, never disarm. A turn STARTING is not a turn producing
@@ -1635,6 +1679,7 @@ class AgentHostImpl {
       && (event.status === 'idle' || event.status === 'complete' || event.status === 'errored')
     ) {
       this.activeTurns.delete(event.chatId);
+      this.turnsWithOutput.delete(event.chatId);
     }
 
     // 'idle' from the backend means "the turn I was working on is
@@ -1709,6 +1754,7 @@ class AgentHostImpl {
     if (AgentHostImpl.respondedToTurn(live)) {
       this.disarmStallWatchdog(live.chatId);
       this.disarmSettleTimer(live.chatId);
+      if (this.activeTurns.has(live.chatId)) this.turnsWithOutput.add(live.chatId);
     }
     try {
       this.persist(live);

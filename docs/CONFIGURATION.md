@@ -49,6 +49,8 @@ Default model **reasoning effort** for newly created chats (existing chats keep 
 
 Higher effort means deeper reasoning and more thorough tool use, at higher cost and latency. Reviews often want a different depth than feature builds — hence the split.
 
+**Steer Codex while it works** *(off by default)* — connects to Codex through its `app-server` instead of the exec SDK. With it on, a message you send while Codex is busy is folded into the running turn and reaches the model at its next step — usually the moment the command in flight returns — instead of waiting for the turn to end. It also fills the context gauge for Codex chats, enables **Compact context** for them, and makes **Stop** interrupt the turn cleanly. Codex labels `app-server` experimental and it needs `codex` 0.153 or newer, which is why it is opt-in; an older CLI simply falls back to queueing. The switch applies from each chat's next message, and a chat moves between the two connections without losing its thread.
+
 ## Runtime & slots
 
 This panel controls **attachment retention**. (Slot-pool sizing is now per-repository and lives under [Repositories](#repositories) — see the note there.)

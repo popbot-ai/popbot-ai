@@ -24,6 +24,9 @@ import {
   ATTACHMENT_TTL_DAYS_MIN,
   CLAUDE_REASONING_EFFORTS,
   CODEX_REASONING_EFFORTS,
+  CODEX_SETTINGS_KEY,
+  codexUsesAppServer,
+  type CodexSettings,
   clampAttachmentTtlDays,
   clampMaxChangedFiles,
   MAX_CHANGED_FILES_DEFAULT,
@@ -250,6 +253,7 @@ function PrefsAgents(): JSX.Element {
 
   if (loading) return <div className="pref-section"><h3>{t('prefs.agents.title')}</h3></div>;
 
+  const codexAppServer = codexUsesAppServer(get<CodexSettings>(CODEX_SETTINGS_KEY));
   const dirty =
     values.claudeReasoningEffort !== saved.claudeReasoningEffort
     || values.codexReasoningEffort !== saved.codexReasoningEffort
@@ -322,6 +326,32 @@ function PrefsAgents(): JSX.Element {
             <button className="btn primary sm" disabled={!dirty} onClick={() => void save()}>
               {t('common.save')}
             </button>
+          </div>
+        </div>
+
+        {/* Applies on its own — a switch with a Save button beside the
+            effort form's would read as part of that form. */}
+        <div className="pref-row">
+          <div className="pref-label">
+            <div className="pref-label-title">{t('prefs.agents.codexSteering.title')}</div>
+            <div className="pref-label-desc">{t('prefs.agents.codexSteering.desc')}</div>
+          </div>
+          <div className="pref-control" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <button
+              type="button"
+              className={`pref-toggle ${codexAppServer ? 'on' : ''}`}
+              onClick={() => void set(CODEX_SETTINGS_KEY, {
+                ...(get<CodexSettings>(CODEX_SETTINGS_KEY) ?? {}),
+                appServer: !codexAppServer,
+              } satisfies CodexSettings)}
+              aria-pressed={codexAppServer}
+              aria-label={t('prefs.agents.codexSteering.title')}
+            >
+              <span className="pref-toggle-thumb" />
+            </button>
+            <span style={{ color: 'var(--fg-2)', fontSize: 12 }}>
+              {codexAppServer ? t('prefs.agents.codexSteering.on') : t('prefs.agents.codexSteering.off')}
+            </span>
           </div>
         </div>
       </div>

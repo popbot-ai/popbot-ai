@@ -49,6 +49,8 @@ A differenza della fonte dei ticket a selezione singola, i motori sono **indipen
 
 Uno sforzo maggiore significa ragionamento più approfondito e uso più accurato degli strumenti, a fronte di costo e latenza maggiori. Le revisioni spesso richiedono una profondità diversa rispetto allo sviluppo di funzionalità — da qui la separazione.
 
+**Guida Codex mentre lavora** *(disattivato per impostazione predefinita)* — si collega a Codex tramite il suo `app-server` invece dell'SDK exec. Con l'opzione attiva, un messaggio inviato mentre Codex è occupato viene inserito nel turno in corso e raggiunge il modello al passo successivo — di solito appena termina il comando in esecuzione — invece di attendere la fine del turno. Alimenta anche l'indicatore di contesto per le chat Codex, vi abilita **Compatta contesto** e fa sì che **Stop** interrompa il turno in modo pulito. Codex definisce `app-server` sperimentale e serve `codex` 0.153 o successivo, per questo è opzionale; una CLI più vecchia torna semplicemente all'accodamento. L'interruttore vale dal prossimo messaggio di ogni chat, e una chat passa da una connessione all'altra senza perdere il proprio thread.
+
 ## Runtime e slot
 
 Questo pannello controlla la **conservazione degli allegati**. (Il dimensionamento del pool di slot è ora per-repository e si trova in [Repository](#repository) — vedi la nota lì.)

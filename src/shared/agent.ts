@@ -89,6 +89,24 @@ export interface TurnStartEvent {
   ts: number;
 }
 
+/**
+ * A message the user sent mid-turn was folded INTO the turn already
+ * running (Codex app-server `turn/steer`), rather than queued behind it.
+ * The model sees it at its next step, and it will never get a turn — or
+ * a `turn-start` — of its own.
+ *
+ * AgentHost needs to be told, because from the outside a steered message
+ * looks exactly like one still waiting in a queue: without this the chat
+ * would be held in 'run' after the turn ends, and the stall clock armed
+ * by the send would keep ticking over what may be minutes of perfectly
+ * healthy tool execution.
+ */
+export interface TurnSteeredEvent {
+  type: 'turn-steered';
+  chatId: string;
+  ts: number;
+}
+
 export interface SessionStatusEvent {
   type: 'session-status';
   chatId: string;
@@ -205,6 +223,7 @@ export type AgentEvent =
   | MessageAddedEvent
   | MessageRemovedEvent
   | TurnStartEvent
+  | TurnSteeredEvent
   | SessionStatusEvent
   | UsageEvent
   | CompactionEvent

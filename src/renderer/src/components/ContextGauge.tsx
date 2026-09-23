@@ -13,6 +13,11 @@ interface ContextGaugeProps {
   used: number;
   budget: number;
   agent: AgentBackendId;
+  /** Whether `used` / `budget` are a real measurement of the context
+   *  window. Claude always is. Codex is only when it runs over the
+   *  app-server connection (Preferences ▸ Agents); the exec SDK reports
+   *  per-turn totals, which say nothing about how full the window is. */
+  reported: boolean;
   /** A compaction is in flight — the ring spins instead of reporting a fill. */
   compacting: boolean;
   /** The agent is mid-turn: a compaction now would queue behind it. */
@@ -24,15 +29,17 @@ interface ContextGaugeProps {
  * Ring gauge in the composer showing how full the agent's context window
  * is. Click or right-click opens the compaction menu.
  *
- * Only Claude reports its context fill (the CLI measures it against the
- * window it will autocompact at). Codex's SDK reports per-turn totals
- * only, so for Codex the ring is drawn empty and dashed, and the menu
- * explains why manual compaction is unavailable there.
+ * Claude reports its context fill (the CLI measures it against the
+ * window it will autocompact at), and so does Codex over the app-server
+ * connection. Codex's exec SDK reports per-turn totals only, so there the
+ * ring is drawn empty and dashed, and the menu explains why manual
+ * compaction is unavailable.
  */
 export function ContextGauge({
   used,
   budget,
   agent,
+  reported,
   compacting,
   running,
   onCompact,
@@ -58,7 +65,6 @@ export function ContextGauge({
     };
   }, [menu]);
 
-  const reported = agent !== 'codex';
   const pct = reported ? contextFillPct(used, budget) : 0;
   const level = contextFillLevel(pct);
   // Once there is any usage at all, draw at least a sliver so a 1% chat
@@ -71,7 +77,7 @@ export function ContextGauge({
   const title = compacting ? t('chat.context.compactingTitle') : summary;
   const canCompact = reported && !compacting && !running;
   const hint = !reported
-    ? t('chat.context.menu.codexHint')
+    ? t(agent === 'codex' ? 'chat.context.menu.codexHint' : 'chat.context.menu.runningHint')
     : running && !compacting
       ? t('chat.context.menu.runningHint')
       : null;

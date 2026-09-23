@@ -486,7 +486,8 @@ export const ko = {
   'chat.context.unreported': 'Codex는 컨텍스트 사용량을 보고하지 않습니다 · 마지막 턴: {used} 토큰',
   'chat.context.menu.compact': '컨텍스트 압축',
   'chat.context.menu.compacting': '압축 중…',
-  'chat.context.menu.codexHint': 'Codex는 컨텍스트를 자동으로 압축합니다',
+  'chat.context.menu.codexHint':
+    'Codex는 컨텍스트를 스스로 압축합니다. 사용량을 보고 직접 압축하려면 환경설정 ▸ 에이전트에서 “작업 중인 Codex에 지시 전달”을 켜세요.',
   'chat.context.menu.runningHint': '에이전트가 끝날 때까지 기다리세요',
   'chat.context.compactingNote': '컨텍스트 압축 중…',
   'chat.context.failedNote': '압축 실패: {error}',
@@ -826,6 +827,11 @@ export const ko = {
   'prefs.agents.codeReviews.title': '코드 리뷰',
   'prefs.agents.codeReviews.desc':
     'PR 리뷰 채팅, 재리뷰 대체 채팅, 리뷰 알림에서 사용됩니다.',
+  'prefs.agents.codexSteering.title': '작업 중인 Codex에 지시 전달',
+  'prefs.agents.codexSteering.desc':
+    'exec SDK 대신 Codex의 app-server로 연결합니다. Codex가 작업하는 동안 보낸 메시지가 턴이 끝나길 기다리지 않고 다음 단계에서 전달됩니다. Codex 채팅의 컨텍스트 게이지가 채워지고 컨텍스트 압축도 사용할 수 있습니다. Codex CLI에서는 실험적 기능이며 codex 0.153 이상이 필요합니다. 각 채팅의 다음 메시지부터 적용됩니다.',
+  'prefs.agents.codexSteering.on': '켜짐 — 메시지가 턴 도중 Codex에 전달됩니다',
+  'prefs.agents.codexSteering.off': '꺼짐 — 메시지가 턴이 끝날 때까지 기다립니다',
 
   // Preferences — Runtime / attachment retention pane.
   'prefs.runtime.title': '첨부 파일 보존',

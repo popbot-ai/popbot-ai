@@ -465,7 +465,8 @@ export const en = {
   'chat.context.unreported': 'Codex doesn’t report context usage · last turn: {used} tokens',
   'chat.context.menu.compact': 'Compact context',
   'chat.context.menu.compacting': 'Compacting…',
-  'chat.context.menu.codexHint': 'Codex compacts its context automatically',
+  'chat.context.menu.codexHint':
+    'Codex compacts its context on its own. Turn on “Steer Codex while it works” in Preferences ▸ Agents to see usage and compact on request.',
   'chat.context.menu.runningHint': 'Wait for the agent to finish',
   'chat.context.compactingNote': 'Compacting context…',
   'chat.context.failedNote': 'Compaction failed: {error}',
@@ -853,6 +854,11 @@ export const en = {
   'prefs.agents.codeReviews.title': 'Code reviews',
   'prefs.agents.codeReviews.desc':
     'Used by PR review chats, re-review fallback chats, and review notifications.',
+  'prefs.agents.codexSteering.title': 'Steer Codex while it works',
+  'prefs.agents.codexSteering.desc':
+    'Connects to Codex through its app-server instead of the exec SDK, so a message you send while Codex is busy reaches it at its next step instead of waiting for the turn to end. Also fills the context gauge for Codex chats and enables Compact context. Experimental in the Codex CLI; needs codex 0.153 or newer. Applies from each chat’s next message.',
+  'prefs.agents.codexSteering.on': 'On — messages reach Codex mid-turn',
+  'prefs.agents.codexSteering.off': 'Off — messages wait for the turn to end',
 
   // Preferences — Runtime / attachment retention pane.
   'prefs.runtime.title': 'Attachment retention',

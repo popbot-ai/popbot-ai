@@ -438,7 +438,8 @@ export const pl = {
   'chat.context.unreported': 'Codex nie raportuje użycia kontekstu · ostatnia tura: {used} tokenów',
   'chat.context.menu.compact': 'Kompaktuj kontekst',
   'chat.context.menu.compacting': 'Kompaktowanie…',
-  'chat.context.menu.codexHint': 'Codex kompaktuje kontekst automatycznie',
+  'chat.context.menu.codexHint':
+    'Codex sam kompaktuje kontekst. Włącz „Steruj Codexem w trakcie pracy” w Preferencje ▸ Agenci, aby widzieć użycie i kompaktować na żądanie.',
   'chat.context.menu.runningHint': 'Poczekaj, aż agent skończy',
   'chat.context.compactingNote': 'Kompaktowanie kontekstu…',
   'chat.context.failedNote': 'Kompaktowanie nie powiodło się: {error}',
@@ -826,6 +827,11 @@ export const pl = {
   'prefs.agents.codeReviews.title': 'Code review',
   'prefs.agents.codeReviews.desc':
     'Używane przez czaty review PR, czaty zapasowe re-review i powiadomienia o review.',
+  'prefs.agents.codexSteering.title': 'Steruj Codexem w trakcie pracy',
+  'prefs.agents.codexSteering.desc':
+    'Łączy się z Codexem przez jego app-server zamiast SDK exec, dzięki czemu wiadomość wysłana, gdy Codex jest zajęty, dociera do niego w następnym kroku, zamiast czekać na koniec tury. Zasila też wskaźnik kontekstu w czatach Codex i włącza Kompaktuj kontekst. Funkcja eksperymentalna w CLI Codex; wymaga codex 0.153 lub nowszego. Działa od następnej wiadomości w każdym czacie.',
+  'prefs.agents.codexSteering.on': 'Wł. — wiadomości docierają do Codexa w trakcie tury',
+  'prefs.agents.codexSteering.off': 'Wył. — wiadomości czekają na koniec tury',
 
   // Preferences — Runtime / attachment retention pane.
   'prefs.runtime.title': 'Przechowywanie załączników',

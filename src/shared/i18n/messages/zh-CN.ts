@@ -486,7 +486,8 @@ export const zhCN = {
   'chat.context.unreported': 'Codex 不报告上下文用量 · 上一轮：{used} 个 token',
   'chat.context.menu.compact': '压缩上下文',
   'chat.context.menu.compacting': '压缩中…',
-  'chat.context.menu.codexHint': 'Codex 会自动压缩上下文',
+  'chat.context.menu.codexHint':
+    'Codex 会自行压缩上下文。要查看用量并按需压缩，请在 偏好设置 ▸ 代理 中开启“在 Codex 工作时引导它”。',
   'chat.context.menu.runningHint': '请等待代理完成',
   'chat.context.compactingNote': '正在压缩上下文…',
   'chat.context.failedNote': '压缩失败：{error}',
@@ -826,6 +827,11 @@ export const zhCN = {
   'prefs.agents.codeReviews.title': '代码审查',
   'prefs.agents.codeReviews.desc':
     '由 PR 审查聊天、重新审查回退聊天和审查通知使用。',
+  'prefs.agents.codexSteering.title': '在 Codex 工作时引导它',
+  'prefs.agents.codexSteering.desc':
+    '通过 Codex 的 app-server 而不是 exec SDK 连接。在 Codex 忙碌时发送的消息会在它的下一步就送达，而不必等到本轮结束。同时让 Codex 对话的上下文仪表生效，并启用“压缩上下文”。该功能在 Codex CLI 中为实验性功能，需要 codex 0.153 或更高版本。从每个对话的下一条消息开始生效。',
+  'prefs.agents.codexSteering.on': '开 — 消息会在本轮进行中送达 Codex',
+  'prefs.agents.codexSteering.off': '关 — 消息会等到本轮结束',
 
   // Preferences — Runtime / attachment retention pane.
   'prefs.runtime.title': '附件保留',

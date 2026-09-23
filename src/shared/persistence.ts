@@ -149,6 +149,29 @@ export function closestReasoningEffort<T extends AgentReasoningEffort>(
     return itemDelta < bestDelta ? item : best;
   }, fallback);
 }
+/** Settings stored under the `agent.codex` key (Preferences ▸ Agents). */
+export const CODEX_SETTINGS_KEY = 'agent.codex';
+
+export interface CodexSettings {
+  /**
+   * Drive Codex through `codex app-server` instead of the exec SDK.
+   *
+   * The exec SDK takes one prompt and runs one turn, so a message sent
+   * while Codex is working can only wait for that turn to end. The
+   * app-server protocol can steer: the message is folded into the
+   * running turn and the model sees it at its next step. It also reports
+   * context usage and can compact on request.
+   *
+   * Opt-in: Codex labels app-server experimental, so the protocol can
+   * move between CLI releases. Off means exactly the old behavior.
+   */
+  appServer?: boolean;
+}
+
+export function codexUsesAppServer(settings: CodexSettings | null | undefined): boolean {
+  return settings?.appServer === true;
+}
+
 export type ChatType = 'lite' | 'client_test' | 'server_test';
 export type ChatMode = 'interactive' | 'autonomous';
 

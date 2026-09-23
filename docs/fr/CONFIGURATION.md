@@ -49,6 +49,8 @@ Contrairement à la source de tickets à sélection unique, les moteurs sont **i
 
 Un effort plus élevé signifie un raisonnement plus profond et un usage d'outils plus approfondi, à un coût et une latence plus élevés. Les revues veulent souvent une profondeur différente des constructions de fonctionnalités — d'où la séparation.
 
+**Guider Codex pendant qu'il travaille** *(désactivé par défaut)* — se connecte à Codex via son `app-server` plutôt que le SDK exec. Une fois activé, un message envoyé pendant que Codex est occupé est intégré au tour en cours et parvient au modèle à son étape suivante — en général dès que la commande en cours se termine — au lieu d'attendre la fin du tour. L'option alimente aussi la jauge de contexte des conversations Codex, y active **Compacter le contexte** et permet à **Stop** d'interrompre proprement le tour. Codex qualifie `app-server` d'expérimental et il faut `codex` 0.153 ou plus récent, d'où le caractère facultatif ; une CLI plus ancienne revient simplement à la mise en file d'attente. Le réglage s'applique dès le prochain message de chaque conversation, et une conversation passe d'une connexion à l'autre sans perdre son fil.
+
 ## Runtime & slots
 
 Ce panneau contrôle la **rétention des pièces jointes**. (Le dimensionnement du pool de slots est maintenant par dépôt et se trouve sous [Dépôts](#dépôts) — voir la note à cet endroit.)

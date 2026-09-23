@@ -49,6 +49,8 @@ Diferente da fonte de tickets de seleção única, engines são **independentes*
 
 Mais esforço significa raciocínio mais profundo e uso mais completo de ferramentas, a um custo e latência maiores. Revisões frequentemente querem uma profundidade diferente de construções de feature — daí a divisão.
 
+**Orientar o Codex enquanto ele trabalha** *(desativado por padrão)* — conecta-se ao Codex pelo `app-server` em vez do SDK exec. Com a opção ativada, uma mensagem enviada enquanto o Codex está ocupado é incorporada ao turno em andamento e chega ao modelo no próximo passo — normalmente assim que o comando em execução retorna — em vez de esperar o turno terminar. Também alimenta o medidor de contexto nos chats do Codex, habilita neles **Compactar contexto** e faz o **Stop** interromper o turno de forma limpa. O Codex rotula o `app-server` como experimental e ele exige `codex` 0.153 ou mais recente, por isso é opcional; uma CLI mais antiga simplesmente volta a enfileirar. A chave vale a partir da próxima mensagem de cada chat, e um chat alterna entre as duas conexões sem perder sua thread.
+
 ## Runtime e slots
 
 Este painel controla a **retenção de anexos**. (O dimensionamento de pool de slots agora é por repositório e vive em [Repositórios](#repositórios) — veja a nota lá.)

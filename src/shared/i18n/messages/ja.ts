@@ -486,7 +486,8 @@ export const ja = {
   'chat.context.unreported': 'Codex はコンテキスト使用量を報告しません · 直近のターン: {used} トークン',
   'chat.context.menu.compact': 'コンテキストを圧縮',
   'chat.context.menu.compacting': '圧縮中…',
-  'chat.context.menu.codexHint': 'Codex はコンテキストを自動的に圧縮します',
+  'chat.context.menu.codexHint':
+    'Codex はコンテキストを自動で圧縮します。使用量の表示と手動圧縮には、環境設定 ▸ エージェントで「作業中の Codex に指示を届ける」をオンにしてください。',
   'chat.context.menu.runningHint': 'エージェントの完了を待ってください',
   'chat.context.compactingNote': 'コンテキストを圧縮中…',
   'chat.context.failedNote': '圧縮に失敗しました: {error}',
@@ -826,6 +827,11 @@ export const ja = {
   'prefs.agents.codeReviews.title': 'コードレビュー',
   'prefs.agents.codeReviews.desc':
     'PR レビューチャット、再レビューのフォールバックチャット、レビュー通知で使用されます。',
+  'prefs.agents.codexSteering.title': '作業中の Codex に指示を届ける',
+  'prefs.agents.codexSteering.desc':
+    'exec SDK の代わりに Codex の app-server 経由で接続します。Codex の作業中に送ったメッセージが、ターンの終了を待たずに次のステップで届きます。Codex チャットのコンテキストゲージも機能し、「コンテキストを圧縮」も使えるようになります。Codex CLI では実験的機能で、codex 0.153 以降が必要です。各チャットの次のメッセージから適用されます。',
+  'prefs.agents.codexSteering.on': 'オン — メッセージはターンの途中で Codex に届きます',
+  'prefs.agents.codexSteering.off': 'オフ — メッセージはターンの終了を待ちます',
 
   // Preferences — Runtime / attachment retention pane.
   'prefs.runtime.title': '添付ファイルの保持',

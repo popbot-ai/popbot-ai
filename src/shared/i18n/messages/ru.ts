@@ -438,7 +438,8 @@ export const ru = {
   'chat.context.unreported': 'Codex не сообщает об использовании контекста · последний ход: {used} токенов',
   'chat.context.menu.compact': 'Сжать контекст',
   'chat.context.menu.compacting': 'Сжатие…',
-  'chat.context.menu.codexHint': 'Codex сжимает контекст автоматически',
+  'chat.context.menu.codexHint':
+    'Codex сжимает контекст сам. Включите «Направлять Codex во время работы» в Настройки ▸ Агенты, чтобы видеть использование и сжимать по запросу.',
   'chat.context.menu.runningHint': 'Дождитесь завершения работы агента',
   'chat.context.compactingNote': 'Сжатие контекста…',
   'chat.context.failedNote': 'Не удалось сжать контекст: {error}',
@@ -826,6 +827,11 @@ export const ru = {
   'prefs.agents.codeReviews.title': 'Код-ревью',
   'prefs.agents.codeReviews.desc':
     'Используется чатами ревью PR, резервными чатами повторного ревью и уведомлениями о ревью.',
+  'prefs.agents.codexSteering.title': 'Направлять Codex во время работы',
+  'prefs.agents.codexSteering.desc':
+    'Подключается к Codex через его app-server вместо exec SDK: сообщение, отправленное, пока Codex занят, доходит до него на следующем шаге, а не ждёт конца хода. Также наполняет индикатор контекста в чатах Codex и включает «Сжать контекст». В Codex CLI функция экспериментальная; требуется codex 0.153 или новее. Действует со следующего сообщения в каждом чате.',
+  'prefs.agents.codexSteering.on': 'Вкл. — сообщения доходят до Codex посреди хода',
+  'prefs.agents.codexSteering.off': 'Выкл. — сообщения ждут конца хода',
 
   // Preferences — Runtime / attachment retention pane.
   'prefs.runtime.title': 'Хранение вложений',

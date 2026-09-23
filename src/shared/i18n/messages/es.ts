@@ -486,7 +486,8 @@ export const es = {
   'chat.context.unreported': 'Codex no informa el uso de contexto · último turno: {used} tokens',
   'chat.context.menu.compact': 'Compactar contexto',
   'chat.context.menu.compacting': 'Compactando…',
-  'chat.context.menu.codexHint': 'Codex compacta su contexto automáticamente',
+  'chat.context.menu.codexHint':
+    'Codex compacta su contexto por su cuenta. Activa «Dirigir a Codex mientras trabaja» en Preferencias ▸ Agentes para ver el uso y compactar cuando quieras.',
   'chat.context.menu.runningHint': 'Espera a que el agente termine',
   'chat.context.compactingNote': 'Compactando el contexto…',
   'chat.context.failedNote': 'La compactación falló: {error}',
@@ -826,6 +827,11 @@ export const es = {
   'prefs.agents.codeReviews.title': 'Revisiones de código',
   'prefs.agents.codeReviews.desc':
     'Usado por los chats de revisión de PR, los chats de respaldo de re-revisión y las notificaciones de revisión.',
+  'prefs.agents.codexSteering.title': 'Dirigir a Codex mientras trabaja',
+  'prefs.agents.codexSteering.desc':
+    'Se conecta a Codex mediante su app-server en lugar del SDK exec, de modo que un mensaje enviado mientras Codex está ocupado le llega en su siguiente paso en vez de esperar a que termine el turno. También alimenta el indicador de contexto en los chats de Codex y habilita Compactar contexto. Experimental en la CLI de Codex; requiere codex 0.153 o posterior. Se aplica a partir del siguiente mensaje de cada chat.',
+  'prefs.agents.codexSteering.on': 'Activado: los mensajes llegan a Codex a mitad de turno',
+  'prefs.agents.codexSteering.off': 'Desactivado: los mensajes esperan a que termine el turno',
 
   // Preferences — Runtime / attachment retention pane.
   'prefs.runtime.title': 'Retención de adjuntos',

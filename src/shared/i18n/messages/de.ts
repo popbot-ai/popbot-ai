@@ -486,7 +486,8 @@ export const de = {
   'chat.context.unreported': 'Codex meldet keine Kontextauslastung · letzter Zug: {used} Tokens',
   'chat.context.menu.compact': 'Kontext komprimieren',
   'chat.context.menu.compacting': 'Wird komprimiert…',
-  'chat.context.menu.codexHint': 'Codex komprimiert seinen Kontext automatisch',
+  'chat.context.menu.codexHint':
+    'Codex komprimiert seinen Kontext selbst. Aktiviere „Codex während der Arbeit steuern“ unter Einstellungen ▸ Agenten, um die Auslastung zu sehen und bei Bedarf zu komprimieren.',
   'chat.context.menu.runningHint': 'Warten, bis der Agent fertig ist',
   'chat.context.compactingNote': 'Kontext wird komprimiert…',
   'chat.context.failedNote': 'Komprimierung fehlgeschlagen: {error}',
@@ -826,6 +827,11 @@ export const de = {
   'prefs.agents.codeReviews.title': 'Code-Reviews',
   'prefs.agents.codeReviews.desc':
     'Wird von PR-Review-Chats, Re-Review-Fallback-Chats und Review-Benachrichtigungen verwendet.',
+  'prefs.agents.codexSteering.title': 'Codex während der Arbeit steuern',
+  'prefs.agents.codexSteering.desc':
+    'Verbindet sich über den app-server mit Codex statt über das exec-SDK: Eine Nachricht, die du sendest, während Codex beschäftigt ist, erreicht es beim nächsten Schritt, statt auf das Ende des Zugs zu warten. Füllt außerdem die Kontextanzeige für Codex-Chats und aktiviert „Kontext komprimieren“. In der Codex-CLI experimentell; benötigt codex 0.153 oder neuer. Gilt ab der nächsten Nachricht jedes Chats.',
+  'prefs.agents.codexSteering.on': 'An — Nachrichten erreichen Codex mitten im Zug',
+  'prefs.agents.codexSteering.off': 'Aus — Nachrichten warten auf das Ende des Zugs',
 
   // Preferences — Runtime / attachment retention pane.
   'prefs.runtime.title': 'Aufbewahrung von Anhängen',

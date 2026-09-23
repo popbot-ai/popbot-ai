@@ -438,7 +438,8 @@ export const uk = {
   'chat.context.unreported': 'Codex не повідомляє про використання контексту · останній хід: {used} токенів',
   'chat.context.menu.compact': 'Стиснути контекст',
   'chat.context.menu.compacting': 'Стиснення…',
-  'chat.context.menu.codexHint': 'Codex стискає контекст автоматично',
+  'chat.context.menu.codexHint':
+    'Codex стискає контекст сам. Увімкніть «Спрямовувати Codex під час роботи» в Налаштування ▸ Агенти, щоб бачити використання і стискати на вимогу.',
   'chat.context.menu.runningHint': 'Дочекайтеся завершення роботи агента',
   'chat.context.compactingNote': 'Стиснення контексту…',
   'chat.context.failedNote': 'Не вдалося стиснути контекст: {error}',
@@ -826,6 +827,11 @@ export const uk = {
   'prefs.agents.codeReviews.title': 'Код-ревʼю',
   'prefs.agents.codeReviews.desc':
     'Використовується чатами ревʼю PR, резервними чатами повторного ревʼю та сповіщеннями про ревʼю.',
+  'prefs.agents.codexSteering.title': 'Спрямовувати Codex під час роботи',
+  'prefs.agents.codexSteering.desc':
+    'Підключається до Codex через його app-server замість exec SDK: повідомлення, надіслане, поки Codex зайнятий, доходить до нього на наступному кроці, а не чекає кінця ходу. Також наповнює індикатор контексту в чатах Codex і вмикає «Стиснути контекст». У Codex CLI функція експериментальна; потрібен codex 0.153 або новіший. Діє з наступного повідомлення в кожному чаті.',
+  'prefs.agents.codexSteering.on': 'Увімк. — повідомлення доходять до Codex посеред ходу',
+  'prefs.agents.codexSteering.off': 'Вимк. — повідомлення чекають кінця ходу',
 
   // Preferences — Runtime / attachment retention pane.
   'prefs.runtime.title': 'Зберігання вкладень',

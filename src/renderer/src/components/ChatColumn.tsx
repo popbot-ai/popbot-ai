@@ -9,12 +9,15 @@ import {
   DEFAULT_CLAUDE_REASONING_EFFORT,
   DEFAULT_CODEX_MODEL,
   DEFAULT_CODEX_REASONING_EFFORT,
+  CODEX_SETTINGS_KEY,
   RAW_CHAT_REPO_ID,
+  codexUsesAppServer,
   type ChatRecord,
   type ClaudeModelId,
   type ClaudeReasoningEffort,
   type CodexModelId,
   type CodexReasoningEffort,
+  type CodexSettings,
   closestReasoningEffort,
   codexReasoningEffortsForModel,
 } from '@shared/persistence';
@@ -258,6 +261,10 @@ export function ChatColumn({
   // position correctly across variable-height items.
 
   const agent = chat.agent || 'claude';
+  // Codex only measures its context window over the app-server connection.
+  const { get: getAppSetting } = useSettings();
+  const usageReported =
+    agent !== 'codex' || codexUsesAppServer(getAppSetting<CodexSettings>(CODEX_SETTINGS_KEY));
   const selectedModelValue = agent === 'codex'
     ? `codex:${chat.codexModel || DEFAULT_CODEX_MODEL}`
     : `claude:${chat.claudeModel || DEFAULT_CLAUDE_MODEL}`;
@@ -762,6 +769,7 @@ export function ChatColumn({
               used={chat.tokensUsed}
               budget={chat.tokensBudget}
               agent={agent}
+              reported={usageReported}
               compacting={compacting}
               running={chat.status === 'run'}
               onCompact={() => void compact()}

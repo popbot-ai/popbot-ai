@@ -49,6 +49,8 @@ Standardmodell-**Reasoning-Effort** für neu erstellte Chats (bestehende Chats b
 
 Höherer Effort bedeutet tieferes Reasoning und gründlicheren Tool-Einsatz, bei höheren Kosten und Latenz. Reviews wollen oft eine andere Tiefe als Feature-Builds — daher die Trennung.
 
+**Codex während der Arbeit steuern** *(standardmäßig aus)* — verbindet sich über Codex' `app-server` statt über das exec-SDK. Ist die Option an, wird eine Nachricht, die du sendest, während Codex beschäftigt ist, in den laufenden Zug eingefügt und erreicht das Modell beim nächsten Schritt — meist in dem Moment, in dem der laufende Befehl zurückkehrt — statt auf das Ende des Zugs zu warten. Außerdem füllt sie die Kontextanzeige für Codex-Chats, aktiviert dort **Kontext komprimieren** und lässt **Stop** den Zug sauber unterbrechen. Codex bezeichnet `app-server` als experimentell, und es wird `codex` 0.153 oder neuer benötigt — daher Opt-in; eine ältere CLI fällt einfach auf das Einreihen zurück. Der Schalter gilt ab der nächsten Nachricht jedes Chats, und ein Chat wechselt zwischen beiden Verbindungen, ohne seinen Thread zu verlieren.
+
 ## Runtime & Slots
 
 Dieses Panel steuert die **Attachment-Aufbewahrung**. (Slot-Pool-Größe ist jetzt pro Repository und lebt unter [Repositories](#repositories) — siehe die Anmerkung dort.)

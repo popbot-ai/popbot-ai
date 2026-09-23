@@ -438,7 +438,8 @@ export const it = {
   'chat.context.unreported': 'Codex non riporta l’utilizzo del contesto · ultimo turno: {used} token',
   'chat.context.menu.compact': 'Compatta contesto',
   'chat.context.menu.compacting': 'Compattazione…',
-  'chat.context.menu.codexHint': 'Codex compatta il contesto automaticamente',
+  'chat.context.menu.codexHint':
+    'Codex compatta il contesto da solo. Attiva «Guida Codex mentre lavora» in Preferenze ▸ Agenti per vedere l’utilizzo e compattare su richiesta.',
   'chat.context.menu.runningHint': 'Attendi che l’agente finisca',
   'chat.context.compactingNote': 'Compattazione del contesto…',
   'chat.context.failedNote': 'Compattazione non riuscita: {error}',
@@ -826,6 +827,11 @@ export const it = {
   'prefs.agents.codeReviews.title': 'Revisioni di codice',
   'prefs.agents.codeReviews.desc':
     'Usato dalle chat di revisione PR, dalle chat di fallback di nuova revisione e dalle notifiche di revisione.',
+  'prefs.agents.codexSteering.title': 'Guida Codex mentre lavora',
+  'prefs.agents.codexSteering.desc':
+    'Si collega a Codex tramite il suo app-server invece dell’SDK exec, così un messaggio inviato mentre Codex è occupato gli arriva al passo successivo invece di attendere la fine del turno. Alimenta anche l’indicatore di contesto per le chat Codex e abilita Compatta contesto. Sperimentale nella CLI di Codex; richiede codex 0.153 o successivo. Si applica dal prossimo messaggio di ogni chat.',
+  'prefs.agents.codexSteering.on': 'Attivo — i messaggi raggiungono Codex a metà turno',
+  'prefs.agents.codexSteering.off': 'Disattivo — i messaggi attendono la fine del turno',
 
   // Preferences — Runtime / attachment retention pane.
   'prefs.runtime.title': 'Conservazione allegati',
