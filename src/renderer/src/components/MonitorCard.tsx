@@ -39,8 +39,12 @@ function messageToActivity(m: MessageRecord, t: Translator): ActivityItem | null
     } catch {
       // ignore
     }
+    // Same one-liner as the transcript row: the agent's reason for a
+    // command when it gave one, else the command's first line.
     const cmd = typeof args.command === 'string' ? args.command : '';
-    return { kind: 'tool', name, args: cmd };
+    const reason = typeof args.description === 'string' ? args.description.trim() : '';
+    const firstLine = cmd.split('\n').find((l) => l.trim().length > 0)?.trim() ?? '';
+    return { kind: 'tool', name, args: reason || firstLine || cmd };
   }
   if (m.kind === 'permission') {
     let label = t('monitor.permissionRequested');

@@ -1068,6 +1068,8 @@ function presentTool(name: string, args: Record<string, unknown>, t: Translator)
   label: string;
   hint: string;
   filePath?: string;
+  /** Tooltip for the hint when it is a summary of something longer. */
+  hintTitle?: string;
 } {
   const a = args as Record<string, unknown>;
   const str = (k: string): string => (typeof a[k] === 'string' ? (a[k] as string) : '');
@@ -1075,8 +1077,20 @@ function presentTool(name: string, args: Record<string, unknown>, t: Translator)
   // monitor card via `toolLabel`. Only icon/hint differ per tool here.
   const label = toolLabel(name, t);
   switch (name) {
-    case 'Bash':
-      return { icon: 'fa-terminal', label, hint: str('description') || str('command') };
+    case 'Bash': {
+      // One line: the agent's reason when it gave one (Claude Code's Bash
+      // tool carries a `description`; Codex's commands don't), else the
+      // command's first line. The full command is a click (or hover) away.
+      const command = str('command');
+      const firstLine = command.split('\n').find((l) => l.trim().length > 0)?.trim() ?? '';
+      const reason = str('description').trim();
+      return {
+        icon: 'fa-terminal',
+        label,
+        hint: reason || firstLine,
+        hintTitle: command && command !== (reason || firstLine) ? command : undefined,
+      };
+    }
     case 'Edit':
     case 'MultiEdit': {
       const p = str('file_path');
@@ -1363,12 +1377,11 @@ function ToolBlock({ body }: { body: MessageBodyTool }): JSX.Element {
   const chatId = useContext(ChatIdContext);
   const expandable = body.result !== undefined;
   const isError = !!body.isError;
-  // Edit / Write rows show the diff by default; Bash rows show the
-  // command + a short output preview. Both default-open since that's
-  // the whole point of glancing at them.
+  // Edit / Write rows show the diff by default — that's the whole point
+  // of glancing at them. A Bash row is one line — the reason the agent
+  // gave (or the command) — and opens to the command text + output.
   const defaultOpen =
-    body.name === 'Edit' || body.name === 'MultiEdit' ||
-    body.name === 'Write' || body.name === 'Bash';
+    body.name === 'Edit' || body.name === 'MultiEdit' || body.name === 'Write';
   const [open, setOpen] = useState(defaultOpen);
   const [outputModal, setOutputModal] = useState(false);
   const handleToggle = () => {
@@ -1378,7 +1391,7 @@ function ToolBlock({ body }: { body: MessageBodyTool }): JSX.Element {
     () => (body.result !== undefined ? truncateOutput(body.result, t) : null),
     [body.result, t],
   );
-  const { icon, label, hint, filePath } = presentTool(body.name, body.args, t);
+  const { icon, label, hint, filePath, hintTitle } = presentTool(body.name, body.args, t);
   // For file-path hints, render just the basename inline; the full path
   // goes in the tooltip. Keeps the row scannable when paths are deep.
   const displayHint = filePath
@@ -1468,7 +1481,7 @@ function ToolBlock({ body }: { body: MessageBodyTool }): JSX.Element {
             {displayHint}
           </a>
         ) : hint ? (
-          <span className="hint">{displayHint}</span>
+          <span className="hint" title={hintTitle}>{displayHint}</span>
         ) : null}
         <span className="dot" aria-hidden="true" />
         {canToggle && (
