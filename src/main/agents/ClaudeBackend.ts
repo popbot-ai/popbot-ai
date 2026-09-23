@@ -856,8 +856,7 @@ class ClaudeSession implements AgentSession {
     this.turnFailedByApi = true;
     dlog('claude.api-error', { chatId: this.chatId, sessionId: this.knownSessionId, kind, said });
     const message = kind === 'authentication_failed'
-      ? `Claude sign-in has expired${said ? ` (${said})` : ''}. `
-        + 'Run `claude` in a terminal and sign in again, then press Retry.'
+      ? `Claude sign-in has expired${said ? ` (${said})` : ''}. Sign in again, then press Retry.`
       : said || `Claude API error: ${kind}`;
     this.onEvent({
       type: 'error',

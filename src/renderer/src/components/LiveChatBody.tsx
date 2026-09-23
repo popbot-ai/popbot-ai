@@ -704,7 +704,8 @@ function MessageRowImpl({ message, renderAsQuestion, isStale, consumed, qaAnswer
     const isSystemWarning =
       message.kind === 'system' && body.text.toLowerCase().startsWith('warning:');
     if (isSystemWarning) {
-      return <SystemWarningRow text={body.text} />;
+      // A sign-in that expired is fixed with a click, not a terminal.
+      return <SystemWarningRow text={body.text} signIn={signInProviderFor(body.text)} />;
     }
     const isModelSwitch =
       message.kind === 'system' && body.text.toLowerCase().startsWith('switch:');
@@ -922,15 +923,37 @@ function CompactFailedRow({ error }: { error: string }): JSX.Element {
  *  needs re-authenticating. Yellow notification box: the user has to
  *  know and probably to wait, but nothing is broken, so it must not
  *  look like an error. */
-function SystemWarningRow({ text }: { text: string }): JSX.Element {
+function SystemWarningRow({ text, signIn }: {
+  text: string;
+  /** Offer a Sign in button for this CLI (App opens the dialog). */
+  signIn?: 'claude' | 'codex' | null;
+}): JSX.Element {
+  const { t } = useTranslation();
   return (
     <div className="msg system-warning">
       <div className="body">
         <i className="fa-solid fa-circle-info msg-warning-icon" aria-hidden />
         <span>{text.replace(/^warning:\s*/i, '')}</span>
+        {signIn && (
+          <button
+            className="btn primary sm msg-warning-action"
+            onClick={() => window.dispatchEvent(new CustomEvent('popbot:auth-sign-in', { detail: { provider: signIn } }))}
+          >
+            <i className="fa-solid fa-right-to-bracket" aria-hidden /> {t('auth.signIn.button')}
+          </button>
+        )}
       </div>
     </div>
   );
+}
+
+/** Which CLI a warning is asking the user to sign in to, if any. The
+ *  backends word their auth failures with "sign in" / "signed in". */
+function signInProviderFor(text: string): 'claude' | 'codex' | null {
+  if (!/sign[- ]?in|signed[- ]?in|log(?:ged)?[- ]?in|authenticat/i.test(text)) return null;
+  if (/codex|openai|chatgpt/i.test(text)) return 'codex';
+  if (/claude|anthropic|oauth/i.test(text)) return 'claude';
+  return null;
 }
 
 function SystemErrorRow({ text, chatId, stale }: {

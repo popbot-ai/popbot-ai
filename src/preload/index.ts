@@ -17,6 +17,8 @@ import {
   type CloseChatOptions,
   type ConfigureAgentInput,
   type CreateChatInput,
+  type AuthProvider,
+  type AuthLoginEvent,
   type ForkChatInput,
   type CreateRepoInput,
   type PopBotApi,
@@ -227,6 +229,17 @@ const api: PopBotApi = {
       const listener = (_e: IpcRendererEvent, event: AgentEvent) => handler(event);
       ipcRenderer.on(IpcChannel.AgentEvent, listener);
       return () => ipcRenderer.removeListener(IpcChannel.AgentEvent, listener);
+    },
+  },
+  auth: {
+    startLogin: (provider: AuthProvider) => ipcRenderer.invoke(IpcChannel.AuthLoginStart, provider),
+    sendLoginInput: (provider: AuthProvider, text: string) =>
+      ipcRenderer.invoke(IpcChannel.AuthLoginInput, provider, text),
+    cancelLogin: (provider: AuthProvider) => ipcRenderer.invoke(IpcChannel.AuthLoginCancel, provider),
+    onLoginEvent: (handler: (event: AuthLoginEvent) => void) => {
+      const listener = (_e: IpcRendererEvent, event: AuthLoginEvent) => handler(event);
+      ipcRenderer.on(IpcChannel.AuthLoginEvent, listener);
+      return () => ipcRenderer.removeListener(IpcChannel.AuthLoginEvent, listener);
     },
   },
   updates: {

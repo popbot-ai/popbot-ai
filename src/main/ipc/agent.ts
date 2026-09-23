@@ -3,12 +3,20 @@ import {
   IpcChannel,
   type AgentBackendsStatus,
   type ApprovePermissionInput,
+  type AuthProvider,
   type ConfigureAgentInput,
   type SendMessageInput,
 } from '@shared/ipc';
 import { AgentHost } from '../agents/AgentHost';
 import { probeClaude } from '../agents/claudeProbe';
 import { probeCodex } from '../agents/codexProbe';
+import {
+  cancelLogin,
+  probeClaudeAuth,
+  probeCodexAuth,
+  sendLoginInput,
+  startLogin,
+} from '../agents/authLogin';
 
 export function registerAgentHandlers(): void {
   ipcMain.handle(IpcChannel.AgentSend, async (_e, input: SendMessageInput) => {
@@ -31,10 +39,32 @@ export function registerAgentHandlers(): void {
     // Re-probe both CLIs on demand so the readiness panel reflects the
     // live state (the user may have installed claude/codex since boot).
     const [claude, codex] = await Promise.all([probeClaude(), probeCodex()]);
+    // Signed in? Only worth asking a CLI that runs at all.
+    const [claudeAuth, codexAuth] = await Promise.all([
+      claude.ok && claude.binaryPath ? probeClaudeAuth(claude.binaryPath) : Promise.resolve(undefined),
+      codex.ok && codex.binaryPath ? probeCodexAuth(codex.binaryPath) : Promise.resolve(undefined),
+    ]);
     return {
-      claude: { ok: claude.ok, version: claude.version, error: claude.error },
-      codex: { ok: codex.ok, version: codex.version, error: codex.error },
+      claude: { ok: claude.ok, version: claude.version, error: claude.error, auth: claudeAuth },
+      codex: { ok: codex.ok, version: codex.version, error: codex.error, auth: codexAuth },
     };
+  });
+
+  ipcMain.handle(IpcChannel.AuthLoginStart, async (e, provider: AuthProvider) => {
+    const probe = provider === 'claude' ? await probeClaude() : await probeCodex();
+    if (!probe.ok || !probe.binaryPath) {
+      return { ok: false as const, error: probe.error ?? `${provider} CLI not found` };
+    }
+    startLogin(provider, probe.binaryPath, e.sender);
+    return { ok: true as const };
+  });
+
+  ipcMain.handle(IpcChannel.AuthLoginInput, (_e, provider: AuthProvider, text: string) => {
+    return sendLoginInput(provider, typeof text === 'string' ? text : '');
+  });
+
+  ipcMain.handle(IpcChannel.AuthLoginCancel, (_e, provider: AuthProvider) => {
+    cancelLogin(provider);
   });
 
   ipcMain.handle(IpcChannel.AgentApprove, (_e, input: ApprovePermissionInput) => {

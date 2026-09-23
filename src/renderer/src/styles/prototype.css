@@ -877,6 +877,24 @@ input, textarea { font: inherit; color: inherit; background: none; border: 0; ou
   font-size: var(--fs-sm);
 }
 .msg.system-warning .msg-warning-icon { color: #e0c07a; }
+.msg.system-warning .msg-warning-action { margin-left: auto; flex: 0 0 auto; align-self: center; }
+
+/* Sign-in dialog — the CLI's own login, mirrored. */
+.sign-in-dialog { width: min(520px, 92vw); }
+.sign-in-status { display: flex; align-items: center; gap: 8px; margin: 0 0 10px; color: var(--fg-1); }
+.sign-in-status.ok { color: var(--st-done); }
+.sign-in-status.err { color: #e89696; }
+.sign-in-fallback { margin: 0 0 10px; color: var(--fg-2); font-size: 12px; }
+.sign-in-fallback a { color: var(--acc-hi); }
+.sign-in-code label { display: block; font-size: 11px; color: var(--fg-2); margin-bottom: 4px; }
+.sign-in-code-row { display: flex; gap: 6px; }
+.sign-in-code-row .input { flex: 1 1 auto; min-width: 0; }
+.sign-in-log {
+  margin: 10px 0 0; padding: 6px 8px; max-height: 120px; overflow: auto;
+  background: var(--bg-1); border: 1px solid var(--line-2); border-radius: 4px;
+  font-family: var(--font-mono); font-size: 10.5px; color: var(--fg-3);
+  white-space: pre-wrap; word-break: break-all;
+}
 
 /* System error message in the chat body — distinct red treatment so a
    backend / SDK error is unmistakable amongst normal prose. */

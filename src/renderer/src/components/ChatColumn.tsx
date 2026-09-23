@@ -25,6 +25,7 @@ import type { PickedAttachment } from '@shared/ipc';
 import type { GitPrInfo } from '@shared/git';
 import { subscribeAgentEvents } from '../lib/agentEventBus';
 import { ContextGauge } from './ContextGauge';
+import { SignInDialog } from './SignInDialog';
 import type { Readiness } from '../lib/useReadiness';
 import { hotkey } from '../lib/hotkeys';
 import { LiveChatBody } from './LiveChatBody';
@@ -1005,9 +1006,14 @@ function ReadyRow({
  */
 function InstallHelpDialog({
   provider,
+  installed = false,
+  onSignIn,
   onClose,
 }: {
   provider: 'claude' | 'codex';
+  /** The CLI is already on PATH: the sign-in step can be done from here. */
+  installed?: boolean;
+  onSignIn?: () => void;
   onClose: () => void;
 }): JSX.Element {
   const { t } = useTranslation();
@@ -1034,7 +1040,13 @@ function InstallHelpDialog({
       desc: t('chat.install.stepInstallDesc', { vendor: info.vendor }),
       cta: { text: t('chat.install.openGuide', { vendor: info.vendor }), onClick: () => window.open(info.docsUrl, '_blank') },
     },
-    { title: t('chat.install.stepSignin'), desc: info.signin },
+    {
+      title: t('chat.install.stepSignin'),
+      desc: info.signin,
+      ...(installed && onSignIn
+        ? { cta: { text: t('auth.signIn.button'), onClick: onSignIn } }
+        : {}),
+    },
     { title: t('chat.install.stepRestart'), desc: t('chat.install.stepRestartDesc') },
   ];
   return (
@@ -1085,8 +1097,18 @@ export function ReadinessChecklist({
 }): JSX.Element {
   const { t } = useTranslation();
   const [installHelp, setInstallHelp] = useState<'claude' | 'codex' | null>(null);
+  const [signIn, setSignIn] = useState<'claude' | 'codex' | null>(null);
   const claudeOk = r.backends?.claude.ok ?? false;
   const codexOk = r.backends?.codex.ok ?? false;
+  // Installed but signed out is its own state: the fix is a click away,
+  // not an install guide.
+  const claudeSignedOut = claudeOk && r.backends?.claude.auth === 'signed-out';
+  const codexSignedOut = codexOk && r.backends?.codex.auth === 'signed-out';
+  const signInAction = (provider: 'claude' | 'codex') => ({
+    text: t('auth.signIn.button'),
+    icon: 'fa-right-to-bracket',
+    onClick: () => setSignIn(provider),
+  });
   return (
     <>
       <div className="ready-card">
@@ -1102,25 +1124,29 @@ export function ReadinessChecklist({
           </button>
         </div>
         <ReadyRow
-          state={claudeOk ? 'ok' : 'missing'}
+          state={claudeSignedOut ? 'missing' : claudeOk ? 'ok' : 'missing'}
           label={t('chat.ready.claudeLabel')}
-          detail={claudeOk
-            ? (r.backends?.claude.version?.replace(/\s*\(.*\)$/, '') ?? '')
-            : t('chat.ready.notFound')}
+          detail={claudeSignedOut
+            ? t('chat.ready.signedOut')
+            : claudeOk
+              ? (r.backends?.claude.version?.replace(/\s*\(.*\)$/, '') ?? '')
+              : t('chat.ready.notFound')}
           okText={t('chat.ready.online')}
-          action={claudeOk ? undefined : {
+          action={claudeSignedOut ? signInAction('claude') : claudeOk ? undefined : {
             text: t('chat.ready.howToInstall'),
             onClick: () => setInstallHelp('claude'),
           }}
         />
         <ReadyRow
-          state={codexOk ? 'ok' : 'optional'}
+          state={codexSignedOut ? 'optional' : codexOk ? 'ok' : 'optional'}
           label={t('chat.ready.codexLabel')}
-          detail={codexOk
-            ? (r.backends?.codex.version?.replace(/\s*\(.*\)$/, '') ?? '')
-            : t('chat.ready.optional')}
+          detail={codexSignedOut
+            ? t('chat.ready.signedOut')
+            : codexOk
+              ? (r.backends?.codex.version?.replace(/\s*\(.*\)$/, '') ?? '')
+              : t('chat.ready.optional')}
           okText={t('chat.ready.online')}
-          action={codexOk ? undefined : {
+          action={codexSignedOut ? signInAction('codex') : codexOk ? undefined : {
             text: t('chat.ready.howToInstall'),
             onClick: () => setInstallHelp('codex'),
           }}
@@ -1140,7 +1166,15 @@ export function ReadinessChecklist({
         />
       </div>
       {installHelp && (
-        <InstallHelpDialog provider={installHelp} onClose={() => setInstallHelp(null)} />
+        <InstallHelpDialog
+          provider={installHelp}
+          installed={installHelp === 'claude' ? claudeOk : codexOk}
+          onSignIn={() => { setInstallHelp(null); setSignIn(installHelp); }}
+          onClose={() => setInstallHelp(null)}
+        />
+      )}
+      {signIn && (
+        <SignInDialog provider={signIn} onClose={() => { setSignIn(null); r.refresh(); }} />
       )}
     </>
   );

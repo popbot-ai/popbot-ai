@@ -13,6 +13,7 @@ import { SourceControlPanel } from './components/SourceControlPanel';
 import { DiffOverlay } from './components/DiffOverlay';
 import { BaseBranchDialog } from './components/BaseBranchDialog';
 import { ChatSettingsSheet } from './components/ChatSettingsSheet';
+import { SignInDialog } from './components/SignInDialog';
 import { Modal } from './components/Modal';
 import { PreferencesSheet } from './components/PreferencesSheet';
 import { CloseChatPrompt } from './components/CloseChatPrompt';
@@ -105,6 +106,16 @@ export default function App(): JSX.Element {
   const [focusedId, setFocusedId] = useState<string | null>(null);
   const [foregroundId, setForegroundId] = useState<string | null>(null);
   const [settingsForId, setSettingsForId] = useState<string | null>(null);
+  // Sign-in dialog opened from a chat's "sign-in expired" warning.
+  const [signInFor, setSignInFor] = useState<'claude' | 'codex' | null>(null);
+  useEffect(() => {
+    const onSignIn = (e: Event): void => {
+      const provider = (e as CustomEvent<{ provider?: 'claude' | 'codex' }>).detail?.provider;
+      if (provider === 'claude' || provider === 'codex') setSignInFor(provider);
+    };
+    window.addEventListener('popbot:auth-sign-in', onSignIn);
+    return () => window.removeEventListener('popbot:auth-sign-in', onSignIn);
+  }, []);
   const [prefsOpen, setPrefsOpen] = useState(false);
   const [prefsSection, setPrefsSection] = useState<string | undefined>(undefined);
   // Bumped whenever setup might have changed (Preferences closed, repos
@@ -1579,6 +1590,12 @@ export default function App(): JSX.Element {
             setPendingCreate(null);
             void pc.run(input);
           }}
+        />
+      )}
+      {signInFor && (
+        <SignInDialog
+          provider={signInFor}
+          onClose={() => { setSignInFor(null); setReadinessVersion((v) => v + 1); }}
         />
       )}
       {settingsChat && (

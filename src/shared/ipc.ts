@@ -265,6 +265,14 @@ export const IpcChannel = {
   /** Push channel — main → renderer. */
   AgentEvent: 'pb:agent:event',
 
+  /** Run the agent CLI's own sign-in (`claude auth login` / `codex
+   *  login`) from inside the app; its output streams back on
+   *  AuthLoginEvent and the pasted code goes in through AuthLoginInput. */
+  AuthLoginStart: 'pb:auth:login-start',
+  AuthLoginInput: 'pb:auth:login-input',
+  AuthLoginCancel: 'pb:auth:login-cancel',
+  AuthLoginEvent: 'pb:auth:login-event',
+
   /** Push channel — main → renderer. A newer release exists but can't be
    *  installed in-app (unsigned build / updater error) — surface a
    *  manual "Download" link to the release page. */
@@ -571,7 +579,23 @@ export interface AgentBackendStatus {
   version?: string;
   /** Failure reason when not ok (e.g. "claude not found on PATH"). */
   error?: string;
+  /** Whether the CLI is signed in (`claude auth status` / `codex login
+   *  status`). Only meaningful when `ok`; 'unknown' when the CLI didn't
+   *  say (an older CLI, a timeout). */
+  auth?: AuthState;
 }
+
+export type AuthProvider = 'claude' | 'codex';
+export type AuthState = 'signed-in' | 'signed-out' | 'unknown';
+
+/** Push from a running CLI login (`pb:auth:login-event`). */
+export type AuthLoginEvent =
+  | { provider: AuthProvider; type: 'output'; line: string }
+  /** The login printed a URL — the browser fallback link. */
+  | { provider: AuthProvider; type: 'url'; url: string }
+  /** The login is asking for a code to be pasted. */
+  | { provider: AuthProvider; type: 'prompt-code' }
+  | { provider: AuthProvider; type: 'exit'; code: number; message?: string };
 
 /** Online/offline state of the agent CLI backends. */
 export interface AgentBackendsStatus {
@@ -952,6 +976,15 @@ export interface PopBotApi {
      * Returns an unsubscribe function.
      */
     onEvent(handler: (event: AgentEvent) => void): () => void;
+  };
+  auth: {
+    /** Start the CLI's sign-in. Resolves once the process is running (or
+     *  says why it couldn't start); progress arrives on onLoginEvent. */
+    startLogin(provider: AuthProvider): Promise<{ ok: true } | { ok: false; error: string }>;
+    /** Feed a line (the pasted code) to the running sign-in. */
+    sendLoginInput(provider: AuthProvider, text: string): Promise<boolean>;
+    cancelLogin(provider: AuthProvider): Promise<void>;
+    onLoginEvent(handler: (event: AuthLoginEvent) => void): () => void;
   };
   updates: {
     /** Subscribe to "newer release available, download manually" pushes
