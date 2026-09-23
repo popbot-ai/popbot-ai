@@ -155,6 +155,7 @@ export const ptBR = {
   // App shell (App.tsx).
   // ---------------------------------------------------------------------------
   'app.busy.worktreeFailed': 'Falha na configuração do espaço de trabalho',
+  'app.busy.forking': 'Bifurcando o chat…',
   'app.busy.settingUpWorkspace': 'Configurando o workspace…',
   'app.busy.checkingOutBranch': 'Fazendo checkout de {branch}',
   'app.busy.branchingFrom': 'Criando branch {branch} a partir de {baseBranch}',
@@ -495,6 +496,7 @@ export const ptBR = {
   'chat.agentSwitch.message':
     'O id da sessão do agente atual será mantido, então você pode voltar depois. O novo agente usa a própria sessão e será reiniciado com a transcrição deste chat como contexto. Algum estado privado do agente pode ser perdido.',
   'chat.agentSwitch.confirm': 'Reiniciar',
+  'chat.fork.name': '{name} (bifurcação)',
   'chat.app.terminal': 'Terminal',
   'chat.app.editor': 'Editor',
   'chat.app.unity': 'Unity',
@@ -650,6 +652,11 @@ export const ptBR = {
   'chatSettings.restartTooltip': 'Iniciar uma nova sessão de agente preparada com a transcrição deste chat',
   'chatSettings.restarting': 'Reiniciando…',
   'chatSettings.restartWithContext': 'Reiniciar com contexto',
+  'chatSettings.fork': 'Bifurcar este chat',
+  'chatSettings.forkDesc':
+    'Inicie um novo chat a partir deste ponto: a conversa até aqui, a memória que o agente tem dela e — para um chat com espaço de trabalho — um slot novo em um novo branch com as alterações não confirmadas deste. O original continua intacto.',
+  'chatSettings.forkButton': 'Bifurcar chat',
+  'chatSettings.forkRunningHint': 'Aguarde o agente terminar e então bifurque.',
   'chatSettings.tryReconnect': 'Tentar reconectar',
   'chatSettings.reconnectDesc':
     'Escolha uma sessão Claude salva para o worktree deste chat. Útil se a reconexão automática escolheu a errada e você quer forçar uma transcrição específica. A sessão escolhida será fixada e o agente reiniciado nela.',

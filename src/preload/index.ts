@@ -17,6 +17,7 @@ import {
   type CloseChatOptions,
   type ConfigureAgentInput,
   type CreateChatInput,
+  type ForkChatInput,
   type CreateRepoInput,
   type PopBotApi,
   type SendMessageInput,
@@ -54,6 +55,7 @@ const api: PopBotApi = {
     attachSlot: (chatId: string) => ipcRenderer.invoke(IpcChannel.ChatsAttachSlot, chatId),
     reorder: (ids: string[]) => ipcRenderer.invoke(IpcChannel.ChatsReorder, ids),
     rename: (chatId: string, name: string) => ipcRenderer.invoke(IpcChannel.ChatsRename, chatId, name),
+    fork: (input: ForkChatInput) => ipcRenderer.invoke(IpcChannel.ChatsFork, input),
     listMessages: (chatId: string, tail?: number) =>
       ipcRenderer.invoke(IpcChannel.MessagesList, chatId, tail),
   },

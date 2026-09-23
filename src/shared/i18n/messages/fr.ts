@@ -155,6 +155,7 @@ export const fr = {
   // App shell (App.tsx).
   // ---------------------------------------------------------------------------
   'app.busy.worktreeFailed': "Échec de la configuration de l'espace de travail",
+  'app.busy.forking': 'Duplication de la conversation…',
   'app.busy.settingUpWorkspace': 'Configuration de l’espace de travail…',
   'app.busy.checkingOutBranch': 'Extraction de {branch}',
   'app.busy.branchingFrom': 'Création de {branch} à partir de {baseBranch}',
@@ -495,6 +496,7 @@ export const fr = {
   'chat.agentSwitch.message':
     'L’id de session de l’agent actuel sera conservé, vous pourrez donc revenir en arrière plus tard. Le nouvel agent utilise sa propre session et sera redémarré avec la transcription de ce chat comme contexte. Une partie de l’état privé de l’agent peut être perdue.',
   'chat.agentSwitch.confirm': 'Redémarrer',
+  'chat.fork.name': '{name} (copie)',
   'chat.app.terminal': 'Terminal',
   'chat.app.editor': 'Éditeur',
   'chat.app.unity': 'Unity',
@@ -650,6 +652,11 @@ export const fr = {
   'chatSettings.restartTooltip': 'Créer une nouvelle session d’agent amorcée avec la transcription de ce chat',
   'chatSettings.restarting': 'Redémarrage…',
   'chatSettings.restartWithContext': 'Redémarrer avec le contexte',
+  'chatSettings.fork': 'Dupliquer cette conversation',
+  'chatSettings.forkDesc':
+    'Démarre une nouvelle conversation à partir d’ici : les échanges jusqu’à présent, la mémoire qu’en a l’agent et — pour une conversation avec espace de travail — un nouveau slot sur une nouvelle branche reprenant les modifications non validées de celle-ci. L’originale continue sans être touchée.',
+  'chatSettings.forkButton': 'Dupliquer',
+  'chatSettings.forkRunningHint': 'Attendez que l’agent ait terminé, puis dupliquez.',
   'chatSettings.tryReconnect': 'Tenter une reconnexion',
   'chatSettings.reconnectDesc':
     'Choisissez une session Claude enregistrée pour le worktree de ce chat. Utile si la reconnexion automatique a choisi la mauvaise et que vous voulez forcer une transcription spécifique. La session choisie sera épinglée et l’agent recréé dedans.',

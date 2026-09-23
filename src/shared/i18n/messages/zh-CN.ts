@@ -155,6 +155,7 @@ export const zhCN = {
   // App shell (App.tsx).
   // ---------------------------------------------------------------------------
   'app.busy.worktreeFailed': '工作区设置失败',
+  'app.busy.forking': '正在分叉对话…',
   'app.busy.settingUpWorkspace': '正在设置工作区…',
   'app.busy.checkingOutBranch': '正在检出 {branch}',
   'app.busy.branchingFrom': '正在从 {baseBranch} 创建分支 {branch}',
@@ -495,6 +496,7 @@ export const zhCN = {
   'chat.agentSwitch.message':
     '当前代理会话 id 将被保留，因此您稍后可以切换回来。新代理使用自己的会话，并将以此聊天记录作为上下文重新启动。部分私有代理状态可能会丢失。',
   'chat.agentSwitch.confirm': '重新启动',
+  'chat.fork.name': '{name}（分叉）',
   'chat.app.terminal': '终端',
   'chat.app.editor': '编辑器',
   'chat.app.unity': 'Unity',
@@ -650,6 +652,11 @@ export const zhCN = {
   'chatSettings.restartTooltip': '生成一个以此聊天记录预热的全新代理会话',
   'chatSettings.restarting': '正在重新启动…',
   'chatSettings.restartWithContext': '带上下文重新启动',
+  'chatSettings.fork': '分叉此对话',
+  'chatSettings.forkDesc':
+    '从这一点开始一个新对话：包含迄今为止的对话内容、智能体对它的记忆，以及（对于带工作区的对话）一个位于新分支上的全新卡槽，并带上此对话尚未提交的更改。原对话保持不变、继续进行。',
+  'chatSettings.forkButton': '分叉对话',
+  'chatSettings.forkRunningHint': '请等待智能体完成后再分叉。',
   'chatSettings.tryReconnect': '尝试重新连接',
   'chatSettings.reconnectDesc':
     '为此聊天的工作树选择一个已保存的 Claude 会话。当自动重连选错了，而您想强制使用特定记录时很有用。所选会话将被固定，代理将重新生成到其中。',

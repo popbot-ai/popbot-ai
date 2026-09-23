@@ -181,6 +181,46 @@ export class SqliteSessionStore implements SessionStore {
     return rows.map((r) => r.subpath);
   }
 
+  /**
+   * Fork a Claude session: copy every row of `sourceSessionId` (main
+   * transcript and subagent subpaths) under `newSessionId`, tagged with
+   * the fork's chat. The CLI resumes the copy as a normal session and
+   * carries on with the full context — verified live; the embedded
+   * `sessionId` inside each entry is rewritten so the copy is
+   * self-consistent. The source is untouched. Returns rows copied.
+   */
+  forkSession(sourceSessionId: string, newSessionId: string, chatId: string): number {
+    const conn = db();
+    const rows = conn
+      .prepare<[string], { project_key: string; subpath: string; seq: number; uuid: string | null; payload: string }>(
+        `SELECT project_key, subpath, seq, uuid, payload FROM sdk_session_entries
+          WHERE session_id = ? ORDER BY subpath, seq`,
+      )
+      .all(sourceSessionId);
+    const insert = conn.prepare(
+      `INSERT INTO sdk_session_entries
+         (project_key, session_id, subpath, seq, uuid, payload, created_at, chat_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    );
+    const now = Date.now();
+    conn.transaction(() => {
+      for (const r of rows) {
+        let payload = r.payload;
+        try {
+          const entry = JSON.parse(payload) as Record<string, unknown>;
+          if (entry.sessionId === sourceSessionId) {
+            entry.sessionId = newSessionId;
+            payload = JSON.stringify(entry);
+          }
+        } catch {
+          // Opaque bytes stay opaque.
+        }
+        insert.run(r.project_key, newSessionId, r.subpath, r.seq, r.uuid, payload, now, chatId);
+      }
+    })();
+    return rows.length;
+  }
+
   /** Hard-delete every session row for a chat. Used by the chat
    *  hard-delete path so deleted chats leave nothing behind. */
   deleteAllForChat(chatId: string): void {

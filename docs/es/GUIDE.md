@@ -57,11 +57,12 @@ PopBot no reimplementa estos agentes — **impulsa a los reales** a través de s
 
 Por chat, eliges el backend, el **modelo**, y el **esfuerzo de razonamiento** (`low` → `xhigh` / `max` — más esfuerzo significa pensamiento más profundo y uso de herramientas más exhaustivo, a mayor costo/latencia). Estableces **valores por defecto** sensatos — por separado para *chats nuevos* y para *revisiones de código*, ya que una revisión quiere una profundidad distinta a una construcción de funcionalidad — y los sobrescribes por chat cuando una tarea lo amerita.
 
-Tres controles de sesión importan para el trabajo de larga duración:
+Cuatro controles de sesión importan para el trabajo de larga duración:
 
 - **Cambiar a mitad de sesión.** Cambia el modelo o el esfuerzo en un chat en curso; PopBot reconfigura al agente sin perder el hilo.
 - **Reiniciar con contexto.** Levanta una sesión de agente *nueva* preparada con la transcripción de este chat (sus turnos iniciales más los más recientes), útil cuando una sesión se alarga demasiado o se atasca. El historial de la conversación se conserva; el agente simplemente obtiene un runtime limpio.
 - **Compactar el contexto.** El indicador circular del área de redacción muestra cuán lleno está la ventana de contexto del agente. Haz clic (o clic derecho) y elige *Compactar contexto* para que Claude resuma la conversación hasta ahora; la transcripción anota cuándo termina y cuánto espacio liberó. Escribir `/compact` hace lo mismo. Codex compacta por su cuenta, así que allí el indicador es solo informativo.
+- **Bifurcar el chat.** Desde la hoja de ajustes del chat, *Bifurcar chat* inicia un segundo chat en este punto exacto para que ambos puedan divergir: se copia la conversación hasta ahora, se bifurca la propia sesión del agente (Claude y Codex lo admiten de forma nativa, así que la bifurcación recuerda el trabajo en lugar de releerlo) y un chat con espacio de trabajo recibe su propio slot nuevo en una rama `<branch>-fork` con los cambios sin confirmar del original. El original sigue intacto, y al agente de la bifurcación se le indica dónde está la carpeta base del original para que recree los worktrees específicos del chat en lugar de reutilizarlos.
 
 Las credenciales de las integraciones se almacenan **localmente en tu máquina**, en la propia base de datos de la aplicación — nunca en este repositorio.
 

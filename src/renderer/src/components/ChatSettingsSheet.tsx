@@ -31,6 +31,8 @@ function Field({ label, children, stack }: FieldProps): JSX.Element {
 interface ChatSettingsSheetProps {
   chat: ChatRecord;
   onClose: () => void;
+  /** Fork this chat (App does the work and focuses the fork). */
+  onFork?: () => Promise<void> | void;
 }
 
 function fmtBytes(t: Translator, n?: number): string {
@@ -48,7 +50,7 @@ function fmtAge(t: Translator, ms: number): string {
   return t('time.daysAgo', { count: Math.floor(d / 86400) });
 }
 
-export function ChatSettingsSheet({ chat, onClose }: ChatSettingsSheetProps): JSX.Element {
+export function ChatSettingsSheet({ chat, onClose, onFork }: ChatSettingsSheetProps): JSX.Element {
   const { t } = useTranslation();
   const [sessions, setSessions] = useState<SessionEntry[] | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -201,6 +203,30 @@ export function ChatSettingsSheet({ chat, onClose }: ChatSettingsSheetProps): JS
               </span>
             </Field>
           </div>
+
+          {onFork && (
+            <div className="section">
+              <h3>{t('chatSettings.fork')}</h3>
+              <p className="pref-section-desc" style={{ marginBottom: 12 }}>
+                {t('chatSettings.forkDesc')}
+              </p>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 10 }}>
+                {chat.status === 'run' && (
+                  <span style={{ color: 'var(--fg-3)', fontSize: 11 }}>{t('chatSettings.forkRunningHint')}</span>
+                )}
+                <button
+                  className="btn primary"
+                  onClick={() => void onFork()}
+                  // A fork copies the agent's session as it stands; mid-turn
+                  // that is a half-written transcript.
+                  disabled={busy || chat.status === 'run'}
+                  title={t('chatSettings.forkButton')}
+                >
+                  <i className="fa-solid fa-code-fork" aria-hidden /> {t('chatSettings.forkButton')}
+                </button>
+              </div>
+            </div>
+          )}
 
           <div className="section">
             <h3>{t('chatSettings.recoverContext')}</h3>

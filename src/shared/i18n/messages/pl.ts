@@ -93,6 +93,7 @@ export const pl = {
   // App shell (App.tsx).
   // ---------------------------------------------------------------------------
   'app.busy.worktreeFailed': 'Konfiguracja workspace’u nie powiodła się',
+  'app.busy.forking': 'Rozgałęzianie czatu…',
   'app.reconnect.title': 'Dyski workspace’u odłączone',
   'app.reconnect.message': 'Dyski workspace’u dla {repos} zostały odłączone po restarcie. Połącz ponownie, aby korzystać z ich slotów i czatów.',
   'app.reconnect.button': 'Połącz ponownie',
@@ -447,6 +448,7 @@ export const pl = {
   'chat.agentSwitch.message':
     'Identyfikator bieżącej sesji agenta zostanie zachowany, więc można później do niej wrócić. Nowy agent użyje własnej sesji i zostanie uruchomiony ponownie z transkrypcją tego czatu jako kontekstem. Część prywatnego stanu agenta może zostać utracona.',
   'chat.agentSwitch.confirm': 'Uruchom ponownie',
+  'chat.fork.name': '{name} (rozgałęzienie)',
   'chat.app.terminal': 'Terminal',
   'chat.app.editor': 'Edytor',
   'chat.app.unity': 'Unity',
@@ -602,6 +604,11 @@ export const pl = {
   'chatSettings.restartTooltip': 'Uruchom nową sesję agenta zasiloną transkrypcją tego czatu',
   'chatSettings.restarting': 'Uruchamianie ponowne…',
   'chatSettings.restartWithContext': 'Uruchom ponownie z kontekstem',
+  'chatSettings.fork': 'Rozgałęź ten czat',
+  'chatSettings.forkDesc':
+    'Rozpocznij nowy czat od tego miejsca: dotychczasową rozmowę, pamięć agenta o niej oraz — w czacie z obszarem roboczym — świeży slot na nowej gałęzi z niezatwierdzonymi zmianami tego czatu. Oryginał działa dalej bez zmian.',
+  'chatSettings.forkButton': 'Rozgałęź czat',
+  'chatSettings.forkRunningHint': 'Poczekaj, aż agent skończy, a potem rozgałęź.',
   'chatSettings.tryReconnect': 'Spróbuj połączyć ponownie',
   'chatSettings.reconnectDesc':
     'Wybierz zapisaną sesję Claude dla worktree tego czatu. Przydatne, gdy automatyczne ponowne połączenie wybrało niewłaściwą i chcesz wymusić konkretną transkrypcję. Wybrana sesja zostanie przypięta, a agent uruchomiony w niej ponownie.',

@@ -800,7 +800,7 @@ const PLATFORM_PACKAGE: Record<string, { pkg: string; triple: string }> = {
  * binary that ships with the SDK dependency (same lookup the SDK does),
  * and failing that, whatever `codex` resolves to on PATH.
  */
-function resolveCodexBinary(userPath: string | null): { path: string; pathDirs: string[] } {
+export function resolveCodexBinary(userPath: string | null): { path: string; pathDirs: string[] } {
   if (userPath) return { path: userPath, pathDirs: [] };
   try {
     const target = PLATFORM_PACKAGE[`${process.platform}-${process.arch}`];

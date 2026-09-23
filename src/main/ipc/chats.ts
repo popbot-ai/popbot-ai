@@ -7,6 +7,8 @@ import {
   type ClosePrepResult,
   type CreateChatInput,
   type CreateChatResult,
+  type ForkChatInput,
+  type ForkChatResult,
   type ReopenChatResult,
 } from '@shared/ipc';
 import {
@@ -17,18 +19,25 @@ import {
   createChat,
   deleteChat,
   getChat,
+  getChatPermissionRules,
   listClosedChats,
   listOpenChats,
   listSlotOccupants,
   reopenChat,
   searchChats,
+  setChatCodexThreadId,
+  setChatPermissionRules,
+  setChatProviderContextAt,
+  setChatSessionId,
   setChatSlot,
   setChatWorktree,
   setChatP4Shelf,
 } from '../persistence/chats';
-import { listMessages } from '../persistence/messages';
+import { appendMessage, copyMessages, listMessages } from '../persistence/messages';
 import { getSetting, setSetting } from '../persistence/settings';
-import { AgentHost } from '../agents/AgentHost';
+import { AgentHost, sessionCwdForChat } from '../agents/AgentHost';
+import { getCodexBinaryPath } from '../agents/codexProbe';
+import { forkClaudeSession, forkCodexThread } from '../agents/forkAgentContext';
 import { dlog } from '../diagLog';
 import { dispose as disposePty } from '../term/ptyManager';
 import { GitWorktreeError, getSourceControlProvider } from '../scm';
@@ -123,6 +132,22 @@ function resolveRepo(repoId?: string | null): RepoRecord | null {
  *  the preferred slug is taken, suffix with the chat-id tail to
  *  guarantee uniqueness. Pure path resolution — does not touch disk
  *  beyond an `existsSync` check. */
+/** `<branch>-fork`, or `-fork-2`, `-fork-3`… when a chat already has it —
+ *  including closed ones, whose branches still exist in the repo. */
+function forkBranchName(sourceBranch: string): string {
+  const taken = new Set(
+    [...listOpenChats(), ...listClosedChats(1000)]
+      .map((c) => c.branch)
+      .filter((b): b is string => !!b),
+  );
+  const base = `${sourceBranch}-fork`;
+  if (!taken.has(base)) return base;
+  for (let n = 2; ; n += 1) {
+    const candidate = `${base}-${n}`;
+    if (!taken.has(candidate)) return candidate;
+  }
+}
+
 function ephemeralPathFor(opts: {
   scm: SourceControlProvider;
   worktreesDir: string;
@@ -595,6 +620,159 @@ export function registerChatHandlers(): void {
       return { ok: true, chat: reopened };
     },
   );
+
+  /**
+   * Fork a chat: a new chat that picks up exactly where this one is, so
+   * the two can diverge.
+   *
+   *   - the transcript so far, copied;
+   *   - the agent's native session, forked (Claude: the session rows
+   *     copied under a new id; Codex: `thread/fork`), so the agent
+   *     remembers the work rather than re-reading a replay. When that
+   *     isn't possible the fork starts without one and the first message
+   *     primes it from the transcript, as any context-less chat is;
+   *   - for a chat with a workspace, its own: a new slot (or ephemeral
+   *     worktree) on `<branch>-fork`, landed at the original branch's
+   *     current tip with its uncommitted work carried over. The original
+   *     keeps its slot, branch, and dirty files untouched.
+   *
+   * The fork's agent is told all this on its first message (see
+   * AgentHost.markForked), including where the original's home folder is
+   * so it re-creates chat-specific worktrees rather than reusing them.
+   */
+  ipcMain.handle(IpcChannel.ChatsFork, async (_e, input: ForkChatInput): Promise<ForkChatResult> => {
+    const source = getChat(input.chatId);
+    if (!source) return { ok: false, reason: 'not-found' };
+    const name = input.name?.trim() || `${source.name} (fork)`;
+    const repo = source.branch ? resolveRepo(source.repoId) : null;
+    const branch = source.branch && repo ? forkBranchName(source.branch) : null;
+
+    const fork = createChat({
+      name,
+      ticket: source.ticket,
+      pr: source.pr,
+      prUrl: source.prUrl,
+      branch,
+      type: source.type,
+      slotId: null,
+      worktreePath: null,
+      repoId: source.repoId,
+      agent: source.agent,
+      claudeModel: source.claudeModel,
+      claudeReasoningEffort: source.claudeReasoningEffort,
+      codexModel: source.codexModel,
+      codexReasoningEffort: source.codexReasoningEffort,
+    });
+    dlog('chat.fork', { from: source.id, to: fork.id, branch, repoId: source.repoId });
+
+    // ---- Workspace, when the original has one. Mirrors the create path.
+    let worktreePath: string | null = null;
+    if (repo && branch && source.branch) {
+      const scm = getSourceControlProvider(repo);
+      const repoPath = repo.repoPath || '';
+      const baseBranch = repo.defaultBase || 'main';
+      let slotId: number | null = null;
+      try {
+        if (repo.mode === 'ephemeral') {
+          if (!scm.capabilities.supportsEphemeralRepos) {
+            throw new Error(`${scm.id} repos don't support ephemeral worktrees`);
+          }
+          worktreePath = ephemeralPathFor({
+            scm,
+            worktreesDir: worktreesDirForRepo(repo),
+            ticket: source.ticket,
+            pr: source.pr,
+            chatId: fork.id,
+          });
+          await scm.ensureChatWorktree({ repoPath, worktreePath, branch, baseBranch });
+        } else {
+          const maxSlots = repo.slotCount || 0;
+          if (maxSlots < 1) {
+            deleteChat(fork.id);
+            return { ok: false, reason: 'slots-not-configured' };
+          }
+          slotId = allocateSlotPreferring(maxSlots, null);
+          if (slotId === null) {
+            deleteChat(fork.id);
+            return { ok: false, reason: 'no-free-slot' };
+          }
+          worktreePath = slotWorktreePathForRepo(repo, slotId);
+          await ensureSlotsMounted(repo);
+          await scm.ensureSlotWorktree({
+            repoPath,
+            worktreePath,
+            parkBranch: scm.parkingBranch(repo.id, slotId),
+            baseBranch,
+          });
+          await scm.refreshSlotForAllocation({ worktreePath, baseBranch });
+        }
+        // Not `checkoutBranch` (which would start the fork from base): land
+        // the new branch where the original's branch is right now.
+        await scm.forkChatWorkspace({
+          repoPath,
+          sourceWorktreePath: source.worktreePath ?? null,
+          sourceBranch: source.branch,
+          worktreePath,
+          branch,
+        });
+      } catch (err) {
+        const msg = err instanceof GitWorktreeError ? err.message : (err as Error).message;
+        dlog('chat.fork.worktreeFailed', { from: source.id, to: fork.id, slotId, worktreePath, branch, error: msg });
+        deleteChat(fork.id);
+        return { ok: false, reason: 'worktree-failed', message: msg };
+      }
+      if (slotId != null) setChatSlot(fork.id, slotId, worktreePath);
+      else setChatWorktree(fork.id, worktreePath);
+    }
+
+    // ---- What the two chats share from here: the story so far.
+    const copied = copyMessages(source.id, fork.id);
+    setChatPermissionRules(fork.id, getChatPermissionRules(source.id));
+    const bases = getSetting<Record<string, string>>('git.baseBranchByChat') ?? {};
+    if (bases[source.id]) setSetting('git.baseBranchByChat', { ...bases, [fork.id]: bases[source.id] });
+
+    // ---- The agent's own memory of it. Both providers, so switching
+    // agents in the fork keeps working; the active one decides the note.
+    const forkCwd = sessionCwdForChat({ slotId: getChat(fork.id)?.slotId ?? null, repoId: fork.repoId, worktreePath });
+    const claude = forkClaudeSession(source.sessionId, fork.id);
+    if (claude.id) {
+      setChatSessionId(fork.id, claude.id);
+      setChatProviderContextAt(fork.id, 'claude', source.claudeContextAt);
+    }
+    const codex = await forkCodexThread(source.codexThreadId, forkCwd, getCodexBinaryPath());
+    if (codex.id) {
+      setChatCodexThreadId(fork.id, codex.id);
+      setChatProviderContextAt(fork.id, 'codex', source.codexContextAt);
+    }
+    const active = source.agent === 'codex' ? codex : claude;
+    const hadSession = source.agent === 'codex' ? !!source.codexThreadId : !!source.sessionId;
+    dlog('chat.fork.context', { to: fork.id, copiedMessages: copied, claude: claude.id ?? claude.reason, codex: codex.id ?? codex.reason });
+    appendMessage({
+      chatId: fork.id,
+      role: 'system',
+      kind: 'system',
+      body: {
+        text: active.id || !hadSession
+          ? `fork: Forked from “${source.name}”.`
+          : `fork: Forked from “${source.name}”. The agent's session could not be forked (${active.reason}); ` +
+            'it will be primed from this transcript on your next message.',
+      },
+    });
+    AgentHost.markForked(fork.id, {
+      fromName: source.name,
+      fromCwd: sessionCwdForChat(source),
+      at: Date.now(),
+    });
+
+    // ---- Land right after the original in the strip.
+    const ids = listOpenChats().map((c) => c.id).filter((id) => id !== fork.id);
+    const at = ids.indexOf(source.id);
+    ids.splice(at < 0 ? ids.length : at + 1, 0, fork.id);
+    reorderChats(ids);
+
+    const created = getChat(fork.id);
+    return created ? { ok: true, chat: created } : { ok: false, reason: 'not-found' };
+  });
 
   ipcMain.handle(IpcChannel.ChatsReorder, (_e, ids: string[]) => {
     if (!Array.isArray(ids)) return;

@@ -155,6 +155,7 @@ export const ko = {
   // App shell (App.tsx).
   // ---------------------------------------------------------------------------
   'app.busy.worktreeFailed': '워크스페이스 설정에 실패했습니다',
+  'app.busy.forking': '채팅을 분기하는 중…',
   'app.busy.settingUpWorkspace': '작업 공간을 설정하는 중…',
   'app.busy.checkingOutBranch': '{branch} 체크아웃 중',
   'app.busy.branchingFrom': '{baseBranch}에서 {branch} 브랜치 생성 중',
@@ -495,6 +496,7 @@ export const ko = {
   'chat.agentSwitch.message':
     '현재 에이전트 세션 id는 유지되므로 나중에 다시 전환할 수 있습니다. 새 에이전트는 자체 세션을 사용하며 이 채팅 대화 기록을 컨텍스트로 하여 다시 시작됩니다. 일부 비공개 에이전트 상태는 손실될 수 있습니다.',
   'chat.agentSwitch.confirm': '다시 시작',
+  'chat.fork.name': '{name} (분기)',
   'chat.app.terminal': '터미널',
   'chat.app.editor': '편집기',
   'chat.app.unity': 'Unity',
@@ -650,6 +652,11 @@ export const ko = {
   'chatSettings.restartTooltip': '이 채팅의 대화 기록으로 준비된 새 에이전트 세션 생성',
   'chatSettings.restarting': '다시 시작 중…',
   'chatSettings.restartWithContext': '컨텍스트와 함께 다시 시작',
+  'chatSettings.fork': '이 채팅 분기',
+  'chatSettings.forkDesc':
+    '이 시점에서 새 채팅을 시작합니다. 지금까지의 대화, 에이전트의 기억, 그리고 작업 공간이 있는 채팅이라면 이 채팅의 커밋되지 않은 변경 사항을 가져온 새 브랜치의 새 슬롯이 마련됩니다. 원본은 그대로 계속됩니다.',
+  'chatSettings.forkButton': '채팅 분기',
+  'chatSettings.forkRunningHint': '에이전트가 끝날 때까지 기다린 뒤 분기하세요.',
   'chatSettings.tryReconnect': '재연결 시도',
   'chatSettings.reconnectDesc':
     '이 채팅의 워크트리에 대해 저장된 Claude 세션을 선택하세요. 자동 재연결이 잘못된 세션을 선택했고 특정 대화 기록을 강제하려는 경우 유용합니다. 선택한 세션이 고정되고 에이전트가 해당 세션으로 다시 생성됩니다.',

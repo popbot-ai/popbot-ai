@@ -57,11 +57,12 @@ PopBot non reimplementa questi agenti — **guida quelli veri** attraverso i lor
 
 Per ogni chat, scegli il backend, il **modello**, e lo **sforzo di ragionamento** (`low` → `xhigh` / `max` — più sforzo significa un pensiero più profondo e un uso più approfondito degli strumenti, a un costo/latenza maggiore). Imposti dei **default** sensati — separatamente per le *nuove chat* e per le *code review*, dato che una review vuole una profondità diversa rispetto alla costruzione di una feature — e li sovrascrivi per singola chat quando un task lo richiede.
 
-Tre controlli di sessione contano per il lavoro di lunga durata:
+Quattro controlli di sessione contano per il lavoro di lunga durata:
 
 - **Cambio a metà sessione.** Cambia modello o sforzo su una chat in corso; PopBot riconfigura l'agente senza perdere il filo.
 - **Riavvio con contesto.** Avvia una *nuova* sessione dell'agente innescata con il transcript di questa chat (i suoi turni iniziali più quelli più recenti), utile quando una sessione diventa lunga o si inceppa. La cronologia della conversazione è preservata; l'agente riceve semplicemente un runtime pulito.
 - **Compatta il contesto.** L'indicatore ad anello nell'area di composizione mostra quanto è piena la finestra di contesto dell'agente. Fai clic (o clic destro) e scegli *Compatta contesto* perché Claude riassuma la conversazione fin qui; la trascrizione annota quando ha finito e quanto spazio ha liberato. Digitare `/compact` fa lo stesso. Codex compatta da sé, quindi lì l'indicatore è solo informativo.
+- **Dirama la chat.** Dal pannello impostazioni della chat, *Dirama chat* avvia una seconda chat esattamente da questo punto, così le due possono divergere: la conversazione finora viene copiata, la sessione dell'agente viene diramata (Claude e Codex lo supportano nativamente, quindi la diramazione ricorda il lavoro invece di rileggerlo) e una chat con spazio di lavoro riceve un proprio slot nuovo su un branch `<branch>-fork` con le modifiche non committate dell'originale. L'originale prosegue intatta e all'agente della diramazione viene indicato dove si trova la cartella d'origine, così ricrea i worktree specifici della chat invece di riutilizzarli.
 
 Le credenziali per le integrazioni sono memorizzate **localmente sulla tua macchina**, nel database dell'app — mai in questo repository.
 

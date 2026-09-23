@@ -57,11 +57,12 @@ PopBot reimplementiert diese Agents nicht — es **steuert die echten**, über i
 
 Pro Chat wählt ihr das Backend, das **Modell** und den **Reasoning-Effort** (`low` → `xhigh` / `max` — mehr Effort bedeutet tieferes Denken und gründlicheren Tool-Einsatz, bei höheren Kosten/Latenz). Ihr setzt sinnvolle **Standardwerte** — separat für *neue Chats* und für *Code-Reviews*, da ein Review eine andere Tiefe will als ein Feature-Build — und überschreibt sie pro Chat, wenn eine Aufgabe es rechtfertigt.
 
-Drei Session-Steuerelemente sind für lang laufende Arbeit wichtig:
+Vier Session-Steuerelemente sind für lang laufende Arbeit wichtig:
 
 - **Mitten in der Session wechseln.** Modell oder Effort bei einem laufenden Chat ändern; PopBot rekonfiguriert den Agent, ohne den Faden zu verlieren.
 - **Mit Kontext neustarten.** Eine *frische* Agent-Session starten, geprimt mit dem Transcript dieses Chats (seinen Eröffnungszügen plus den jüngsten), nützlich, wenn eine Session lang oder verkeilt wird. Die Konversationshistorie bleibt erhalten, der Agent bekommt lediglich eine saubere Laufzeitumgebung.
 - **Kontext komprimieren.** Die Ringanzeige im Eingabebereich zeigt, wie voll das Kontextfenster des Agenten ist. Klicken (oder Rechtsklick) und *Kontext komprimieren* wählen, damit Claude das bisherige Gespräch zusammenfasst; das Transkript vermerkt, wann es fertig ist und wie viel Platz frei wurde. `/compact` einzutippen tut dasselbe. Codex komprimiert von selbst, dort ist die Anzeige nur informativ.
+- **Chat abzweigen.** *Chat abzweigen* im Einstellungsblatt des Chats startet an genau dieser Stelle einen zweiten Chat, damit beide auseinanderlaufen können: das bisherige Gespräch wird kopiert, die eigene Session des Agenten wird abgezweigt (Claude und Codex unterstützen das nativ, die Abzweigung erinnert sich also an die Arbeit, statt sie neu zu lesen), und ein Chat mit Arbeitsbereich bekommt einen eigenen frischen Slot auf einem `<branch>-fork`-Branch mit den nicht committeten Änderungen des Originals. Das Original läuft unverändert weiter, und der Agent der Abzweigung erfährt, wo der Home-Ordner des Originals liegt, damit er chat-spezifische Worktrees neu anlegt statt sie weiterzuverwenden.
 
 Credentials für die Integrationen werden **lokal auf eurer Maschine** gespeichert, in der eigenen Datenbank der App — niemals in diesem Repository.
 

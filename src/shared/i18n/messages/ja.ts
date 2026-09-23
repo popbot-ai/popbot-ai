@@ -155,6 +155,7 @@ export const ja = {
   // App shell (App.tsx).
   // ---------------------------------------------------------------------------
   'app.busy.worktreeFailed': 'ワークスペースのセットアップに失敗しました',
+  'app.busy.forking': 'チャットを分岐しています…',
   'app.busy.settingUpWorkspace': 'ワークスペースをセットアップ中…',
   'app.busy.checkingOutBranch': '{branch} をチェックアウト中',
   'app.busy.branchingFrom': '{baseBranch} から {branch} を作成中',
@@ -495,6 +496,7 @@ export const ja = {
   'chat.agentSwitch.message':
     '現在のエージェントセッション ID は保持されるため、後で元に戻すことができます。新しいエージェントは独自のセッションを使用し、このチャットのトランスクリプトをコンテキストとして再起動されます。一部のプライベートなエージェント状態は失われる可能性があります。',
   'chat.agentSwitch.confirm': '再起動',
+  'chat.fork.name': '{name}（分岐）',
   'chat.app.terminal': 'ターミナル',
   'chat.app.editor': 'エディター',
   'chat.app.unity': 'Unity',
@@ -650,6 +652,11 @@ export const ja = {
   'chatSettings.restartTooltip': 'このチャットのトランスクリプトを引き継いだ新しいエージェントセッションを起動します',
   'chatSettings.restarting': '再起動中…',
   'chatSettings.restartWithContext': 'コンテキスト付きで再起動',
+  'chatSettings.fork': 'このチャットを分岐',
+  'chatSettings.forkDesc':
+    'この時点から新しいチャットを開始します。これまでの会話、それに対するエージェントの記憶、そしてワークスペースを持つチャットなら、このチャットの未コミットの変更を引き継いだ新しいブランチ上の新しいスロットが用意されます。元のチャットはそのまま続きます。',
+  'chatSettings.forkButton': 'チャットを分岐',
+  'chatSettings.forkRunningHint': 'エージェントの完了を待ってから分岐してください。',
   'chatSettings.tryReconnect': '再接続を試す',
   'chatSettings.reconnectDesc':
     'このチャットの worktree に対して保存された Claude セッションを選択します。自動再接続が誤ったものを選択し、特定のトランスクリプトを強制したい場合に便利です。選択したセッションがピン留めされ、エージェントがそこに再起動されます。',

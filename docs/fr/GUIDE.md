@@ -57,11 +57,12 @@ PopBot ne réimplémente pas ces agents — il **pilote les vrais** via leurs SD
 
 Par chat, vous choisissez le backend, le **modèle**, et l'**effort de raisonnement** (`low` → `xhigh` / `max` — plus d'effort signifie une réflexion plus profonde et un usage d'outils plus approfondi, à un coût/latence plus élevés). Vous définissez des **valeurs par défaut** sensées — séparément pour les *nouveaux chats* et pour les *revues de code*, puisqu'une revue veut une profondeur différente d'une construction de fonctionnalité — et vous les surchargez par chat quand une tâche le justifie.
 
-Trois contrôles de session comptent pour le travail de longue durée :
+Quatre contrôles de session comptent pour le travail de longue durée :
 
 - **Changer en cours de session.** Modifiez le modèle ou l'effort sur un chat en cours ; PopBot reconfigure l'agent sans perdre le fil.
 - **Redémarrer avec le contexte.** Lancez une session d'agent *fraîche* amorcée avec la transcription de ce chat (ses premiers tours plus les plus récents), utile quand une session devient longue ou coincée. L'historique de conversation est préservé ; l'agent obtient simplement un runtime propre.
 - **Compacter le contexte.** La jauge circulaire de la zone de saisie indique le remplissage de la fenêtre de contexte de l'agent. Cliquez (ou clic droit) et choisissez *Compacter le contexte* pour que Claude résume la conversation jusqu'ici ; la transcription note quand c'est terminé et la place libérée. Taper `/compact` fait la même chose. Codex compacte de lui-même, la jauge y est donc purement informative.
+- **Dupliquer la conversation.** Depuis le panneau de réglages de la conversation, *Dupliquer* démarre une seconde conversation à ce point précis pour que les deux puissent diverger : les échanges sont copiés, la session propre de l'agent est dupliquée (Claude et Codex le prennent en charge nativement, la copie se souvient donc du travail au lieu de le relire), et une conversation avec espace de travail reçoit son propre slot sur une branche `<branch>-fork` reprenant les modifications non validées de l'originale. L'originale continue sans être touchée, et l'agent de la copie apprend où se trouve le dossier d'origine afin de recréer les worktrees propres à la conversation plutôt que de les réutiliser.
 
 Les identifiants des intégrations sont stockés **localement sur votre machine**, dans la base de données propre à l'application — jamais dans ce dépôt.
 

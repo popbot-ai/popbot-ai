@@ -152,3 +152,36 @@ export function lastUserMessageAtByChat(): Map<string, number> {
     .all();
   return new Map(rows.map((r) => [r.chat_id, r.at]));
 }
+
+/**
+ * Duplicate a chat's transcript into another chat — the fork's copy of
+ * the conversation. Rows keep their timestamps (ordering, relative
+ * times, and the provider-context watermarks all compare against them)
+ * and get fresh ids (message ids are global primary keys). Returns how
+ * many rows were copied.
+ */
+export function copyMessages(fromChatId: string, toChatId: string): number {
+  const conn = db();
+  const rows = conn
+    .prepare<[string], MessageRow>(
+      'SELECT * FROM messages WHERE chat_id = ? ORDER BY created_at ASC, id ASC',
+    )
+    .all(fromChatId);
+  const insert = conn.prepare(
+    'INSERT INTO messages (id, chat_id, role, kind, body, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
+  );
+  conn.transaction(() => {
+    for (const r of rows) {
+      insert.run(
+        'msg_' + randomUUID().replace(/-/g, '').slice(0, 12),
+        toChatId,
+        r.role,
+        r.kind,
+        r.body,
+        r.created_at,
+        r.updated_at,
+      );
+    }
+  })();
+  return rows.length;
+}

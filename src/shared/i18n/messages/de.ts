@@ -155,6 +155,7 @@ export const de = {
   // App shell (App.tsx).
   // ---------------------------------------------------------------------------
   'app.busy.worktreeFailed': 'Arbeitsbereich-Einrichtung fehlgeschlagen',
+  'app.busy.forking': 'Chat wird abgezweigt…',
   'app.busy.settingUpWorkspace': 'Arbeitsbereich wird eingerichtet…',
   'app.busy.checkingOutBranch': '{branch} wird ausgecheckt',
   'app.busy.branchingFrom': '{branch} wird von {baseBranch} abgezweigt',
@@ -495,6 +496,7 @@ export const de = {
   'chat.agentSwitch.message':
     'Die aktuelle Agent-Sitzungs-ID wird beibehalten, sodass Sie später zurückwechseln können. Der neue Agent verwendet seine eigene Sitzung und wird mit diesem Chat-Transkript als Kontext neu gestartet. Ein Teil des privaten Agent-Status kann verloren gehen.',
   'chat.agentSwitch.confirm': 'Neu starten',
+  'chat.fork.name': '{name} (Abzweigung)',
   'chat.app.terminal': 'Terminal',
   'chat.app.editor': 'Editor',
   'chat.app.unity': 'Unity',
@@ -650,6 +652,11 @@ export const de = {
   'chatSettings.restartTooltip': 'Eine neue Agent-Sitzung starten, vorbereitet mit dem Transkript dieses Chats',
   'chatSettings.restarting': 'Wird neu gestartet…',
   'chatSettings.restartWithContext': 'Mit Kontext neu starten',
+  'chatSettings.fork': 'Diesen Chat abzweigen',
+  'chatSettings.forkDesc':
+    'Startet einen neuen Chat ab diesem Punkt: das bisherige Gespräch, die Erinnerung des Agenten daran und — bei einem Chat mit Arbeitsbereich — ein frischer Slot auf einem neuen Branch mit den nicht committeten Änderungen dieses Chats. Das Original läuft unverändert weiter.',
+  'chatSettings.forkButton': 'Chat abzweigen',
+  'chatSettings.forkRunningHint': 'Warte, bis der Agent fertig ist, und zweige dann ab.',
   'chatSettings.tryReconnect': 'Neuverbindung versuchen',
   'chatSettings.reconnectDesc':
     'Wählen Sie eine gespeicherte Claude-Sitzung für den Worktree dieses Chats. Nützlich, wenn die automatische Neuverbindung die falsche gewählt hat und Sie ein bestimmtes Transkript erzwingen möchten. Die gewählte Sitzung wird angeheftet und der Agent neu darin gestartet.',

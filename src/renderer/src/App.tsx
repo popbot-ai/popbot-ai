@@ -97,7 +97,7 @@ function relativeTime(ts: number, t: Translator): string {
 
 export default function App(): JSX.Element {
   const { t } = useTranslation();
-  const { chats, closedChats, loading, create, close, reopen, attachSlot, remove, refresh, reorder, rename } = useChats();
+  const { chats, closedChats, loading, create, close, reopen, attachSlot, remove, refresh, reorder, rename, fork } = useChats();
   // The visible columns are a contiguous window of `chats`. windowStart is
   // the index of the leftmost visible chat. Click a thumbnail to scroll
   // the window so that chat is visible (and active).
@@ -579,6 +579,33 @@ export default function App(): JSX.Element {
     } else {
       void doClose(id, { stash: false });
     }
+  };
+
+  /** Fork a chat from its settings sheet: same error surfaces as creating
+   *  a chat (the fork may need a slot), then focus the fork. */
+  const forkChat = async (chat: ChatRecord): Promise<void> => {
+    setSettingsForId(null);
+    // Only a chat with a workspace does slow work (a slot + a branch); a
+    // repo-root or raw chat forks in a blink and needs no overlay.
+    if (chat.branch) {
+      setBusy({ message: t('app.busy.forking'), detail: workspaceSetupDetail(chat.repoScm, chat.branch) });
+    }
+    let result;
+    try {
+      result = await fork({ chatId: chat.id, name: t('chat.fork.name', { name: chat.name }) });
+    } finally {
+      setBusy(null);
+    }
+    if (!result.ok) {
+      if (result.reason === 'slots-not-configured') openPrefsAt('runtime');
+      else if (result.reason === 'no-free-slot') setNoSlotsOpen(true);
+      else if (result.reason === 'git-not-configured') openPrefsAt('git');
+      else if (result.reason === 'worktree-failed') {
+        setBusy({ message: t('app.busy.worktreeFailed'), detail: result.message, error: true });
+      }
+      return;
+    }
+    scrollToChat(result.chat.id);
   };
 
   const doClose = async (id: string, opts: { stash: boolean }) => {
@@ -1554,7 +1581,13 @@ export default function App(): JSX.Element {
           }}
         />
       )}
-      {settingsChat && <ChatSettingsSheet chat={settingsChat} onClose={() => setSettingsForId(null)} />}
+      {settingsChat && (
+        <ChatSettingsSheet
+          chat={settingsChat}
+          onClose={() => setSettingsForId(null)}
+          onFork={() => forkChat(settingsChat)}
+        />
+      )}
       {prefsOpen && (
         <PreferencesSheet
           onClose={() => { setPrefsOpen(false); setReadinessVersion((v) => v + 1); }}

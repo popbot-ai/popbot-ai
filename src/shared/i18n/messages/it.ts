@@ -93,6 +93,7 @@ export const it = {
   // App shell (App.tsx).
   // ---------------------------------------------------------------------------
   'app.busy.worktreeFailed': 'Configurazione dello spazio di lavoro non riuscita',
+  'app.busy.forking': 'Diramazione della chat…',
   'app.reconnect.title': 'Unità dello spazio di lavoro disconnesse',
   'app.reconnect.message': 'Le unità dello spazio di lavoro per {repos} sono state disconnesse da un riavvio. Riconnettiti per usare i loro slot e le loro chat.',
   'app.reconnect.button': 'Riconnetti',
@@ -447,6 +448,7 @@ export const it = {
   'chat.agentSwitch.message':
     'L’id della sessione dell’agente attuale verrà conservato, così potrai tornare indietro in seguito. Il nuovo agente usa una propria sessione e verrà riavviato con la trascrizione di questa chat come contesto. Parte dello stato privato dell’agente potrebbe andare perduta.',
   'chat.agentSwitch.confirm': 'Riavvia',
+  'chat.fork.name': '{name} (diramazione)',
   'chat.app.terminal': 'Terminale',
   'chat.app.editor': 'Editor',
   'chat.app.unity': 'Unity',
@@ -602,6 +604,11 @@ export const it = {
   'chatSettings.restartTooltip': 'Avvia una nuova sessione agente basata sulla trascrizione di questa chat',
   'chatSettings.restarting': 'Riavvio…',
   'chatSettings.restartWithContext': 'Riavvia con il contesto',
+  'chatSettings.fork': 'Dirama questa chat',
+  'chatSettings.forkDesc':
+    'Avvia una nuova chat da questo punto: la conversazione finora, la memoria che l’agente ne ha e — per una chat con uno spazio di lavoro — uno slot nuovo su un nuovo branch con le modifiche non ancora committate di questa. L’originale prosegue intatta.',
+  'chatSettings.forkButton': 'Dirama chat',
+  'chatSettings.forkRunningHint': 'Attendi che l’agente finisca, poi dirama.',
   'chatSettings.tryReconnect': 'Prova a riconnettere',
   'chatSettings.reconnectDesc':
     'Scegli una sessione Claude salvata per il worktree di questa chat. Utile se la riconnessione automatica ha scelto quella sbagliata e vuoi forzare una trascrizione specifica. La sessione scelta verrà appuntata e l’agente riavviato al suo interno.',

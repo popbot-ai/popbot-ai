@@ -638,6 +638,13 @@ export function getChatPermissionRules(id: string): PermissionRule[] {
 
 /** Append a rule for this chat. Existing rules with the same `tool`
  *  are replaced — keeps the list canonical (one rule per tool name). */
+/** Replace a chat's rule list wholesale — a fork inherits the original's. */
+export function setChatPermissionRules(id: string, rules: PermissionRule[]): void {
+  db()
+    .prepare('UPDATE chats SET permission_rules = ? WHERE id = ?')
+    .run(JSON.stringify(rules), id);
+}
+
 export function addChatPermissionRule(id: string, rule: PermissionRule): void {
   const current = getChatPermissionRules(id);
   const next = [...current.filter((r) => r.tool !== rule.tool), rule];

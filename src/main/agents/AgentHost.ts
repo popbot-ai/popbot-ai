@@ -191,7 +191,9 @@ export function firstMessageCwdPreamble(
   chat: Pick<ChatRecord, 'slotId' | 'repoId' | 'worktreePath'> | null | undefined,
   isFresh: boolean,
   resumed: boolean,
+  forkNote?: ForkNote | null,
 ): string {
+  if (forkNote) return forkPreamble(sessionCwdForChat(chat), forkNote);
   if (!isFresh && !resumed) return '';
   const cwd = sessionCwdForChat(chat);
   if (!cwd) return '';
@@ -206,6 +208,47 @@ export function firstMessageCwdPreamble(
     : `[System] This chat resumed at ${now}. Its working directory is now: ${cwd} — this may ` +
         `differ from before (a resumed chat can move to a new slot), so use this path for all ` +
         `file reads, edits, and commands from here on; any path you recall from earlier may be stale.\n\n`;
+}
+
+/**
+ * What a forked chat's agent is told on its first message. The agent's
+ * memory is the ORIGINAL chat's (its session was forked), so it has to
+ * learn three things: it is now a separate chat; where its workspace is
+ * now, versus where the work it remembers happened; and that anything
+ * chat-specific it set up for the original — worktrees, branches,
+ * scratch folders — belongs to the original and must be re-created for
+ * this chat from the original's home, not modified in place.
+ */
+export interface ForkNote {
+  /** The original chat's name. */
+  fromName: string;
+  /** The original chat's working directory, when it had one. */
+  fromCwd: string | null;
+  /** When the fork was made (epoch ms). */
+  at: number;
+}
+
+function forkPreamble(cwd: string | null, note: ForkNote): string {
+  const when = new Date(note.at).toLocaleString('sv-SE', { dateStyle: 'short', timeStyle: 'short' });
+  const moved = !!cwd && !!note.fromCwd && cwd !== note.fromCwd;
+  const where = !cwd
+    ? ''
+    : moved
+      ? `Its working directory is now: ${cwd} — a fresh copy of the work, forked from the original ` +
+        `chat's home folder at ${note.fromCwd}. Use the new path for every file read, edit, and ` +
+        `command from here on; any path you recall from earlier belongs to the original chat. `
+      : `Its working directory is unchanged: ${cwd}, which it shares with the original chat. `;
+  const home = note.fromCwd ?? cwd;
+  return (
+    `[System] This chat was branched (forked) at ${when} from the chat “${note.fromName}”. ` +
+    `The conversation above is that chat's, carried over; from here on this is a separate chat ` +
+    `and the original continues independently. ${where}` +
+    `Any worktrees, branches, scratch folders, or other chat-specific workspaces you set up ` +
+    `earlier belong to the original chat: do not modify them from here — re-create (re-branch) ` +
+    `your own for this chat` + (home ? `, from the original home folder at ${home}` : '') + `.
+
+`
+  );
 }
 
 /** A sentence telling the agent to respond in the user's chosen UI language,
@@ -261,6 +304,10 @@ class AgentHostImpl {
   // preamble re-states the current working directory (it may have moved slots),
   // then the flag is cleared. Set by the reopen handler.
   private readonly resumedChats = new Set<string>();
+  /** Settings key for fork notes awaiting delivery, keyed by chat id.
+   *  Persisted (unlike the resume flag) because a fork may well sit
+   *  unopened across an app restart, and its agent must still be told. */
+  private static readonly FORK_NOTES_KEY = 'agent.pendingForkNotes';
   private readonly textBuffers = new Map<
     string,
     { chatId: string; messageId: string; buffer: string; flushTimer: NodeJS.Timeout | null }
@@ -377,6 +424,25 @@ class AgentHostImpl {
     this.resumedChats.add(chatId);
   }
 
+  /** A chat was just forked: on its first message, tell the agent (see
+   *  forkPreamble). Persisted until delivered. */
+  markForked(chatId: string, note: ForkNote): void {
+    const notes = getSetting<Record<string, ForkNote>>(AgentHostImpl.FORK_NOTES_KEY) ?? {};
+    setSetting(AgentHostImpl.FORK_NOTES_KEY, { ...notes, [chatId]: note });
+  }
+
+  private pendingForkNote(chatId: string): ForkNote | null {
+    const notes = getSetting<Record<string, ForkNote>>(AgentHostImpl.FORK_NOTES_KEY) ?? {};
+    return notes[chatId] ?? null;
+  }
+
+  private clearForkNote(chatId: string): void {
+    const notes = getSetting<Record<string, ForkNote>>(AgentHostImpl.FORK_NOTES_KEY) ?? {};
+    if (!(chatId in notes)) return;
+    const { [chatId]: _gone, ...rest } = notes;
+    setSetting(AgentHostImpl.FORK_NOTES_KEY, rest);
+  }
+
   /** Send a user message to a chat. Spawns a session if none exists. */
   async send(chatId: string, text: string, attachments?: PickedAttachment[]): Promise<void> {
     const chat = getChat(chatId);
@@ -423,8 +489,10 @@ class AgentHostImpl {
     // bridge) would turn it into an ordinary message. Send it bare — the
     // same thing the context gauge does.
     const isCompactCommand = provider === 'claude' && /^\/compact(\s|$)/.test(text.trim());
+    // Read (don't consume) for the same reason as the resume flag.
+    const forkNote = firstOfSession ? this.pendingForkNote(chatId) : null;
     const preamble = firstOfSession && !isCompactCommand
-      ? firstMessageCwdPreamble(chat, isFresh, resumed)
+      ? firstMessageCwdPreamble(chat, isFresh, resumed, forkNote)
       : '';
 
     const storedAttachments = await persistChatAttachments(chatId, attachments);
@@ -475,6 +543,7 @@ class AgentHostImpl {
       this.noteTurnSent(chatId);
       // Delivered — now consume the resume flag so it doesn't re-fire next turn.
       if (resumed) this.resumedChats.delete(chatId);
+      if (forkNote) this.clearForkNote(chatId);
     } catch (err) {
       // Spawn-time failure: surface immediately as a chat error so the
       // user sees something instead of a silent stuck 'run' status.

@@ -73,6 +73,9 @@ export const IpcChannel = {
   ChatsReorder: 'pb:chats:reorder',
   /** Rename a chat (click on the column title). */
   ChatsRename: 'pb:chats:rename',
+  /** Fork a chat: a new chat with the conversation so far, the agent's
+   *  forked native session, and its own workspace. */
+  ChatsFork: 'pb:chats:fork',
   MessagesList: 'pb:messages:list',
 
   SettingsGet: 'pb:settings:get',
@@ -398,6 +401,17 @@ export type CreateChatResult =
   | { ok: false; reason: 'no-free-slot' }
   | { ok: false; reason: 'worktree-failed'; message: string };
 
+export interface ForkChatInput {
+  chatId: string;
+  /** Name for the fork. Built by the renderer so it is localized;
+   *  main falls back to "<name> (fork)". */
+  name?: string;
+}
+
+/** Result of `pb:chats:fork` — the create failures, plus a source chat
+ *  that no longer exists. */
+export type ForkChatResult = CreateChatResult | { ok: false; reason: 'not-found' };
+
 /** Result of `pb:chats:reopen`. `ok: false` lets the renderer surface
  *  a meaningful error (e.g. no-slots modal) instead of silently no-oping. */
 export type ReopenChatResult =
@@ -618,6 +632,9 @@ export interface PopBotApi {
     /** Rename a chat. Resolves to the updated record, or null when the
      *  chat is gone or the name was blank. */
     rename(chatId: string, name: string): Promise<ChatRecord | null>;
+    /** Fork a chat — see {@link ForkChatInput}. The fork lands right
+     *  after the original in the strip. */
+    fork(input: ForkChatInput): Promise<ForkChatResult>;
     listMessages(chatId: string, tail?: number): Promise<MessageRecord[]>;
   };
   settings: {

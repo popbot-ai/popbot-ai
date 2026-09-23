@@ -117,6 +117,7 @@ export const en = {
   // App shell (App.tsx).
   // ---------------------------------------------------------------------------
   'app.busy.worktreeFailed': 'Workspace setup failed',
+  'app.busy.forking': 'Forking chat…',
   'app.reconnect.title': 'Workspace drives disconnected',
   'app.reconnect.message': 'Workspace drives for {repos} were disconnected by a restart. Reconnect to use their slots + chats.',
   'app.reconnect.button': 'Reconnect',
@@ -474,6 +475,7 @@ export const en = {
   'chat.agentSwitch.message':
     'The current agent session id will be kept, so you can switch back later. The new agent uses its own session and will be restarted with this chat transcript as context. Some private agent state may be lost.',
   'chat.agentSwitch.confirm': 'Restart',
+  'chat.fork.name': '{name} (fork)',
   'chat.app.terminal': 'Terminal',
   'chat.app.editor': 'Editor',
   'chat.app.unity': 'Unity',
@@ -629,6 +631,11 @@ export const en = {
   'chatSettings.restartTooltip': 'Spawn a fresh agent session primed with this chat’s transcript',
   'chatSettings.restarting': 'Restarting…',
   'chatSettings.restartWithContext': 'Restart with context',
+  'chatSettings.fork': 'Fork this chat',
+  'chatSettings.forkDesc':
+    'Start a new chat from this point: the conversation so far, the agent’s memory of it, and — for a chat with a workspace — a fresh slot on a new branch carrying this one’s uncommitted work. The original continues untouched.',
+  'chatSettings.forkButton': 'Fork chat',
+  'chatSettings.forkRunningHint': 'Wait for the agent to finish, then fork.',
   'chatSettings.tryReconnect': 'Try reconnect',
   'chatSettings.reconnectDesc':
     'Pick a saved Claude session for this chat’s worktree. Useful if auto-reconnect picked the wrong one and you want to force a specific transcript. The picked session will be pinned and the agent re-spawned into it.',

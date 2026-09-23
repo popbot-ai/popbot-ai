@@ -711,6 +711,9 @@ function MessageRowImpl({ message, renderAsQuestion, isStale, consumed, qaAnswer
     if (isModelSwitch) {
       return <ModelSwitchRow text={body.text} />;
     }
+    if (message.kind === 'system' && body.text.toLowerCase().startsWith('fork:')) {
+      return <ChatForkRow text={body.text.replace(/^fork:\s*/i, '')} />;
+    }
     if (message.kind === 'system') {
       // Compaction: the persisted outcome, and the two ephemeral phases
       // (see useMessages) — in progress, and failed.
@@ -862,6 +865,19 @@ function SystemNoticeRow({ text }: { text: string }): JSX.Element {
   return (
     <div className="msg system-notice">
       <div className="body" title={line}>{line}</div>
+    </div>
+  );
+}
+
+/** Where a fork's own history begins: everything above was carried over
+ *  from the original chat. */
+function ChatForkRow({ text }: { text: string }): JSX.Element {
+  return (
+    <div className="msg chat-fork">
+      <div className="body">
+        <i className="fa-solid fa-code-fork" aria-hidden="true" />
+        <span>{text}</span>
+      </div>
     </div>
   );
 }

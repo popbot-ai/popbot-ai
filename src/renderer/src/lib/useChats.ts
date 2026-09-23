@@ -1,7 +1,14 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { ChatRecord } from '@shared/persistence';
 import type { ChatStatus } from '@shared/domain';
-import type { CloseChatOptions, CreateChatInput, CreateChatResult, ReopenChatResult } from '@shared/ipc';
+import type {
+  CloseChatOptions,
+  CreateChatInput,
+  CreateChatResult,
+  ForkChatInput,
+  ForkChatResult,
+  ReopenChatResult,
+} from '@shared/ipc';
 import { playPing } from './ping';
 import { subscribeAgentEvents } from './agentEventBus';
 
@@ -146,5 +153,21 @@ export function useChats() {
     setClosedChats(apply);
   }, []);
 
-  return { chats, closedChats, loading, refresh, create, close, reopen, attachSlot, remove, reorder, rename };
+  /** Fork a chat. The fork lands right after its original — main stores
+   *  that order, so mirror it here rather than appending. */
+  const fork = useCallback(async (input: ForkChatInput): Promise<ForkChatResult> => {
+    const result = await window.popbot.chats.fork(input);
+    if (result.ok) {
+      setChats((prev) => {
+        const without = prev.filter((c) => c.id !== result.chat.id);
+        const at = without.findIndex((c) => c.id === input.chatId);
+        const next = [...without];
+        next.splice(at < 0 ? next.length : at + 1, 0, result.chat);
+        return next;
+      });
+    }
+    return result;
+  }, []);
+
+  return { chats, closedChats, loading, refresh, create, close, reopen, attachSlot, remove, reorder, rename, fork };
 }
