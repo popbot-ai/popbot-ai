@@ -322,6 +322,7 @@ export const de = {
   // ---------------------------------------------------------------------------
   'panelD.terminalTab': 'Terminal',
   'panelD.slotSuffix': ' · Slot {slotId}',
+  'panelD.cloudSuffix': ' · Cloud',
   'panelD.focusedLabel': 'fokussiert: {name}',
   'panelD.newTerminal': 'Neues Terminal',
   'panelD.noWorktree': 'Dieser Chat hat noch keinen Slot-Worktree.',
@@ -475,6 +476,8 @@ export const de = {
     'Agent läuft… tippen, um eine Nachricht in die Warteschlange zu stellen  ·  Umschalt+Eingabe für Zeilenumbruch',
   'chat.input.placeholderIdle': 'Nachricht senden…  ·  Umschalt+Eingabe für Zeilenumbruch',
   'chat.input.placeholderInactive': 'Klicken, um diesen Chat zum aktiven zu machen',
+  'chat.input.placeholderCloudFirst': 'Beschreibe die Aufgabe, die in der Cloud laufen soll…',
+  'chat.input.placeholderCloud': 'Nachfrage an die Cloud-Session senden…',
   'chat.input.attachImage': 'Bild anhängen',
   'chat.input.attachFile': 'Datei anhängen',
   'chat.input.model': 'Modell',
@@ -497,6 +500,11 @@ export const de = {
     'Die aktuelle Agent-Sitzungs-ID wird beibehalten, sodass Sie später zurückwechseln können. Der neue Agent verwendet seine eigene Sitzung und wird mit diesem Chat-Transkript als Kontext neu gestartet. Ein Teil des privaten Agent-Status kann verloren gehen.',
   'chat.agentSwitch.confirm': 'Neu starten',
   'chat.fork.name': '{name} (Abzweigung)',
+  'chat.cloud.chip': 'Cloud',
+  'chat.cloud.chipTitle': 'Cloud-Session auf claude.ai öffnen',
+  'chat.cloud.chipPending': 'Cloud · nicht verknüpft',
+  'chat.cloud.chipPendingTitle':
+    'Noch keine Cloud-Session. Sende die Aufgabe oder füge den Session-Link in den Chat-Einstellungen ein.',
   'chat.app.terminal': 'Terminal',
   'chat.app.editor': 'Editor',
   'chat.app.unity': 'Unity',
@@ -668,6 +676,17 @@ export const de = {
     'Startet einen neuen Chat ab diesem Punkt: das bisherige Gespräch, die Erinnerung des Agenten daran und — bei einem Chat mit Arbeitsbereich — ein frischer Slot auf einem neuen Branch mit den nicht committeten Änderungen dieses Chats. Das Original läuft unverändert weiter.',
   'chatSettings.forkButton': 'Chat abzweigen',
   'chatSettings.forkRunningHint': 'Warte, bis der Agent fertig ist, und zweige dann ab.',
+  'chatSettings.cloud': 'Cloud-Session',
+  'chatSettings.cloudDesc':
+    'Dieser Chat steuert eine Claude-Code-Cloud-Session. Hier gesendete Nachrichten werden in sie eingereiht; öffne sie auf claude.ai, um zuzusehen oder ihre Fragen zu beantworten.',
+  'chatSettings.cloudSession': 'Session',
+  'chatSettings.cloudNone': 'Noch nicht verknüpft',
+  'chatSettings.cloudLinkPlaceholder': 'Einen claude.ai/code-Link oder eine Session-ID einfügen',
+  'chatSettings.cloudLinkButton': 'Verknüpfen',
+  'chatSettings.cloudLinkInvalid': 'Das ist kein Session-Link und keine Session-ID von claude.ai/code.',
+  'chatSettings.cloudTeleport': 'Ins Terminal teleportieren',
+  'chatSettings.cloudTeleportDesc':
+    'Führt claude --teleport im Terminal dieses Chats im Repo-Root aus: holt den Branch der Session, checkt ihn aus und lädt das Gespräch lokal. Vor dem Stashen nicht committeter Änderungen fragt es nach.',
   'chatSettings.tryReconnect': 'Neuverbindung versuchen',
   'chatSettings.reconnectDesc':
     'Wählen Sie eine gespeicherte Claude-Sitzung für den Worktree dieses Chats. Nützlich, wenn die automatische Neuverbindung die falsche gewählt hat und Sie ein bestimmtes Transkript erzwingen möchten. Die gewählte Sitzung wird angeheftet und der Agent neu darin gestartet.',
@@ -771,6 +790,8 @@ export const de = {
   'branch.picker.tagRecent': 'kürzlich',
   'branch.picker.tagDefault': 'Standard',
   'branch.picker.tagRepoRoot': 'Repo-Wurzel',
+  'branch.picker.cloud': 'In der Cloud ausführen',
+  'branch.picker.tagCloud': 'Claude Code im Web',
   'branch.dialog.disabled.pickRepo': 'Wählen Sie ein Repository.',
   'branch.dialog.disabled.loadingBranches': 'Branches werden geladen…',
   'branch.dialog.disabled.noBranches':
@@ -795,6 +816,8 @@ export const de = {
   'branch.dialog.loadBranchesError': 'Branches konnten nicht geladen werden: {error}',
   'branch.dialog.freeChatDesc':
     'Läuft in {repo} von der Repo-Wurzel — kein Slot, Worktree oder Branch.',
+  'branch.dialog.cloudDesc':
+    'Der Chat steuert eine Claude-Code-Cloud-Session, die weiterläuft, wenn PopBot beendet wird. Sie wird aus dem GitHub-Remote von {repo} auf dem Branch erstellt, auf dem der Root-Checkout steht – also vorher pushen. Deine erste Nachricht ist die Aufgabe; spätere werden als Nachfragen in die Session eingereiht.',
   'branch.dialog.createChat': 'Chat erstellen',
 
   // ---------------------------------------------------------------------------

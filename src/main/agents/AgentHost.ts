@@ -45,6 +45,7 @@ import { isDbOpen } from '../persistence/db';
 import { getRepo } from '../persistence/repos';
 import { dlog } from '../diagLog';
 import { getClaudeBinaryPath } from './claudeProbe';
+import { forgetCloudChat, handleCloudSend } from './cloudSessions';
 import { getSetting, setSetting } from '../persistence/settings';
 import { appendMessage, getMessage, listMessages, updateMessageBody } from '../persistence/messages';
 import { listSessions, type SDKSessionInfo } from '@anthropic-ai/claude-agent-sdk';
@@ -447,6 +448,11 @@ class AgentHostImpl {
   async send(chatId: string, text: string, attachments?: PickedAttachment[]): Promise<void> {
     const chat = getChat(chatId);
     if (!chat) throw new Error(`send: chat ${chatId} not found`);
+    // A cloud chat has no local agent: the message goes to claude.ai.
+    if (chat.cloud) {
+      await handleCloudSend(chat, text, (event) => this.broadcast(event));
+      return;
+    }
     // A new instruction ends the stopped state. Failures from this turn are
     // genuine and must be surfaced normally.
     this.stoppedChats.delete(chatId);
@@ -1144,6 +1150,7 @@ class AgentHostImpl {
   /** Tear down the session for a chat (e.g. on close). Awaits the
    *  backend's flush so we don't lose in-flight session JSONL writes. */
   async dispose(chatId: string): Promise<void> {
+    forgetCloudChat(chatId);
     // Always clear the timer, even with no live session — otherwise a
     // closed chat can still fire onTurnStalled and resurrect itself
     // into 'err' after the user walked away from it.
@@ -2092,6 +2099,12 @@ class AgentHostImpl {
         this.textBuffers.delete(messageId);
       }
     }
+  }
+
+  /** For main-side code outside this class that changes a chat and has to
+   *  tell the renderer (cloud sessions). Same channel as everything else. */
+  emit(event: AgentEvent): void {
+    this.broadcast(event);
   }
 
   private broadcast(event: AgentEvent): void {

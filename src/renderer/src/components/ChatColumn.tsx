@@ -584,6 +584,31 @@ export function ChatColumn({
       </div>
       <div className="runtime-strip">
         <SlotAppButtons worktreePath={chat.worktreePath ?? null} chatId={chat.id} onOpenPrefs={onOpenPrefs} />
+        {/* A cloud chat: the session lives on claude.ai — link there, or,
+            before the CLI has reported an id, to the settings where one
+            can be pasted. */}
+        {chat.cloud && (chat.cloud.url ? (
+          <button
+            type="button"
+            className="chat-status-chip"
+            title={t('chat.cloud.chipTitle')}
+            onClick={() => window.open(chat.cloud!.url!, '_blank')}
+          >
+            <i className="fa-solid fa-cloud" aria-hidden />
+            <span>{t('chat.cloud.chip')}</span>
+            <i className="fa-solid fa-arrow-up-right-from-square chat-status-chip-ext" aria-hidden />
+          </button>
+        ) : (
+          <button
+            type="button"
+            className="chat-status-chip"
+            title={t('chat.cloud.chipPendingTitle')}
+            onClick={handleSettings}
+          >
+            <i className="fa-solid fa-cloud" aria-hidden />
+            <span>{t('chat.cloud.chipPending')}</span>
+          </button>
+        ))}
         {/* Both chips render side-by-side when applicable so the user
             can jump to either Linear or GitHub from the chat header. */}
         {ticket && chat.ticket && (
@@ -712,11 +737,15 @@ export function ChatColumn({
           )}
           <textarea
             placeholder={
-              isActive
-                ? chat.status === 'run'
-                  ? t('chat.input.placeholderRunning')
-                  : t('chat.input.placeholderIdle')
-                : t('chat.input.placeholderInactive')
+              chat.cloud
+                ? chat.cloud.sessionId
+                  ? t('chat.input.placeholderCloud')
+                  : t('chat.input.placeholderCloudFirst')
+                : isActive
+                  ? chat.status === 'run'
+                    ? t('chat.input.placeholderRunning')
+                    : t('chat.input.placeholderIdle')
+                  : t('chat.input.placeholderInactive')
             }
             value={draft}
             onChange={(e) => setDraft(e.target.value)}

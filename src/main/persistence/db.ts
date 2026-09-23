@@ -367,6 +367,12 @@ const SCHEMA = [
   ALTER TABLE chats ADD COLUMN sort_order INTEGER NOT NULL DEFAULT 0;
   UPDATE chats SET sort_order = created_at;
   `,
+  // v23 — cloud chats. JSON {provider, sessionId, url, startedAt} for a
+  // chat that drives a Claude Code cloud session; NULL for every other
+  // chat. See CloudChatInfo in shared/persistence.
+  `
+  ALTER TABLE chats ADD COLUMN cloud TEXT;
+  `,
 ];
 
 export function initDb(): Database.Database {

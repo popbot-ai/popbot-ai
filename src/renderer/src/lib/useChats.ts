@@ -74,6 +74,10 @@ export function useChats() {
               return { ...c, status: 'wait' satisfies ChatStatus, snippet: `needs you: ${event.tool}`, lastActiveAt: event.ts };
             case 'message-end':
               return { ...c, lastActiveAt: event.ts };
+            // Main changed the record itself (a cloud session id arrived,
+            // say): take the fresh copy whole.
+            case 'chat-updated':
+              return event.chat;
             default:
               return c;
           }

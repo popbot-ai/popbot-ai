@@ -295,6 +295,7 @@ export const en = {
   // ---------------------------------------------------------------------------
   'panelD.terminalTab': 'Terminal',
   'panelD.slotSuffix': ' · Slot {slotId}',
+  'panelD.cloudSuffix': ' · Cloud',
   'panelD.focusedLabel': 'focused: {name}',
   'panelD.newTerminal': 'New Terminal',
   'panelD.noWorktree': 'This chat has no slot worktree yet.',
@@ -453,6 +454,8 @@ export const en = {
     'Agent running… type to queue a message  ·  Shift+Enter for newline',
   'chat.input.placeholderIdle': 'Send a message…  ·  Shift+Enter for newline',
   'chat.input.placeholderInactive': 'Click to make this the active chat',
+  'chat.input.placeholderCloudFirst': 'Describe the task to run in the cloud…',
+  'chat.input.placeholderCloud': 'Send a follow-up to the cloud session…',
   'chat.input.attachImage': 'Attach image',
   'chat.input.attachFile': 'Attach file',
   'chat.input.model': 'Model',
@@ -476,6 +479,11 @@ export const en = {
     'The current agent session id will be kept, so you can switch back later. The new agent uses its own session and will be restarted with this chat transcript as context. Some private agent state may be lost.',
   'chat.agentSwitch.confirm': 'Restart',
   'chat.fork.name': '{name} (fork)',
+  'chat.cloud.chip': 'Cloud',
+  'chat.cloud.chipTitle': 'Open the cloud session on claude.ai',
+  'chat.cloud.chipPending': 'Cloud · not linked',
+  'chat.cloud.chipPendingTitle':
+    'No cloud session yet. Send the task, or paste the session link in the chat settings.',
   'chat.app.terminal': 'Terminal',
   'chat.app.editor': 'Editor',
   'chat.app.unity': 'Unity',
@@ -647,6 +655,17 @@ export const en = {
     'Start a new chat from this point: the conversation so far, the agent’s memory of it, and — for a chat with a workspace — a fresh slot on a new branch carrying this one’s uncommitted work. The original continues untouched.',
   'chatSettings.forkButton': 'Fork chat',
   'chatSettings.forkRunningHint': 'Wait for the agent to finish, then fork.',
+  'chatSettings.cloud': 'Cloud session',
+  'chatSettings.cloudDesc':
+    'This chat drives a Claude Code cloud session. Messages sent here are queued into it; open it on claude.ai to watch it work or answer its questions.',
+  'chatSettings.cloudSession': 'Session',
+  'chatSettings.cloudNone': 'Not linked yet',
+  'chatSettings.cloudLinkPlaceholder': 'Paste a claude.ai/code link or session ID',
+  'chatSettings.cloudLinkButton': 'Link',
+  'chatSettings.cloudLinkInvalid': 'That is not a claude.ai/code session link or ID.',
+  'chatSettings.cloudTeleport': 'Teleport into the terminal',
+  'chatSettings.cloudTeleportDesc':
+    'Runs claude --teleport in this chat’s terminal at the repo root: it fetches the session’s branch, checks it out, and loads the conversation locally. It asks before stashing uncommitted changes.',
   'chatSettings.tryReconnect': 'Try reconnect',
   'chatSettings.reconnectDesc':
     'Pick a saved Claude session for this chat’s worktree. Useful if auto-reconnect picked the wrong one and you want to force a specific transcript. The picked session will be pinned and the agent re-spawned into it.',
@@ -795,6 +814,8 @@ export const en = {
   'branch.picker.tagRecent': 'recent',
   'branch.picker.tagDefault': 'default',
   'branch.picker.tagRepoRoot': 'repo root',
+  'branch.picker.cloud': 'Run in the cloud',
+  'branch.picker.tagCloud': 'Claude Code on the web',
   'branch.dialog.disabled.pickRepo': 'Pick a repository.',
   'branch.dialog.disabled.loadingBranches': 'Loading branches…',
   'branch.dialog.disabled.noBranches':
@@ -822,6 +843,8 @@ export const en = {
   'branch.dialog.loadBranchesError': 'Couldn’t load branches: {error}',
   'branch.dialog.freeChatDesc':
     'Runs in {repo} from the repo root — no slot, worktree, or branch.',
+  'branch.dialog.cloudDesc':
+    'The chat drives a Claude Code cloud session that keeps running after PopBot quits. It is created from the GitHub remote of {repo} at the branch its root checkout is on, so push first. Your first message is the task; later ones are queued into the session as follow-ups.',
   'branch.dialog.createChat': 'Create chat',
 
   // ---------------------------------------------------------------------------

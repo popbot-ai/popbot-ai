@@ -36,6 +36,7 @@ import {
 import { appendMessage, copyMessages, listMessages } from '../persistence/messages';
 import { getSetting, setSetting } from '../persistence/settings';
 import { AgentHost, sessionCwdForChat } from '../agents/AgentHost';
+import { forgetCloudChat, linkCloudSession, teleportCloudChat } from '../agents/cloudSessions';
 import { getCodexBinaryPath } from '../agents/codexProbe';
 import { forkClaudeSession, forkCodexThread } from '../agents/forkAgentContext';
 import { dlog } from '../diagLog';
@@ -185,6 +186,9 @@ export function registerChatHandlers(): void {
     // No workspace requested → cheap path. Used by lite chats that run
     // against the repo root and never need a worktree (e.g. CR chats).
     if (!wantsWorkspace) {
+      // A cloud chat drives a Claude Code cloud session (claude.ai/code):
+      // no slot, no worktree, and always Claude — see cloudSessions.ts.
+      const cloud = input.cloud === true;
       const chat = createChat({
         name: input.name,
         ticket: input.ticket ?? null,
@@ -195,7 +199,8 @@ export function registerChatHandlers(): void {
         slotId: null,
         worktreePath: null,
         repoId: input.repoId,
-        agent: input.agent,
+        agent: cloud ? 'claude' : input.agent,
+        cloud: cloud ? { provider: 'claude', sessionId: null, url: null, startedAt: null } : null,
         claudeModel: input.claudeModel,
         claudeReasoningEffort: input.claudeReasoningEffort,
         codexModel: input.codexModel,
@@ -429,6 +434,7 @@ export function registerChatHandlers(): void {
       // chat lands on "no conversation found".
       await AgentHost.dispose(chatId);
       disposePty(chatId);
+      forgetCloudChat(chatId);
 
       // Slot-backed chat: park to its parking branch + leave the worktree
       // in place for the next slot allocation. Parking branch must be
@@ -774,6 +780,14 @@ export function registerChatHandlers(): void {
     return created ? { ok: true, chat: created } : { ok: false, reason: 'not-found' };
   });
 
+  // ---- Cloud chats: bring the session local, or link one by hand.
+  ipcMain.handle(IpcChannel.CloudTeleport, (_e, chatId: string) => {
+    return teleportCloudChat(chatId, (event) => AgentHost.emit(event));
+  });
+  ipcMain.handle(IpcChannel.CloudLink, (_e, chatId: string, ref: string) => {
+    return linkCloudSession(chatId, typeof ref === 'string' ? ref : '', (event) => AgentHost.emit(event));
+  });
+
   ipcMain.handle(IpcChannel.ChatsReorder, (_e, ids: string[]) => {
     if (!Array.isArray(ids)) return;
     reorderChats(ids.filter((id): id is string => typeof id === 'string'));
@@ -787,6 +801,7 @@ export function registerChatHandlers(): void {
     const chat = getChat(chatId);
     await AgentHost.dispose(chatId);
     disposePty(chatId);
+    forgetCloudChat(chatId);
     // If the chat is ephemeral and still has a live worktree on disk
     // (i.e. delete-from-open, not delete-after-close), tear it down so
     // we don't leak <worktreesDir>/<slug> directories. Slot-backed

@@ -322,6 +322,7 @@ export const ko = {
   // ---------------------------------------------------------------------------
   'panelD.terminalTab': '터미널',
   'panelD.slotSuffix': ' · 슬롯 {slotId}',
+  'panelD.cloudSuffix': ' · 클라우드',
   'panelD.focusedLabel': '포커스됨: {name}',
   'panelD.newTerminal': '새 터미널',
   'panelD.noWorktree': '이 채팅에는 아직 슬롯 워크트리가 없습니다.',
@@ -475,6 +476,8 @@ export const ko = {
     '에이전트 실행 중… 입력하여 메시지 대기열에 추가  ·  Shift+Enter로 줄바꿈',
   'chat.input.placeholderIdle': '메시지 보내기…  ·  Shift+Enter로 줄바꿈',
   'chat.input.placeholderInactive': '클릭하여 이 채팅을 활성 채팅으로 만들기',
+  'chat.input.placeholderCloudFirst': '클라우드에서 실행할 작업을 설명하세요…',
+  'chat.input.placeholderCloud': '클라우드 세션에 후속 메시지 보내기…',
   'chat.input.attachImage': '이미지 첨부',
   'chat.input.attachFile': '파일 첨부',
   'chat.input.model': '모델',
@@ -497,6 +500,10 @@ export const ko = {
     '현재 에이전트 세션 id는 유지되므로 나중에 다시 전환할 수 있습니다. 새 에이전트는 자체 세션을 사용하며 이 채팅 대화 기록을 컨텍스트로 하여 다시 시작됩니다. 일부 비공개 에이전트 상태는 손실될 수 있습니다.',
   'chat.agentSwitch.confirm': '다시 시작',
   'chat.fork.name': '{name} (분기)',
+  'chat.cloud.chip': '클라우드',
+  'chat.cloud.chipTitle': 'claude.ai에서 클라우드 세션 열기',
+  'chat.cloud.chipPending': '클라우드 · 연결 안 됨',
+  'chat.cloud.chipPendingTitle': '아직 클라우드 세션이 없습니다. 작업을 보내거나 채팅 설정에 세션 링크를 붙여넣으세요.',
   'chat.app.terminal': '터미널',
   'chat.app.editor': '편집기',
   'chat.app.unity': 'Unity',
@@ -668,6 +675,17 @@ export const ko = {
     '이 시점에서 새 채팅을 시작합니다. 지금까지의 대화, 에이전트의 기억, 그리고 작업 공간이 있는 채팅이라면 이 채팅의 커밋되지 않은 변경 사항을 가져온 새 브랜치의 새 슬롯이 마련됩니다. 원본은 그대로 계속됩니다.',
   'chatSettings.forkButton': '채팅 분기',
   'chatSettings.forkRunningHint': '에이전트가 끝날 때까지 기다린 뒤 분기하세요.',
+  'chatSettings.cloud': '클라우드 세션',
+  'chatSettings.cloudDesc':
+    '이 채팅은 Claude Code 클라우드 세션을 조종합니다. 여기서 보낸 메시지는 세션 대기열에 들어갑니다. 작업을 지켜보거나 질문에 답하려면 claude.ai에서 여세요.',
+  'chatSettings.cloudSession': '세션',
+  'chatSettings.cloudNone': '아직 연결되지 않음',
+  'chatSettings.cloudLinkPlaceholder': 'claude.ai/code 링크 또는 세션 ID 붙여넣기',
+  'chatSettings.cloudLinkButton': '연결',
+  'chatSettings.cloudLinkInvalid': 'claude.ai/code 세션 링크나 ID가 아닙니다.',
+  'chatSettings.cloudTeleport': '터미널로 텔레포트',
+  'chatSettings.cloudTeleportDesc':
+    '이 채팅의 터미널에서 저장소 루트로 claude --teleport를 실행합니다. 세션의 브랜치를 가져와 체크아웃하고 대화를 로컬로 불러옵니다. 커밋되지 않은 변경 사항을 stash하기 전에 확인을 요청합니다.',
   'chatSettings.tryReconnect': '재연결 시도',
   'chatSettings.reconnectDesc':
     '이 채팅의 워크트리에 대해 저장된 Claude 세션을 선택하세요. 자동 재연결이 잘못된 세션을 선택했고 특정 대화 기록을 강제하려는 경우 유용합니다. 선택한 세션이 고정되고 에이전트가 해당 세션으로 다시 생성됩니다.',
@@ -771,6 +789,8 @@ export const ko = {
   'branch.picker.tagRecent': '최근',
   'branch.picker.tagDefault': '기본값',
   'branch.picker.tagRepoRoot': '저장소 루트',
+  'branch.picker.cloud': '클라우드에서 실행',
+  'branch.picker.tagCloud': 'Claude Code on the web',
   'branch.dialog.disabled.pickRepo': '저장소를 선택하세요.',
   'branch.dialog.disabled.loadingBranches': '브랜치 불러오는 중…',
   'branch.dialog.disabled.noBranches':
@@ -795,6 +815,8 @@ export const ko = {
   'branch.dialog.loadBranchesError': '브랜치를 불러올 수 없습니다: {error}',
   'branch.dialog.freeChatDesc':
     '{repo}의 저장소 루트에서 실행됩니다 — 슬롯, 워크트리, 브랜치 없음.',
+  'branch.dialog.cloudDesc':
+    '이 채팅은 PopBot을 종료해도 계속 실행되는 Claude Code 클라우드 세션을 조종합니다. 세션은 {repo}의 GitHub 원격 저장소에서, 루트 체크아웃이 현재 있는 브랜치로 만들어지므로 먼저 push하세요. 첫 메시지가 작업이 되고, 이후 메시지는 후속 메시지로 세션 대기열에 들어갑니다.',
   'branch.dialog.createChat': '채팅 만들기',
 
   // ---------------------------------------------------------------------------

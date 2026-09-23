@@ -4,7 +4,7 @@
  * stub backend and the real backend produce indistinguishable streams.
  */
 
-import type { MessageRecord } from './persistence';
+import type { ChatRecord, MessageRecord } from './persistence';
 
 export type AgentEventType =
   | 'message-start'
@@ -200,6 +200,18 @@ export interface PermissionDecidedEvent {
 }
 
 /**
+ * A chat record main changed on its own (not in answer to a renderer
+ * call) — e.g. a cloud chat whose session id just arrived from the CLI.
+ * Carries the whole fresh record so the renderer can swap it in.
+ */
+export interface ChatUpdatedEvent {
+  type: 'chat-updated';
+  chatId: string;
+  chat: ChatRecord;
+  ts: number;
+}
+
+/**
  * A row AgentHost has removed from the transcript. Used for messages
  * that were only ever provisional — the "no response, retrying…" notice
  * is deleted the moment the retry produces a real reply, so a
@@ -222,6 +234,7 @@ export type AgentEvent =
   | MessageEndEvent
   | MessageAddedEvent
   | MessageRemovedEvent
+  | ChatUpdatedEvent
   | TurnStartEvent
   | TurnSteeredEvent
   | SessionStatusEvent

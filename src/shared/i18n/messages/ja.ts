@@ -322,6 +322,7 @@ export const ja = {
   // ---------------------------------------------------------------------------
   'panelD.terminalTab': 'ターミナル',
   'panelD.slotSuffix': ' · スロット {slotId}',
+  'panelD.cloudSuffix': ' · クラウド',
   'panelD.focusedLabel': 'フォーカス中: {name}',
   'panelD.newTerminal': '新しいターミナル',
   'panelD.noWorktree': 'このチャットにはまだスロット worktree がありません。',
@@ -475,6 +476,8 @@ export const ja = {
     'エージェント実行中… 入力するとメッセージがキューに追加されます  ·  Shift+Enter で改行',
   'chat.input.placeholderIdle': 'メッセージを送信…  ·  Shift+Enter で改行',
   'chat.input.placeholderInactive': 'クリックしてこのチャットをアクティブにします',
+  'chat.input.placeholderCloudFirst': 'クラウドで実行するタスクを記述…',
+  'chat.input.placeholderCloud': 'クラウドセッションにフォローアップを送信…',
   'chat.input.attachImage': '画像を添付',
   'chat.input.attachFile': 'ファイルを添付',
   'chat.input.model': 'モデル',
@@ -497,6 +500,10 @@ export const ja = {
     '現在のエージェントセッション ID は保持されるため、後で元に戻すことができます。新しいエージェントは独自のセッションを使用し、このチャットのトランスクリプトをコンテキストとして再起動されます。一部のプライベートなエージェント状態は失われる可能性があります。',
   'chat.agentSwitch.confirm': '再起動',
   'chat.fork.name': '{name}（分岐）',
+  'chat.cloud.chip': 'クラウド',
+  'chat.cloud.chipTitle': 'claude.ai でクラウドセッションを開く',
+  'chat.cloud.chipPending': 'クラウド · 未リンク',
+  'chat.cloud.chipPendingTitle': 'クラウドセッションはまだありません。タスクを送信するか、チャット設定でセッションのリンクを貼り付けてください。',
   'chat.app.terminal': 'ターミナル',
   'chat.app.editor': 'エディター',
   'chat.app.unity': 'Unity',
@@ -668,6 +675,17 @@ export const ja = {
     'この時点から新しいチャットを開始します。これまでの会話、それに対するエージェントの記憶、そしてワークスペースを持つチャットなら、このチャットの未コミットの変更を引き継いだ新しいブランチ上の新しいスロットが用意されます。元のチャットはそのまま続きます。',
   'chatSettings.forkButton': 'チャットを分岐',
   'chatSettings.forkRunningHint': 'エージェントの完了を待ってから分岐してください。',
+  'chatSettings.cloud': 'クラウドセッション',
+  'chatSettings.cloudDesc':
+    'このチャットは Claude Code のクラウドセッションを操作します。ここで送ったメッセージはセッションのキューに入ります。作業の様子を見たり質問に答えたりするには claude.ai で開いてください。',
+  'chatSettings.cloudSession': 'セッション',
+  'chatSettings.cloudNone': 'まだリンクされていません',
+  'chatSettings.cloudLinkPlaceholder': 'claude.ai/code のリンクまたはセッション ID を貼り付け',
+  'chatSettings.cloudLinkButton': 'リンク',
+  'chatSettings.cloudLinkInvalid': 'claude.ai/code のセッションのリンクや ID ではありません。',
+  'chatSettings.cloudTeleport': 'ターミナルにテレポート',
+  'chatSettings.cloudTeleportDesc':
+    'このチャットのターミナルでリポジトリのルートから claude --teleport を実行します。セッションのブランチを取得してチェックアウトし、会話をローカルに読み込みます。未コミットの変更を stash する前に確認を求めます。',
   'chatSettings.tryReconnect': '再接続を試す',
   'chatSettings.reconnectDesc':
     'このチャットの worktree に対して保存された Claude セッションを選択します。自動再接続が誤ったものを選択し、特定のトランスクリプトを強制したい場合に便利です。選択したセッションがピン留めされ、エージェントがそこに再起動されます。',
@@ -771,6 +789,8 @@ export const ja = {
   'branch.picker.tagRecent': '最近',
   'branch.picker.tagDefault': 'デフォルト',
   'branch.picker.tagRepoRoot': 'リポジトリルート',
+  'branch.picker.cloud': 'クラウドで実行',
+  'branch.picker.tagCloud': 'Claude Code on the web',
   'branch.dialog.disabled.pickRepo': 'リポジトリを選択してください。',
   'branch.dialog.disabled.loadingBranches': 'ブランチを読み込み中…',
   'branch.dialog.disabled.noBranches':
@@ -795,6 +815,8 @@ export const ja = {
   'branch.dialog.loadBranchesError': 'ブランチを読み込めませんでした: {error}',
   'branch.dialog.freeChatDesc':
     'リポジトリルートから {repo} で実行します — スロット、worktree、ブランチなし。',
+  'branch.dialog.cloudDesc':
+    'このチャットは、PopBot を終了しても動き続ける Claude Code のクラウドセッションを操作します。セッションは {repo} の GitHub リモートから、ルートのチェックアウトが今いるブランチで作成されるので、先に push してください。最初のメッセージがタスクになり、以降のメッセージはフォローアップとしてセッションのキューに入ります。',
   'branch.dialog.createChat': 'チャットを作成',
 
   // ---------------------------------------------------------------------------

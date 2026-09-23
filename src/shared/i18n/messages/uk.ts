@@ -269,6 +269,7 @@ export const uk = {
   // ---------------------------------------------------------------------------
   'panelD.terminalTab': 'Термінал',
   'panelD.slotSuffix': ' · Слот {slotId}',
+  'panelD.cloudSuffix': ' · Хмара',
   'panelD.focusedLabel': 'активний: {name}',
   'panelD.newTerminal': 'Новий термінал',
   'panelD.noWorktree': 'У цього чату ще немає worktree слота.',
@@ -427,6 +428,8 @@ export const uk = {
     'Агент працює… введіть текст, щоб додати повідомлення в чергу  ·  Shift+Enter для нового рядка',
   'chat.input.placeholderIdle': 'Надішліть повідомлення…  ·  Shift+Enter для нового рядка',
   'chat.input.placeholderInactive': 'Натисніть, щоб зробити цей чат активним',
+  'chat.input.placeholderCloudFirst': 'Опишіть завдання для запуску в хмарі…',
+  'chat.input.placeholderCloud': 'Надіслати уточнення до хмарної сесії…',
   'chat.input.attachImage': 'Прикріпити зображення',
   'chat.input.attachFile': 'Прикріпити файл',
   'chat.input.model': 'Модель',
@@ -449,6 +452,11 @@ export const uk = {
     'Id поточної сесії агента буде збережено, тож ви зможете пізніше повернутися. Новий агент використовує власну сесію і буде перезапущений зі стенограмою цього чату як контекстом. Частину приватного стану агента може бути втрачено.',
   'chat.agentSwitch.confirm': 'Перезапустити',
   'chat.fork.name': '{name} (відгалуження)',
+  'chat.cloud.chip': 'Хмара',
+  'chat.cloud.chipTitle': 'Відкрити хмарну сесію на claude.ai',
+  'chat.cloud.chipPending': 'Хмара · не прив’язана',
+  'chat.cloud.chipPendingTitle':
+    'Хмарної сесії ще немає. Надішліть завдання або вставте посилання на сесію в налаштуваннях чату.',
   'chat.app.terminal': 'Термінал',
   'chat.app.editor': 'Редактор',
   'chat.app.unity': 'Unity',
@@ -620,6 +628,17 @@ export const uk = {
     'Почати новий чат з цієї точки: розмову дотепер, пам’ять агента про неї та — для чату з робочим простором — новий слот на новій гілці з незакомміченими змінами цього чату. Оригінал триває без змін.',
   'chatSettings.forkButton': 'Відгалузити чат',
   'chatSettings.forkRunningHint': 'Дочекайтеся завершення роботи агента, потім відгалузьте.',
+  'chatSettings.cloud': 'Хмарна сесія',
+  'chatSettings.cloudDesc':
+    'Цей чат керує хмарною сесією Claude Code. Надіслані тут повідомлення ставляться в її чергу; відкрийте її на claude.ai, щоб стежити за роботою або відповідати на запитання.',
+  'chatSettings.cloudSession': 'Сесія',
+  'chatSettings.cloudNone': 'Ще не прив’язана',
+  'chatSettings.cloudLinkPlaceholder': 'Вставте посилання claude.ai/code або ID сесії',
+  'chatSettings.cloudLinkButton': 'Прив’язати',
+  'chatSettings.cloudLinkInvalid': 'Це не посилання й не ID сесії claude.ai/code.',
+  'chatSettings.cloudTeleport': 'Телепортувати в термінал',
+  'chatSettings.cloudTeleportDesc':
+    'Запускає claude --teleport у терміналі цього чату в корені репозиторію: отримує гілку сесії, перемикається на неї та завантажує розмову локально. Перед тим як відкласти (stash) незакомічені зміни, запитує підтвердження.',
   'chatSettings.tryReconnect': 'Спробувати перепідключитися',
   'chatSettings.reconnectDesc':
     'Виберіть збережену сесію Claude для worktree цього чату. Корисно, якщо автоперепідключення вибрало не ту сесію і ви хочете примусово вказати конкретну стенограму. Вибрана сесія буде закріплена, і агент перезапуститься в ній.',
@@ -768,6 +787,8 @@ export const uk = {
   'branch.picker.tagRecent': 'нещодавня',
   'branch.picker.tagDefault': 'за замовчуванням',
   'branch.picker.tagRepoRoot': 'корінь репозиторію',
+  'branch.picker.cloud': 'Запустити в хмарі',
+  'branch.picker.tagCloud': 'Claude Code у вебі',
   'branch.dialog.disabled.pickRepo': 'Виберіть репозиторій.',
   'branch.dialog.disabled.loadingBranches': 'Завантаження гілок…',
   'branch.dialog.disabled.noBranches':
@@ -795,6 +816,8 @@ export const uk = {
   'branch.dialog.loadBranchesError': 'Не вдалося завантажити гілки: {error}',
   'branch.dialog.freeChatDesc':
     'Працює в {repo} з кореня репозиторію — без слота, worktree чи гілки.',
+  'branch.dialog.cloudDesc':
+    'Чат керує хмарною сесією Claude Code, яка працює далі після закриття PopBot. Вона створюється з GitHub-remote репозиторію {repo} на тій гілці, на якій стоїть коренева робоча копія, тож спочатку зробіть push. Перше повідомлення — це завдання; наступні ставляться в чергу сесії як уточнення.',
   'branch.dialog.createChat': 'Створити чат',
 
   // ---------------------------------------------------------------------------

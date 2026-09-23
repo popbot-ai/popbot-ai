@@ -843,13 +843,14 @@ input, textarea { font: inherit; color: inherit; background: none; border: 0; ou
 
 /* Forked from … — the seam in a fork's transcript between the history it
    inherited and its own. Same quiet centered treatment as a model switch. */
-.msg.chat-fork { justify-content: center; }
-.msg.chat-fork .body {
+.msg.chat-fork, .msg.chat-cloud { justify-content: center; }
+.msg.chat-fork .body, .msg.chat-cloud .body {
   display: flex; align-items: center; gap: 7px;
   color: var(--fg-2); background: transparent; border: 0;
   font-size: 12px; padding: 5px 10px;
 }
-.msg.chat-fork .body i { color: var(--acc); }
+.msg.chat-fork .body i, .msg.chat-cloud .body i { color: var(--acc); }
+.msg.chat-cloud .body a { color: var(--acc); overflow-wrap: anywhere; }
 
 /* Context compacted — the outcome of a /compact (from the gauge, a typed
    slash command, or the CLI's autocompact), written to the transcript.

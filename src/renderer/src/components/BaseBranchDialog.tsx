@@ -56,7 +56,7 @@ interface BaseBranchDialogProps {
     baseBranch: string | null;
     subject?: string;
     branch?: string;
-    workspaceMode?: 'slot' | 'repo-root';
+    workspaceMode?: 'slot' | 'repo-root' | 'cloud';
     agentConfig?: AgentCreateConfig;
   }) => void;
 }
@@ -73,6 +73,11 @@ const RECENTS_SHOWN = 3;
  *  runs from the repo root (same as a CR chat) — no worktree, no branch —
  *  so the agent can talk about the project against the live checkout. */
 const FREE_CHAT_VALUE = '__free_no_slot__';
+/** Sentinel `picked` value for "Run in the cloud": the chat drives a
+ *  Claude Code cloud session (claude.ai/code) from the repo root — no
+ *  slot, no branch of its own; the session starts from the branch the
+ *  root checkout is on. Claude only. */
+const CLOUD_VALUE = '__cloud__';
 
 /** Default base-branch selection, in priority order:
  *   1. The most recent previously-picked branch that still exists.
@@ -127,6 +132,8 @@ function BaseBranchPicker({
   defaultBase,
   allowRepoRoot,
   freeChatValue,
+  allowCloud,
+  cloudValue,
 }: {
   branches: string[];
   recents: string[];
@@ -135,6 +142,8 @@ function BaseBranchPicker({
   defaultBase?: string;
   allowRepoRoot?: boolean;
   freeChatValue: string;
+  allowCloud?: boolean;
+  cloudValue: string;
 }): JSX.Element {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
@@ -162,13 +171,18 @@ function BaseBranchPicker({
   }, [open]);
 
   const isFree = value === freeChatValue;
-  const label = isFree ? t('branch.picker.freeChat') : (value || t('branch.picker.selectBase'));
+  const isCloud = value === cloudValue;
+  const label = isFree
+    ? t('branch.picker.freeChat')
+    : isCloud ? t('branch.picker.cloud') : (value || t('branch.picker.selectBase'));
   const q = query.trim().toLowerCase();
   const matchesQ = (b: string): boolean => !q || b.toLowerCase().includes(q);
   // Free-chat row haystack: its localized label + tag, plus the English
   // alias so the term works regardless of the active UI language.
   const freeChatHaystack =
     `${t('branch.picker.freeChat')} ${t('branch.picker.tagRepoRoot')} free chat repo root`.toLowerCase();
+  const cloudHaystack =
+    `${t('branch.picker.cloud')} ${t('branch.picker.tagCloud')} cloud claude web`.toLowerCase();
   const shownRecents = recents.filter((b) => branches.includes(b) && matchesQ(b)).slice(0, RECENTS_SHOWN);
   const recentSet = new Set(shownRecents);
   const others = branches.filter((b) => matchesQ(b) && !recentSet.has(b));
@@ -230,6 +244,19 @@ function BaseBranchPicker({
               >
                 <span className="base-branch-name">{t('branch.picker.freeChat')}</span>
                 <span className="base-branch-tag">{t('branch.picker.tagRepoRoot')}</span>
+              </button>
+            )}
+            {allowCloud && (!q || cloudHaystack.includes(q)) && (
+              <button
+                type="button"
+                className={`base-branch-row ${isCloud ? 'selected' : ''}`}
+                onClick={() => pick(cloudValue)}
+              >
+                <span className="base-branch-name">
+                  <i className="fa-solid fa-cloud" style={{ marginRight: 6, opacity: 0.8 }} aria-hidden />
+                  {t('branch.picker.cloud')}
+                </span>
+                <span className="base-branch-tag">{t('branch.picker.tagCloud')}</span>
               </button>
             )}
           </div>
@@ -305,6 +332,13 @@ export function BaseBranchDialog({
   // "Free Chat (no slot)" radio is selected → run from the repo root with
   // no slot/worktree/branch (same as a CR chat).
   const isFreeChat = !isRawChat && pickedRepoId !== null && allowRepoRoot === true && picked === FREE_CHAT_VALUE;
+  // "Run in the cloud" is offered where a free chat is, for Claude: a
+  // cloud session is Claude Code on the web, so Codex can't drive one.
+  const cloudAllowed = allowRepoRoot === true && agentConfig.agent !== 'codex';
+  const isCloud = !isRawChat && pickedRepoId !== null && cloudAllowed && picked === CLOUD_VALUE;
+  useEffect(() => {
+    if (!cloudAllowed && picked === CLOUD_VALUE) setPicked('');
+  }, [cloudAllowed, picked]);
 
   // Initial load: repos + (when not locked) the last-used repo id from
   // settings. Locked-repo callers skip the picker entirely; their repo
@@ -382,23 +416,23 @@ export function BaseBranchDialog({
       return;
     }
     if (!pickedRepoId) return;
-    if (!isFreeChat && !isPerforce && !picked) return;
+    if (!isFreeChat && !isCloud && !isPerforce && !picked) return;
     if (!lockedRepoId) void window.popbot.settings.set(LAST_REPO_SETTING, pickedRepoId);
     // Remember the picked base branch so it surfaces at the top of the
     // picker next time (most-recent first, capped). Perforce has no pick.
-    if (!isFreeChat && !isPerforce && picked) {
+    if (!isFreeChat && !isCloud && !isPerforce && picked) {
       const nextRecents = [picked, ...recentBases.filter((b) => b !== picked)].slice(0, 8);
       void window.popbot.settings.set(RECENT_BASE_BRANCHES_SETTING, nextRecents);
     }
     onConfirm({
       repoId: pickedRepoId,
       // Perforce slots sync to latest — there's no base branch to fork from.
-      baseBranch: isFreeChat ? null : isPerforce ? 'latest' : picked,
-      workspaceMode: isFreeChat ? 'repo-root' : 'slot',
+      baseBranch: isFreeChat || isCloud ? null : isPerforce ? 'latest' : picked,
+      workspaceMode: isCloud ? 'cloud' : isFreeChat ? 'repo-root' : 'slot',
       ...(askSubject ? { subject: effectiveSubject } : {}),
       // Return the (possibly edited) branch/changelist name for any slot chat,
       // so a ticket/PR flow uses what the user saw + tweaked, not its own.
-      ...(!isFreeChat && effectiveBranch ? { branch: effectiveBranch } : {}),
+      ...(!isFreeChat && !isCloud && effectiveBranch ? { branch: effectiveBranch } : {}),
       ...(chosenAgent ? { agentConfig: chosenAgent } : {}),
     });
   };
@@ -414,7 +448,7 @@ export function BaseBranchDialog({
     return () => document.removeEventListener('keydown', onKey);
     // submit closes over current state via the live binding below.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [onCancel, onConfirm, picked, pickedRepoId, derivedBranch, subject, isRawChat, isFreeChat]);
+  }, [onCancel, onConfirm, picked, pickedRepoId, derivedBranch, subject, isRawChat, isFreeChat, isCloud]);
 
   const currentRepo = repos?.find((r) => r.id === pickedRepoId) ?? null;
   const isPerforce = (currentRepo?.scm ?? 'git') === 'perforce';
@@ -425,9 +459,9 @@ export function BaseBranchDialog({
   // Perforce has no branches (the slot syncs to latest), so those gates
   // don't apply.
   const noRepo = !isRawChat && !pickedRepoId;
-  const noBranches = !isRawChat && !isFreeChat && !isPerforce && branches != null && allBranches.length === 0;
-  const noBranchPicked = !isRawChat && !isFreeChat && !isPerforce && !noBranches && !picked;
-  const branchesLoading = !isRawChat && !isFreeChat && !isPerforce && branches == null && !error;
+  const noBranches = !isRawChat && !isFreeChat && !isCloud && !isPerforce && branches != null && allBranches.length === 0;
+  const noBranchPicked = !isRawChat && !isFreeChat && !isCloud && !isPerforce && !noBranches && !picked;
+  const branchesLoading = !isRawChat && !isFreeChat && !isCloud && !isPerforce && branches == null && !error;
   const confirmDisabled = noRepo || noBranches || noBranchPicked || branchesLoading;
   // Plain-language reason shown beside a disabled Create button.
   const disabledReason = noRepo ? t('branch.dialog.disabled.pickRepo')
@@ -469,7 +503,7 @@ export function BaseBranchDialog({
           {/* Always show the branch (git) / changelist (Perforce) name that
               will be created — derived from the subject above, or the ticket/PR
               branch — and let the user edit it. */}
-          {!isRawChat && !isFreeChat && (askSubject || initialBranch) && (
+          {!isRawChat && !isFreeChat && !isCloud && (askSubject || initialBranch) && (
             <div style={{ marginBottom: 12 }}>
               <div style={{ fontSize: 11, color: 'var(--fg-3)', marginBottom: 4 }}>
                 {isPerforce ? t('branch.dialog.changelistName') : t('branch.dialog.branchName')}
@@ -567,12 +601,19 @@ export function BaseBranchDialog({
                         defaultBase={currentRepo?.defaultBase}
                         allowRepoRoot={allowRepoRoot}
                         freeChatValue={FREE_CHAT_VALUE}
+                        allowCloud={cloudAllowed}
+                        cloudValue={CLOUD_VALUE}
                       />
                     )}
                   </div>
                   {isFreeChat && (
                     <div style={{ color: 'var(--fg-2)', fontSize: 12, marginTop: 8 }}>
                       {t('branch.dialog.freeChatDesc', { repo: pickedRepoId })}
+                    </div>
+                  )}
+                  {isCloud && (
+                    <div style={{ color: 'var(--fg-2)', fontSize: 12, marginTop: 8 }}>
+                      {t('branch.dialog.cloudDesc', { repo: pickedRepoId })}
                     </div>
                   )}
                 </>

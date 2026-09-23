@@ -242,6 +242,10 @@ const api: PopBotApi = {
       return () => ipcRenderer.removeListener(IpcChannel.AuthLoginEvent, listener);
     },
   },
+  cloud: {
+    teleport: (chatId: string) => ipcRenderer.invoke(IpcChannel.CloudTeleport, chatId),
+    link: (chatId: string, ref: string) => ipcRenderer.invoke(IpcChannel.CloudLink, chatId, ref),
+  },
   updates: {
     onAvailable: (handler: (info: UpdateInfo) => void) => {
       const listener = (_e: IpcRendererEvent, info: UpdateInfo) => handler(info);

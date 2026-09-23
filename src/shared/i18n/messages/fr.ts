@@ -322,6 +322,7 @@ export const fr = {
   // ---------------------------------------------------------------------------
   'panelD.terminalTab': 'Terminal',
   'panelD.slotSuffix': ' · Emplacement {slotId}',
+  'panelD.cloudSuffix': ' · Cloud',
   'panelD.focusedLabel': 'actif : {name}',
   'panelD.newTerminal': 'Nouveau terminal',
   'panelD.noWorktree': 'Ce chat n’a pas encore de worktree d’emplacement.',
@@ -475,6 +476,8 @@ export const fr = {
     'Agent en cours… saisissez pour mettre un message en file  ·  Maj+Entrée pour un saut de ligne',
   'chat.input.placeholderIdle': 'Envoyer un message…  ·  Maj+Entrée pour un saut de ligne',
   'chat.input.placeholderInactive': 'Cliquez pour activer ce chat',
+  'chat.input.placeholderCloudFirst': 'Décrivez la tâche à exécuter dans le cloud…',
+  'chat.input.placeholderCloud': 'Envoyez une relance à la session cloud…',
   'chat.input.attachImage': 'Joindre une image',
   'chat.input.attachFile': 'Joindre un fichier',
   'chat.input.model': 'Modèle',
@@ -497,6 +500,11 @@ export const fr = {
     'L’id de session de l’agent actuel sera conservé, vous pourrez donc revenir en arrière plus tard. Le nouvel agent utilise sa propre session et sera redémarré avec la transcription de ce chat comme contexte. Une partie de l’état privé de l’agent peut être perdue.',
   'chat.agentSwitch.confirm': 'Redémarrer',
   'chat.fork.name': '{name} (copie)',
+  'chat.cloud.chip': 'Cloud',
+  'chat.cloud.chipTitle': 'Ouvrir la session cloud sur claude.ai',
+  'chat.cloud.chipPending': 'Cloud · non liée',
+  'chat.cloud.chipPendingTitle':
+    'Pas encore de session cloud. Envoyez la tâche, ou collez le lien de la session dans les réglages de la conversation.',
   'chat.app.terminal': 'Terminal',
   'chat.app.editor': 'Éditeur',
   'chat.app.unity': 'Unity',
@@ -668,6 +676,17 @@ export const fr = {
     'Démarre une nouvelle conversation à partir d’ici : les échanges jusqu’à présent, la mémoire qu’en a l’agent et — pour une conversation avec espace de travail — un nouveau slot sur une nouvelle branche reprenant les modifications non validées de celle-ci. L’originale continue sans être touchée.',
   'chatSettings.forkButton': 'Dupliquer',
   'chatSettings.forkRunningHint': 'Attendez que l’agent ait terminé, puis dupliquez.',
+  'chatSettings.cloud': 'Session cloud',
+  'chatSettings.cloudDesc':
+    'Cette conversation pilote une session cloud de Claude Code. Les messages envoyés ici y sont mis en file ; ouvrez-la sur claude.ai pour la suivre ou répondre à ses questions.',
+  'chatSettings.cloudSession': 'Session',
+  'chatSettings.cloudNone': 'Pas encore liée',
+  'chatSettings.cloudLinkPlaceholder': 'Collez un lien claude.ai/code ou un ID de session',
+  'chatSettings.cloudLinkButton': 'Lier',
+  'chatSettings.cloudLinkInvalid': 'Ce n’est pas un lien ni un ID de session claude.ai/code.',
+  'chatSettings.cloudTeleport': 'Téléporter dans le terminal',
+  'chatSettings.cloudTeleportDesc':
+    'Lance claude --teleport dans le terminal de cette conversation, à la racine du dépôt : il récupère la branche de la session, la bascule et charge la conversation en local. Il demande avant de remiser (stash) les modifications non validées.',
   'chatSettings.tryReconnect': 'Tenter une reconnexion',
   'chatSettings.reconnectDesc':
     'Choisissez une session Claude enregistrée pour le worktree de ce chat. Utile si la reconnexion automatique a choisi la mauvaise et que vous voulez forcer une transcription spécifique. La session choisie sera épinglée et l’agent recréé dedans.',
@@ -771,6 +790,8 @@ export const fr = {
   'branch.picker.tagRecent': 'récente',
   'branch.picker.tagDefault': 'par défaut',
   'branch.picker.tagRepoRoot': 'racine du dépôt',
+  'branch.picker.cloud': 'Exécuter dans le cloud',
+  'branch.picker.tagCloud': 'Claude Code sur le web',
   'branch.dialog.disabled.pickRepo': 'Choisissez un dépôt.',
   'branch.dialog.disabled.loadingBranches': 'Chargement des branches…',
   'branch.dialog.disabled.noBranches':
@@ -795,6 +816,8 @@ export const fr = {
   'branch.dialog.loadBranchesError': 'Impossible de charger les branches : {error}',
   'branch.dialog.freeChatDesc':
     'S’exécute dans {repo} depuis la racine du dépôt — aucun emplacement, worktree ni branche.',
+  'branch.dialog.cloudDesc':
+    'La conversation pilote une session cloud de Claude Code qui continue de tourner après la fermeture de PopBot. Elle est créée à partir du dépôt distant GitHub de {repo}, sur la branche où se trouve sa copie de travail racine : poussez d’abord vos commits. Votre premier message est la tâche ; les suivants sont mis en file dans la session comme relances.',
   'branch.dialog.createChat': 'Créer le chat',
 
   // ---------------------------------------------------------------------------

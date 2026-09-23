@@ -269,6 +269,7 @@ export const ru = {
   // ---------------------------------------------------------------------------
   'panelD.terminalTab': 'Терминал',
   'panelD.slotSuffix': ' · Слот {slotId}',
+  'panelD.cloudSuffix': ' · Облако',
   'panelD.focusedLabel': 'активен: {name}',
   'panelD.newTerminal': 'Новый терминал',
   'panelD.noWorktree': 'У этого чата ещё нет worktree слота.',
@@ -427,6 +428,8 @@ export const ru = {
     'Агент работает… введите текст, чтобы поставить сообщение в очередь  ·  Shift+Enter для новой строки',
   'chat.input.placeholderIdle': 'Отправить сообщение…  ·  Shift+Enter для новой строки',
   'chat.input.placeholderInactive': 'Нажмите, чтобы сделать этот чат активным',
+  'chat.input.placeholderCloudFirst': 'Опишите задачу для запуска в облаке…',
+  'chat.input.placeholderCloud': 'Отправить уточнение в облачную сессию…',
   'chat.input.attachImage': 'Прикрепить изображение',
   'chat.input.attachFile': 'Прикрепить файл',
   'chat.input.model': 'Модель',
@@ -449,6 +452,11 @@ export const ru = {
     'Id текущей сессии агента будет сохранён, чтобы вы могли позже вернуться. Новый агент использует свою собственную сессию и будет перезапущен со стенограммой этого чата в качестве контекста. Часть приватного состояния агента может быть потеряна.',
   'chat.agentSwitch.confirm': 'Перезапустить',
   'chat.fork.name': '{name} (ответвление)',
+  'chat.cloud.chip': 'Облако',
+  'chat.cloud.chipTitle': 'Открыть облачную сессию на claude.ai',
+  'chat.cloud.chipPending': 'Облако · не привязана',
+  'chat.cloud.chipPendingTitle':
+    'Облачной сессии пока нет. Отправьте задачу или вставьте ссылку на сессию в настройках чата.',
   'chat.app.terminal': 'Терминал',
   'chat.app.editor': 'Редактор',
   'chat.app.unity': 'Unity',
@@ -620,6 +628,17 @@ export const ru = {
     'Начать новый чат с этой точки: разговор до сих пор, память агента о нём и — для чата с рабочим пространством — новый слот на новой ветке с незакоммиченными изменениями этого чата. Оригинал продолжается без изменений.',
   'chatSettings.forkButton': 'Ответвить чат',
   'chatSettings.forkRunningHint': 'Дождитесь завершения работы агента, затем ответвите.',
+  'chatSettings.cloud': 'Облачная сессия',
+  'chatSettings.cloudDesc':
+    'Этот чат управляет облачной сессией Claude Code. Отправленные здесь сообщения ставятся в её очередь; откройте её на claude.ai, чтобы следить за работой или отвечать на вопросы.',
+  'chatSettings.cloudSession': 'Сессия',
+  'chatSettings.cloudNone': 'Ещё не привязана',
+  'chatSettings.cloudLinkPlaceholder': 'Вставьте ссылку claude.ai/code или ID сессии',
+  'chatSettings.cloudLinkButton': 'Привязать',
+  'chatSettings.cloudLinkInvalid': 'Это не ссылка и не ID сессии claude.ai/code.',
+  'chatSettings.cloudTeleport': 'Телепортировать в терминал',
+  'chatSettings.cloudTeleportDesc':
+    'Запускает claude --teleport в терминале этого чата в корне репозитория: получает ветку сессии, переключается на неё и загружает разговор локально. Перед тем как отложить (stash) незакоммиченные изменения, спрашивает подтверждение.',
   'chatSettings.tryReconnect': 'Попробовать переподключиться',
   'chatSettings.reconnectDesc':
     'Выберите сохранённую сессию Claude для worktree этого чата. Полезно, если автопереподключение выбрало не ту сессию и вы хотите принудительно указать конкретную стенограмму. Выбранная сессия будет закреплена, и агент перезапустится в ней.',
@@ -768,6 +787,8 @@ export const ru = {
   'branch.picker.tagRecent': 'недавняя',
   'branch.picker.tagDefault': 'по умолчанию',
   'branch.picker.tagRepoRoot': 'корень репозитория',
+  'branch.picker.cloud': 'Запустить в облаке',
+  'branch.picker.tagCloud': 'Claude Code в вебе',
   'branch.dialog.disabled.pickRepo': 'Выберите репозиторий.',
   'branch.dialog.disabled.loadingBranches': 'Загрузка веток…',
   'branch.dialog.disabled.noBranches':
@@ -795,6 +816,8 @@ export const ru = {
   'branch.dialog.loadBranchesError': 'Не удалось загрузить ветки: {error}',
   'branch.dialog.freeChatDesc':
     'Работает в {repo} из корня репозитория — без слота, worktree или ветки.',
+  'branch.dialog.cloudDesc':
+    'Чат управляет облачной сессией Claude Code, которая продолжает работать после закрытия PopBot. Она создаётся из GitHub-remote репозитория {repo} на той ветке, на которой стоит корневая рабочая копия, поэтому сначала сделайте push. Первое сообщение — задача; последующие ставятся в очередь сессии как уточнения.',
   'branch.dialog.createChat': 'Создать чат',
 
   // ---------------------------------------------------------------------------

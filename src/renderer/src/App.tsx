@@ -307,7 +307,7 @@ export default function App(): JSX.Element {
       baseBranch: string | null;
       subject?: string;
       branch?: string;
-      workspaceMode?: 'slot' | 'repo-root';
+      workspaceMode?: 'slot' | 'repo-root' | 'cloud';
       agentConfig?: AgentCreateConfig;
     }) => void | Promise<void>;
   } | null>(null);
@@ -1219,6 +1219,19 @@ export default function App(): JSX.Element {
             type,
             repoId,
             ...agentConfig,
+          });
+          return;
+        }
+        // A cloud chat: Claude Code on the web drives the work, from
+        // the repo root — no slot. Claude only; the dialog enforces it.
+        if (workspaceMode === 'cloud') {
+          await createWithSlot({
+            name,
+            type,
+            repoId,
+            ...agentConfig,
+            agent: 'claude',
+            cloud: true,
           });
           return;
         }

@@ -322,6 +322,7 @@ export const zhCN = {
   // ---------------------------------------------------------------------------
   'panelD.terminalTab': '终端',
   'panelD.slotSuffix': ' · 槽位 {slotId}',
+  'panelD.cloudSuffix': ' · 云端',
   'panelD.focusedLabel': '聚焦：{name}',
   'panelD.newTerminal': '新建终端',
   'panelD.noWorktree': '此聊天还没有槽位工作树。',
@@ -475,6 +476,8 @@ export const zhCN = {
     '代理运行中… 输入以排队消息  ·  Shift+Enter 换行',
   'chat.input.placeholderIdle': '发送消息…  ·  Shift+Enter 换行',
   'chat.input.placeholderInactive': '点击将此设为活动聊天',
+  'chat.input.placeholderCloudFirst': '描述要在云端运行的任务…',
+  'chat.input.placeholderCloud': '向云端会话发送后续指令…',
   'chat.input.attachImage': '附加图片',
   'chat.input.attachFile': '附加文件',
   'chat.input.model': '模型',
@@ -497,6 +500,10 @@ export const zhCN = {
     '当前代理会话 id 将被保留，因此您稍后可以切换回来。新代理使用自己的会话，并将以此聊天记录作为上下文重新启动。部分私有代理状态可能会丢失。',
   'chat.agentSwitch.confirm': '重新启动',
   'chat.fork.name': '{name}（分叉）',
+  'chat.cloud.chip': '云端',
+  'chat.cloud.chipTitle': '在 claude.ai 上打开云端会话',
+  'chat.cloud.chipPending': '云端 · 未关联',
+  'chat.cloud.chipPendingTitle': '还没有云端会话。发送任务，或在对话设置中粘贴会话链接。',
   'chat.app.terminal': '终端',
   'chat.app.editor': '编辑器',
   'chat.app.unity': 'Unity',
@@ -668,6 +675,17 @@ export const zhCN = {
     '从这一点开始一个新对话：包含迄今为止的对话内容、智能体对它的记忆，以及（对于带工作区的对话）一个位于新分支上的全新卡槽，并带上此对话尚未提交的更改。原对话保持不变、继续进行。',
   'chatSettings.forkButton': '分叉对话',
   'chatSettings.forkRunningHint': '请等待智能体完成后再分叉。',
+  'chatSettings.cloud': '云端会话',
+  'chatSettings.cloudDesc':
+    '此对话驱动一个 Claude Code 云端会话。在这里发送的消息会排入会话队列；在 claude.ai 上打开它可以查看进展或回答它的问题。',
+  'chatSettings.cloudSession': '会话',
+  'chatSettings.cloudNone': '尚未关联',
+  'chatSettings.cloudLinkPlaceholder': '粘贴 claude.ai/code 链接或会话 ID',
+  'chatSettings.cloudLinkButton': '关联',
+  'chatSettings.cloudLinkInvalid': '这不是 claude.ai/code 的会话链接或 ID。',
+  'chatSettings.cloudTeleport': '传送到终端',
+  'chatSettings.cloudTeleportDesc':
+    '在此对话的终端中、于仓库根目录运行 claude --teleport：拉取会话的分支并检出，然后把对话加载到本地。在暂存（stash）未提交的更改前会先询问。',
   'chatSettings.tryReconnect': '尝试重新连接',
   'chatSettings.reconnectDesc':
     '为此聊天的工作树选择一个已保存的 Claude 会话。当自动重连选错了，而您想强制使用特定记录时很有用。所选会话将被固定，代理将重新生成到其中。',
@@ -771,6 +789,8 @@ export const zhCN = {
   'branch.picker.tagRecent': '最近',
   'branch.picker.tagDefault': '默认',
   'branch.picker.tagRepoRoot': '仓库根目录',
+  'branch.picker.cloud': '在云端运行',
+  'branch.picker.tagCloud': 'Claude Code 网页版',
   'branch.dialog.disabled.pickRepo': '请选择一个仓库。',
   'branch.dialog.disabled.loadingBranches': '正在加载分支…',
   'branch.dialog.disabled.noBranches':
@@ -795,6 +815,8 @@ export const zhCN = {
   'branch.dialog.loadBranchesError': '无法加载分支：{error}',
   'branch.dialog.freeChatDesc':
     '在 {repo} 的仓库根目录中运行 — 无槽位、工作树或分支。',
+  'branch.dialog.cloudDesc':
+    '此对话驱动一个 Claude Code 云端会话，PopBot 退出后它仍会继续运行。会话基于 {repo} 的 GitHub 远程仓库、以根目录检出当前所在的分支创建，因此请先推送。你的第一条消息就是任务；之后的消息会作为后续指令排入会话队列。',
   'branch.dialog.createChat': '创建聊天',
 
   // ---------------------------------------------------------------------------

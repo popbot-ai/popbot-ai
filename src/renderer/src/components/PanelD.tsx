@@ -28,7 +28,11 @@ export function PanelD({ focusedChat, focusedRecord }: PanelDProps): JSX.Element
   const { t } = useTranslation();
   const [opened, setOpened] = useState<Set<string>>(() => new Set());
   const chatId = focusedRecord?.id ?? null;
-  const isOpened = chatId !== null && opened.has(chatId);
+  // A cloud chat lives in its terminal (that's where `claude --cloud`
+  // runs and shows its progress), so it opens on its own, at the repo
+  // root. Every other chat needs a worktree and a click.
+  const cwd = focusedRecord?.worktreePath || (focusedRecord?.cloud ? focusedRecord.repoPath : null) || null;
+  const isOpened = chatId !== null && (opened.has(chatId) || !!focusedRecord?.cloud);
 
   const openTerminal = () => {
     if (!chatId) return;
@@ -43,7 +47,9 @@ export function PanelD({ focusedChat, focusedRecord }: PanelDProps): JSX.Element
   // Plain "Terminal · Slot N" label — the blue pill version was
   // visually competing with the chat-header pill for attention; flat
   // text reads cleaner here.
-  const slotLabel = focusedRecord?.slotId == null ? '' : t('panelD.slotSuffix', { slotId: focusedRecord.slotId });
+  const slotLabel = focusedRecord?.cloud
+    ? t('panelD.cloudSuffix')
+    : focusedRecord?.slotId == null ? '' : t('panelD.slotSuffix', { slotId: focusedRecord.slotId });
   return (
     <div className="bottom" data-screen-label="Panel D · Terminal">
       <div className="bottom-head">
@@ -61,6 +67,7 @@ export function PanelD({ focusedChat, focusedRecord }: PanelDProps): JSX.Element
         {renderBody({
           t,
           focusedRecord,
+          cwd,
           isOpened,
           openTerminal,
         })}
@@ -69,16 +76,17 @@ export function PanelD({ focusedChat, focusedRecord }: PanelDProps): JSX.Element
   );
 }
 
-function renderBody({ t, focusedRecord, isOpened, openTerminal }: {
+function renderBody({ t, focusedRecord, cwd, isOpened, openTerminal }: {
   t: Translator;
   focusedRecord: ChatRecord | null;
+  cwd: string | null;
   isOpened: boolean;
   openTerminal: () => void;
 }): JSX.Element {
-  if (focusedRecord?.worktreePath && isOpened) {
-    return <TerminalView chatId={focusedRecord.id} cwd={focusedRecord.worktreePath} />;
+  if (focusedRecord && cwd && isOpened) {
+    return <TerminalView chatId={focusedRecord.id} cwd={cwd} />;
   }
-  if (focusedRecord?.worktreePath) {
+  if (focusedRecord && cwd) {
     // Inline `--col-accent` (+ perceptual fg) so the primary button
     // picks up the focused chat's repo color instead of the global
     // apple-blue, with readable text on bright accents. Falls back

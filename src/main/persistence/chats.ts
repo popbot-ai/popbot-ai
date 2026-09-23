@@ -3,6 +3,7 @@ import type {
   AgentBackendId,
   ChatRecord,
   ChatType,
+  CloudChatInfo,
   ClaudeModelId,
   ClaudeReasoningEffort,
   CodexModelId,
@@ -60,6 +61,8 @@ interface ChatRow {
   repo_mode: string | null;
   repo_scm: string | null;
   repo_slot_prefix: string | null;
+  repo_path: string | null;
+  cloud: string | null;
 }
 
 /** Standard column list for the chat queries below. Centralized so
@@ -73,7 +76,8 @@ const CHAT_COLUMNS = `
   c.claude_model, c.claude_reasoning_effort,
   c.codex_model, c.codex_reasoning_effort,
   c.permission_rules, c.created_at, c.last_active_at, c.closed_at,
-  c.repo_id, r.color AS repo_color, r.mode AS repo_mode, r.scm AS repo_scm, r.slot_prefix AS repo_slot_prefix
+  c.repo_id, r.color AS repo_color, r.mode AS repo_mode, r.scm AS repo_scm, r.slot_prefix AS repo_slot_prefix,
+  r.repo_path AS repo_path, c.cloud
 `;
 const CHAT_FROM = `FROM chats c LEFT JOIN repos r ON r.id = c.repo_id`;
 
@@ -90,6 +94,22 @@ function parseRules(json: string): PermissionRule[] {
     );
   } catch {
     return [];
+  }
+}
+
+function parseCloud(json: string | null): CloudChatInfo | null {
+  if (!json) return null;
+  try {
+    const parsed = JSON.parse(json) as Partial<CloudChatInfo> | null;
+    if (!parsed || typeof parsed !== 'object') return null;
+    return {
+      provider: 'claude',
+      sessionId: typeof parsed.sessionId === 'string' ? parsed.sessionId : null,
+      url: typeof parsed.url === 'string' ? parsed.url : null,
+      startedAt: typeof parsed.startedAt === 'number' ? parsed.startedAt : null,
+    };
+  } catch {
+    return null;
   }
 }
 
@@ -131,6 +151,8 @@ function rowToRecord(r: ChatRow): ChatRecord {
       ? r.repo_scm
       : null,
     repoSlotPrefix: r.repo_slot_prefix,
+    repoPath: r.repo_path,
+    cloud: parseCloud(r.cloud),
   };
 }
 
@@ -273,6 +295,8 @@ export interface CreateChatArgs {
   claudeReasoningEffort?: ClaudeReasoningEffort;
   codexModel?: CodexModelId;
   codexReasoningEffort?: CodexReasoningEffort;
+  /** A cloud chat — see {@link CloudChatInfo}. */
+  cloud?: CloudChatInfo | null;
 }
 
 export function createChat(args: CreateChatArgs): ChatRecord {
@@ -289,9 +313,9 @@ export function createChat(args: CreateChatArgs): ChatRecord {
          id, name, ticket, pr, pr_url, branch, type, mode, agent, status, snippet,
          tokens_used, tokens_budget, slot_id, worktree_path, created_at, last_active_at,
          repo_id, claude_model, claude_reasoning_effort, codex_model, codex_reasoning_effort,
-         sort_order
+         cloud, sort_order
        )
-       VALUES (?, ?, ?, ?, ?, ?, ?, 'interactive', ?, 'idle', '', 0, 1000000, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+       VALUES (?, ?, ?, ?, ?, ?, ?, 'interactive', ?, 'idle', '', 0, 1000000, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
                (SELECT COALESCE(MAX(o.sort_order), 0) + 1 FROM chats o))`,
     )
     .run(
@@ -312,6 +336,7 @@ export function createChat(args: CreateChatArgs): ChatRecord {
       claudeReasoningEffort,
       codexModel,
       codexReasoningEffort,
+      args.cloud ? JSON.stringify(args.cloud) : null,
     );
   const created = getChat(id);
   if (!created) throw new Error('createChat: row missing immediately after insert');
@@ -434,6 +459,13 @@ export function setChatSlot(id: string, slotId: number, worktreePath: string): v
 
 /** Bind an ephemeral chat to its just-created worktree. Same shape as
  *  `setChatSlot` minus the slot id — ephemeral chats never hold one. */
+/** Cloud chats: record the session the chat drives (or clear it). */
+export function setChatCloud(id: string, cloud: CloudChatInfo | null): void {
+  db()
+    .prepare('UPDATE chats SET cloud = ?, last_active_at = ? WHERE id = ?')
+    .run(cloud ? JSON.stringify(cloud) : null, Date.now(), id);
+}
+
 export function setChatWorktree(id: string, worktreePath: string): void {
   db()
     .prepare('UPDATE chats SET slot_id = NULL, worktree_path = ?, last_active_at = ? WHERE id = ?')

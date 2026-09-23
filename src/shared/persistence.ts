@@ -175,6 +175,21 @@ export function codexUsesAppServer(settings: CodexSettings | null | undefined): 
 export type ChatType = 'lite' | 'client_test' | 'server_test';
 export type ChatMode = 'interactive' | 'autonomous';
 
+/**
+ * A chat that drives a Claude Code CLOUD session (claude.ai/code) instead
+ * of a local agent. The session is created from the chat's terminal with
+ * `claude --cloud`, follow-ups are queued with `claude -p --cloud <id>`,
+ * and it keeps running after PopBot quits. `sessionId`/`url` are null
+ * until the CLI prints the new session's id (or the user pastes it).
+ */
+export interface CloudChatInfo {
+  provider: 'claude';
+  sessionId: string | null;
+  url: string | null;
+  /** When the session was linked to this chat, or null before that. */
+  startedAt: number | null;
+}
+
 export interface ChatRecord {
   id: string;
   name: string;
@@ -230,6 +245,11 @@ export interface ChatRecord {
    *  the stored `worktreePath` basename — which may be stale from
    *  before the per-repo path resolver landed. */
   repoSlotPrefix: string | null;
+  /** Denormalized from `repos.repo_path` at query time — the folder a
+   *  worktree-less chat (repo root, cloud) runs from. */
+  repoPath: string | null;
+  /** Set when this chat is a cloud chat — see {@link CloudChatInfo}. */
+  cloud: CloudChatInfo | null;
   /** Claude SDK session UUID, captured on first message. Passed back
    *  as `resume` so the agent keeps conversation history across opens. */
   sessionId: string | null;

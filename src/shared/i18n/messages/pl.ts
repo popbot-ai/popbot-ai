@@ -269,6 +269,7 @@ export const pl = {
   // ---------------------------------------------------------------------------
   'panelD.terminalTab': 'Terminal',
   'panelD.slotSuffix': ' · Slot {slotId}',
+  'panelD.cloudSuffix': ' · Chmura',
   'panelD.focusedLabel': 'aktywny: {name}',
   'panelD.newTerminal': 'Nowy terminal',
   'panelD.noWorktree': 'Ten czat nie ma jeszcze worktree slotu.',
@@ -427,6 +428,8 @@ export const pl = {
     'Agent pracuje… wpisz, aby dodać wiadomość do kolejki  ·  Shift+Enter dla nowej linii',
   'chat.input.placeholderIdle': 'Wyślij wiadomość…  ·  Shift+Enter dla nowej linii',
   'chat.input.placeholderInactive': 'Kliknij, aby ustawić ten czat jako aktywny',
+  'chat.input.placeholderCloudFirst': 'Opisz zadanie do uruchomienia w chmurze…',
+  'chat.input.placeholderCloud': 'Wyślij uzupełnienie do sesji w chmurze…',
   'chat.input.attachImage': 'Dołącz obraz',
   'chat.input.attachFile': 'Dołącz plik',
   'chat.input.model': 'Model',
@@ -449,6 +452,11 @@ export const pl = {
     'Identyfikator bieżącej sesji agenta zostanie zachowany, więc można później do niej wrócić. Nowy agent użyje własnej sesji i zostanie uruchomiony ponownie z transkrypcją tego czatu jako kontekstem. Część prywatnego stanu agenta może zostać utracona.',
   'chat.agentSwitch.confirm': 'Uruchom ponownie',
   'chat.fork.name': '{name} (rozgałęzienie)',
+  'chat.cloud.chip': 'Chmura',
+  'chat.cloud.chipTitle': 'Otwórz sesję w chmurze na claude.ai',
+  'chat.cloud.chipPending': 'Chmura · niepowiązana',
+  'chat.cloud.chipPendingTitle':
+    'Nie ma jeszcze sesji w chmurze. Wyślij zadanie albo wklej link do sesji w ustawieniach czatu.',
   'chat.app.terminal': 'Terminal',
   'chat.app.editor': 'Edytor',
   'chat.app.unity': 'Unity',
@@ -620,6 +628,17 @@ export const pl = {
     'Rozpocznij nowy czat od tego miejsca: dotychczasową rozmowę, pamięć agenta o niej oraz — w czacie z obszarem roboczym — świeży slot na nowej gałęzi z niezatwierdzonymi zmianami tego czatu. Oryginał działa dalej bez zmian.',
   'chatSettings.forkButton': 'Rozgałęź czat',
   'chatSettings.forkRunningHint': 'Poczekaj, aż agent skończy, a potem rozgałęź.',
+  'chatSettings.cloud': 'Sesja w chmurze',
+  'chatSettings.cloudDesc':
+    'Ten czat steruje sesją Claude Code w chmurze. Wysyłane tu wiadomości są kolejkowane w sesji; otwórz ją na claude.ai, aby śledzić pracę lub odpowiadać na pytania.',
+  'chatSettings.cloudSession': 'Sesja',
+  'chatSettings.cloudNone': 'Jeszcze niepowiązana',
+  'chatSettings.cloudLinkPlaceholder': 'Wklej link claude.ai/code lub ID sesji',
+  'chatSettings.cloudLinkButton': 'Powiąż',
+  'chatSettings.cloudLinkInvalid': 'To nie jest link ani ID sesji claude.ai/code.',
+  'chatSettings.cloudTeleport': 'Teleportuj do terminala',
+  'chatSettings.cloudTeleportDesc':
+    'Uruchamia claude --teleport w terminalu tego czatu, w katalogu głównym repozytorium: pobiera gałąź sesji, przełącza się na nią i wczytuje rozmowę lokalnie. Przed odłożeniem (stash) niezatwierdzonych zmian pyta o zgodę.',
   'chatSettings.tryReconnect': 'Spróbuj połączyć ponownie',
   'chatSettings.reconnectDesc':
     'Wybierz zapisaną sesję Claude dla worktree tego czatu. Przydatne, gdy automatyczne ponowne połączenie wybrało niewłaściwą i chcesz wymusić konkretną transkrypcję. Wybrana sesja zostanie przypięta, a agent uruchomiony w niej ponownie.',
@@ -768,6 +787,8 @@ export const pl = {
   'branch.picker.tagRecent': 'ostatnie',
   'branch.picker.tagDefault': 'domyślny',
   'branch.picker.tagRepoRoot': 'katalog główny repo',
+  'branch.picker.cloud': 'Uruchom w chmurze',
+  'branch.picker.tagCloud': 'Claude Code w przeglądarce',
   'branch.dialog.disabled.pickRepo': 'Wybierz repozytorium.',
   'branch.dialog.disabled.loadingBranches': 'Wczytywanie branchy…',
   'branch.dialog.disabled.noBranches':
@@ -795,6 +816,8 @@ export const pl = {
   'branch.dialog.loadBranchesError': 'Nie udało się wczytać branchy: {error}',
   'branch.dialog.freeChatDesc':
     'Działa w {repo} od katalogu głównego repo — bez slotu, worktree ani brancha.',
+  'branch.dialog.cloudDesc':
+    'Czat steruje sesją Claude Code w chmurze, która działa dalej po zamknięciu PopBota. Jest tworzona ze zdalnego repozytorium GitHub {repo} na gałęzi, na której stoi główna kopia robocza – najpierw zrób push. Pierwsza wiadomość to zadanie; kolejne są kolejkowane w sesji jako uzupełnienia.',
   'branch.dialog.createChat': 'Utwórz czat',
 
   // ---------------------------------------------------------------------------

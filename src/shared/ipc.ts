@@ -273,6 +273,11 @@ export const IpcChannel = {
   AuthLoginCancel: 'pb:auth:login-cancel',
   AuthLoginEvent: 'pb:auth:login-event',
 
+  /** Cloud chats: pull the session into the chat's terminal
+   *  (`claude --teleport`), or link a session id the CLI didn't print. */
+  CloudTeleport: 'pb:cloud:teleport',
+  CloudLink: 'pb:cloud:link',
+
   /** Push channel — main → renderer. A newer release exists but can't be
    *  installed in-app (unsigned build / updater error) — surface a
    *  manual "Download" link to the release page. */
@@ -399,6 +404,9 @@ export interface CreateChatInput {
   claudeReasoningEffort?: ClaudeReasoningEffort;
   codexModel?: CodexModelId;
   codexReasoningEffort?: CodexReasoningEffort;
+  /** Make this a cloud chat: it drives a Claude Code cloud session
+   *  instead of a local agent. No slot or worktree; the agent is Claude. */
+  cloud?: boolean;
 }
 
 export type CreateChatResult =
@@ -985,6 +993,14 @@ export interface PopBotApi {
     sendLoginInput(provider: AuthProvider, text: string): Promise<boolean>;
     cancelLogin(provider: AuthProvider): Promise<void>;
     onLoginEvent(handler: (event: AuthLoginEvent) => void): () => void;
+  };
+  cloud: {
+    /** Run `claude --teleport <session>` in the chat's terminal at the
+     *  repo root, so the session's branch + conversation come local. */
+    teleport(chatId: string): Promise<{ ok: true } | { ok: false; error: string }>;
+    /** Link a cloud session by claude.ai/code URL or bare id, for when
+     *  the CLI's output didn't yield one. Resolves to the updated chat. */
+    link(chatId: string, ref: string): Promise<{ ok: true; chat: ChatRecord } | { ok: false; error: string }>;
   };
   updates: {
     /** Subscribe to "newer release available, download manually" pushes

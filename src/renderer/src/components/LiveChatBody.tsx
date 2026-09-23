@@ -715,6 +715,9 @@ function MessageRowImpl({ message, renderAsQuestion, isStale, consumed, qaAnswer
     if (message.kind === 'system' && body.text.toLowerCase().startsWith('fork:')) {
       return <ChatForkRow text={body.text.replace(/^fork:\s*/i, '')} />;
     }
+    if (message.kind === 'system' && body.text.toLowerCase().startsWith('cloud:')) {
+      return <CloudRow text={body.text.replace(/^cloud:\s*/i, '')} />;
+    }
     if (message.kind === 'system') {
       // Compaction: the persisted outcome, and the two ephemeral phases
       // (see useMessages) — in progress, and failed.
@@ -878,6 +881,29 @@ function ChatForkRow({ text }: { text: string }): JSX.Element {
       <div className="body">
         <i className="fa-solid fa-code-fork" aria-hidden="true" />
         <span>{text}</span>
+      </div>
+    </div>
+  );
+}
+
+/** A cloud chat's lifecycle notes — session created / linked / sent /
+ *  teleporting — with the claude.ai link clickable when there is one. */
+function CloudRow({ text }: { text: string }): JSX.Element {
+  const url = /https?:\/\/\S+/.exec(text)?.[0] ?? null;
+  const label = url ? text.replace(url, '').trim() : text;
+  return (
+    <div className="msg chat-cloud">
+      <div className="body">
+        <i className="fa-solid fa-cloud" aria-hidden="true" />
+        <span>
+          {label}
+          {url && (
+            <>
+              {' '}
+              <a href={url} target="_blank" rel="noreferrer noopener">{url.replace(/^https?:\/\//, '')}</a>
+            </>
+          )}
+        </span>
       </div>
     </div>
   );
