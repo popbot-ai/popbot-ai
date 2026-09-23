@@ -139,11 +139,7 @@ export function ChatSettingsSheet({ chat, onClose, onFork }: ChatSettingsSheetPr
   };
 
   const restartWithContext = async (): Promise<void> => {
-    if (!confirm(
-      'Spawn a fresh Claude session and feed it this chat\'s prior transcript so the agent ' +
-      'picks up where it left off?\n\nThis uses tokens (the transcript becomes the agent\'s ' +
-      'first message). Older middle turns may be omitted to keep the prompt size reasonable.',
-    )) return;
+    if (!confirm(t('chatSettings.restartConfirm'))) return;
     setBusy(true);
     try {
       await window.popbot.agent.restartWithContext(chat.id);

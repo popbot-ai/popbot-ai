@@ -462,6 +462,7 @@ export const ptBR = {
   'chat.status.error': 'erro',
   'chat.status.idle': 'ocioso',
   'chat.col.settingsTitle': 'Configurações por chat',
+  'chat.col.menuTitle': 'Menu do chat',
   'chat.col.renameTitle': 'Clique para renomear',
   'chat.slot.workspaceTitle': 'Slot de workspace {slotId} · {repoId}',
   'chat.slot.fallback': 'Slot {slotId}',

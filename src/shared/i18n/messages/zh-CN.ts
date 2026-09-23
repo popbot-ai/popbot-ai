@@ -462,6 +462,7 @@ export const zhCN = {
   'chat.status.error': '错误',
   'chat.status.idle': '空闲',
   'chat.col.settingsTitle': '单聊天设置',
+  'chat.col.menuTitle': '对话菜单',
   'chat.col.renameTitle': '点击重命名',
   'chat.slot.workspaceTitle': '工作区槽位 {slotId} · {repoId}',
   'chat.slot.fallback': '槽位 {slotId}',

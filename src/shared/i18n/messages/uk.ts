@@ -414,6 +414,7 @@ export const uk = {
   'chat.status.error': 'помилка',
   'chat.status.idle': 'бездіяльний',
   'chat.col.settingsTitle': 'Налаштування чату',
+  'chat.col.menuTitle': 'Меню чату',
   'chat.col.renameTitle': 'Натисніть, щоб перейменувати',
   'chat.slot.workspaceTitle': 'Слот робочого простору {slotId} · {repoId}',
   'chat.slot.fallback': 'Слот {slotId}',

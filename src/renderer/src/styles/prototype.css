@@ -1992,6 +1992,25 @@ input, textarea { font: inherit; color: inherit; background: none; border: 0; ou
   max-width: 260px; white-space: normal;
 }
 
+/* The chat's ☰ menu (column header): its commands, then the settings
+   sheet. Same look as the gauge menu; opens downward under its button. */
+.chat-menu {
+  position: fixed; background: var(--bg-2); border: 1px solid var(--line-1);
+  border-radius: 6px; padding: 4px; z-index: 100; min-width: 220px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+}
+.chat-menu-item {
+  display: flex; align-items: center; gap: 8px;
+  width: 100%; padding: 6px 10px; background: transparent; border: 0;
+  color: var(--fg-1); cursor: pointer; font-size: 12px; text-align: left;
+  border-radius: 3px; font-family: inherit; white-space: nowrap;
+}
+.chat-menu-item i { width: 14px; text-align: center; color: var(--fg-2); }
+.chat-menu-item:hover:not(:disabled) { background: var(--bg-3); }
+.chat-menu-item:disabled { color: var(--fg-3); cursor: default; }
+.chat-menu-item:disabled i { color: var(--fg-3); }
+.chat-menu-sep { height: 1px; margin: 4px 8px; background: var(--line-2); }
+
 /* Picked attachments — chips above the textarea, before send. */
 .attachment-chips {
   display: flex; flex-wrap: wrap; gap: 4px;

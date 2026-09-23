@@ -462,6 +462,7 @@ export const es = {
   'chat.status.error': 'error',
   'chat.status.idle': 'inactivo',
   'chat.col.settingsTitle': 'Ajustes del chat',
+  'chat.col.menuTitle': 'Menú del chat',
   'chat.col.renameTitle': 'Clic para renombrar',
   'chat.slot.workspaceTitle': 'Slot de espacio de trabajo {slotId} · {repoId}',
   'chat.slot.fallback': 'Slot {slotId}',

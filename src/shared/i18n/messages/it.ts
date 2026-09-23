@@ -414,6 +414,7 @@ export const it = {
   'chat.status.error': 'errore',
   'chat.status.idle': 'inattivo',
   'chat.col.settingsTitle': 'Impostazioni per chat',
+  'chat.col.menuTitle': 'Menu della chat',
   'chat.col.renameTitle': 'Clic per rinominare',
   'chat.slot.workspaceTitle': 'Slot spazio di lavoro {slotId} · {repoId}',
   'chat.slot.fallback': 'Slot {slotId}',

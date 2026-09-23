@@ -440,6 +440,7 @@ export const en = {
   'chat.status.error': 'error',
   'chat.status.idle': 'idle',
   'chat.col.settingsTitle': 'Per-chat settings',
+  'chat.col.menuTitle': 'Chat menu',
   'chat.col.renameTitle': 'Click to rename',
   'chat.slot.workspaceTitle': 'Workspace slot {slotId} · {repoId}',
   'chat.slot.fallback': 'Slot {slotId}',

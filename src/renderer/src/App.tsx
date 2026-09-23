@@ -1501,6 +1501,7 @@ export default function App(): JSX.Element {
                 onActivate={() => setFocusedId(chat.id)}
                 onClose={() => void closeCol(chat.id)}
                 onOpenSettings={() => setSettingsForId(chat.id)}
+                onFork={() => forkChat(chat)}
                 onChatUpdated={() => void refresh()}
                 onRename={(name) => rename(chat.id, name)}
                 onOpenPrefs={openPrefsAt}

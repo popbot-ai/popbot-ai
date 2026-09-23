@@ -462,6 +462,7 @@ export const ko = {
   'chat.status.error': '오류',
   'chat.status.idle': '유휴',
   'chat.col.settingsTitle': '채팅별 설정',
+  'chat.col.menuTitle': '채팅 메뉴',
   'chat.col.renameTitle': '클릭하여 이름 변경',
   'chat.slot.workspaceTitle': '작업 공간 슬롯 {slotId} · {repoId}',
   'chat.slot.fallback': '슬롯 {slotId}',

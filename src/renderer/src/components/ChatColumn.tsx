@@ -174,6 +174,8 @@ interface ChatColumnProps {
   onActivate: () => void;
   onClose: () => void;
   onOpenSettings: () => void;
+  /** Fork this chat (App does the work and focuses the fork). */
+  onFork?: () => Promise<void> | void;
   onChatUpdated?: () => void;
   /** Rename the chat — the column title is click-to-edit. */
   onRename?: (name: string) => Promise<void> | void;
@@ -198,6 +200,7 @@ interface ChatColumnProps {
 
 export function ChatColumn({
   chat,
+  onFork,
   isForeground,
   isActive,
   onActivate,
@@ -292,6 +295,43 @@ export function ChatColumn({
   const handleSettings = (e: MouseEvent) => {
     e.stopPropagation();
     onOpenSettings();
+  };
+
+  // The ☰ chat menu: the chat's commands (fork, restart with context,
+  // compact, the cloud actions) plus the settings sheet for everything
+  // else. Anchored under its button; closes on outside click / scroll /
+  // Escape like the gauge menu.
+  const [menu, setMenu] = useState<{ top: number; right: number } | null>(null);
+  useEffect(() => {
+    if (!menu) return;
+    const close = (): void => setMenu(null);
+    const onKey = (e: globalThis.KeyboardEvent): void => {
+      if (e.key === 'Escape') close();
+    };
+    document.addEventListener('mousedown', close);
+    document.addEventListener('scroll', close, true);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', close);
+      document.removeEventListener('scroll', close, true);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [menu]);
+  const toggleMenu = (e: MouseEvent<HTMLButtonElement>): void => {
+    e.stopPropagation();
+    if (menu) { setMenu(null); return; }
+    const r = e.currentTarget.getBoundingClientRect();
+    setMenu({ top: r.bottom + 4, right: Math.max(4, window.innerWidth - r.right) });
+  };
+  const restartWithContext = async (): Promise<void> => {
+    if (!confirm(t('chatSettings.restartConfirm'))) return;
+    try {
+      await window.popbot.agent.restartWithContext(chat.id);
+      onChatUpdated?.();
+    } catch (err) {
+      // eslint-disable-next-line no-alert
+      alert(`Restart failed:\n\n${(err as Error).message}`);
+    }
   };
 
   const sendText = useCallback(async (text: string, atts?: PickedAttachment[]): Promise<void> => {
@@ -575,13 +615,98 @@ export function ChatColumn({
           <button
             className="iconbtn"
             style={{ width: 22, height: 22, borderRadius: 4, color: 'var(--fg-2)' }}
-            onClick={handleSettings}
-            title={t('chat.col.settingsTitle')}
+            onClick={toggleMenu}
+            title={t('chat.col.menuTitle')}
+            aria-haspopup="menu"
+            aria-expanded={!!menu}
           >
-            <i className="fa-solid fa-gear" />
+            <i className="fa-solid fa-bars" />
           </button>
         </span>
       </div>
+      {menu && (
+        <div
+          className="chat-menu"
+          role="menu"
+          style={{ top: menu.top, right: menu.right }}
+          onMouseDown={(e) => e.stopPropagation()}
+        >
+          {!chat.cloud && (
+            <>
+              <button
+                type="button"
+                className="chat-menu-item"
+                role="menuitem"
+                // A fork copies the agent's session as it stands; mid-turn
+                // that is a half-written transcript.
+                disabled={!onFork || chat.status === 'run'}
+                title={chat.status === 'run' ? t('chatSettings.forkRunningHint') : undefined}
+                onClick={() => { setMenu(null); void onFork?.(); }}
+              >
+                <i className="fa-solid fa-code-fork" aria-hidden="true" />
+                {t('chatSettings.forkButton')}
+              </button>
+              <button
+                type="button"
+                className="chat-menu-item"
+                role="menuitem"
+                disabled={chat.status === 'run'}
+                title={t('chatSettings.restartTooltip')}
+                onClick={() => { setMenu(null); void restartWithContext(); }}
+              >
+                <i className="fa-solid fa-rotate-right" aria-hidden="true" />
+                {t('chatSettings.restartWithContext')}
+              </button>
+              {agent === 'claude' && (
+                <button
+                  type="button"
+                  className="chat-menu-item"
+                  role="menuitem"
+                  disabled={chat.status === 'run' || compacting}
+                  onClick={() => { setMenu(null); void compact(); }}
+                >
+                  <i className={`fa-solid ${compacting ? 'fa-spinner fa-spin' : 'fa-compress'}`} aria-hidden="true" />
+                  {compacting ? t('chat.context.menu.compacting') : t('chat.context.menu.compact')}
+                </button>
+              )}
+            </>
+          )}
+          {chat.cloud && (
+            <>
+              <button
+                type="button"
+                className="chat-menu-item"
+                role="menuitem"
+                disabled={!chat.cloud.url}
+                onClick={() => { setMenu(null); if (chat.cloud?.url) window.open(chat.cloud.url, '_blank'); }}
+              >
+                <i className="fa-solid fa-cloud" aria-hidden="true" />
+                {t('chat.cloud.chipTitle')}
+              </button>
+              <button
+                type="button"
+                className="chat-menu-item"
+                role="menuitem"
+                disabled={!chat.cloud.sessionId}
+                onClick={() => { setMenu(null); void window.popbot.cloud.teleport(chat.id); }}
+              >
+                <i className="fa-solid fa-cloud-arrow-down" aria-hidden="true" />
+                {t('chatSettings.cloudTeleport')}
+              </button>
+            </>
+          )}
+          <div className="chat-menu-sep" />
+          <button
+            type="button"
+            className="chat-menu-item"
+            role="menuitem"
+            onClick={(e) => { setMenu(null); handleSettings(e); }}
+          >
+            <i className="fa-solid fa-gear" aria-hidden="true" />
+            {t('chat.col.settingsTitle')}
+          </button>
+        </div>
+      )}
       <div className="runtime-strip">
         <SlotAppButtons worktreePath={chat.worktreePath ?? null} chatId={chat.id} onOpenPrefs={onOpenPrefs} />
         {/* A cloud chat: the session lives on claude.ai — link there, or,

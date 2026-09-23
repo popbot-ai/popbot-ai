@@ -414,6 +414,7 @@ export const ru = {
   'chat.status.error': 'ошибка',
   'chat.status.idle': 'простаивает',
   'chat.col.settingsTitle': 'Настройки чата',
+  'chat.col.menuTitle': 'Меню чата',
   'chat.col.renameTitle': 'Нажмите, чтобы переименовать',
   'chat.slot.workspaceTitle': 'Слот рабочего пространства {slotId} · {repoId}',
   'chat.slot.fallback': 'Слот {slotId}',

@@ -462,6 +462,7 @@ export const ja = {
   'chat.status.error': 'エラー',
   'chat.status.idle': 'アイドル',
   'chat.col.settingsTitle': 'チャットごとの設定',
+  'chat.col.menuTitle': 'チャットメニュー',
   'chat.col.renameTitle': 'クリックして名前を変更',
   'chat.slot.workspaceTitle': 'ワークスペーススロット {slotId} · {repoId}',
   'chat.slot.fallback': 'スロット {slotId}',
