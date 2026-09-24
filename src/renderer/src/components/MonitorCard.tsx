@@ -90,7 +90,7 @@ interface MonitorCardProps {
 
 /** Below this width a card renders as its stripe; above it, as the full
  *  thumbnail clipped to the width. */
-export const THIN_MODE_BELOW = 24 + 44;
+export const THIN_MODE_BELOW = 20 + 44;
 
 type AttentionKind = 'PLAN' | 'PERMISSION' | 'QUESTION' | 'WAIT';
 

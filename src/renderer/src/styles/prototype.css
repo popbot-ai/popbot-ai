@@ -781,14 +781,16 @@ input, textarea { font: inherit; color: inherit; background: none; border: 0; ou
    foot. A hair smaller than the thumbnail's type so stripes pack. */
 .mon-thin {
   position: absolute; inset: 0;
-  display: flex; flex-direction: column; align-items: center; gap: 6px;
-  padding: 6px 0 7px;
+  display: flex; flex-direction: column; align-items: center; gap: 5px;
+  padding: 5px 0 6px;
 }
 .mon-thin .mon-glyph { flex: 0 0 12px; }
+/* The name runs down the stripe; its box is exactly one line tall
+   (sideways: wide) so the stripe carries no spare width. */
 .mon-thin-name {
   writing-mode: vertical-rl;
-  font-size: 10px; font-weight: 600; color: var(--fg-1); letter-spacing: 0.01em;
-  flex: 1 1 auto; min-height: 0;
+  font-size: 10px; line-height: 12px; font-weight: 600; color: var(--fg-1); letter-spacing: 0.01em;
+  flex: 1 1 auto; min-height: 0; width: 12px;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .monitor.is-thin.focused .mon-thin-name { color: var(--fg-0); }
@@ -797,9 +799,11 @@ input, textarea { font: inherit; color: inherit; background: none; border: 0; ou
   background: var(--st-wait);
 }
 .mon-thin-attn[data-kind='plan'] { background: var(--acc); }
-/* The working blinker, lying across the stripe. */
+/* The working blinker at the foot of the stripe — the same blue cursor
+   the thumbnail's transcript shows. */
 .mon-thin-cursor {
-  flex: 0 0 auto; width: 10px; height: 4px; border-radius: 1px;
+  flex: 0 0 auto; width: 4px; height: 11px; border-radius: 1px;
+  margin-top: 1px;
   background: var(--acc-hi);
   animation: blink 1s steps(2) infinite;
 }

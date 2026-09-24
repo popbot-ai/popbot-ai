@@ -66,7 +66,7 @@ type ColumnLayoutVars = CSSProperties & {
  *  TODO: make this user-adjustable in prefs. */
 const MIN_COL_WIDTH = 560;
 /** Thumbnail strip accordion: a full thumbnail, a thin stripe, the gap. */
-const THUMB = { full: 240, thin: 24, gap: 6 };
+const THUMB = { full: 240, thin: 20, gap: 6 };
 const THUMB_STRIP_PAD = 16;
 
 /**
