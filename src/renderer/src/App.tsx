@@ -362,18 +362,17 @@ export default function App(): JSX.Element {
   const [stripScroll, setStripScroll] = useState(0);
   const stripScrollRef = useRef(0);
   const stripMaxScrollRef = useRef(0);
-  const revealTweenRef = useRef<number | null>(null);
   useEffect(() => {
     const el = thumbstripRef.current;
     if (!el) return;
-    const measure = (): void => setStripWidth(Math.max(0, el.clientWidth - THUMB_STRIP_PAD));
+    const measure = (): void => setStripWidth(el.clientWidth);
     measure();
     const ro = new ResizeObserver(measure);
     ro.observe(el);
     return () => ro.disconnect();
   }, []);
   const accordion = useMemo(
-    () => accordionLayout(chats.length, stripWidth, stripScroll, THUMB),
+    () => accordionLayout(chats.length, Math.max(0, stripWidth - THUMB_STRIP_PAD), stripScroll, THUMB),
     [chats.length, stripWidth, stripScroll],
   );
   stripMaxScrollRef.current = accordion.maxScroll;
@@ -384,40 +383,31 @@ export default function App(): JSX.Element {
       setStripScroll(accordion.maxScroll);
     }
   }, [accordion.maxScroll, stripScroll]);
-  // The wheel slides the open range; native scrolling is off. Passive
-  // must be false so the page doesn't also scroll.
+  // The strip is a real horizontal scroll container — the same scrollbar
+  // as always, over the same virtual row of full-width thumbnails: a
+  // track as wide as that row sets the range, and the cards sit in a
+  // sticky layer that stays put while its scrollLeft drives the
+  // accordion. A vertical wheel scrolls it too (it has no other axis).
   useEffect(() => {
     const el = thumbstripRef.current;
     if (!el) return;
     const onWheel = (e: WheelEvent): void => {
       if (stripMaxScrollRef.current <= 0) return;
-      const delta = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY;
-      if (!delta) return;
+      if (Math.abs(e.deltaY) <= Math.abs(e.deltaX)) return; // horizontal: native
       e.preventDefault();
-      if (revealTweenRef.current) { cancelAnimationFrame(revealTweenRef.current); revealTweenRef.current = null; }
-      const next = Math.min(stripMaxScrollRef.current, Math.max(0, stripScrollRef.current + delta));
-      stripScrollRef.current = next;
-      setStripScroll(next);
+      el.scrollLeft += e.deltaY;
     };
     el.addEventListener('wheel', onWheel, { passive: false });
     return () => el.removeEventListener('wheel', onWheel);
   }, []);
   /** Slide the strip so card `idx` is a full thumbnail — the least
-   *  distance that does it, animated. */
+   *  distance that does it, smoothly. */
   const revealCard = (idx: number): void => {
-    const target = scrollToReveal(idx, stripScrollRef.current, chats.length, stripWidth, THUMB);
-    const from = stripScrollRef.current;
-    if (target === from) return;
-    if (revealTweenRef.current) cancelAnimationFrame(revealTweenRef.current);
-    const t0 = performance.now();
-    const step = (now: number): void => {
-      const k = Math.min(1, (now - t0) / 180);
-      const v = k >= 1 ? target : from + (target - from) * (1 - Math.pow(1 - k, 3));
-      stripScrollRef.current = v;
-      setStripScroll(v);
-      revealTweenRef.current = k < 1 ? requestAnimationFrame(step) : null;
-    };
-    revealTweenRef.current = requestAnimationFrame(step);
+    const el = thumbstripRef.current;
+    if (!el) return;
+    const target = scrollToReveal(idx, stripScrollRef.current, chats.length, Math.max(0, stripWidth - THUMB_STRIP_PAD), THUMB);
+    if (Math.abs(target - el.scrollLeft) < 1) return;
+    el.scrollTo({ left: target, behavior: 'smooth' });
   };
   const visibleStartRef = useRef<HTMLDivElement | null>(null);
   const visibleEndRef = useRef<HTMLDivElement | null>(null);
@@ -1525,7 +1515,15 @@ export default function App(): JSX.Element {
 
         <div className="center">
           <div className="center-head" ref={centerHeadRef}>
-            <div className="thumbstrip" ref={thumbstripRef}>
+            <div
+              className="thumbstrip"
+              ref={thumbstripRef}
+              onScroll={(e) => {
+                const v = e.currentTarget.scrollLeft;
+                stripScrollRef.current = v;
+                setStripScroll(v);
+              }}
+            >
               {fixtures.length === 0 && (
                 <div className="thumbstrip-empty">
                   <i className="fa-regular fa-images" />
@@ -1535,6 +1533,9 @@ export default function App(): JSX.Element {
                   </div>
                 </div>
               )}
+              {fixtures.length > 0 && (
+              <div className="thumbstrip-track" style={{ width: stripWidth + accordion.maxScroll }}>
+              <div className="thumbstrip-cards" style={{ width: stripWidth }}>
               {fixtures.map((c, idx) => {
                 const isVisible = idx >= windowStart && idx < windowStart + visibleCols;
                 const isWindowStart = idx === windowStart;
@@ -1587,6 +1588,9 @@ export default function App(): JSX.Element {
                   />
                 );
               })}
+              </div>
+              </div>
+              )}
             </div>
             {overlayRect && fixtures.length > 0 && (
               <div

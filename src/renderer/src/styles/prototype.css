@@ -717,15 +717,28 @@ input, textarea { font: inherit; color: inherit; background: none; border: 0; ou
   flex: 0 0 auto;
 }
 /* The strip is an accordion (lib/accordion.ts): every open chat fits,
-   as a full thumbnail or a thin stripe, and the wheel slides the open
-   range along — so no native scrolling here. */
+   as a full thumbnail or a thin stripe. It is still a real horizontal
+   scroller — the track below is as wide as the virtual row of full
+   thumbnails, so the scrollbar is the one it always had — while the
+   cards sit in a sticky layer that stays in view and lays itself out
+   from the scroll position. */
 .thumbstrip {
   flex: 1 1 auto;
+  display: block;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: thin;
+  min-width: 0;
+  position: relative;
+}
+.thumbstrip-track { height: 100%; min-height: 172px; }
+.thumbstrip-cards {
+  position: sticky; left: 0;
+  box-sizing: border-box;
   display: flex; gap: 6px;
   padding: 8px 8px 8px 8px;
-  overflow: hidden;
-  min-width: 0;
 }
+.thumbstrip-empty { margin: 8px; }
 
 /* ============================================================
    Monitor cards — mini-chat snapshot per chat
