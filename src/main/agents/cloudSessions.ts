@@ -31,6 +31,7 @@ import { appendMessage } from '../persistence/messages';
 import { getRepo } from '../persistence/repos';
 import * as pty from '../term/ptyManager';
 import { getClaudeBinaryPath, probeClaude } from './claudeProbe';
+import { isCloudTuiAttached, noteOwnPrompt, startCloudMirror, stopCloudMirror, typeIntoCloudTui } from './cloudMirror';
 
 export type Emit = (event: AgentEvent) => void;
 
@@ -154,6 +155,14 @@ export async function handleCloudSend(chat: ChatRecord, text: string, emit: Emit
   });
   emit({ type: 'message-added', chatId: chat.id, message: userMsg, ts: Date.now() });
 
+  // The CLI that created the session is still attached in the terminal:
+  // type the message into it — the cloud queues it, and the reply shows
+  // up in this column through the mirror.
+  if (isCloudTuiAttached(chat.id)) {
+    dlog('cloud.send', { chatId: chat.id, action: 'type', sessionId: chat.cloud.sessionId, textLen: text.length });
+    typeIntoCloudTui(chat.id, text);
+    return;
+  }
   const action = cloudActionFor(chat.cloud, starting.has(chat.id));
   dlog('cloud.send', { chatId: chat.id, action, sessionId: chat.cloud.sessionId, textLen: text.length });
   if (action === 'follow-up') {
@@ -172,6 +181,11 @@ async function startSession(chat: ChatRecord, task: string, emit: Emit): Promise
   const claude = await claudeForShell();
   pty.open(chat.id, cwd);
   watchForSessionId(chat.id, emit);
+  // Mirror the attached CLI into this column from here on; the task on
+  // the command line is echoed as the first prompt, which we already
+  // have.
+  startCloudMirror(chat.id, emit);
+  noteOwnPrompt(chat.id, task);
   starting.add(chat.id);
   const cloudCmd = `${claude} --cloud ${pty.quoteForShell(task)}`;
   // A chat with its own branch (a slot or worktree): the cloud clones the
@@ -184,6 +198,7 @@ async function startSession(chat: ChatRecord, task: string, emit: Emit): Promise
     (ownBranch
       ? `cloud: Pushing ${chat.branch} to origin and creating the cloud session in the terminal below — the CLI shows its setup steps there and takes questions. `
       : 'cloud: Creating the cloud session in the terminal below — the CLI shows its setup steps there and takes questions. ') +
+    'While it stays attached, the conversation is mirrored here and messages you send go straight into it. ' +
     'The session link will appear here once it is created; if it does not, paste it from claude.ai/code in the chat settings.');
   dlog('cloud.start', { chatId: chat.id, cwd, ownBranch });
 }
@@ -305,4 +320,5 @@ export function linkCloudSession(chatId: string, ref: string, emit: Emit): { ok:
 /** The chat is gone or closing: forget any in-progress start. */
 export function forgetCloudChat(chatId: string): void {
   stopWatching(chatId);
+  stopCloudMirror(chatId);
 }
