@@ -675,11 +675,13 @@ input, textarea { font: inherit; color: inherit; background: none; border: 0; ou
 }
 /* The host marks set the mono face later in this file; the circle
    keeps the UI face the Reviews tab uses, so the two read the same. */
-.chat-row .status-glyph.scm-glyph.review-avatar { width: 18px; height: 18px; flex-basis: 18px; margin-top: 1px; font-size: 9px; font-family: inherit; }
-.mon-head .mon-glyph.review-avatar { width: 16px; height: 16px; flex-basis: 16px; font-size: 8px; font-family: inherit; }
-.mon-thin .mon-glyph.review-avatar { width: 12px; height: 12px; flex-basis: 12px; font-size: 6px; letter-spacing: 0; font-family: inherit; }
+.chat-row .status-glyph.scm-glyph.review-avatar { width: 18px; height: 18px; flex-basis: 18px; margin-top: 1px; font-size: 9px; font-family: inherit; color: white; }
+/* The card head and the chat header get the list's full 18px circle;
+   a stripe is 16px wide, so its circle is 14px with the type to match. */
+.mon-head .mon-glyph.review-avatar { width: 18px; height: 18px; flex-basis: 18px; font-size: 9px; font-family: inherit; color: white; }
+.mon-thin .mon-glyph.review-avatar { width: 14px; height: 14px; flex-basis: 14px; font-size: 7px; letter-spacing: 0; font-family: inherit; color: white; }
 .col-head .col-name-dot.review-avatar {
-  width: 16px; height: 16px; flex-basis: 16px; font-size: 8px; font-family: inherit;
+  width: 18px; height: 18px; flex-basis: 18px; font-size: 9px; font-family: inherit; color: white;
   display: inline-flex; align-items: center; justify-content: center;
 }
 
