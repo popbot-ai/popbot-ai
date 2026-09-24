@@ -709,31 +709,6 @@ export function ChatColumn({
       )}
       <div className="runtime-strip">
         <SlotAppButtons worktreePath={chat.worktreePath ?? null} chatId={chat.id} onOpenPrefs={onOpenPrefs} />
-        {/* A cloud chat: the session lives on claude.ai — link there, or,
-            before the CLI has reported an id, to the settings where one
-            can be pasted. */}
-        {chat.cloud && (chat.cloud.url ? (
-          <button
-            type="button"
-            className="chat-status-chip"
-            title={t('chat.cloud.chipTitle')}
-            onClick={() => window.open(chat.cloud!.url!, '_blank')}
-          >
-            <i className="fa-solid fa-cloud" aria-hidden />
-            <span>{t('chat.cloud.chip')}</span>
-            <i className="fa-solid fa-arrow-up-right-from-square chat-status-chip-ext" aria-hidden />
-          </button>
-        ) : (
-          <button
-            type="button"
-            className="chat-status-chip"
-            title={t('chat.cloud.chipPendingTitle')}
-            onClick={handleSettings}
-          >
-            <i className="fa-solid fa-cloud" aria-hidden />
-            <span>{t('chat.cloud.chipPending')}</span>
-          </button>
-        ))}
         {/* Both chips render side-by-side when applicable so the user
             can jump to either Linear or GitHub from the chat header. */}
         {ticket && chat.ticket && (
@@ -919,6 +894,22 @@ export function ChatColumn({
                 <option key={effort} value={effort}>{t(REASONING_LABEL_KEYS[effort])}</option>
               ))}
             </select>
+            {/* Cloud chats only: the chip says so beside the agent, and
+                opens the session on claude.ai — or, before the CLI has
+                reported an id, the settings where one can be pasted. */}
+            {chat.cloud && (
+              <button
+                type="button"
+                className={`cloud-chip${chat.cloud.url ? '' : ' pending'}`}
+                title={chat.cloud.url ? t('chat.cloud.chipTitle') : t('chat.cloud.chipPendingTitle')}
+                onClick={(e) => {
+                  if (chat.cloud?.url) window.open(chat.cloud.url, '_blank');
+                  else handleSettings(e);
+                }}
+              >
+                <i className="fa-solid fa-cloud" aria-hidden /> {t('chat.cloud.chip')}
+              </button>
+            )}
             <span className="spacer" />
             <ContextGauge
               used={chat.tokensUsed}
