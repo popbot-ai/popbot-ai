@@ -1712,13 +1712,66 @@ input, textarea { font: inherit; color: inherit; background: none; border: 0; ou
 
 /* Tool call block */
 /* Tool calls — lightweight inline status row, no boxy frame.
-   Emulates Claude Code in VS Code: a single line with an icon, the
-   tool kind, and a one-line "what it's doing" hint. */
+   Emulates Claude Code in VS Code: a single line with a dot, the tool
+   kind, and a one-line "what it's doing" hint (a Bash row leads with
+   the reason the agent gave; the command is under the fold).
+
+   The dot is the timeline: coloured by what the tool does (`kind-*`),
+   red when the call failed, hollow and pulsing while it runs. A run
+   of consecutive tool rows is joined by a thin line through the dots
+   (`chain-*`: where this row sits in the run). The line is drawn by
+   `::before` and reaches up through the chat scroll's row gap, which
+   neighbouring tool rows also close up so the run reads as one. */
+:root {
+  --tool-run: #b48ead;
+  --tool-edit: #e0a458;
+  --tool-read: #6b9fff;
+  --tool-web: #4fc1c1;
+  --tool-agent: #e07ab8;
+  --tool-plan: #8fbf7f;
+  --tool-mcp: #9b8cff;
+  --tool-other: #8a93a6;
+  --tool-gap: 14px;
+  --tool-dot-y: 9px;
+}
 .tool {
   font-family: var(--font-mono);
   font-size: 11px;
   flex: 0 0 auto;
   margin: 1px 0;
+  position: relative;
+  padding-left: 18px;
+  --tool-color: var(--tool-other);
+}
+.tool.kind-run { --tool-color: var(--tool-run); }
+.tool.kind-edit { --tool-color: var(--tool-edit); }
+.tool.kind-read { --tool-color: var(--tool-read); }
+.tool.kind-web { --tool-color: var(--tool-web); }
+.tool.kind-agent { --tool-color: var(--tool-agent); }
+.tool.kind-plan { --tool-color: var(--tool-plan); }
+.tool.kind-mcp { --tool-color: var(--tool-mcp); }
+.tool.status-err { --tool-color: var(--st-err); }
+/* Consecutive tool rows sit closer than prose does. */
+.tool.chain-mid, .tool.chain-end { margin-top: calc(-1 * (var(--tool-gap) - 5px)); }
+.tool::before {
+  content: ""; position: absolute; left: 4px; width: 1px;
+  top: var(--tool-dot-y); bottom: 0;
+  background: var(--line-3);
+}
+.tool.chain-solo::before { display: none; }
+.tool.chain-mid::before, .tool.chain-end::before { top: calc(-1 * var(--tool-gap)); }
+.tool.chain-end::before { bottom: calc(100% - var(--tool-dot-y)); }
+.tool-dot {
+  position: absolute; left: 0; top: calc(var(--tool-dot-y) - 4px);
+  width: 9px; height: 9px; border-radius: 50%;
+  background: var(--tool-color);
+  box-shadow: 0 0 0 2px var(--bg-0);
+  flex: 0 0 auto;
+}
+.tool.status-live .tool-dot {
+  background: transparent;
+  border: 1.5px solid var(--tool-color);
+  animation: pulse 1.6s ease-in-out infinite;
 }
 .tool-head {
   display: flex;
@@ -1731,16 +1784,6 @@ input, textarea { font: inherit; color: inherit; background: none; border: 0; ou
 }
 .tool.expandable .tool-head { cursor: pointer; }
 .tool.expandable .tool-head:hover { color: var(--fg-0); }
-.tool-icon {
-  font-size: 11px;
-  color: var(--acc-hi);
-  width: 14px;
-  text-align: center;
-  flex: 0 0 auto;
-}
-.tool.status-err .tool-icon { color: var(--st-err); }
-.tool.status-live .tool-icon { color: var(--st-wait); }
-.tool.status-done .tool-icon { color: var(--st-done); }
 .tool-head .name {
   color: var(--fg-1);
   font-weight: 600;
@@ -1787,7 +1830,7 @@ input, textarea { font: inherit; color: inherit; background: none; border: 0; ou
 }
 .tool.expandable:hover .tool-chev { opacity: 1; color: var(--acc-hi); }
 .tool-body {
-  margin: 4px 0 6px 22px;
+  margin: 4px 0 6px 0;
   padding: 0;
   font-size: 10.5px;
 }

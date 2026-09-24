@@ -121,7 +121,7 @@ import { useMessages } from '../lib/useMessages';
 import { getExternalEditor } from '../lib/editor';
 import { useTranslation } from '../lib/i18n';
 import { JUMP_EVENT, clearJump, peekJump } from '../lib/jumpToMessage';
-import { toolLabel } from '../lib/toolLabel';
+import { toolKind, toolLabel } from '../lib/toolLabel';
 import type { Translator } from '@shared/i18n';
 
 /** Total messages mounted at any time. The window slides as the user
@@ -653,6 +653,7 @@ function LiveChatBodyImpl({
                 message={m}
                 chatId={chatId}
                 renderAsQuestion={m.id === questionMessageId}
+                chain={m.kind === 'tool' ? chainPosition(arr[i - 1]?.kind === 'tool', arr[i + 1]?.kind === 'tool') : undefined}
                 isStale={i < arr.length - 1}
                 consumed={consumedUserIds.has(m.id)}
                 qaAnswer={qaAnswers.get(m.id)}
@@ -698,9 +699,22 @@ function LiveChatBodyImpl({
  *  and snapped the scroller. */
 export const LiveChatBody = memo(LiveChatBodyImpl);
 
+/** Where a tool row sits in a run of consecutive tool rows — the
+ *  timeline draws a line between neighbours, none around a lone row. */
+type ChainPosition = 'solo' | 'start' | 'mid' | 'end';
+
+function chainPosition(prevIsTool: boolean, nextIsTool: boolean): ChainPosition {
+  if (prevIsTool && nextIsTool) return 'mid';
+  if (prevIsTool) return 'end';
+  if (nextIsTool) return 'start';
+  return 'solo';
+}
+
 interface MessageRowProps {
   message: MessageRecord;
   renderAsQuestion?: boolean;
+  /** Tool rows: their place in the tool timeline (see ChainPosition). */
+  chain?: ChainPosition;
   /** True if any later message exists in this chat — implies the user
    *  already responded, so any permission card should render collapsed. */
   isStale?: boolean;
@@ -720,7 +734,7 @@ interface MessageRowProps {
   ) => void;
 }
 
-function MessageRowImpl({ message, renderAsQuestion, isStale, consumed, qaAnswer, chatId, onQuickReply, onDecide }: MessageRowProps): JSX.Element | null {
+function MessageRowImpl({ message, renderAsQuestion, chain, isStale, consumed, qaAnswer, chatId, onQuickReply, onDecide }: MessageRowProps): JSX.Element | null {
   if (consumed) return null;
   if (message.kind === 'text' || message.kind === 'system') {
     const body = parseBody<MessageBodyText>(message.body, { text: '' });
@@ -804,7 +818,7 @@ function MessageRowImpl({ message, renderAsQuestion, isStale, consumed, qaAnswer
       args: {},
     });
     if (HIDDEN_TOOL_NAMES.has(body.name)) return null;
-    return <ToolBlock body={body} />;
+    return <ToolBlock body={body} chain={chain ?? 'solo'} />;
   }
 
   if (message.kind === 'permission') {
@@ -1444,7 +1458,7 @@ const DIFF_MODAL_STYLES = {
   marker: { padding: '0 6px', minWidth: 0, fontFamily: 'var(--font-mono)' },
 };
 
-function ToolBlock({ body }: { body: MessageBodyTool }): JSX.Element {
+function ToolBlock({ body, chain }: { body: MessageBodyTool; chain: ChainPosition }): JSX.Element {
   const { t } = useTranslation();
   const chatId = useContext(ChatIdContext);
   const expandable = body.result !== undefined;
@@ -1463,7 +1477,7 @@ function ToolBlock({ body }: { body: MessageBodyTool }): JSX.Element {
     () => (body.result !== undefined ? truncateOutput(body.result, t) : null),
     [body.result, t],
   );
-  const { icon, label, hint, filePath, hintTitle } = presentTool(body.name, body.args, t);
+  const { label, hint, filePath, hintTitle } = presentTool(body.name, body.args, t);
   // For file-path hints, render just the basename inline; the full path
   // goes in the tooltip. Keeps the row scannable when paths are deep.
   const displayHint = filePath
@@ -1532,10 +1546,13 @@ function ToolBlock({ body }: { body: MessageBodyTool }): JSX.Element {
   const status = isError ? 'err' : expandable ? 'done' : 'live';
   const canToggle = expandable || hasRichBody(body);
 
+  // The timeline: a dot coloured by what the tool does (and red when
+  // it failed, hollow while it runs), joined to the neighbouring tool
+  // rows by a thin line — the Claude Code reading of a run of calls.
   return (
-    <div className={`tool ${canToggle ? 'expandable' : ''} ${open ? 'open' : ''} status-${status}`}>
+    <div className={`tool ${canToggle ? 'expandable' : ''} ${open ? 'open' : ''} status-${status} kind-${toolKind(body.name)} chain-${chain}`}>
       <div className="tool-head" onClick={handleToggle} role={canToggle ? 'button' : undefined}>
-        <i className={`fa-solid ${icon} tool-icon`} aria-hidden="true" />
+        <span className="tool-dot" aria-hidden="true" />
         <span className="name">{label}</span>
         {hint && filePath ? (
           <a
