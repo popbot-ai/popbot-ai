@@ -88,9 +88,10 @@ interface MonitorCardProps {
   fullWidth?: number;
 }
 
-/** Below this width a card renders as its stripe; above it, as the full
- *  thumbnail clipped to the width. */
-export const THIN_MODE_BELOW = 20 + 44;
+/** Below this width a card renders as its stripe; from it on, as the
+ *  full thumbnail clipped to the width — early, so a card stretching
+ *  open turns into the thumbnail almost at once. */
+export const THIN_MODE_BELOW = 20 + 16;
 
 type AttentionKind = 'PLAN' | 'PERMISSION' | 'QUESTION' | 'WAIT';
 

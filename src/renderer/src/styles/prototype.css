@@ -779,11 +779,14 @@ input, textarea { font: inherit; color: inherit; background: none; border: 0; ou
 .monitor.anchor-right .mon-full { left: auto; right: 0; }
 /* The stripe: glyph on top, the name running down, the blinker at the
    foot. A hair smaller than the thumbnail's type so stripes pack. */
+/* A fixed-width band on the edge the card opens from (the space a
+   partly open card gains stays empty until the thumbnail takes over). */
 .mon-thin {
-  position: absolute; inset: 0;
+  position: absolute; top: 0; bottom: 0; left: 0; width: 16px;
   display: flex; flex-direction: column; align-items: center; gap: 5px;
   padding: 5px 0 6px;
 }
+.monitor.anchor-right .mon-thin { left: auto; right: 0; }
 .mon-thin .mon-glyph { flex: 0 0 12px; }
 /* The name runs down the stripe; its box is exactly one line tall
    (sideways: wide) so the stripe carries no spare width. */
@@ -4201,16 +4204,16 @@ input.input.mono, select.input.mono { font-family: var(--font-mono); font-size: 
 .monitor.is-foreground .attn-tag { top: 22px; }
 
 /* Scrollbar treatment for the horizontally-scrolling thumbstrip. */
-.thumbstrip { scrollbar-color: #232936 transparent; }
-.thumbstrip::-webkit-scrollbar { height: 4px; }
+.thumbstrip { scrollbar-color: #3f4a5e transparent; }
+.thumbstrip::-webkit-scrollbar { height: 5px; }
 .thumbstrip::-webkit-scrollbar-track { background: transparent; }
 .thumbstrip::-webkit-scrollbar-thumb {
-  background: #232936;
+  background: #3f4a5e;
   border-radius: 8px;
   border: 1px solid transparent;
   background-clip: padding-box;
 }
-.thumbstrip::-webkit-scrollbar-thumb:hover { background: #2e3645; background-clip: padding-box; }
+.thumbstrip::-webkit-scrollbar-thumb:hover { background: #55627a; background-clip: padding-box; }
 
 /* Free-floating frame around the visible thumbnails. Lives as a sibling
    of the thumbstrip (inside center-head) so it isn't clipped by the
