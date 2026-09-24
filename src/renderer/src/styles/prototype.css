@@ -1732,7 +1732,13 @@ input, textarea { font: inherit; color: inherit; background: none; border: 0; ou
   --tool-mcp: #9b8cff;
   --tool-other: #8a93a6;
   --tool-gap: 14px;
+  /* Vertical centre of the dot, from the top of the row. */
   --tool-dot-y: 9px;
+  --tool-dot-r: 4.5px;
+  /* Space left between consecutive tool rows, and between the line and
+     the dot it points at. */
+  --tool-chain-gap: 5px;
+  --tool-dot-clear: 2.5px;
 }
 .tool {
   font-family: var(--font-mono);
@@ -1752,20 +1758,30 @@ input, textarea { font: inherit; color: inherit; background: none; border: 0; ou
 .tool.kind-mcp { --tool-color: var(--tool-mcp); }
 .tool.status-err { --tool-color: var(--st-err); }
 /* Consecutive tool rows sit closer than prose does. */
-.tool.chain-mid, .tool.chain-end { margin-top: calc(-1 * (var(--tool-gap) - 5px)); }
-.tool::before {
+.tool.chain-mid, .tool.chain-end { margin-top: calc(-1 * (var(--tool-gap) - var(--tool-chain-gap))); }
+/* The line is two segments that stop clear of the dot: `::before`
+   comes down from the previous row (through the narrowed gap) to just
+   above the dot, `::after` leaves just below it for the next row. */
+.tool::before, .tool::after {
   content: ""; position: absolute; left: 4px; width: 1px;
-  top: var(--tool-dot-y); bottom: 0;
   background: var(--line-3);
+  z-index: 0;
 }
-.tool.chain-solo::before { display: none; }
-.tool.chain-mid::before, .tool.chain-end::before { top: calc(-1 * var(--tool-gap)); }
-.tool.chain-end::before { bottom: calc(100% - var(--tool-dot-y)); }
+.tool::before {
+  top: calc(-1 * var(--tool-chain-gap));
+  bottom: calc(100% - var(--tool-dot-y) + var(--tool-dot-r) + var(--tool-dot-clear));
+}
+.tool::after {
+  top: calc(var(--tool-dot-y) + var(--tool-dot-r) + var(--tool-dot-clear));
+  bottom: 0;
+}
+.tool.chain-solo::before, .tool.chain-start::before { display: none; }
+.tool.chain-solo::after, .tool.chain-end::after { display: none; }
 .tool-dot {
-  position: absolute; left: 0; top: calc(var(--tool-dot-y) - 4px);
-  width: 9px; height: 9px; border-radius: 50%;
+  position: absolute; left: calc(4.5px - var(--tool-dot-r)); top: calc(var(--tool-dot-y) - var(--tool-dot-r));
+  width: calc(2 * var(--tool-dot-r)); height: calc(2 * var(--tool-dot-r)); border-radius: 50%;
   background: var(--tool-color);
-  box-shadow: 0 0 0 2px var(--bg-0);
+  z-index: 1;
   flex: 0 0 auto;
 }
 .tool.status-live .tool-dot {
