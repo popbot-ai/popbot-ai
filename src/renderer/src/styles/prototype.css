@@ -739,6 +739,10 @@ input, textarea { font: inherit; color: inherit; background: none; border: 0; ou
   padding: 8px 8px 8px 8px;
 }
 .thumbstrip-empty { margin: 8px; }
+/* Grip-scrolling (lib/useGripScroll.ts): a hand over the strip's top
+   third, a fist while panning. */
+.thumbstrip.grip-zone, .thumbstrip.grip-zone .monitor { cursor: grab; }
+.thumbstrip.grabbing, .thumbstrip.grabbing .monitor { cursor: grabbing; user-select: none; }
 
 /* ============================================================
    Monitor cards — mini-chat snapshot per chat

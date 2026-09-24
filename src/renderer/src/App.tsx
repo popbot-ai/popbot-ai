@@ -7,6 +7,7 @@ import { PanelA } from './components/PanelA';
 import { PanelB } from './components/PanelB';
 import { MonitorCard, THIN_MODE_BELOW } from './components/MonitorCard';
 import { accordionLayout, scrollToReveal } from './lib/accordion';
+import { useGripScroll } from './lib/useGripScroll';
 import { ChatColumn, EmptyColumn, ReadinessGateModal } from './components/ChatColumn';
 import { P4LoginModal } from './components/P4LoginModal';
 import { PanelD } from './components/PanelD';
@@ -375,6 +376,10 @@ export default function App(): JSX.Element {
     () => accordionLayout(chats.length, Math.max(0, stripWidth - THUMB_STRIP_PAD), stripScroll, THUMB),
     [chats.length, stripWidth, stripScroll],
   );
+  // Over the top third of the strip the cursor is a hand: press and
+  // drag there to scroll it by hand (the rest of a card still clicks
+  // to select and drags to reorder).
+  useGripScroll(thumbstripRef);
   stripMaxScrollRef.current = accordion.maxScroll;
   useEffect(() => {
     // Fewer chats or a wider strip: keep the scroll in range.

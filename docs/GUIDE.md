@@ -186,7 +186,7 @@ So the design commits to two things:
 
 The payoff is the ability to **intervene early**. The expensive mistake with autonomous agents isn't a crash — it's an agent confidently spending an hour building the wrong thing. A view that surfaces intent continuously turns that from a post-hoc discovery into a mid-course correction. That is the whole reason the fleet is on screen at all times instead of behind tabs or a notification.
 
-The strip itself fits every open chat at once, however many there are. The chats around the one you're looking at show as full thumbnails; the rest collapse to thin stripes — the status glyph, the name running down the stripe, the blinker when it's working — packed tightly so all of them stay in view. Scrolling sideways over the strip slides the open range along: stripes stretch into thumbnails on one side while thumbnails squeeze into stripes on the other. Clicking a stripe opens it and focuses its chat, and dragging works the same for stripes and thumbnails.
+The strip itself fits every open chat at once, however many there are. The chats around the one you're looking at show as full thumbnails; the rest collapse to thin stripes — the status glyph, the name running down the stripe, the blinker when it's working — packed tightly so all of them stay in view. Scrolling sideways over the strip slides the open range along: stripes stretch into thumbnails on one side while thumbnails squeeze into stripes on the other. Clicking a stripe opens it and focuses its chat, and dragging works the same for stripes and thumbnails. Over the top third of the strip the cursor turns into a hand: press and drag there to scroll the strip by hand.
 
 ---
 
