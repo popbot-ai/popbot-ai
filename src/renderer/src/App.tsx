@@ -405,14 +405,15 @@ export default function App(): JSX.Element {
     el.addEventListener('wheel', onWheel, { passive: false });
     return () => el.removeEventListener('wheel', onWheel);
   }, []);
-  /** Slide the strip so card `idx` is a full thumbnail — the least
-   *  distance that does it, smoothly. */
+  /** Put the strip where card `idx` is a full thumbnail — the least
+   *  distance that does it — at once. A click should land the state,
+   *  not animate toward it; the wheel and the grip give the motion. */
   const revealCard = (idx: number): void => {
     const el = thumbstripRef.current;
     if (!el) return;
     const target = scrollToReveal(idx, stripScrollRef.current, chats.length, Math.max(0, stripWidth - THUMB_STRIP_PAD), THUMB);
     if (Math.abs(target - el.scrollLeft) < 1) return;
-    el.scrollTo({ left: target, behavior: 'smooth' });
+    el.scrollLeft = target;
   };
   const visibleStartRef = useRef<HTMLDivElement | null>(null);
   const visibleEndRef = useRef<HTMLDivElement | null>(null);
