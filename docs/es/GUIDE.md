@@ -113,7 +113,7 @@ Los conceptos que verás abajo — rama base, el panel git/SCM, acciones plantil
 La bandeja de entrada es una *idea*, no una integración: **tu trabajo asignado y tus revisiones pendientes, clasificados, cada uno a un clic de convertirse en un chat de agente.** Lo que la alimenta es intercambiable:
 
 - **Tickets** — issues de **Linear**, issues de **Jira**, y **GitHub Issues** asignados a ti (el soporte de GitHub Issues es más nuevo y todavía algo experimental). Haz clic en uno y PopBot nombra una rama, arrienda un slot, mueve el ticket a *En progreso*, y prepara al agente con su descripción.
-- **Revisiones** — pull requests de **GitHub** y changelists de **Helix Swarm** esperando tu revisión. Haz clic en uno y un chat de revisión sin repositorio se abre al instante.
+- **Revisiones** — pull requests de **GitHub** y changelists de **Helix Swarm** esperando tu revisión. Haz clic en uno y un chat de revisión sin repositorio se abre al instante. Un chat de revisión lleva el avatar del autor donde los demás chats muestran el punto del repo (en la tira de miniaturas, la lista de chats y la cabecera del chat), así que encuentras una revisión por la cara de la persona a la que pertenece.
 
 Añadir una fuente no cambia el flujo de trabajo — simplemente añade filas a la misma cola. Ese es el punto: el modelo de bandeja de entrada como cola es genérico, y los rastreadores específicos son valores por defecto intercambiables.
 

@@ -113,7 +113,7 @@ Les concepts que vous verrez ci-dessous — branche de base, le panneau git/SCM,
 La boîte de réception est une *idée*, pas une intégration : **votre travail assigné et vos revues en attente, classés, chacun à un clic de devenir un chat d'agent.** Ce qui l'alimente est modulaire :
 
 - **Tickets** — issues **Linear**, issues **Jira**, et **GitHub Issues** qui vous sont assignées (le support de GitHub Issues est plus récent et encore quelque peu expérimental). Cliquez sur l'un d'eux et PopBot nomme une branche, loue un slot, déplace le ticket vers *En cours*, et amorce l'agent avec sa description.
-- **Revues** — pull requests **GitHub** et changelists **Helix Swarm** qui attendent votre revue. Cliquez sur l'une d'elles et un chat de revue sans repo s'ouvre instantanément.
+- **Revues** — pull requests **GitHub** et changelists **Helix Swarm** qui attendent votre revue. Cliquez sur l'une d'elles et un chat de revue sans repo s'ouvre instantanément. Un chat de revue porte l'avatar de l'auteur là où les autres chats affichent le point du dépôt — dans la bande de vignettes, la liste des chats et l'en-tête du chat — pour retrouver une revue au visage de la personne concernée.
 
 Ajouter une source ne change pas le workflow — cela ajoute simplement des lignes à la même file d'attente. C'est tout l'intérêt : le modèle de boîte-de-réception-en-tant-que-file-d'attente est générique, et les trackers spécifiques sont des valeurs par défaut interchangeables.
 

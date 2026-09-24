@@ -113,7 +113,7 @@ The concepts you'll see below — base branch, the git/SCM panel, templated acti
 The inbox is an *idea*, not an integration: **your assigned work and your pending reviews, ranked, each one click away from becoming an agent chat.** What feeds it is pluggable:
 
 - **Tickets** — **Linear** issues, **Jira** issues, and **GitHub Issues** assigned to you (GitHub Issues support is newer and still somewhat experimental). Click one and PopBot names a branch, leases a slot, moves the ticket to *In Progress*, and seeds the agent with its description.
-- **Reviews** — **GitHub** pull requests and **Helix Swarm** changelists awaiting your review. Click one and a repoless review chat opens instantly.
+- **Reviews** — **GitHub** pull requests and **Helix Swarm** changelists awaiting your review. Click one and a repoless review chat opens instantly. A review chat wears the author's avatar where other chats show the repo dot — in the thumbnail strip, the chat list and the chat header — so you find a review by the face of the person it's for.
 
 Adding a source doesn't change the workflow — it just adds rows to the same queue. That's the point: the inbox-as-queue model is generic, and the specific trackers are interchangeable defaults.
 

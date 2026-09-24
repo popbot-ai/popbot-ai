@@ -55,6 +55,31 @@ export type ReviewTier =
 
 export const REVIEW_TIER_ORDER: readonly ReviewTier[] = ['direct', 'team', 'org', 'external'];
 
+/**
+ * The avatar for a review's author: GitHub serves one for any login,
+ * Swarm (Perforce) has none — callers fall back to initials. Sized for
+ * the small round marks it replaces.
+ */
+export function reviewAvatarUrl(
+  scm: ReviewSystem | 'git' | 'perforce' | 'lore' | null | undefined,
+  author: string | null | undefined,
+): string | null {
+  const login = author?.trim();
+  if (!login || scm === 'swarm' || scm === 'perforce') return null;
+  // GitHub logins are [A-Za-z0-9-]; anything else is not a login.
+  if (!/^[A-Za-z0-9-]{1,39}$/.test(login)) return null;
+  return `https://avatars.githubusercontent.com/${login}?size=64`;
+}
+
+/** Up to two letters standing in for an avatar that cannot be shown. */
+export function authorInitials(author: string | null | undefined): string {
+  const clean = (author ?? '').replace(/[^A-Za-z0-9]+/g, ' ').trim();
+  if (!clean) return '?';
+  const parts = clean.split(' ');
+  const letters = parts.length >= 2 ? parts[0][0] + parts[1][0] : clean.slice(0, 2);
+  return letters.toUpperCase();
+}
+
 export interface ReviewItem {
   /** Which review system this came from. */
   scm: ReviewSystem;

@@ -5,6 +5,7 @@ import type { SourceControlProviderId } from '@shared/sourceControl';
 import { tokenBarClass, tokenBarPct, type Chat } from '../fixtures/data';
 import { SlotStatusStrip } from './SlotStatusStrip';
 import { P4Glyph } from './P4Glyph';
+import { ReviewAvatar } from './ReviewAvatar';
 import { useTranslation } from '../lib/i18n';
 
 /** Per-row version-control icon (replaces the old status glyph — status is
@@ -62,9 +63,13 @@ function ChatRow({ chat, focused, inactive, removing, onClick, onDelete }: ChatR
       // bar simply doesn't render in that case.
       style={colAccentStyle(chat.repoColor)}
     >
-      <span className={`status-glyph scm-glyph status-${chat.status}`}>
-        <ScmGlyph scm={chat.scm} />
-      </span>
+      {chat.prAuthor ? (
+        <ReviewAvatar author={chat.prAuthor} scm={chat.scm} className={`status-glyph scm-glyph status-${chat.status}`} />
+      ) : (
+        <span className={`status-glyph scm-glyph status-${chat.status}`}>
+          <ScmGlyph scm={chat.scm} />
+        </span>
+      )}
       <div style={{ minWidth: 0 }}>
         <div className="name">{chat.name}</div>
         <div className="meta-line">

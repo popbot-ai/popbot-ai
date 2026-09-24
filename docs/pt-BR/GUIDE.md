@@ -113,7 +113,7 @@ Os conceitos que você verá abaixo — branch base, o painel git/SCM, ações c
 A caixa de entrada é uma *ideia*, não uma integração: **seu trabalho atribuído e suas revisões pendentes, classificados, cada um a um clique de distância de se tornar um chat de agente.** O que a alimenta é conectável:
 
 - **Tickets** — issues do **Linear**, issues do **Jira**, e **GitHub Issues** atribuídos a você (o suporte a GitHub Issues é mais novo e ainda um pouco experimental). Clique em um e o PopBot nomeia um branch, arrenda um slot, move o ticket para *Em andamento*, e alimenta o agente com sua descrição.
-- **Revisões** — pull requests do **GitHub** e changelists do **Helix Swarm** aguardando sua revisão. Clique em uma e um chat de revisão sem repositório abre instantaneamente.
+- **Revisões** — pull requests do **GitHub** e changelists do **Helix Swarm** aguardando sua revisão. Clique em uma e um chat de revisão sem repositório abre instantaneamente. Um chat de revisão exibe o avatar do autor onde os outros chats mostram o ponto do repositório — na faixa de miniaturas, na lista de chats e no cabeçalho do chat — para você encontrar uma revisão pelo rosto de quem ela é.
 
 Adicionar uma fonte não muda o fluxo de trabalho — apenas adiciona linhas à mesma fila. Esse é o ponto: o modelo de caixa-de-entrada-como-fila é genérico, e os rastreadores específicos são padrões intercambiáveis.
 

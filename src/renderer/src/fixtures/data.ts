@@ -53,6 +53,9 @@ export interface Chat {
   type: 'lite' | 'client_test' | 'server_test';
   ticket?: string;
   pr?: number;
+  /** Review chats: the PR author's login — shown as their avatar in
+   *  place of the repo dot. */
+  prAuthor?: string | null;
   agent?: 'claude' | 'codex';
   /** Workspace slot held by this chat (1-based), or null if none. */
   slotId?: number | null;

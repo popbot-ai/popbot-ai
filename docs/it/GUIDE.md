@@ -113,7 +113,7 @@ I concetti che vedrai qui sotto — branch di base, il pannello git/SCM, le azio
 L'inbox è un'*idea*, non un'integrazione: **il tuo lavoro assegnato e le tue review pendenti, classificate, ciascuna a un clic dal diventare una chat con un agente.** Ciò che la alimenta è collegabile (pluggable):
 
 - **Ticket** — issue **Linear**, issue **Jira**, e **GitHub Issues** assegnate a te (il supporto per GitHub Issues è più recente ed è ancora in parte sperimentale). Clicca uno e PopBot nomina un branch, prende in leasing uno slot, sposta il ticket in *In Progress*, e innesca l'agente con la sua descrizione.
-- **Review** — pull request **GitHub** e changelist **Helix Swarm** in attesa della tua review. Clicca una e si apre istantaneamente una chat di review senza repo.
+- **Review** — pull request **GitHub** e changelist **Helix Swarm** in attesa della tua review. Clicca una e si apre istantaneamente una chat di review senza repo. Una chat di review mostra l'avatar dell'autore dove le altre chat mostrano il punto del repo — nella striscia delle miniature, nell'elenco delle chat e nell'intestazione della chat — così trovi una review dal volto della persona a cui appartiene.
 
 Aggiungere una fonte non cambia il flusso di lavoro — aggiunge semplicemente righe alla stessa coda. Questo è il punto: il modello inbox-come-coda è generico, e i tracker specifici sono default intercambiabili.
 

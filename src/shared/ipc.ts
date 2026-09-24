@@ -389,6 +389,8 @@ export interface CreateChatInput {
   ticket?: string;
   pr?: number;
   prUrl?: string;
+  /** Review chats: the PR / review author's login (see ChatRecord.prAuthor). */
+  prAuthor?: string;
   branch?: string;
   type?: 'lite' | 'client_test' | 'server_test';
   /** Caller-chosen slot. When set, main verifies it's still free and

@@ -35,6 +35,7 @@ interface ChatRow {
   ticket: string | null;
   pr: number | null;
   pr_url: string | null;
+  pr_author: string | null;
   branch: string | null;
   type: string;
   mode: string;
@@ -72,7 +73,7 @@ interface ChatRow {
  *  mode + slot prefix appear on every ChatRecord without a per-call
  *  repos lookup. */
 const CHAT_COLUMNS = `
-  c.id, c.name, c.ticket, c.pr, c.pr_url, c.branch, c.type, c.mode, c.agent, c.status,
+  c.id, c.name, c.ticket, c.pr, c.pr_url, c.pr_author, c.branch, c.type, c.mode, c.agent, c.status,
   c.snippet, c.tokens_used, c.tokens_budget, c.slot_id, c.worktree_path, c.p4_shelf_cl,
   c.session_id, c.codex_thread_id, c.claude_context_at, c.codex_context_at,
   c.claude_model, c.claude_reasoning_effort,
@@ -130,6 +131,7 @@ function rowToRecord(r: ChatRow): ChatRecord {
     ticket: r.ticket,
     pr: r.pr,
     prUrl: r.pr_url,
+    prAuthor: r.pr_author,
     branch: r.branch,
     type: r.type as ChatType,
     mode: r.mode as 'interactive' | 'autonomous',
@@ -297,6 +299,7 @@ export interface CreateChatArgs {
   ticket?: string | null;
   pr?: number | null;
   prUrl?: string | null;
+  prAuthor?: string | null;
   branch?: string | null;
   type?: ChatType;
   slotId?: number | null;
@@ -325,12 +328,12 @@ export function createChat(args: CreateChatArgs): ChatRecord {
   db()
     .prepare(
       `INSERT INTO chats (
-         id, name, ticket, pr, pr_url, branch, type, mode, agent, status, snippet,
+         id, name, ticket, pr, pr_url, pr_author, branch, type, mode, agent, status, snippet,
          tokens_used, tokens_budget, slot_id, worktree_path, created_at, last_active_at,
          repo_id, claude_model, claude_reasoning_effort, codex_model, codex_reasoning_effort,
          cloud, sort_order
        )
-       VALUES (?, ?, ?, ?, ?, ?, ?, 'interactive', ?, 'idle', '', 0, 1000000, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'interactive', ?, 'idle', '', 0, 1000000, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
                (SELECT COALESCE(MAX(o.sort_order), 0) + 1 FROM chats o))`,
     )
     .run(
@@ -339,6 +342,7 @@ export function createChat(args: CreateChatArgs): ChatRecord {
       args.ticket ?? null,
       args.pr ?? null,
       args.prUrl ?? null,
+      args.prAuthor?.trim() || null,
       args.branch ?? null,
       args.type ?? 'lite',
       agent,
@@ -608,6 +612,10 @@ export function clearChatCodexThreadId(id: string): void {
 
 export function setChatPrUrl(id: string, url: string): void {
   db().prepare('UPDATE chats SET pr_url = ? WHERE id = ?').run(url, id);
+}
+
+export function setChatPrAuthor(id: string, author: string): void {
+  db().prepare('UPDATE chats SET pr_author = ? WHERE id = ?').run(author.trim() || null, id);
 }
 
 /** Mark a provider's native conversation as having absorbed the shared

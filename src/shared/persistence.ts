@@ -257,6 +257,11 @@ export interface ChatRecord {
   /** Canonical review URL captured when the chat is created or first
    * resolved. Persisted so the PR chip never depends on a live gh poll. */
   prUrl: string | null;
+  /** Review chats: the login of the person whose PR (or Swarm review)
+   *  this is — the GitHub login for git, the Perforce user for Swarm.
+   *  Their avatar stands in for the repo dot on the thumbnail and in
+   *  the chat list so reviews are easy to spot. Null for other chats. */
+  prAuthor: string | null;
   branch: string | null;
   type: ChatType;
   mode: ChatMode;

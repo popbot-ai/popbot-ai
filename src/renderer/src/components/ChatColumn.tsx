@@ -33,6 +33,7 @@ import { useAppsRunning } from '../lib/useAppsRunning';
 import { useSettings } from '../lib/useSettings';
 import { LinearStateIcon, isPausedState, PAUSED_COLOR } from '../lib/linearIcons';
 import { colAccentStyle } from '../lib/repoColor';
+import { ReviewAvatar } from './ReviewAvatar';
 import { useTranslation } from '../lib/i18n';
 import type { MessageKey, Translator } from '@shared/i18n';
 import { engineEnabled, engineMeta, type GameEngineId, type GameEnginesSettings } from '@shared/gameEngine';
@@ -575,8 +576,11 @@ export function ChatColumn({
         <span className="col-name" title={chat.name}>
           {/* Repo color blip — same dot used in the chat-list rows
               and thumbnail strip so the three lists are read-equivalent.
-              Inherits `--col-accent` from the col element. */}
-          <span className="col-name-dot" aria-hidden="true" title={repoTitle} />
+              Inherits `--col-accent` from the col element. A review
+              chat shows its PR author's avatar instead, as those do. */}
+          {chat.prAuthor
+            ? <ReviewAvatar author={chat.prAuthor} scm={chat.repoScm} className="col-name-dot" title={`${chat.prAuthor} · ${repoTitle}`} />
+            : <span className="col-name-dot" aria-hidden="true" title={repoTitle} />}
           {renaming ? (
             <input
               className="col-title-input"

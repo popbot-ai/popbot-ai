@@ -113,7 +113,7 @@ Die Konzepte, die ihr unten seht — Base-Branch, das Git-/SCM-Panel, Templated 
 Das Postfach ist eine *Idee*, keine Integration: **eure zugewiesene Arbeit und eure ausstehenden Reviews, gerankt, jeweils einen Klick von einem Agent-Chat entfernt.** Was es speist, ist steckbar:
 
 - **Tickets** — **Linear**-Issues, **Jira**-Issues und **GitHub Issues**, die euch zugewiesen sind (GitHub-Issues-Support ist neuer und noch etwas experimentell). Klickt eines an, und PopBot benennt einen Branch, least einen Slot, verschiebt das Ticket zu *In Progress* und seedet den Agent mit seiner Beschreibung.
-- **Reviews** — **GitHub**-Pull-Requests und **Helix-Swarm**-Changelists, die auf euer Review warten. Klickt eines an, und ein repoloser Review-Chat öffnet sich sofort.
+- **Reviews** — **GitHub**-Pull-Requests und **Helix-Swarm**-Changelists, die auf euer Review warten. Klickt eines an, und ein repoloser Review-Chat öffnet sich sofort. Ein Review-Chat trägt den Avatar des Autors dort, wo andere Chats den Repo-Punkt zeigen – in der Thumbnail-Leiste, der Chat-Liste und im Chat-Kopf –, sodass ihr ein Review am Gesicht der Person erkennt, für die es ist.
 
 Eine Quelle hinzuzufügen ändert den Workflow nicht — es fügt lediglich Zeilen zur selben Queue hinzu. Das ist der Punkt: das Postfach-als-Queue-Modell ist generisch, und die spezifischen Tracker sind austauschbare Standardwerte.
 
