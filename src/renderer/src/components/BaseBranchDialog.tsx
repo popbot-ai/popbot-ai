@@ -47,6 +47,9 @@ interface BaseBranchDialogProps {
   allowRepoRoot?: boolean;
   /** Show an agent/model picker before creating the chat. */
   showAgentPicker?: boolean;
+  /** Open Preferences at a section — offered when the Cloud chip is on
+   *  but no Anthropic API key is set, so the fix is one click away. */
+  onOpenPrefs?: (sectionId?: string) => void;
   onCancel: () => void;
   /** Returns the repo + base branch for repo-backed chats. Raw chats
    *  return null for both. Subject + derived branch only come back
@@ -254,6 +257,7 @@ export function BaseBranchDialog({
   allowNoRepo,
   allowRepoRoot,
   showAgentPicker,
+  onOpenPrefs,
   onCancel,
   onConfirm,
 }: BaseBranchDialogProps): JSX.Element {
@@ -618,7 +622,23 @@ export function BaseBranchDialog({
                   ? t('branch.dialog.cloudDescRoot', { repo: pickedRepoId ?? '' })
                   : t('branch.dialog.cloudDescSlot', { repo: pickedRepoId ?? '' })}
               {!isRawChat && <>{' '}{t('branch.dialog.cloudGithubNote')}</>}
-              {cloudNoKey && <>{' '}<strong>{t('branch.dialog.cloudNoKey')}</strong></>}
+              {cloudNoKey && (
+                <>
+                  {' '}<strong>{t('branch.dialog.cloudNoKey')}</strong>
+                  {onOpenPrefs && (
+                    <>
+                      {' '}
+                      <button
+                        type="button"
+                        className="btn-link"
+                        onClick={() => { onOpenPrefs('agents'); onCancel(); }}
+                      >
+                        {t('app.noSlots.openPreferences')}
+                      </button>
+                    </>
+                  )}
+                </>
+              )}
             </span>
           </div>
         )}

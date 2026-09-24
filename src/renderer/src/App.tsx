@@ -1726,6 +1726,7 @@ export default function App(): JSX.Element {
           allowNoRepo={pendingCreate.allowNoRepo}
           allowRepoRoot={pendingCreate.allowRepoRoot}
           showAgentPicker={pendingCreate.showAgentPicker}
+          onOpenPrefs={openPrefsAt}
           onCancel={() => setPendingCreate(null)}
           onConfirm={(input) => {
             const pc = pendingCreate;
