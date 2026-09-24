@@ -925,7 +925,7 @@ export const de = {
   'prefs.agents.cloud.ghToken': 'GitHub: das Token verwendet, mit dem gh angemeldet ist.',
   'prefs.agents.cloud.noGh': 'GitHub: kein Token – hier speichern oder gh auth login ausführen.',
   'prefs.agents.cloud.ok': 'Der Key funktioniert.',
-  'prefs.agents.cloud.error': 'Der Key funktioniert nicht: {error}',
+  'prefs.agents.cloud.error': 'Gespeichert, aber der Key funktioniert nicht: {error}',
 
   // Preferences — Runtime / attachment retention pane.
   'prefs.runtime.title': 'Aufbewahrung von Anhängen',

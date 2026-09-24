@@ -950,7 +950,7 @@ export const en = {
   'prefs.agents.cloud.ghToken': 'GitHub: using the token gh is signed in with.',
   'prefs.agents.cloud.noGh': 'GitHub: no token — save one here, or run gh auth login.',
   'prefs.agents.cloud.ok': 'The key works.',
-  'prefs.agents.cloud.error': 'The key did not work: {error}',
+  'prefs.agents.cloud.error': 'Saved, but the key did not work: {error}',
 
   // Preferences — Runtime / attachment retention pane.
   'prefs.runtime.title': 'Attachment retention',

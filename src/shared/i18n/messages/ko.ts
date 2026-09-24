@@ -921,7 +921,7 @@ export const ko = {
   'prefs.agents.cloud.ghToken': 'GitHub: gh가 로그인한 토큰을 사용 중입니다.',
   'prefs.agents.cloud.noGh': 'GitHub: 토큰이 없습니다. 여기에 저장하거나 gh auth login을 실행하세요.',
   'prefs.agents.cloud.ok': '키가 정상 작동합니다.',
-  'prefs.agents.cloud.error': '키가 작동하지 않았습니다: {error}',
+  'prefs.agents.cloud.error': '저장했지만 키가 작동하지 않았습니다: {error}',
 
   // Preferences — Runtime / attachment retention pane.
   'prefs.runtime.title': '첨부 파일 보존',

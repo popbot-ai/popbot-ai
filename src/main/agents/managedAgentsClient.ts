@@ -57,13 +57,18 @@ export function cloudClient(apiKey?: string): Anthropic {
   return new Anthropic({ apiKey: key, maxRetries: 3 });
 }
 
-/** Does the key work for Managed Agents? One cheap list call. */
+/** Does the key work for Managed Agents? One cheap list call, bounded
+ *  so a blocked network cannot hang the Preferences save. */
 export async function testCloudApiKey(apiKey: string): Promise<{ ok: true } | { ok: false; error: string }> {
+  if (!apiKey) return { ok: false, error: 'no key given' };
   try {
-    await cloudClient(apiKey).beta.environments.list({ limit: 1 });
+    await cloudClient(apiKey).beta.environments.list({ limit: 1 }, { timeout: 15_000, maxRetries: 1 });
+    dlog('cloud.key.ok', { prefix: apiKey.slice(0, 10) });
     return { ok: true };
   } catch (err) {
-    return { ok: false, error: describeApiError(err) };
+    const error = describeApiError(err);
+    dlog('cloud.key.failed', { prefix: apiKey.slice(0, 10), error });
+    return { ok: false, error };
   }
 }
 

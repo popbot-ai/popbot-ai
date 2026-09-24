@@ -925,7 +925,7 @@ export const ptBR = {
   'prefs.agents.cloud.ghToken': 'GitHub: usando o token com que o gh está autenticado.',
   'prefs.agents.cloud.noGh': 'GitHub: sem token. Salve um aqui ou execute gh auth login.',
   'prefs.agents.cloud.ok': 'A chave funciona.',
-  'prefs.agents.cloud.error': 'A chave não funcionou: {error}',
+  'prefs.agents.cloud.error': 'Salva, mas a chave não funcionou: {error}',
 
   // Preferences — Runtime / attachment retention pane.
   'prefs.runtime.title': 'Retenção de anexos',

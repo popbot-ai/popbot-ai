@@ -917,7 +917,7 @@ export const zhCN = {
   'prefs.agents.cloud.ghToken': 'GitHub：正在使用 gh 当前登录所用的令牌。',
   'prefs.agents.cloud.noGh': 'GitHub：没有令牌。在这里保存一个，或运行 gh auth login。',
   'prefs.agents.cloud.ok': '密钥可用。',
-  'prefs.agents.cloud.error': '密钥不可用：{error}',
+  'prefs.agents.cloud.error': '已保存，但密钥不可用：{error}',
 
   // Preferences — Runtime / attachment retention pane.
   'prefs.runtime.title': '附件保留',

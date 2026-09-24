@@ -925,7 +925,7 @@ export const fr = {
   'prefs.agents.cloud.ghToken': 'GitHub : jeton de la session gh utilisé.',
   'prefs.agents.cloud.noGh': 'GitHub : aucun jeton. Enregistrez-en un ici ou exécutez gh auth login.',
   'prefs.agents.cloud.ok': 'La clé fonctionne.',
-  'prefs.agents.cloud.error': 'La clé ne fonctionne pas : {error}',
+  'prefs.agents.cloud.error': 'Enregistrée, mais la clé ne fonctionne pas : {error}',
 
   // Preferences — Runtime / attachment retention pane.
   'prefs.runtime.title': 'Rétention des pièces jointes',

@@ -922,7 +922,7 @@ export const ja = {
   'prefs.agents.cloud.ghToken': 'GitHub: gh がサインインしているトークンを使用中です。',
   'prefs.agents.cloud.noGh': 'GitHub: トークンがありません。ここに保存するか gh auth login を実行してください。',
   'prefs.agents.cloud.ok': 'キーは有効です。',
-  'prefs.agents.cloud.error': 'キーが使えませんでした: {error}',
+  'prefs.agents.cloud.error': '保存しましたが、キーが使えませんでした: {error}',
 
   // Preferences — Runtime / attachment retention pane.
   'prefs.runtime.title': '添付ファイルの保持',

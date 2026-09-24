@@ -925,7 +925,7 @@ export const uk = {
   'prefs.agents.cloud.ghToken': 'GitHub: використовується токен, під яким авторизовано gh.',
   'prefs.agents.cloud.noGh': 'GitHub: токена немає — збережіть його тут або виконайте gh auth login.',
   'prefs.agents.cloud.ok': 'Ключ працює.',
-  'prefs.agents.cloud.error': 'Ключ не спрацював: {error}',
+  'prefs.agents.cloud.error': 'Збережено, але ключ не спрацював: {error}',
 
   // Preferences — Runtime / attachment retention pane.
   'prefs.runtime.title': 'Зберігання вкладень',

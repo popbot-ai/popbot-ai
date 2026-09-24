@@ -426,24 +426,34 @@ function CloudChatsRows({
 
   const dirty = apiKey.trim() !== (initial.apiKey ?? '') || githubToken.trim() !== (initial.githubToken ?? '');
 
+  // The key is saved whatever the check says: the check is a courtesy
+  // (it tells you now rather than at the first cloud chat), and a
+  // failing or unreachable check must never leave the field unsaved
+  // with nothing to show for it.
   const save = async () => {
     setSaving(true);
     setResult(null);
     try {
       const key = apiKey.trim();
+      let verdict: { ok: boolean; text: string } | null = null;
       if (key) {
-        const check = await window.popbot.cloud.testKey(key);
-        if (!check.ok) {
-          setResult({ ok: false, text: t('prefs.agents.cloud.error', { error: check.error }) });
-          return;
+        try {
+          const check = await window.popbot.cloud.testKey(key);
+          verdict = check.ok
+            ? { ok: true, text: t('prefs.agents.cloud.ok') }
+            : { ok: false, text: t('prefs.agents.cloud.error', { error: check.error }) };
+        } catch (err) {
+          verdict = { ok: false, text: t('prefs.agents.cloud.error', { error: err instanceof Error ? err.message : String(err) }) };
         }
       }
       await onSave({
         ...(key ? { apiKey: key } : {}),
         ...(githubToken.trim() ? { githubToken: githubToken.trim() } : {}),
       });
-      setResult(key ? { ok: true, text: t('prefs.agents.cloud.ok') } : null);
+      setResult(verdict ?? { ok: true, text: t('common.saved') });
       setStatusAt(Date.now());
+    } catch (err) {
+      setResult({ ok: false, text: err instanceof Error ? err.message : String(err) });
     } finally {
       setSaving(false);
     }
