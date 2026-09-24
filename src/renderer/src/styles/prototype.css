@@ -409,9 +409,11 @@ input, textarea { font: inherit; color: inherit; background: none; border: 0; ou
   font-size: 11px;
 }
 
-/* Search panel (⌘⇧F): transcript hits grouped by chat, best first. */
-.search-panel { width: 760px; max-width: 94vw; }
-.search-panel-results { max-height: 58vh; overflow-y: auto; margin-top: 4px; }
+/* Search panel (⌘⇧F): transcript hits grouped by chat, best first.
+   Doubly qualified: `.confirm-dialog`'s own max-width is declared later
+   in this file and would win at equal specificity. */
+.confirm-dialog.search-panel { width: min(1400px, 94vw); max-width: 94vw; margin-top: 10vh; }
+.search-panel-results { max-height: 68vh; overflow-y: auto; margin-top: 4px; }
 .search-panel-chat {
   display: flex; align-items: center; gap: 8px; width: 100%;
   background: transparent; border: 0; cursor: pointer; font-family: inherit;

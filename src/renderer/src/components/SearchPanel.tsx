@@ -62,7 +62,7 @@ export function SearchPanel({ onClose, onGoTo }: SearchPanelProps): JSX.Element 
     setSearching(true);
     const timer = window.setTimeout(() => {
       void window.popbot.chats
-        .searchTranscripts(q, { includeClosed: true, maxResults: MAX_HITS, contextChars: 110 })
+        .searchTranscripts(q, { includeClosed: true, maxResults: MAX_HITS, contextChars: 220 })
         .then((res) => {
           if (cancelled) return;
           if (res.ok) setHits(res.hits);
