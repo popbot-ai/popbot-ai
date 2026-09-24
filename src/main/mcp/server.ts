@@ -179,7 +179,7 @@ export function registerPopbotTools(server: McpServer, h: PopbotToolHandlers, ca
   server.registerTool('search_chats', {
     title: 'Search chat transcripts',
     annotations: { readOnlyHint: true, openWorldHint: false },
-    description: 'Full-text search over chat transcripts, including tool calls and their output: your chat by default, another with chatId, every open chat with allChats, or the whole archive with includeClosed. Indexed (trigram), so a fragment of an identifier or error message is enough — the query is a case-insensitive substring, 3+ characters. Each hit comes with the text around it, the chat, and the entry index to read more with get_chat_transcript. Best matches first.',
+    description: 'Full-text search over chat transcripts, including tool calls and their output: your chat by default, another with chatId, every open chat with allChats, or the whole archive with includeClosed. Indexed (trigram), so a fragment of an identifier or error message is enough — the query is a case-insensitive substring, 3+ characters. The query can carry filter tags: ticket:ENG-123 (or bare ticket: for any ticket chat), cr:67 (or cr:), last:week | last:month | last:3d, from:user | from:agent | from:tool | from:system, tool:Bash, agent:codex, in:archive | in:open, chat:<name fragment>, repo:<id>; tags alone (no text) list the newest matching entries. Each hit comes with the text around it, the chat, and the entry index to read more with get_chat_transcript. Best matches first.',
     inputSchema: {
       query: z.string().min(1),
       chatId: z.string().optional().describe('Search only this chat (default: the chat you are running in)'),

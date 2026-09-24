@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import type { MessageKind, MessageRecord, MessageRole } from '@shared/persistence';
 import { db } from './db';
-import { searchMessagesSql } from './fts';
+import { searchMessagesSql, type SqlPredicates } from './fts';
 
 interface MessageRow {
   id: string;
@@ -60,20 +60,27 @@ export interface MessageSearchHit {
 
 /**
  * Full-text search over message bodies (see fts.ts). `match` is an FTS5
- * MATCH expression — build it with {@link ftsQueryFor}. Scoped to
- * `chatIds` when given; archived chats' messages only with
- * `includeClosed`. Throws on FTS5 syntax errors in a raw query.
+ * MATCH expression — build it with {@link ftsQueryFor} — or null to list
+ * by the predicates alone, newest first. Scoped to `chatIds` when given;
+ * archived chats' messages only with `includeClosed`. Throws on FTS5
+ * syntax errors in a raw query.
  */
 export function searchMessages(
-  match: string,
-  opts: { chatIds?: string[]; includeClosed?: boolean; limit?: number } = {},
+  match: string | null,
+  opts: { chatIds?: string[]; includeClosed?: boolean; limit?: number; predicates?: SqlPredicates } = {},
 ): MessageSearchHit[] {
   const chatIds = opts.chatIds ?? [];
+  const predicates = opts.predicates ?? { where: [], params: [] };
   const rows = db()
     .prepare<unknown[], MessageRow & { rank: number }>(
-      searchMessagesSql({ chatIdCount: chatIds.length, includeClosed: opts.includeClosed === true }),
+      searchMessagesSql({
+        chatIdCount: chatIds.length,
+        includeClosed: opts.includeClosed === true,
+        useFts: match !== null,
+        extraWhere: predicates.where,
+      }),
     )
-    .all(match, ...chatIds, opts.limit ?? 50);
+    .all(...(match !== null ? [match] : []), ...chatIds, ...predicates.params, opts.limit ?? 50);
   return rows.map((r) => ({ message: rowToRecord(r), rank: r.rank }));
 }
 

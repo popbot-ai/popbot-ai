@@ -447,6 +447,18 @@ input, textarea { font: inherit; color: inherit; background: none; border: 0; ou
 .search-panel-note { padding: 14px 4px 4px; font-size: 12px; color: var(--fg-3); }
 .search-panel-keys { margin-right: auto; font-size: 11px; color: var(--fg-3); }
 
+/* Filter tag buttons under the search box. */
+.search-panel-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.search-panel-tag-btn {
+  font-family: var(--font-mono); font-size: 11px; line-height: 1;
+  padding: 5px 10px; border-radius: 999px;
+  background: var(--bg-2); border: 1px solid var(--line-2); color: var(--fg-2);
+  cursor: pointer; transition: background 80ms, border-color 80ms, color 80ms;
+}
+.search-panel-tag-btn:hover { background: var(--bg-3); border-color: var(--line-3); color: var(--fg-0); }
+.search-panel-tag-btn.active { background: color-mix(in srgb, var(--acc) 22%, var(--bg-2)); border-color: var(--acc); color: var(--fg-0); }
+.search-panel-tag-btn.prefix { border-style: dashed; }
+
 /* The row a "Go to" landed on: a fade-out flash so the eye finds it. */
 @keyframes msg-jump-flash {
   from { box-shadow: 0 0 0 3px color-mix(in srgb, var(--acc) 70%, transparent); background: color-mix(in srgb, var(--acc) 14%, transparent); }

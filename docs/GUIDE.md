@@ -138,7 +138,7 @@ Every chat is a **durable transcript** stored locally — prose, tool calls, dif
 
 - **Closing** a chat releases its slot (freeing a workspace for other agents) but **keeps everything**. The chat moves to the **archive**.
 - **Reopening** a chat from the archive re-leases a slot, restores its branch, and the agent resumes with its **full history** — you can pick up a feature days later to address review feedback without re-explaining anything. If it reopens in a *different* slot, PopBot tells the agent so up front, so it re-orients to the new working directory cleanly.
-- The archive is searchable across name, ticket, branch, and content, and **Search chats** (⌘⇧F / Ctrl+Shift+F, or *View ▸ Search Chats…*) searches every transcript, open and archived: matching lines are shown per chat, best first, and *Go to* opens the chat — reopening it from the archive if needed — and scrolls to that line.
+- The archive is searchable across name, ticket, branch, and content, and **Search chats** (⌘⇧F / Ctrl+Shift+F, or *View ▸ Search Chats…*) searches every transcript, open and archived: matching lines are shown per chat, best first, and *Go to* opens the chat — reopening it from the archive if needed — and scrolls to that line. Filter tags narrow it — `ticket:ENG-123`, `cr:67`, `last:week`, `from:user`, `tool:Bash`, `agent:codex`, `in:archive`, `chat:name` — typed into the box or picked from the buttons under it; tags alone list the newest matching entries.
 
 Because rollback is just "send another message" (there are no destructive history edits), a chat accumulates the complete, auditable story of how a change was made.
 
