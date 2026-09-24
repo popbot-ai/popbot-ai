@@ -51,6 +51,8 @@ Mais esforço significa raciocínio mais profundo e uso mais completo de ferrame
 
 **Orientar o Codex enquanto ele trabalha** *(desativado por padrão)* — conecta-se ao Codex pelo `app-server` em vez do SDK exec. Com a opção ativada, uma mensagem enviada enquanto o Codex está ocupado é incorporada ao turno em andamento e chega ao modelo no próximo passo — normalmente assim que o comando em execução retorna — em vez de esperar o turno terminar. Também alimenta o medidor de contexto nos chats do Codex, habilita neles **Compactar contexto** e faz o **Stop** interromper o turno de forma limpa. O Codex rotula o `app-server` como experimental e ele exige `codex` 0.153 ou mais recente, por isso é opcional; uma CLI mais antiga simplesmente volta a enfileirar. A chave vale a partir da próxima mensagem de cada chat, e um chat alterna entre as duas conexões sem perder sua thread.
 
+**Ferramentas do PopBot para agentes** *(ligado por padrão)* — dá ao agente de cada chat um servidor MCP `popbot` com ferramentas para listar, criar, fechar e reabrir chats, enviar mensagem a outro chat e aguardar a resposta, iniciar code reviews e chats de tickets, e ler e pesquisar transcrições (veja [Ferramentas do PopBot para agentes](GUIDE.md#ferramentas-do-popbot-para-agentes)). O servidor escuta só em localhost, em uma porta aleatória com um segredo por inicialização na URL. Desligar vale a partir da próxima sessão de agente de cada chat.
+
 ## Runtime e slots
 
 Este painel controla a **retenção de anexos**. (O dimensionamento de pool de slots agora é por repositório e vive em [Repositórios](#repositórios) — veja a nota lá.)

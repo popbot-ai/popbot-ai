@@ -873,6 +873,11 @@ export const zhCN = {
     '通过 Codex 的 app-server 而不是 exec SDK 连接。在 Codex 忙碌时发送的消息会在它的下一步就送达，而不必等到本轮结束。同时让 Codex 对话的上下文仪表生效，并启用“压缩上下文”。该功能在 Codex CLI 中为实验性功能，需要 codex 0.153 或更高版本。从每个对话的下一条消息开始生效。',
   'prefs.agents.codexSteering.on': '开 — 消息会在本轮进行中送达 Codex',
   'prefs.agents.codexSteering.off': '关 — 消息会等到本轮结束',
+  'prefs.agents.mcp.title': '面向智能体的 PopBot 工具',
+  'prefs.agents.mcp.desc':
+    '为每个对话的智能体提供一个“popbot”MCP 服务器：列出、创建、关闭和重新打开对话，向其他对话发消息并等待回复，发起代码审查和工单对话，以及阅读和搜索对话记录。从每个对话的下一次智能体会话开始生效。',
+  'prefs.agents.mcp.on': '开启 — 智能体可以操控 PopBot',
+  'prefs.agents.mcp.off': '关闭 — 无 popbot 工具',
 
   // Preferences — Runtime / attachment retention pane.
   'prefs.runtime.title': '附件保留',

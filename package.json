@@ -31,6 +31,7 @@
     "@anthropic-ai/claude-agent-sdk": "^0.3.261",
     "@anthropic-ai/sdk": "^0.123.0",
     "@fortawesome/fontawesome-free": "^6.7.2",
+    "@modelcontextprotocol/sdk": "^1.29.0",
     "@openai/codex-sdk": "^0.153.2",
     "@parcel/watcher": "^2.5.6",
     "@xterm/addon-fit": "^0.11.0",
@@ -43,7 +44,8 @@
     "react-dom": "^18.3.1",
     "react-markdown": "^9.1.0",
     "react-virtuoso": "^4.18.6",
-    "remark-gfm": "^4.0.1"
+    "remark-gfm": "^4.0.1",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.13",

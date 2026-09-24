@@ -49,6 +49,12 @@ export function useChats() {
 
   useEffect(() => {
     const off = subscribeAgentEvents((event) => {
+      // An agent created / closed / reopened a chat through the popbot
+      // tools: main owns that change, so reload rather than patch.
+      if (event.type === 'chats-changed') {
+        void refresh();
+        return;
+      }
       setChats((prev) => {
         let touched = false;
         const next: ChatRecord[] = prev.map((c): ChatRecord => {
@@ -86,7 +92,7 @@ export function useChats() {
       });
     });
     return off;
-  }, []);
+  }, [refresh]);
 
   const create = useCallback(async (input: CreateChatInput): Promise<CreateChatResult> => {
     const result = await window.popbot.chats.create(input);

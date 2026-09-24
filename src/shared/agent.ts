@@ -212,6 +212,18 @@ export interface ChatUpdatedEvent {
 }
 
 /**
+ * The set of chats changed from main's side — an agent created, closed or
+ * reopened one through the popbot MCP tools. The renderer reloads its
+ * list; the record itself rides on the next `chats.list()`.
+ */
+export interface ChatsChangedEvent {
+  type: 'chats-changed';
+  chatId: string;
+  reason: 'created' | 'closed' | 'reopened';
+  ts: number;
+}
+
+/**
  * A row AgentHost has removed from the transcript. Used for messages
  * that were only ever provisional — the "no response, retrying…" notice
  * is deleted the moment the retry produces a real reply, so a
@@ -235,6 +247,7 @@ export type AgentEvent =
   | MessageAddedEvent
   | MessageRemovedEvent
   | ChatUpdatedEvent
+  | ChatsChangedEvent
   | TurnStartEvent
   | TurnSteeredEvent
   | SessionStatusEvent

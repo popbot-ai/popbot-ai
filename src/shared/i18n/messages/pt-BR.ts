@@ -874,6 +874,11 @@ export const ptBR = {
     'Conecta-se ao Codex pelo app-server em vez do SDK exec, de modo que uma mensagem enviada enquanto o Codex está ocupado chega a ele no próximo passo, em vez de esperar o turno terminar. Também alimenta o medidor de contexto nos chats do Codex e habilita Compactar contexto. Experimental na CLI do Codex; requer codex 0.153 ou mais recente. Vale a partir da próxima mensagem de cada chat.',
   'prefs.agents.codexSteering.on': 'Ativado — as mensagens chegam ao Codex no meio do turno',
   'prefs.agents.codexSteering.off': 'Desativado — as mensagens esperam o turno terminar',
+  'prefs.agents.mcp.title': 'Ferramentas do PopBot para agentes',
+  'prefs.agents.mcp.desc':
+    'Dá ao agente de cada chat um servidor MCP “popbot”: listar, criar, fechar e reabrir chats, enviar mensagens a outros chats e aguardar a resposta, iniciar code reviews e chats de tickets, e ler e pesquisar transcrições. Vale a partir da próxima sessão de agente de cada chat.',
+  'prefs.agents.mcp.on': 'Ligado — os agentes podem operar o PopBot',
+  'prefs.agents.mcp.off': 'Desligado — sem ferramentas popbot',
 
   // Preferences — Runtime / attachment retention pane.
   'prefs.runtime.title': 'Retenção de anexos',

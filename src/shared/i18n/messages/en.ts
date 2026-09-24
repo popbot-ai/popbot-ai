@@ -901,6 +901,11 @@ export const en = {
     'Connects to Codex through its app-server instead of the exec SDK, so a message you send while Codex is busy reaches it at its next step instead of waiting for the turn to end. Also fills the context gauge for Codex chats and enables Compact context. Experimental in the Codex CLI; needs codex 0.153 or newer. Applies from each chat’s next message.',
   'prefs.agents.codexSteering.on': 'On — messages reach Codex mid-turn',
   'prefs.agents.codexSteering.off': 'Off — messages wait for the turn to end',
+  'prefs.agents.mcp.title': 'PopBot tools for agents',
+  'prefs.agents.mcp.desc':
+    'Gives every chat’s agent a “popbot” MCP server: list, create, close and reopen chats, message other chats and wait for their answer, start code reviews and ticket chats, and read and search transcripts. Applies from each chat’s next agent session.',
+  'prefs.agents.mcp.on': 'On — agents can drive PopBot',
+  'prefs.agents.mcp.off': 'Off — no popbot tools',
 
   // Preferences — Runtime / attachment retention pane.
   'prefs.runtime.title': 'Attachment retention',

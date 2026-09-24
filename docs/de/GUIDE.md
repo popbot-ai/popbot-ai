@@ -144,6 +144,17 @@ Weil Rollback nur "eine weitere Nachricht senden" ist (es gibt keine destruktive
 
 ---
 
+### PopBot-Tools für Agenten
+
+Der Agent jedes Chats – Claude wie Codex – bekommt einen `popbot`-MCP-Server, damit ein Agent die App so bedienen kann wie du und Chats miteinander reden können:
+
+- **Chats** – `list_chats` (Namen, IDs, Status und welcher Chat gerade aufruft), `create_chat` (ein Slot-Chat auf einem neuen Branch, ein Repo-Root-Chat oder ein Cloud-Chat, wahlweise mit einer ersten Nachricht), `close_chat`, `reopen_chat`.
+- **Andere Agenten** – `send_to_chat` schickt eine Nachricht an einen anderen Chat und wartet standardmäßig, bis die Runde dieses Agenten endet, und liefert dessen Antwort zurück; bei einem beschäftigten Chat wird die Nachricht hinter seiner laufenden Arbeit eingereiht. Ein Chat kann sich nicht selbst anschreiben oder schließen.
+- **Arbeit** – `start_code_review` öffnet einen Review-Chat für einen PR (oder ein Swarm-Review) genau wie die Reviews-Liste, Prompt-Vorlage inklusive; `open_ticket_chat` öffnet einen Ticket-Chat auf einem `<du>/<ticket>-<slug>`-Branch, schickt den Start-Ticket-Prompt und setzt das Ticket auf In Progress.
+- **Transkripte** – `get_chat_transcript` liest einen Chat (den eigenen oder einen anderen) als nummerierte Einträge, ganz oder als Bereich; `search_chats` findet einen Begriff mit dem Text um jeden Treffer, in einem Chat oder über alle offenen.
+
+Der Server lauscht nur auf localhost, auf einem zufälligen Port mit einem pro Start erzeugten Geheimnis in seiner URL, und lässt sich unter *Einstellungen ▸ Agents* abschalten.
+
 ## Anatomie des Workspace
 
 ![PopBot UI anatomy](../../images/anatomy.png)

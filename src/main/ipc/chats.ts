@@ -180,189 +180,7 @@ export function registerChatHandlers(): void {
   ipcMain.handle(IpcChannel.ChatsList, () => listOpenChats());
   ipcMain.handle(IpcChannel.ChatsListClosed, (_e, limit?: number) => listClosedChats(limit));
 
-  ipcMain.handle(IpcChannel.ChatsCreate, async (_e, input: CreateChatInput): Promise<CreateChatResult> => {
-    const wantsWorkspace = input.slotId != null || input.allocateSlot === true;
-
-    // No workspace requested → cheap path. Used by lite chats that run
-    // against the repo root and never need a worktree (e.g. CR chats).
-    if (!wantsWorkspace) {
-      // A cloud chat drives a Claude Code cloud session (claude.ai/code):
-      // no slot, no worktree, and always Claude — see cloudSessions.ts.
-      const cloud = input.cloud === true;
-      const chat = createChat({
-        name: input.name,
-        ticket: input.ticket ?? null,
-        pr: input.pr ?? null,
-        prUrl: input.prUrl ?? null,
-        branch: input.branch ?? null,
-        type: input.type ?? 'lite',
-        slotId: null,
-        worktreePath: null,
-        repoId: input.repoId,
-        agent: cloud ? 'claude' : input.agent,
-        cloud: cloud ? { provider: 'claude', sessionId: null, url: null, startedAt: null } : null,
-        claudeModel: input.claudeModel,
-        claudeReasoningEffort: input.claudeReasoningEffort,
-        codexModel: input.codexModel,
-        codexReasoningEffort: input.codexReasoningEffort,
-      });
-      if (input.baseBranch?.trim()) {
-        const blob = (getSetting<Record<string, string>>('git.baseBranchByChat') ?? {});
-        blob[chat.id] = input.baseBranch.trim();
-        setSetting('git.baseBranchByChat', blob);
-      }
-      return { ok: true, chat };
-    }
-
-    // Workspace requested → resolve repo first; mode determines whether
-    // we allocate a slot from the pool or spin up an ephemeral worktree.
-    const repo = resolveRepo(input.repoId);
-    if (!repo) return { ok: false, reason: 'git-not-configured' };
-    const scm = getSourceControlProvider(repo);
-    // The repo record is the source of truth (repoPath, defaultBase,
-    // slotCount). The legacy single-repo `settings.git` is only a
-    // fallback for pre-multi-repo installs — NOT required. A valid repo
-    // + git/gh is enough; don't force the user into Source-control prefs.
-    const branch = input.branch?.trim() || `popbot/chat-${Date.now()}`;
-    const baseBranch = input.baseBranch?.trim() || repo.defaultBase || 'main';
-
-    if (repo.mode === 'ephemeral') {
-      // Ephemeral (throwaway-per-chat) worktrees are a git-style notion;
-      // providers whose working copies are heavyweight + long-lived
-      // (Perforce) opt out via capabilities. Refuse rather than silently
-      // mis-provisioning. Git always supports it, so this is a no-op
-      // today and the seam for when non-git repos can be created.
-      if (!scm.capabilities.supportsEphemeralRepos) {
-        return {
-          ok: false,
-          reason: 'worktree-failed',
-          message: `${scm.id} repos don't support ephemeral worktrees`,
-        };
-      }
-      // input.slotId is meaningless in ephemeral mode — the renderer
-      // shouldn't pass it for ephemeral repos, but if it does we just
-      // ignore it rather than error (the user got a workspace either way).
-      const chat = createChat({
-        name: input.name,
-        ticket: input.ticket ?? null,
-        pr: input.pr ?? null,
-        prUrl: input.prUrl ?? null,
-        branch,
-        type: input.type ?? 'lite',
-        slotId: null,
-        worktreePath: null,
-        repoId: repo.id,
-        agent: input.agent,
-        claudeModel: input.claudeModel,
-        claudeReasoningEffort: input.claudeReasoningEffort,
-        codexModel: input.codexModel,
-        codexReasoningEffort: input.codexReasoningEffort,
-      });
-      const worktreePath = ephemeralPathFor({
-        scm,
-        // Per-repo workspace dir, NOT the legacy `gitCfg.worktreesDir`
-        // (which is scoped to the default seed repo). Without this,
-        // ephemeral chats for a non-default repo were getting checked
-        // out under the default repo's workspace dir and the agent's
-        // cwd ended up in the wrong repo.
-        worktreesDir: worktreesDirForRepo(repo),
-        ticket: input.ticket ?? null,
-        pr: input.pr ?? null,
-        chatId: chat.id,
-      });
-      try {
-        await scm.ensureChatWorktree({
-          repoPath: repo.repoPath || '',
-          worktreePath,
-          branch,
-          baseBranch,
-        });
-      } catch (err) {
-        const msg = err instanceof GitWorktreeError ? err.message : (err as Error).message;
-        return { ok: false, reason: 'worktree-failed', message: msg };
-      }
-      setChatWorktree(chat.id, worktreePath);
-      if (input.baseBranch?.trim()) {
-        const blob = (getSetting<Record<string, string>>('git.baseBranchByChat') ?? {});
-        blob[chat.id] = input.baseBranch.trim();
-        setSetting('git.baseBranchByChat', blob);
-      }
-      const updated = getChat(chat.id);
-      return updated ? { ok: true, chat: updated } : { ok: false, reason: 'worktree-failed', message: 'Lost chat after create' };
-    }
-
-    // Slot-pool mode — original flow. Pool size comes from the repo's
-    // own slotCount (set in the Add Repository wizard); fall back to the
-    // legacy global slots setting only for pre-multi-repo installs.
-    const maxSlots = repo.slotCount || 0;
-    if (maxSlots < 1) return { ok: false, reason: 'slots-not-configured' };
-    let slotId: number;
-    if (input.slotId != null) {
-      const taken = listSlotOccupants();
-      if (taken.has(input.slotId)) {
-        return { ok: false, reason: 'slot-taken', slotId: input.slotId };
-      }
-      slotId = input.slotId;
-    } else {
-      const picked = allocateSlotPreferring(maxSlots, null);
-      if (picked === null) return { ok: false, reason: 'no-free-slot' };
-      slotId = picked;
-    }
-    // Per-repo path + parking branch; the legacy default seed honors
-    // `settings.git.worktreesDir` via `worktreesDirForRepo` so existing
-    // slot worktrees keep working unchanged.
-    const worktreePath = slotWorktreePathForRepo(repo, slotId);
-
-    try {
-      // Re-attach VHDX slot mounts if a reboot dropped them (one elevated
-      // `shado remount`), before any slot op touches an empty mount.
-      await ensureSlotsMounted(repo);
-      await scm.ensureSlotWorktree({
-        repoPath: repo.repoPath || '',
-        worktreePath,
-        parkBranch: scm.parkingBranch(repo.id, slotId),
-        baseBranch: repo.defaultBase || 'main',
-      });
-      await scm.refreshSlotForAllocation({ worktreePath, baseBranch });
-      await scm.checkoutBranch({ worktreePath, branch, baseBranch });
-    } catch (err) {
-      const msg = err instanceof GitWorktreeError ? err.message : (err as Error).message;
-      dlog('chat.create.worktreeFailed', {
-        repoId: repo.id,
-        scm: repo.scm ?? 'git',
-        slotId,
-        worktreePath,
-        branch,
-        baseBranch,
-        error: msg,
-        stack: (err as Error).stack,
-      });
-      return { ok: false, reason: 'worktree-failed', message: msg };
-    }
-
-    const chat = createChat({
-      name: input.name,
-      ticket: input.ticket ?? null,
-      pr: input.pr ?? null,
-      prUrl: input.prUrl ?? null,
-      branch,
-      type: input.type ?? 'lite',
-      slotId,
-      worktreePath,
-      repoId: repo.id,
-      agent: input.agent,
-      claudeModel: input.claudeModel,
-      claudeReasoningEffort: input.claudeReasoningEffort,
-      codexModel: input.codexModel,
-      codexReasoningEffort: input.codexReasoningEffort,
-    });
-    if (input.baseBranch?.trim()) {
-      const blob = (getSetting<Record<string, string>>('git.baseBranchByChat') ?? {});
-      blob[chat.id] = input.baseBranch.trim();
-      setSetting('git.baseBranchByChat', blob);
-    }
-    return { ok: true, chat };
-  });
+  ipcMain.handle(IpcChannel.ChatsCreate, (_e, input: CreateChatInput) => createChatWithWorkspace(input));
 
   /** Attach a slot + worktree to an already-open chat that doesn't
    *  have one yet (e.g. created before slots were configured). Same
@@ -425,207 +243,9 @@ export function registerChatHandlers(): void {
     };
   });
 
-  ipcMain.handle(
-    IpcChannel.ChatsClose,
-    async (_e, chatId: string, opts?: CloseChatOptions) => {
-      const chat = getChat(chatId);
-      // Await SDK shutdown so its session JSONL flushes before any
-      // worktree teardown below — otherwise the next reopen of this
-      // chat lands on "no conversation found".
-      await AgentHost.dispose(chatId);
-      disposePty(chatId);
-      forgetCloudChat(chatId);
+  ipcMain.handle(IpcChannel.ChatsClose, (_e, chatId: string, opts?: CloseChatOptions) => closeChatWithWorkspace(chatId, opts));
 
-      // Slot-backed chat: park to its parking branch + leave the worktree
-      // in place for the next slot allocation. Parking branch must be
-      // namespaced by the chat's repo (`<repoId>/slot<N>`) — using the
-      // legacy `gitCfg.repoName` here would route every repo's slot
-      // back to the default repo's parking branches and corrupt them.
-      if (chat?.slotId != null && chat.worktreePath) {
-        const repo = resolveRepo(chat.repoId);
-        const scm = getSourceControlProvider(repo);
-        const park = repo ? scm.parkingBranch(repo.id, chat.slotId) : null;
-        const baseBranch = repo?.defaultBase;
-        const repoPath = repo?.repoPath;
-        try {
-          // Consolidate the chat's work to its slot-independent home BEFORE
-          // parking (parking resets the slot). git → push branch to the local
-          // root; perforce → shelve the changelist. Returns state to persist
-          // on the chat (the perforce shelf changelist).
-          if (repoPath && chat.branch) {
-            try {
-              const persisted = await scm.persistChatOnClose({
-                repoPath,
-                worktreePath: chat.worktreePath,
-                branch: chat.branch,
-                discard: opts?.stash !== true,
-                p4ShelfCl: chat.p4ShelfCl ?? null,
-              });
-              if (persisted.p4ShelfCl !== undefined) {
-                setChatP4Shelf(chat.id, persisted.p4ShelfCl ?? null);
-              }
-            } catch (err) {
-              console.warn(`[slots] persist-on-close failed for chat ${chatId}: ${(err as Error).message}`);
-            }
-          }
-          if (park) {
-            await scm.parkSlot({
-              worktreePath: chat.worktreePath,
-              parkBranch: park,
-              stash: opts?.stash === true,
-              discard: opts?.stash !== true,
-              stashMessage: scm.newChatStashName(chat.id),
-            });
-          }
-          if (park && baseBranch) {
-            scm.refreshParkBranchInBackground({
-              worktreePath: chat.worktreePath,
-              parkBranch: park,
-              baseBranch,
-            });
-          }
-        } catch (err) {
-          // eslint-disable-next-line no-console
-          console.warn(`[slots] park failed for chat ${chatId}: ${(err as Error).message}`);
-        }
-      }
-      // Ephemeral chat (worktree but no slot): tear down the worktree
-      // entirely. Branch stays in the repo so reopen can recreate.
-      else if (chat?.slotId == null && chat?.worktreePath) {
-        const repo = resolveRepo(chat.repoId);
-        const scm = getSourceControlProvider(repo);
-        const repoPath = repo?.repoPath;
-        if (repoPath) {
-          try {
-            await scm.removeChatWorktree({
-              repoPath,
-              worktreePath: chat.worktreePath,
-              stash: opts?.stash === true,
-              discard: opts?.stash !== true,
-              stashMessage: scm.newChatStashName(chat.id),
-            });
-          } catch (err) {
-            // eslint-disable-next-line no-console
-            console.warn(`[ephemeral] remove failed for chat ${chatId}: ${(err as Error).message}`);
-          }
-        }
-      }
-
-      closeChat(chatId);
-    },
-  );
-
-  ipcMain.handle(
-    IpcChannel.ChatsReopen,
-    async (_e, chatId: string): Promise<ReopenChatResult> => {
-      const chat = getChat(chatId);
-      if (!chat) return { ok: false, reason: 'not-found' };
-      // CR chats (and any future slot-less chat type) have no branch
-      // — they run against the repo root and don't need a worktree
-      // restored on reopen. Slot-backed chats always have a branch
-      // (auto-generated at create time if the caller didn't supply
-      // one), so branch presence is the only signal we need.
-      //
-      // Previously this also checked slot_id / worktree_path being
-      // empty as a fallback, but both are correctly cleared by
-      // closeChat() now, so they're zero on every closed chat —
-      // including slot-backed ones we DO want to restore. Branch is
-      // chat-stable identity; the runtime fields are not.
-      if (!chat.branch) {
-        const reopened = reopenChat(chatId);
-        if (!reopened) return { ok: false, reason: 'not-found' };
-        return { ok: true, chat: reopened };
-      }
-      const repo = resolveRepo(chat.repoId);
-      // Per-repo config (mode / scm / slotCount / repoPath / defaultBase) lives
-      // on the repo row — there is no global git/slots config anymore. Requiring
-      // it here once wrongly skipped slot reopen (no slot + no restored branch).
-      if (!repo) {
-        const reopened = reopenChat(chatId);
-        if (!reopened) return { ok: false, reason: 'not-found' };
-        return { ok: true, chat: reopened };
-      }
-      const baseBranch = repo.defaultBase || 'main';
-      const repoPath = repo.repoPath || '';
-      const scm = getSourceControlProvider(repo);
-
-      if (repo.mode === 'ephemeral') {
-        const worktreePath = ephemeralPathFor({
-          scm,
-          worktreesDir: worktreesDirForRepo(repo),
-          ticket: chat.ticket,
-          pr: chat.pr,
-          chatId: chat.id,
-        });
-        try {
-          await scm.ensureChatWorktree({
-            repoPath,
-            worktreePath,
-            branch: chat.branch,
-            baseBranch,
-          });
-          // Same per-chat stash convention slot mode uses — pop the
-          // latest one so dirty work survives close→reopen cycles.
-          const stashRef = await scm.findLatestStashRef(worktreePath, scm.chatStashPrefix(chatId));
-          if (stashRef) await scm.popStash(worktreePath, stashRef);
-        } catch (err) {
-          return { ok: false, reason: 'worktree-failed', message: (err as Error).message };
-        }
-        const reopened = reopenChat(chatId, { slotId: null, worktreePath });
-        if (!reopened) return { ok: false, reason: 'not-found' };
-        return { ok: true, chat: reopened };
-      }
-
-      // Slot-pool mode. Pool size comes from the repo row (global slots setting
-      // is only a pre-multi-repo fallback) — mirrors the create path.
-      const maxSlots = repo.slotCount || 0;
-      if (maxSlots < 1) {
-        const reopened = reopenChat(chatId);
-        if (!reopened) return { ok: false, reason: 'not-found' };
-        return { ok: true, chat: reopened };
-      }
-      const slotId = allocateSlotPreferring(maxSlots, chat.slotId);
-      if (slotId === null) return { ok: false, reason: 'no-free-slot' };
-      const worktreePath = slotWorktreePathForRepo(repo, slotId);
-      try {
-        // Re-attach VHDX slot mounts if a reboot dropped them, before any slot
-        // op touches an empty mount (same guard the create path uses).
-        await ensureSlotsMounted(repo);
-        await scm.ensureSlotWorktree({
-          repoPath,
-          worktreePath,
-          parkBranch: scm.parkingBranch(repo.id, slotId),
-          baseBranch,
-        });
-        await scm.checkoutBranch({ worktreePath, branch: chat.branch, baseBranch });
-        // Restore the chat's work from its slot-independent home (git → fetch
-        // the branch from the local root; perforce → unshelve into this slot).
-        // Replaces the old slot-local stash, which couldn't survive a reopen on
-        // a different slot. Returns updated state to persist (perforce shelf CL).
-        const restored = await scm.restoreChatOnReopen({
-          repoPath,
-          worktreePath,
-          branch: chat.branch,
-          baseBranch,
-          p4ShelfCl: chat.p4ShelfCl ?? null,
-        });
-        if (restored.p4ShelfCl !== undefined) setChatP4Shelf(chatId, restored.p4ShelfCl ?? null);
-      } catch (err) {
-        return { ok: false, reason: 'worktree-failed', message: (err as Error).message };
-      }
-      const reopened = reopenChat(chatId, { slotId, worktreePath });
-      if (!reopened) return { ok: false, reason: 'not-found' };
-      // A reopened slot-backed chat was closed (which nulls its slot_id) and is
-      // now (re)attached to a slot — often a different one, since slot
-      // allocation can't guarantee the same number. We can't compare to the old
-      // slot (closeChat already cleared it), so flag the resume unconditionally:
-      // the invisible preamble on the next message re-states the current working
-      // directory (see firstMessageCwdPreamble) so the agent doesn't follow a
-      // stale path it recalls from before the close.
-      AgentHost.markResumed(chatId);
-      return { ok: true, chat: reopened };
-    },
-  );
+  ipcMain.handle(IpcChannel.ChatsReopen, (_e, chatId: string) => reopenChatWithWorkspace(chatId));
 
   /**
    * Fork a chat: a new chat that picks up exactly where this one is, so
@@ -829,4 +449,398 @@ export function registerChatHandlers(): void {
   ipcMain.handle(IpcChannel.MessagesList, (_e, chatId: string, tail?: number) =>
     listMessages(chatId, tail),
   );
+}
+
+/**
+ * Create a chat and, when asked, its workspace (a slot from the repo's
+ * pool, or an ephemeral worktree). Shared by the renderer's create flow
+ * and the popbot MCP tools.
+ */
+export async function createChatWithWorkspace(input: CreateChatInput): Promise<CreateChatResult> {
+  const wantsWorkspace = input.slotId != null || input.allocateSlot === true;
+
+  // No workspace requested → cheap path. Used by lite chats that run
+  // against the repo root and never need a worktree (e.g. CR chats).
+  if (!wantsWorkspace) {
+    // A cloud chat drives a Claude Code cloud session (claude.ai/code):
+    // no slot, no worktree, and always Claude — see cloudSessions.ts.
+    const cloud = input.cloud === true;
+    const chat = createChat({
+      name: input.name,
+      ticket: input.ticket ?? null,
+      pr: input.pr ?? null,
+      prUrl: input.prUrl ?? null,
+      branch: input.branch ?? null,
+      type: input.type ?? 'lite',
+      slotId: null,
+      worktreePath: null,
+      repoId: input.repoId,
+      agent: cloud ? 'claude' : input.agent,
+      cloud: cloud ? { provider: 'claude', sessionId: null, url: null, startedAt: null } : null,
+      claudeModel: input.claudeModel,
+      claudeReasoningEffort: input.claudeReasoningEffort,
+      codexModel: input.codexModel,
+      codexReasoningEffort: input.codexReasoningEffort,
+    });
+    if (input.baseBranch?.trim()) {
+      const blob = (getSetting<Record<string, string>>('git.baseBranchByChat') ?? {});
+      blob[chat.id] = input.baseBranch.trim();
+      setSetting('git.baseBranchByChat', blob);
+    }
+    return { ok: true, chat };
+  }
+
+  // Workspace requested → resolve repo first; mode determines whether
+  // we allocate a slot from the pool or spin up an ephemeral worktree.
+  const repo = resolveRepo(input.repoId);
+  if (!repo) return { ok: false, reason: 'git-not-configured' };
+  const scm = getSourceControlProvider(repo);
+  // The repo record is the source of truth (repoPath, defaultBase,
+  // slotCount). The legacy single-repo `settings.git` is only a
+  // fallback for pre-multi-repo installs — NOT required. A valid repo
+  // + git/gh is enough; don't force the user into Source-control prefs.
+  const branch = input.branch?.trim() || `popbot/chat-${Date.now()}`;
+  const baseBranch = input.baseBranch?.trim() || repo.defaultBase || 'main';
+
+  if (repo.mode === 'ephemeral') {
+    // Ephemeral (throwaway-per-chat) worktrees are a git-style notion;
+    // providers whose working copies are heavyweight + long-lived
+    // (Perforce) opt out via capabilities. Refuse rather than silently
+    // mis-provisioning. Git always supports it, so this is a no-op
+    // today and the seam for when non-git repos can be created.
+    if (!scm.capabilities.supportsEphemeralRepos) {
+      return {
+        ok: false,
+        reason: 'worktree-failed',
+        message: `${scm.id} repos don't support ephemeral worktrees`,
+      };
+    }
+    // input.slotId is meaningless in ephemeral mode — the renderer
+    // shouldn't pass it for ephemeral repos, but if it does we just
+    // ignore it rather than error (the user got a workspace either way).
+    const chat = createChat({
+      name: input.name,
+      ticket: input.ticket ?? null,
+      pr: input.pr ?? null,
+      prUrl: input.prUrl ?? null,
+      branch,
+      type: input.type ?? 'lite',
+      slotId: null,
+      worktreePath: null,
+      repoId: repo.id,
+      agent: input.agent,
+      claudeModel: input.claudeModel,
+      claudeReasoningEffort: input.claudeReasoningEffort,
+      codexModel: input.codexModel,
+      codexReasoningEffort: input.codexReasoningEffort,
+    });
+    const worktreePath = ephemeralPathFor({
+      scm,
+      // Per-repo workspace dir, NOT the legacy `gitCfg.worktreesDir`
+      // (which is scoped to the default seed repo). Without this,
+      // ephemeral chats for a non-default repo were getting checked
+      // out under the default repo's workspace dir and the agent's
+      // cwd ended up in the wrong repo.
+      worktreesDir: worktreesDirForRepo(repo),
+      ticket: input.ticket ?? null,
+      pr: input.pr ?? null,
+      chatId: chat.id,
+    });
+    try {
+      await scm.ensureChatWorktree({
+        repoPath: repo.repoPath || '',
+        worktreePath,
+        branch,
+        baseBranch,
+      });
+    } catch (err) {
+      const msg = err instanceof GitWorktreeError ? err.message : (err as Error).message;
+      return { ok: false, reason: 'worktree-failed', message: msg };
+    }
+    setChatWorktree(chat.id, worktreePath);
+    if (input.baseBranch?.trim()) {
+      const blob = (getSetting<Record<string, string>>('git.baseBranchByChat') ?? {});
+      blob[chat.id] = input.baseBranch.trim();
+      setSetting('git.baseBranchByChat', blob);
+    }
+    const updated = getChat(chat.id);
+    return updated ? { ok: true, chat: updated } : { ok: false, reason: 'worktree-failed', message: 'Lost chat after create' };
+  }
+
+  // Slot-pool mode — original flow. Pool size comes from the repo's
+  // own slotCount (set in the Add Repository wizard); fall back to the
+  // legacy global slots setting only for pre-multi-repo installs.
+  const maxSlots = repo.slotCount || 0;
+  if (maxSlots < 1) return { ok: false, reason: 'slots-not-configured' };
+  let slotId: number;
+  if (input.slotId != null) {
+    const taken = listSlotOccupants();
+    if (taken.has(input.slotId)) {
+      return { ok: false, reason: 'slot-taken', slotId: input.slotId };
+    }
+    slotId = input.slotId;
+  } else {
+    const picked = allocateSlotPreferring(maxSlots, null);
+    if (picked === null) return { ok: false, reason: 'no-free-slot' };
+    slotId = picked;
+  }
+  // Per-repo path + parking branch; the legacy default seed honors
+  // `settings.git.worktreesDir` via `worktreesDirForRepo` so existing
+  // slot worktrees keep working unchanged.
+  const worktreePath = slotWorktreePathForRepo(repo, slotId);
+
+  try {
+    // Re-attach VHDX slot mounts if a reboot dropped them (one elevated
+    // `shado remount`), before any slot op touches an empty mount.
+    await ensureSlotsMounted(repo);
+    await scm.ensureSlotWorktree({
+      repoPath: repo.repoPath || '',
+      worktreePath,
+      parkBranch: scm.parkingBranch(repo.id, slotId),
+      baseBranch: repo.defaultBase || 'main',
+    });
+    await scm.refreshSlotForAllocation({ worktreePath, baseBranch });
+    await scm.checkoutBranch({ worktreePath, branch, baseBranch });
+  } catch (err) {
+    const msg = err instanceof GitWorktreeError ? err.message : (err as Error).message;
+    dlog('chat.create.worktreeFailed', {
+      repoId: repo.id,
+      scm: repo.scm ?? 'git',
+      slotId,
+      worktreePath,
+      branch,
+      baseBranch,
+      error: msg,
+      stack: (err as Error).stack,
+    });
+    return { ok: false, reason: 'worktree-failed', message: msg };
+  }
+
+  const chat = createChat({
+    name: input.name,
+    ticket: input.ticket ?? null,
+    pr: input.pr ?? null,
+    prUrl: input.prUrl ?? null,
+    branch,
+    type: input.type ?? 'lite',
+    slotId,
+    worktreePath,
+    repoId: repo.id,
+    agent: input.agent,
+    claudeModel: input.claudeModel,
+    claudeReasoningEffort: input.claudeReasoningEffort,
+    codexModel: input.codexModel,
+    codexReasoningEffort: input.codexReasoningEffort,
+  });
+  if (input.baseBranch?.trim()) {
+    const blob = (getSetting<Record<string, string>>('git.baseBranchByChat') ?? {});
+    blob[chat.id] = input.baseBranch.trim();
+    setSetting('git.baseBranchByChat', blob);
+  }
+  return { ok: true, chat };
+}
+
+/**
+ * Close a chat: end its agent session and terminal, put its work away
+ * (git → the branch pushed to the local root; perforce → shelved), park
+ * or remove its workspace. Shared by the renderer and the MCP tools.
+ */
+export async function closeChatWithWorkspace(chatId: string, opts?: CloseChatOptions): Promise<void> {
+  const chat = getChat(chatId);
+  // Await SDK shutdown so its session JSONL flushes before any
+  // worktree teardown below — otherwise the next reopen of this
+  // chat lands on "no conversation found".
+  await AgentHost.dispose(chatId);
+  disposePty(chatId);
+  forgetCloudChat(chatId);
+
+  // Slot-backed chat: park to its parking branch + leave the worktree
+  // in place for the next slot allocation. Parking branch must be
+  // namespaced by the chat's repo (`<repoId>/slot<N>`) — using the
+  // legacy `gitCfg.repoName` here would route every repo's slot
+  // back to the default repo's parking branches and corrupt them.
+  if (chat?.slotId != null && chat.worktreePath) {
+    const repo = resolveRepo(chat.repoId);
+    const scm = getSourceControlProvider(repo);
+    const park = repo ? scm.parkingBranch(repo.id, chat.slotId) : null;
+    const baseBranch = repo?.defaultBase;
+    const repoPath = repo?.repoPath;
+    try {
+      // Consolidate the chat's work to its slot-independent home BEFORE
+      // parking (parking resets the slot). git → push branch to the local
+      // root; perforce → shelve the changelist. Returns state to persist
+      // on the chat (the perforce shelf changelist).
+      if (repoPath && chat.branch) {
+        try {
+          const persisted = await scm.persistChatOnClose({
+            repoPath,
+            worktreePath: chat.worktreePath,
+            branch: chat.branch,
+            discard: opts?.stash !== true,
+            p4ShelfCl: chat.p4ShelfCl ?? null,
+          });
+          if (persisted.p4ShelfCl !== undefined) {
+            setChatP4Shelf(chat.id, persisted.p4ShelfCl ?? null);
+          }
+        } catch (err) {
+          console.warn(`[slots] persist-on-close failed for chat ${chatId}: ${(err as Error).message}`);
+        }
+      }
+      if (park) {
+        await scm.parkSlot({
+          worktreePath: chat.worktreePath,
+          parkBranch: park,
+          stash: opts?.stash === true,
+          discard: opts?.stash !== true,
+          stashMessage: scm.newChatStashName(chat.id),
+        });
+      }
+      if (park && baseBranch) {
+        scm.refreshParkBranchInBackground({
+          worktreePath: chat.worktreePath,
+          parkBranch: park,
+          baseBranch,
+        });
+      }
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.warn(`[slots] park failed for chat ${chatId}: ${(err as Error).message}`);
+    }
+  }
+  // Ephemeral chat (worktree but no slot): tear down the worktree
+  // entirely. Branch stays in the repo so reopen can recreate.
+  else if (chat?.slotId == null && chat?.worktreePath) {
+    const repo = resolveRepo(chat.repoId);
+    const scm = getSourceControlProvider(repo);
+    const repoPath = repo?.repoPath;
+    if (repoPath) {
+      try {
+        await scm.removeChatWorktree({
+          repoPath,
+          worktreePath: chat.worktreePath,
+          stash: opts?.stash === true,
+          discard: opts?.stash !== true,
+          stashMessage: scm.newChatStashName(chat.id),
+        });
+      } catch (err) {
+        // eslint-disable-next-line no-console
+        console.warn(`[ephemeral] remove failed for chat ${chatId}: ${(err as Error).message}`);
+      }
+    }
+  }
+  closeChat(chatId);
+}
+
+/**
+ * Reopen a closed chat and give it a workspace again (its branch checked
+ * out on a slot or a fresh ephemeral worktree, saved work restored).
+ * Shared by the renderer and the MCP tools.
+ */
+export async function reopenChatWithWorkspace(chatId: string): Promise<ReopenChatResult> {
+  const chat = getChat(chatId);
+  if (!chat) return { ok: false, reason: 'not-found' };
+  // CR chats (and any future slot-less chat type) have no branch
+  // — they run against the repo root and don't need a worktree
+  // restored on reopen. Slot-backed chats always have a branch
+  // (auto-generated at create time if the caller didn't supply
+  // one), so branch presence is the only signal we need.
+  //
+  // Previously this also checked slot_id / worktree_path being
+  // empty as a fallback, but both are correctly cleared by
+  // closeChat() now, so they're zero on every closed chat —
+  // including slot-backed ones we DO want to restore. Branch is
+  // chat-stable identity; the runtime fields are not.
+  if (!chat.branch) {
+    const reopened = reopenChat(chatId);
+    if (!reopened) return { ok: false, reason: 'not-found' };
+    return { ok: true, chat: reopened };
+  }
+  const repo = resolveRepo(chat.repoId);
+  // Per-repo config (mode / scm / slotCount / repoPath / defaultBase) lives
+  // on the repo row — there is no global git/slots config anymore. Requiring
+  // it here once wrongly skipped slot reopen (no slot + no restored branch).
+  if (!repo) {
+    const reopened = reopenChat(chatId);
+    if (!reopened) return { ok: false, reason: 'not-found' };
+    return { ok: true, chat: reopened };
+  }
+  const baseBranch = repo.defaultBase || 'main';
+  const repoPath = repo.repoPath || '';
+  const scm = getSourceControlProvider(repo);
+
+  if (repo.mode === 'ephemeral') {
+    const worktreePath = ephemeralPathFor({
+      scm,
+      worktreesDir: worktreesDirForRepo(repo),
+      ticket: chat.ticket,
+      pr: chat.pr,
+      chatId: chat.id,
+    });
+    try {
+      await scm.ensureChatWorktree({
+        repoPath,
+        worktreePath,
+        branch: chat.branch,
+        baseBranch,
+      });
+      // Same per-chat stash convention slot mode uses — pop the
+      // latest one so dirty work survives close→reopen cycles.
+      const stashRef = await scm.findLatestStashRef(worktreePath, scm.chatStashPrefix(chatId));
+      if (stashRef) await scm.popStash(worktreePath, stashRef);
+    } catch (err) {
+      return { ok: false, reason: 'worktree-failed', message: (err as Error).message };
+    }
+    const reopened = reopenChat(chatId, { slotId: null, worktreePath });
+    if (!reopened) return { ok: false, reason: 'not-found' };
+    return { ok: true, chat: reopened };
+  }
+
+  // Slot-pool mode. Pool size comes from the repo row (global slots setting
+  // is only a pre-multi-repo fallback) — mirrors the create path.
+  const maxSlots = repo.slotCount || 0;
+  if (maxSlots < 1) {
+    const reopened = reopenChat(chatId);
+    if (!reopened) return { ok: false, reason: 'not-found' };
+    return { ok: true, chat: reopened };
+  }
+  const slotId = allocateSlotPreferring(maxSlots, chat.slotId);
+  if (slotId === null) return { ok: false, reason: 'no-free-slot' };
+  const worktreePath = slotWorktreePathForRepo(repo, slotId);
+  try {
+    // Re-attach VHDX slot mounts if a reboot dropped them, before any slot
+    // op touches an empty mount (same guard the create path uses).
+    await ensureSlotsMounted(repo);
+    await scm.ensureSlotWorktree({
+      repoPath,
+      worktreePath,
+      parkBranch: scm.parkingBranch(repo.id, slotId),
+      baseBranch,
+    });
+    await scm.checkoutBranch({ worktreePath, branch: chat.branch, baseBranch });
+    // Restore the chat's work from its slot-independent home (git → fetch
+    // the branch from the local root; perforce → unshelve into this slot).
+    // Replaces the old slot-local stash, which couldn't survive a reopen on
+    // a different slot. Returns updated state to persist (perforce shelf CL).
+    const restored = await scm.restoreChatOnReopen({
+      repoPath,
+      worktreePath,
+      branch: chat.branch,
+      baseBranch,
+      p4ShelfCl: chat.p4ShelfCl ?? null,
+    });
+    if (restored.p4ShelfCl !== undefined) setChatP4Shelf(chatId, restored.p4ShelfCl ?? null);
+  } catch (err) {
+    return { ok: false, reason: 'worktree-failed', message: (err as Error).message };
+  }
+  const reopened = reopenChat(chatId, { slotId, worktreePath });
+  if (!reopened) return { ok: false, reason: 'not-found' };
+  // A reopened slot-backed chat was closed (which nulls its slot_id) and is
+  // now (re)attached to a slot — often a different one, since slot
+  // allocation can't guarantee the same number. We can't compare to the old
+  // slot (closeChat already cleared it), so flag the resume unconditionally:
+  // the invisible preamble on the next message re-states the current working
+  // directory (see firstMessageCwdPreamble) so the agent doesn't follow a
+  // stale path it recalls from before the close.
+  AgentHost.markResumed(chatId);
+  return { ok: true, chat: reopened };
 }

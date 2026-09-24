@@ -874,6 +874,11 @@ export const de = {
     'Verbindet sich über den app-server mit Codex statt über das exec-SDK: Eine Nachricht, die du sendest, während Codex beschäftigt ist, erreicht es beim nächsten Schritt, statt auf das Ende des Zugs zu warten. Füllt außerdem die Kontextanzeige für Codex-Chats und aktiviert „Kontext komprimieren“. In der Codex-CLI experimentell; benötigt codex 0.153 oder neuer. Gilt ab der nächsten Nachricht jedes Chats.',
   'prefs.agents.codexSteering.on': 'An — Nachrichten erreichen Codex mitten im Zug',
   'prefs.agents.codexSteering.off': 'Aus — Nachrichten warten auf das Ende des Zugs',
+  'prefs.agents.mcp.title': 'PopBot-Tools für Agenten',
+  'prefs.agents.mcp.desc':
+    'Gibt dem Agenten jedes Chats einen „popbot“-MCP-Server: Chats auflisten, anlegen, schließen und wieder öffnen, anderen Chats Nachrichten schicken und auf ihre Antwort warten, Code-Reviews und Ticket-Chats starten sowie Transkripte lesen und durchsuchen. Gilt ab der nächsten Agent-Session jedes Chats.',
+  'prefs.agents.mcp.on': 'An — Agenten können PopBot steuern',
+  'prefs.agents.mcp.off': 'Aus — keine popbot-Tools',
 
   // Preferences — Runtime / attachment retention pane.
   'prefs.runtime.title': 'Aufbewahrung von Anhängen',

@@ -874,6 +874,11 @@ export const it = {
     'Si collega a Codex tramite il suo app-server invece dell’SDK exec, così un messaggio inviato mentre Codex è occupato gli arriva al passo successivo invece di attendere la fine del turno. Alimenta anche l’indicatore di contesto per le chat Codex e abilita Compatta contesto. Sperimentale nella CLI di Codex; richiede codex 0.153 o successivo. Si applica dal prossimo messaggio di ogni chat.',
   'prefs.agents.codexSteering.on': 'Attivo — i messaggi raggiungono Codex a metà turno',
   'prefs.agents.codexSteering.off': 'Disattivo — i messaggi attendono la fine del turno',
+  'prefs.agents.mcp.title': 'Strumenti PopBot per gli agenti',
+  'prefs.agents.mcp.desc':
+    'Dà all’agente di ogni chat un server MCP «popbot»: elencare, creare, chiudere e riaprire chat, inviare messaggi ad altre chat e attenderne la risposta, avviare code review e chat per ticket, leggere e cercare nelle trascrizioni. Vale dalla prossima sessione dell’agente di ogni chat.',
+  'prefs.agents.mcp.on': 'Attivo — gli agenti possono guidare PopBot',
+  'prefs.agents.mcp.off': 'Disattivo — nessuno strumento popbot',
 
   // Preferences — Runtime / attachment retention pane.
   'prefs.runtime.title': 'Conservazione allegati',

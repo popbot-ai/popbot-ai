@@ -24,7 +24,7 @@ import {
   DEFAULT_P4_ADDRESS_CR_TEMPLATE,
   DEFAULT_RUN_TESTS_TEMPLATE,
   DEFAULT_P4_REVIEW_COMMIT_TEMPLATE,
-} from '../lib/templates';
+} from '@shared/templates';
 import { P4Glyph } from './P4Glyph';
 import type { SourceControlPanelProps } from './SourceControlPanel';
 

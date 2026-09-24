@@ -144,6 +144,17 @@ Como reverter é apenas "enviar outra mensagem" (não há edições destrutivas 
 
 ---
 
+### Ferramentas do PopBot para agentes
+
+O agente de cada chat — Claude ou Codex — recebe um servidor MCP `popbot`, para que um agente possa operar o app como você e os chats possam conversar entre si:
+
+- **Chats** — `list_chats` (nomes, ids, status e qual chat está chamando), `create_chat` (um chat de slot em um novo branch, um chat na raiz do repositório ou um chat na nuvem, opcionalmente com uma primeira mensagem), `close_chat`, `reopen_chat`.
+- **Outros agentes** — `send_to_chat` envia uma mensagem a outro chat e, por padrão, espera o turno daquele agente terminar e devolve a resposta; um chat ocupado recebe a mensagem na fila, atrás do trabalho atual. Um chat não pode enviar mensagem para si mesmo nem se fechar.
+- **Trabalho** — `start_code_review` abre um chat de revisão para um PR (ou uma revisão Swarm) exatamente como a lista de Revisões faz, template de prompt incluído; `open_ticket_chat` abre um chat de ticket em um branch `<você>/<ticket>-<slug>`, envia o prompt de início do ticket e move o ticket para Em andamento.
+- **Transcrições** — `get_chat_transcript` lê um chat (o próprio ou outro) como entradas numeradas, inteiro ou por faixa; `search_chats` encontra um termo com o texto ao redor de cada ocorrência, em um chat ou em todos os abertos.
+
+O servidor escuta só em localhost, em uma porta aleatória com um segredo por inicialização na URL, e pode ser desligado em *Preferências ▸ Agentes*.
+
 ## Anatomia do workspace
 
 ![PopBot UI anatomy](../../images/anatomy.png)

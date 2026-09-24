@@ -172,6 +172,23 @@ export function codexUsesAppServer(settings: CodexSettings | null | undefined): 
   return settings?.appServer === true;
 }
 
+/** Settings stored under `agent.mcp` (Preferences ▸ Agents). */
+export const POPBOT_MCP_SETTINGS_KEY = 'agent.mcp';
+
+export interface PopbotMcpSettings {
+  /**
+   * Hand every chat's agent a `popbot` MCP server (list / create / close /
+   * reopen chats, message other chats, start reviews and ticket chats,
+   * read and search transcripts). On by default; applies from each
+   * chat's next agent session.
+   */
+  enabled?: boolean;
+}
+
+export function popbotMcpEnabled(settings: PopbotMcpSettings | null | undefined): boolean {
+  return settings?.enabled !== false;
+}
+
 export type ChatType = 'lite' | 'client_test' | 'server_test';
 export type ChatMode = 'interactive' | 'autonomous';
 

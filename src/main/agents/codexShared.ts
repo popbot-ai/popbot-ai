@@ -79,6 +79,26 @@ export function codexPermissions(opts: Pick<SpawnOpts, 'resolveRule'>): CodexPer
   };
 }
 
+/** Codex's `mcp_servers` config for the HTTP MCP servers a chat gets
+ *  (the editor's, PopBot's own): `[mcp_servers.<name>] url = …`.
+ *
+ *  PopBot runs Codex with `approvalPolicy: 'never'` (approvals aren't
+ *  surfaced to the host yet), under which an MCP tool that asks for
+ *  approval is refused — "MCP tool call requires approval, but approval
+ *  policy is never". Verified on codex 0.154: Codex decides that from the
+ *  tool's MCP annotations. A tool with none is refused; one annotated
+ *  readOnlyHint/destructiveHint:false runs. So the popbot server annotates
+ *  every tool (see mcp/server.ts) and no per-server approval setting is
+ *  needed here — `default_tools_approval_mode = "auto"` in fact routed
+ *  calls to an automatic review that refused them. */
+export function codexMcpConfig(
+  servers: SpawnOpts['mcpServers'],
+): Record<string, { url: string }> | null {
+  const entries = Object.entries(servers ?? {});
+  if (entries.length === 0) return null;
+  return Object.fromEntries(entries.map(([name, s]) => [name, { url: s.url }]));
+}
+
 export function codexMessageId(chatId: string, itemId: string): string {
   return `codex_msg_${safeId(chatId)}_${safeId(itemId)}`;
 }

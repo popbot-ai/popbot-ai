@@ -874,6 +874,11 @@ export const fr = {
     'Se connecte à Codex via son app-server plutôt que le SDK exec : un message envoyé pendant que Codex est occupé lui parvient à son étape suivante au lieu d’attendre la fin du tour. Alimente aussi la jauge de contexte des conversations Codex et active Compacter le contexte. Expérimental dans la CLI Codex ; nécessite codex 0.153 ou plus récent. S’applique dès le prochain message de chaque conversation.',
   'prefs.agents.codexSteering.on': 'Activé — les messages parviennent à Codex en cours de tour',
   'prefs.agents.codexSteering.off': 'Désactivé — les messages attendent la fin du tour',
+  'prefs.agents.mcp.title': 'Outils PopBot pour les agents',
+  'prefs.agents.mcp.desc':
+    'Donne à l’agent de chaque conversation un serveur MCP « popbot » : lister, créer, fermer et rouvrir des conversations, envoyer un message à une autre conversation et attendre sa réponse, lancer des revues de code et des conversations de ticket, lire et chercher dans les transcriptions. S’applique à partir de la prochaine session d’agent de chaque conversation.',
+  'prefs.agents.mcp.on': 'Activé — les agents peuvent piloter PopBot',
+  'prefs.agents.mcp.off': 'Désactivé — pas d’outils popbot',
 
   // Preferences — Runtime / attachment retention pane.
   'prefs.runtime.title': 'Rétention des pièces jointes',

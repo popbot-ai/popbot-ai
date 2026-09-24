@@ -41,6 +41,7 @@ import {
 } from './codexRpc';
 import {
   EXPECTED_CODEX_LIMIT,
+  codexMcpConfig,
   codexMessageId,
   codexPermissions,
   codexToolId,
@@ -188,6 +189,7 @@ class CodexAppServerSession implements AgentSession {
 
   private async open(opts: SpawnOpts): Promise<void> {
     const permissions = codexPermissions(opts);
+    const mcpConfig = codexMcpConfig(opts.mcpServers);
     await this.rpc.request('initialize', {
       clientInfo: { name: 'popbot', title: 'PopBot', version: safeAppVersion() },
       capabilities: null,
@@ -205,6 +207,7 @@ class CodexAppServerSession implements AgentSession {
         model_reasoning_effort: this.effort,
         web_search: permissions.webSearchMode,
         sandbox_workspace_write: { network_access: permissions.networkAccessEnabled },
+        ...(mcpConfig ? { mcp_servers: mcpConfig } : {}),
       },
     };
     dlog('codex.app-server.start', {

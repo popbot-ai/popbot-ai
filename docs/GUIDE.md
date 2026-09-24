@@ -144,6 +144,17 @@ Because rollback is just "send another message" (there are no destructive histor
 
 ---
 
+### PopBot tools for agents
+
+Every chat's agent — Claude or Codex — gets a `popbot` MCP server, so an agent can work the app the way you do, and chats can talk to each other:
+
+- **Chats** — `list_chats` (names, ids, status, and which chat is calling), `create_chat` (a slot chat on a new branch, a repo-root chat, or a cloud chat, optionally with a first message), `close_chat`, `reopen_chat`.
+- **Other agents** — `send_to_chat` posts a message to another chat and, by default, waits for that agent's turn to finish and returns its reply; a busy chat gets the message queued behind its current work. A chat cannot message or close itself.
+- **Work** — `start_code_review` opens a review chat for a PR (or a Swarm review) exactly as the Reviews list does, prompt template included; `open_ticket_chat` opens a ticket chat on a `<you>/<ticket>-<slug>` branch, sends the start-ticket prompt, and moves the ticket to In Progress.
+- **Transcripts** — `get_chat_transcript` reads a chat (its own or another's) as numbered entries, whole or by range; `search_chats` finds a term with the text around each hit, in one chat or across every open one.
+
+The server listens on localhost only, on a random port with a per-launch secret in its URL, and can be switched off under *Preferences ▸ Agents*.
+
 ## Anatomy of the workspace
 
 ![PopBot UI anatomy](../images/anatomy.png)

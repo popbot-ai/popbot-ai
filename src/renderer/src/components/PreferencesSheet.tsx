@@ -25,6 +25,9 @@ import {
   CLAUDE_REASONING_EFFORTS,
   CODEX_REASONING_EFFORTS,
   CODEX_SETTINGS_KEY,
+  POPBOT_MCP_SETTINGS_KEY,
+  popbotMcpEnabled,
+  type PopbotMcpSettings,
   codexUsesAppServer,
   type CodexSettings,
   clampAttachmentTtlDays,
@@ -83,7 +86,7 @@ import {
   GIT_REBASE_TEMPLATE_VARS,
   P4_ACTION_TEMPLATE_VARS,
   TICKET_TEMPLATE_VARS,
-} from '../lib/templates';
+} from '@shared/templates';
 
 interface PreferencesSheetProps {
   onClose: () => void;
@@ -254,6 +257,7 @@ function PrefsAgents(): JSX.Element {
   if (loading) return <div className="pref-section"><h3>{t('prefs.agents.title')}</h3></div>;
 
   const codexAppServer = codexUsesAppServer(get<CodexSettings>(CODEX_SETTINGS_KEY));
+  const mcpOn = popbotMcpEnabled(get<PopbotMcpSettings>(POPBOT_MCP_SETTINGS_KEY));
   const dirty =
     values.claudeReasoningEffort !== saved.claudeReasoningEffort
     || values.codexReasoningEffort !== saved.codexReasoningEffort
@@ -351,6 +355,32 @@ function PrefsAgents(): JSX.Element {
             </button>
             <span style={{ color: 'var(--fg-2)', fontSize: 12 }}>
               {codexAppServer ? t('prefs.agents.codexSteering.on') : t('prefs.agents.codexSteering.off')}
+            </span>
+          </div>
+        </div>
+
+        {/* The popbot MCP server every chat's agent gets. Applies on its
+            own, from each chat's next session. */}
+        <div className="pref-row">
+          <div className="pref-label">
+            <div className="pref-label-title">{t('prefs.agents.mcp.title')}</div>
+            <div className="pref-label-desc">{t('prefs.agents.mcp.desc')}</div>
+          </div>
+          <div className="pref-control" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <button
+              type="button"
+              className={`pref-toggle ${mcpOn ? 'on' : ''}`}
+              onClick={() => void set(POPBOT_MCP_SETTINGS_KEY, {
+                ...(get<PopbotMcpSettings>(POPBOT_MCP_SETTINGS_KEY) ?? {}),
+                enabled: !mcpOn,
+              } satisfies PopbotMcpSettings)}
+              aria-pressed={mcpOn}
+              aria-label={t('prefs.agents.mcp.title')}
+            >
+              <span className="pref-toggle-thumb" />
+            </button>
+            <span style={{ color: 'var(--fg-2)', fontSize: 12 }}>
+              {mcpOn ? t('prefs.agents.mcp.on') : t('prefs.agents.mcp.off')}
             </span>
           </div>
         </div>

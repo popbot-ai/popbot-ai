@@ -51,6 +51,8 @@ Höherer Effort bedeutet tieferes Reasoning und gründlicheren Tool-Einsatz, bei
 
 **Codex während der Arbeit steuern** *(standardmäßig aus)* — verbindet sich über Codex' `app-server` statt über das exec-SDK. Ist die Option an, wird eine Nachricht, die du sendest, während Codex beschäftigt ist, in den laufenden Zug eingefügt und erreicht das Modell beim nächsten Schritt — meist in dem Moment, in dem der laufende Befehl zurückkehrt — statt auf das Ende des Zugs zu warten. Außerdem füllt sie die Kontextanzeige für Codex-Chats, aktiviert dort **Kontext komprimieren** und lässt **Stop** den Zug sauber unterbrechen. Codex bezeichnet `app-server` als experimentell, und es wird `codex` 0.153 oder neuer benötigt — daher Opt-in; eine ältere CLI fällt einfach auf das Einreihen zurück. Der Schalter gilt ab der nächsten Nachricht jedes Chats, und ein Chat wechselt zwischen beiden Verbindungen, ohne seinen Thread zu verlieren.
 
+**PopBot-Tools für Agenten** *(standardmäßig an)* – gibt dem Agenten jedes Chats einen `popbot`-MCP-Server mit Tools, um Chats aufzulisten, anzulegen, zu schließen und wieder zu öffnen, einem anderen Chat zu schreiben und auf seine Antwort zu warten, Code-Reviews und Ticket-Chats zu starten sowie Transkripte zu lesen und zu durchsuchen (siehe [PopBot-Tools für Agenten](GUIDE.md#popbot-tools-für-agenten)). Der Server lauscht nur auf localhost, auf einem zufälligen Port mit einem pro Start erzeugten Geheimnis in seiner URL. Das Abschalten gilt ab der nächsten Agent-Session jedes Chats.
+
 ## Runtime & Slots
 
 Dieses Panel steuert die **Attachment-Aufbewahrung**. (Slot-Pool-Größe ist jetzt pro Repository und lebt unter [Repositories](#repositories) — siehe die Anmerkung dort.)

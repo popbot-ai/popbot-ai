@@ -873,6 +873,11 @@ export const ja = {
     'exec SDK の代わりに Codex の app-server 経由で接続します。Codex の作業中に送ったメッセージが、ターンの終了を待たずに次のステップで届きます。Codex チャットのコンテキストゲージも機能し、「コンテキストを圧縮」も使えるようになります。Codex CLI では実験的機能で、codex 0.153 以降が必要です。各チャットの次のメッセージから適用されます。',
   'prefs.agents.codexSteering.on': 'オン — メッセージはターンの途中で Codex に届きます',
   'prefs.agents.codexSteering.off': 'オフ — メッセージはターンの終了を待ちます',
+  'prefs.agents.mcp.title': 'エージェント向け PopBot ツール',
+  'prefs.agents.mcp.desc':
+    '各チャットのエージェントに「popbot」MCP サーバーを提供します。チャットの一覧・作成・クローズ・再オープン、他のチャットへのメッセージ送信と返答待ち、コードレビューやチケットチャットの開始、記録の閲覧と検索ができます。各チャットの次回のエージェントセッションから適用されます。',
+  'prefs.agents.mcp.on': 'オン — エージェントが PopBot を操作できます',
+  'prefs.agents.mcp.off': 'オフ — popbot ツールなし',
 
   // Preferences — Runtime / attachment retention pane.
   'prefs.runtime.title': '添付ファイルの保持',

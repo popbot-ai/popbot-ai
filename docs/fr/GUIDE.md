@@ -144,6 +144,17 @@ Parce que le retour en arrière consiste simplement à « envoyer un autre messa
 
 ---
 
+### Outils PopBot pour les agents
+
+L'agent de chaque conversation — Claude comme Codex — reçoit un serveur MCP `popbot`, pour qu'un agent puisse piloter l'application comme vous et que les conversations puissent se parler :
+
+- **Conversations** — `list_chats` (noms, identifiants, état et quelle conversation appelle), `create_chat` (une conversation avec slot sur une nouvelle branche, une conversation à la racine du dépôt ou une conversation cloud, avec un premier message si vous voulez), `close_chat`, `reopen_chat`.
+- **Autres agents** — `send_to_chat` envoie un message à une autre conversation et, par défaut, attend la fin du tour de cet agent pour renvoyer sa réponse ; une conversation occupée met le message en file derrière son travail en cours. Une conversation ne peut ni s'écrire ni se fermer elle-même.
+- **Travail** — `start_code_review` ouvre une conversation de revue pour une PR (ou une revue Swarm) exactement comme la liste des Revues, modèle de prompt compris ; `open_ticket_chat` ouvre une conversation de ticket sur une branche `<vous>/<ticket>-<slug>`, envoie le prompt de démarrage du ticket et passe le ticket En cours.
+- **Transcriptions** — `get_chat_transcript` lit une conversation (la sienne ou une autre) sous forme d'entrées numérotées, en entier ou par plage ; `search_chats` cherche un terme et renvoie le texte autour de chaque occurrence, dans une conversation ou dans toutes celles ouvertes.
+
+Le serveur n'écoute que sur localhost, sur un port aléatoire avec un secret propre à chaque lancement dans son URL, et se désactive dans *Préférences ▸ Agents*.
+
 ## Anatomie de l'espace de travail
 
 ![PopBot UI anatomy](../../images/anatomy.png)

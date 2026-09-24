@@ -874,6 +874,11 @@ export const pl = {
     'Łączy się z Codexem przez jego app-server zamiast SDK exec, dzięki czemu wiadomość wysłana, gdy Codex jest zajęty, dociera do niego w następnym kroku, zamiast czekać na koniec tury. Zasila też wskaźnik kontekstu w czatach Codex i włącza Kompaktuj kontekst. Funkcja eksperymentalna w CLI Codex; wymaga codex 0.153 lub nowszego. Działa od następnej wiadomości w każdym czacie.',
   'prefs.agents.codexSteering.on': 'Wł. — wiadomości docierają do Codexa w trakcie tury',
   'prefs.agents.codexSteering.off': 'Wył. — wiadomości czekają na koniec tury',
+  'prefs.agents.mcp.title': 'Narzędzia PopBota dla agentów',
+  'prefs.agents.mcp.desc':
+    'Daje agentowi każdego czatu serwer MCP „popbot”: listowanie, tworzenie, zamykanie i ponowne otwieranie czatów, wysyłanie wiadomości do innych czatów i czekanie na odpowiedź, uruchamianie code review i czatów do ticketów oraz czytanie i przeszukiwanie zapisów. Obowiązuje od następnej sesji agenta w każdym czacie.',
+  'prefs.agents.mcp.on': 'Włączone — agenci mogą sterować PopBotem',
+  'prefs.agents.mcp.off': 'Wyłączone — bez narzędzi popbot',
 
   // Preferences — Runtime / attachment retention pane.
   'prefs.runtime.title': 'Przechowywanie załączników',

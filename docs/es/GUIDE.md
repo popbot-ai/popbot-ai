@@ -144,6 +144,17 @@ Como retroceder es simplemente "enviar otro mensaje" (no hay ediciones destructi
 
 ---
 
+### Herramientas de PopBot para los agentes
+
+El agente de cada chat —Claude o Codex— recibe un servidor MCP `popbot`, para que un agente pueda manejar la app como lo haces tú y los chats puedan hablar entre sí:
+
+- **Chats** — `list_chats` (nombres, ids, estado y qué chat está llamando), `create_chat` (un chat de slot en una rama nueva, un chat en la raíz del repositorio o un chat en la nube, opcionalmente con un primer mensaje), `close_chat`, `reopen_chat`.
+- **Otros agentes** — `send_to_chat` envía un mensaje a otro chat y, por defecto, espera a que termine el turno de ese agente y devuelve su respuesta; si el chat está ocupado, el mensaje se encola tras su trabajo actual. Un chat no puede escribirse ni cerrarse a sí mismo.
+- **Trabajo** — `start_code_review` abre un chat de revisión para un PR (o una revisión de Swarm) exactamente como lo hace la lista de Revisiones, plantilla de prompt incluida; `open_ticket_chat` abre un chat de ticket en una rama `<tú>/<ticket>-<slug>`, envía el prompt de inicio de ticket y pasa el ticket a En progreso.
+- **Transcripciones** — `get_chat_transcript` lee un chat (el propio u otro) como entradas numeradas, entero o por rango; `search_chats` busca un término y muestra el texto alrededor de cada coincidencia, en un chat o en todos los abiertos.
+
+El servidor solo escucha en localhost, en un puerto aleatorio con un secreto por arranque en su URL, y puede desactivarse en *Preferencias ▸ Agentes*.
+
 ## Anatomía del espacio de trabajo
 
 ![PopBot UI anatomy](../../images/anatomy.png)

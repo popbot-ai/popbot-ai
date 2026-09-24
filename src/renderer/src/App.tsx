@@ -25,7 +25,7 @@ import {
   type AgentCreateConfig,
   type AgentEffortDefaultsSettings,
 } from './components/AgentCreateControls';
-import { DEFAULT_RE_REVIEW_TEMPLATE, DEFAULT_START_CL_REVIEW_TEMPLATE, DEFAULT_START_CODE_REVIEW_TEMPLATE, DEFAULT_START_TICKET_TEMPLATE, expandTemplate } from './lib/templates';
+import { DEFAULT_RE_REVIEW_TEMPLATE, DEFAULT_START_CL_REVIEW_TEMPLATE, DEFAULT_START_CODE_REVIEW_TEMPLATE, DEFAULT_START_TICKET_TEMPLATE, expandTemplate } from '@shared/templates';
 import { DEFAULT_SOURCE_CONTROL, SOURCE_CONTROL_PROVIDERS } from '@shared/sourceControl';
 import type { SourceControlProviderId } from '@shared/sourceControl';
 import type { ReviewItem } from '@shared/reviews';

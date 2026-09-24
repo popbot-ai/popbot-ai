@@ -17,6 +17,7 @@ import type { AgentBackend, AgentSession, SpawnOpts } from './types';
 import { dlog } from '../diagLog';
 import {
   EXPECTED_CODEX_LIMIT,
+  codexMcpConfig,
   codexMessageId as messageIdFor,
   codexPermissions,
   codexToolId as toolIdFor,
@@ -85,8 +86,10 @@ class CodexSession implements AgentSession {
     // The SDK forwards this verbatim as `model_reasoning_effort`.
     const sdkReasoningEffort = codexWireReasoningEffort(model, reasoningEffort) as ModelReasoningEffort;
     const permissions = codexPermissions(opts);
+    const mcpConfig = codexMcpConfig(opts.mcpServers);
     const codex = new Codex({
       codexPathOverride: opts.pathToCodexExecutable ?? undefined,
+      ...(mcpConfig ? { config: { mcp_servers: mcpConfig } } : {}),
     });
     const threadOptions = {
       model,

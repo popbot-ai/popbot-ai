@@ -873,6 +873,11 @@ export const ko = {
     'exec SDK 대신 Codex의 app-server로 연결합니다. Codex가 작업하는 동안 보낸 메시지가 턴이 끝나길 기다리지 않고 다음 단계에서 전달됩니다. Codex 채팅의 컨텍스트 게이지가 채워지고 컨텍스트 압축도 사용할 수 있습니다. Codex CLI에서는 실험적 기능이며 codex 0.153 이상이 필요합니다. 각 채팅의 다음 메시지부터 적용됩니다.',
   'prefs.agents.codexSteering.on': '켜짐 — 메시지가 턴 도중 Codex에 전달됩니다',
   'prefs.agents.codexSteering.off': '꺼짐 — 메시지가 턴이 끝날 때까지 기다립니다',
+  'prefs.agents.mcp.title': '에이전트용 PopBot 도구',
+  'prefs.agents.mcp.desc':
+    '각 채팅의 에이전트에게 “popbot” MCP 서버를 제공합니다. 채팅 목록 조회·생성·닫기·다시 열기, 다른 채팅에 메시지를 보내고 답을 기다리기, 코드 리뷰와 티켓 채팅 시작, 기록 읽기와 검색을 할 수 있습니다. 각 채팅의 다음 에이전트 세션부터 적용됩니다.',
+  'prefs.agents.mcp.on': '켜짐 — 에이전트가 PopBot을 조작할 수 있음',
+  'prefs.agents.mcp.off': '꺼짐 — popbot 도구 없음',
 
   // Preferences — Runtime / attachment retention pane.
   'prefs.runtime.title': '첨부 파일 보존',

@@ -24,6 +24,7 @@ import {
   type MessageBodyText,
   type MessageBodyTool,
   type PermissionRule,
+  type MessageRecord,
 } from '@shared/persistence';
 // MessageBodyPermission imported above; re-tag it here for clarity in approve().
 import { IpcChannel } from '@shared/ipc';
@@ -46,6 +47,7 @@ import { getRepo } from '../persistence/repos';
 import { dlog } from '../diagLog';
 import { getClaudeBinaryPath } from './claudeProbe';
 import { forgetCloudChat, handleCloudSend } from './cloudSessions';
+import { popbotMcpUrlForChat } from '../mcp/registry';
 import { getSetting, setSetting } from '../persistence/settings';
 import { appendMessage, getMessage, listMessages, updateMessageBody } from '../persistence/messages';
 import { listSessions, type SDKSessionInfo } from '@anthropic-ai/claude-agent-sdk';
@@ -396,6 +398,7 @@ class AgentHostImpl {
   /** Chats between a backend-native turn-start and terminal status. Used as a
    * hard guard against heuristic settle timers overriding real activity. */
   private readonly activeTurns = new Set<string>();
+  private readonly listeners = new Set<(event: AgentEvent) => void>();
   /** Active turns that have shown a sign of life (text, a tool call, usage…).
    *  A message steered into one of these must not leave the stall clock
    *  running: from here on the turn's silences are tool execution, which
@@ -1288,14 +1291,20 @@ class AgentHostImpl {
     // engine markers (a .uproject / ProjectSettings) live at the root.
     const editorMcp =
       backend.capabilities.mcpHttp ? mcpEndpointForChat(chatId, liveWorktree ?? cwd) : null;
-    const mcpServers = editorMcp
-      ? { [editorMcp.name]: { type: 'http' as const, url: editorMcp.url } }
-      : undefined;
+    // PopBot's own tools (list / create / message chats, search
+    // transcripts…) — every chat gets them unless switched off in Preferences.
+    const popbotMcp = backend.capabilities.mcpHttp ? popbotMcpUrlForChat(chatId) : null;
+    const mcpEntries = {
+      ...(editorMcp ? { [editorMcp.name]: { type: 'http' as const, url: editorMcp.url } } : {}),
+      ...(popbotMcp ? { popbot: { type: 'http' as const, url: popbotMcp } } : {}),
+    };
+    const mcpServers = Object.keys(mcpEntries).length > 0 ? mcpEntries : undefined;
 
     dlog('agent.spawn', {
       chatId, cwd, sessionId, source: discoverySource,
       backend: backend.id,
       editorMcp: editorMcp?.url ?? null,
+      popbotMcp: popbotMcp ? 'on' : 'off',
     });
 
     const session = backend.spawn({
@@ -2102,12 +2111,63 @@ class AgentHostImpl {
   }
 
   /** For main-side code outside this class that changes a chat and has to
-   *  tell the renderer (cloud sessions). Same channel as everything else. */
+   *  tell the renderer (cloud sessions, the MCP tools). Same channel as
+   *  everything else. */
   emit(event: AgentEvent): void {
     this.broadcast(event);
   }
 
+  /** Main-side readers of the event stream (the MCP tools waiting for a
+   *  chat's reply). Same events the renderer gets. */
+  onEvent(listener: (event: AgentEvent) => void): () => void {
+    this.listeners.add(listener);
+    return () => { this.listeners.delete(listener); };
+  }
+
+  /**
+   * Send a message and wait for the chat's turn to end, for a caller
+   * that wants the answer (another chat's agent, through the popbot
+   * tools). Resolves when the chat settles to idle with nothing queued,
+   * when the agent stops to ask the user for a permission, on an error,
+   * or at the timeout — with the rows the chat gained meanwhile.
+   */
+  async sendAndWait(
+    chatId: string,
+    text: string,
+    timeoutMs: number,
+  ): Promise<{ outcome: 'replied' | 'timeout' | 'needs-permission' | 'errored'; messages: MessageRecord[] }> {
+    const since = Date.now();
+    let settle: (outcome: 'replied' | 'timeout' | 'needs-permission' | 'errored') => void = () => undefined;
+    const done = new Promise<'replied' | 'timeout' | 'needs-permission' | 'errored'>((resolve) => { settle = resolve; });
+    const off = this.onEvent((event) => {
+      if (event.chatId !== chatId) return;
+      if (event.type === 'permission-request') settle('needs-permission');
+      else if (event.type === 'session-status' && event.status === 'errored') settle('errored');
+      else if (
+        event.type === 'session-status'
+        && (event.status === 'idle' || event.status === 'complete')
+        && !this.activeTurns.has(chatId)
+        && !this.queuedTurns.has(chatId)
+      ) settle('replied');
+    });
+    const timer = setTimeout(() => settle('timeout'), timeoutMs);
+    try {
+      await this.send(chatId, text);
+      const outcome = await done;
+      return {
+        outcome,
+        messages: listMessages(chatId).filter((m) => m.createdAt >= since && m.role !== 'user'),
+      };
+    } finally {
+      clearTimeout(timer);
+      off();
+    }
+  }
+
   private broadcast(event: AgentEvent): void {
+    for (const listener of this.listeners) {
+      try { listener(event); } catch { /* a listener's bug must not break the host */ }
+    }
     if (!this.webContents) return;
     if (this.webContents.isDestroyed()) return;
     this.webContents.send(IpcChannel.AgentEvent, event);
