@@ -1521,13 +1521,6 @@ export default function App(): JSX.Element {
               />
             )}
             <div className="center-actions">
-              <button
-                className="iconbtn"
-                title={t('search.buttonTitle', { shortcut: window.popbot.platform === 'darwin' ? '⌘⇧F' : 'Ctrl+Shift+F' })}
-                onClick={() => setSearchOpen(true)}
-              >
-                <i className="fa-solid fa-magnifying-glass" />
-              </button>
               <button className="iconbtn" title={t('app.actions.commandPalette', { shortcut: hotkey('K') })}>{hotkey('K')}</button>
               <button
                 className="iconbtn primary"

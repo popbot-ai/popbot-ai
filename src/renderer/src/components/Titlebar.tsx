@@ -103,6 +103,14 @@ export function Titlebar({
           <i className="fa-solid fa-arrow-up-right-from-square" />
         </button>
       )}
+      {onSearchChats && (
+        <button
+          title={t('search.buttonTitle', { shortcut: isMac ? '⌘⇧F' : 'Ctrl+Shift+F' })}
+          onClick={onSearchChats}
+        >
+          <i className="fa-solid fa-magnifying-glass" />
+        </button>
+      )}
       <NotificationsBell
         onAction={onNotificationAction ?? (() => undefined)}
         pulseOnArrival={centerFly ?? false}
