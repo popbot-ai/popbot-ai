@@ -129,6 +129,7 @@ export const fr = {
   'menu.paste': 'Coller',
   'menu.selectAll': 'Tout sélectionner',
   'menu.gitPanel': 'Panneau Git',
+  'menu.searchChats': 'Rechercher dans les conversations…',
   'menu.resetZoom': 'Réinitialiser le zoom',
   'menu.zoomIn': 'Zoom avant',
   'menu.zoomOut': 'Zoom arrière',
@@ -348,6 +349,15 @@ export const fr = {
   'work.tickets': 'Tickets',
   'work.prs': 'PR',
   'work.chats': 'Chats',
+  'search.title': 'Rechercher dans les conversations',
+  'search.placeholder': 'Cherche dans toutes les transcriptions : un fragment de nom, d’identifiant ou d’erreur suffit',
+  'search.tooShort': 'Saisissez au moins 3 caractères.',
+  'search.noResults': 'Aucun résultat.',
+  'search.goTo': 'Aller',
+  'search.archived': 'archivée',
+  'search.more': '{count} de plus dans cette conversation',
+  'search.hint': 'Entrée ouvre le meilleur résultat · Échap ferme',
+  'search.buttonTitle': 'Rechercher dans les conversations ({shortcut})',
   'work.emptyHint':
     'Aucun résultat. Essayez un id Linear comme {id} ou un numéro de PR comme {pr} pour en épingler un nouveau.',
 

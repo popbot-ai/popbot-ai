@@ -20,6 +20,7 @@ import {
   type AuthProvider,
   type AuthLoginEvent,
   type ForkChatInput,
+  type TranscriptSearchOptions,
   type CreateRepoInput,
   type PopBotApi,
   type SendMessageInput,
@@ -58,6 +59,8 @@ const api: PopBotApi = {
     reorder: (ids: string[]) => ipcRenderer.invoke(IpcChannel.ChatsReorder, ids),
     rename: (chatId: string, name: string) => ipcRenderer.invoke(IpcChannel.ChatsRename, chatId, name),
     fork: (input: ForkChatInput) => ipcRenderer.invoke(IpcChannel.ChatsFork, input),
+    searchTranscripts: (query: string, opts?: TranscriptSearchOptions) =>
+      ipcRenderer.invoke(IpcChannel.ChatsSearchTranscripts, query, opts),
     listMessages: (chatId: string, tail?: number) =>
       ipcRenderer.invoke(IpcChannel.MessagesList, chatId, tail),
   },

@@ -120,6 +120,7 @@ import { isYesNoQuestion, looksLikeQuestion } from '@shared/questionDetect';
 import { useMessages } from '../lib/useMessages';
 import { getExternalEditor } from '../lib/editor';
 import { useTranslation } from '../lib/i18n';
+import { JUMP_EVENT, clearJump, peekJump } from '../lib/jumpToMessage';
 import { toolLabel } from '../lib/toolLabel';
 import type { Translator } from '@shared/i18n';
 
@@ -251,6 +252,51 @@ function LiveChatBodyImpl({
   // changes the rendered slice — we need a re-render on the flip.
   const [sticky, setSticky] = useState<boolean>(true);
   const cap = sticky ? TAIL_WINDOW : BROWSE_WINDOW;
+  // A "go to message" from the Search panel: the id we're steering the
+  // window toward, and the row to flash once it's on screen.
+  const jumpTargetRef = useRef<string | null>(null);
+  const [jumpHighlightId, setJumpHighlightId] = useState<string | null>(null);
+  const jumpFlashTimerRef = useRef<number | null>(null);
+  useEffect(() => {
+    const pickUp = (): void => {
+      const id = peekJump(chatId);
+      if (!id) return;
+      if (loading) return; // try again once the transcript is in
+      const idx = messages.findIndex((m) => m.id === id);
+      clearJump(chatId);
+      if (idx < 0) return; // gone (deleted, or a different transcript)
+      jumpTargetRef.current = id;
+      // Browse mode, with the target in the middle of the mounted window;
+      // the layout effect below scrolls to it once the row exists.
+      setSticky(false);
+      setWindowStart(Math.max(0, Math.min(idx - Math.floor(BROWSE_WINDOW / 2), Math.max(0, messages.length - BROWSE_WINDOW))));
+    };
+    pickUp();
+    const onEvent = (e: Event): void => {
+      if ((e as CustomEvent<{ chatId?: string }>).detail?.chatId === chatId) pickUp();
+    };
+    window.addEventListener(JUMP_EVENT, onEvent);
+    return () => window.removeEventListener(JUMP_EVENT, onEvent);
+  }, [chatId, messages, loading]);
+  useLayoutEffect(() => {
+    const id = jumpTargetRef.current;
+    const el = scrollRef.current;
+    if (!id || !el) return;
+    const node = el.querySelector<HTMLElement>(`[data-msg-id="${id}"]`);
+    if (!node) return; // not mounted yet — next render
+    jumpTargetRef.current = null;
+    programmaticScrollRef.current = true;
+    el.scrollTop = Math.max(0, node.offsetTop - el.clientHeight / 2 + node.offsetHeight / 2);
+    requestAnimationFrame(() => { programmaticScrollRef.current = false; });
+    setJumpHighlightId(id);
+    // Not an effect cleanup: this effect runs after every render, and a
+    // cleanup would cancel the flash before it ends.
+    if (jumpFlashTimerRef.current) window.clearTimeout(jumpFlashTimerRef.current);
+    jumpFlashTimerRef.current = window.setTimeout(() => {
+      jumpFlashTimerRef.current = null;
+      setJumpHighlightId((cur) => (cur === id ? null : cur));
+    }, 2600);
+  });
   // If non-null after a setWindowStart, useLayoutEffect uses this to
   // restore the user's scroll position by re-finding the anchor element.
   const anchorRef = useRef<{ id: string; offsetWithin: number } | null>(null);
@@ -602,7 +648,7 @@ function LiveChatBodyImpl({
           // empty wrapper still adds visible blank space.
           .filter((m) => isMessageVisible(m, consumedUserIds))
           .map((m, i, arr) => (
-            <div key={m.id} data-msg-id={m.id}>
+            <div key={m.id} data-msg-id={m.id} className={m.id === jumpHighlightId ? 'msg-jump' : undefined}>
               <MessageRow
                 message={m}
                 chatId={chatId}

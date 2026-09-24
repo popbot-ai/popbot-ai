@@ -129,6 +129,7 @@ export const ptBR = {
   'menu.paste': 'Colar',
   'menu.selectAll': 'Selecionar tudo',
   'menu.gitPanel': 'Painel do Git',
+  'menu.searchChats': 'Pesquisar nos chats…',
   'menu.resetZoom': 'Redefinir zoom',
   'menu.zoomIn': 'Ampliar',
   'menu.zoomOut': 'Reduzir',
@@ -348,6 +349,15 @@ export const ptBR = {
   'work.tickets': 'Tickets',
   'work.prs': 'PRs',
   'work.chats': 'Chats',
+  'search.title': 'Pesquisar nos chats',
+  'search.placeholder': 'Pesquisa em todas as transcrições: basta um fragmento de um nome, identificador ou erro',
+  'search.tooShort': 'Digite pelo menos 3 caracteres.',
+  'search.noResults': 'Nenhum resultado.',
+  'search.goTo': 'Ir',
+  'search.archived': 'arquivado',
+  'search.more': 'mais {count} neste chat',
+  'search.hint': 'Enter abre o melhor resultado · Esc fecha',
+  'search.buttonTitle': 'Pesquisar nos chats ({shortcut})',
   'work.emptyHint':
     'Nenhum resultado. Tente um id do Linear como {id} ou um número de PR como {pr} para fixar um novo.',
 

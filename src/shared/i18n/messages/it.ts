@@ -67,6 +67,7 @@ export const it = {
   'menu.paste': 'Incolla',
   'menu.selectAll': 'Seleziona tutto',
   'menu.gitPanel': 'Pannello Git',
+  'menu.searchChats': 'Cerca nelle chat…',
   'menu.resetZoom': 'Ripristina zoom',
   'menu.zoomIn': 'Aumenta zoom',
   'menu.zoomOut': 'Riduci zoom',
@@ -296,6 +297,15 @@ export const it = {
   'work.tickets': 'Ticket',
   'work.prs': 'PR',
   'work.chats': 'Chat',
+  'search.title': 'Cerca nelle chat',
+  'search.placeholder': 'Cerca in tutte le trascrizioni: basta un frammento di un nome, un identificatore o un errore',
+  'search.tooShort': 'Digita almeno 3 caratteri.',
+  'search.noResults': 'Nessun risultato.',
+  'search.goTo': 'Vai',
+  'search.archived': 'archiviata',
+  'search.more': 'altri {count} in questa chat',
+  'search.hint': 'Invio apre il risultato migliore · Esc chiude',
+  'search.buttonTitle': 'Cerca nelle chat ({shortcut})',
   'work.emptyHint':
     'Nessun risultato. Appunta un nuovo elemento: un id Linear come {id}, un numero di PR come {pr}, o una revisione Swarm come {swarm}.',
 

@@ -129,6 +129,7 @@ export const es = {
   'menu.paste': 'Pegar',
   'menu.selectAll': 'Seleccionar todo',
   'menu.gitPanel': 'Panel de Git',
+  'menu.searchChats': 'Buscar en los chats…',
   'menu.resetZoom': 'Restablecer zoom',
   'menu.zoomIn': 'Acercar',
   'menu.zoomOut': 'Alejar',
@@ -348,6 +349,15 @@ export const es = {
   'work.tickets': 'Tickets',
   'work.prs': 'PRs',
   'work.chats': 'Chats',
+  'search.title': 'Buscar en los chats',
+  'search.placeholder': 'Busca en todas las transcripciones: basta un fragmento de un nombre, un identificador o un error',
+  'search.tooShort': 'Escribe al menos 3 caracteres.',
+  'search.noResults': 'Sin coincidencias.',
+  'search.goTo': 'Ir',
+  'search.archived': 'archivado',
+  'search.more': '{count} más en este chat',
+  'search.hint': 'Intro abre la mejor coincidencia · Esc cierra',
+  'search.buttonTitle': 'Buscar en los chats ({shortcut})',
   'work.emptyHint':
     'Sin coincidencias. Prueba un id de Linear como {id} o un número de PR como {pr} para fijar uno nuevo.',
 

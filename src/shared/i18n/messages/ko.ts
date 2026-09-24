@@ -129,6 +129,7 @@ export const ko = {
   'menu.paste': '붙여넣기',
   'menu.selectAll': '모두 선택',
   'menu.gitPanel': 'Git 패널',
+  'menu.searchChats': '채팅 검색…',
   'menu.resetZoom': '확대/축소 재설정',
   'menu.zoomIn': '확대',
   'menu.zoomOut': '축소',
@@ -348,6 +349,15 @@ export const ko = {
   'work.tickets': '티켓',
   'work.prs': 'PR',
   'work.chats': '채팅',
+  'search.title': '채팅 검색',
+  'search.placeholder': '모든 기록을 검색합니다. 이름, 식별자, 오류의 일부만으로도 충분합니다',
+  'search.tooShort': '3자 이상 입력하세요.',
+  'search.noResults': '일치하는 항목이 없습니다.',
+  'search.goTo': '이동',
+  'search.archived': '보관됨',
+  'search.more': '이 채팅에 {count}개 더',
+  'search.hint': 'Enter는 최상위 결과 열기 · Esc는 닫기',
+  'search.buttonTitle': '채팅 검색 ({shortcut})',
   'work.emptyHint':
     '일치하는 항목이 없습니다. {id} 같은 Linear id나 {pr} 같은 PR 번호로 새로 고정해 보세요.',
 

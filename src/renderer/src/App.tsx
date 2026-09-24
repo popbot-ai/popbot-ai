@@ -14,6 +14,8 @@ import { DiffOverlay } from './components/DiffOverlay';
 import { BaseBranchDialog } from './components/BaseBranchDialog';
 import { ChatSettingsSheet } from './components/ChatSettingsSheet';
 import { SignInDialog } from './components/SignInDialog';
+import { SearchPanel } from './components/SearchPanel';
+import { requestJump } from './lib/jumpToMessage';
 import { Modal } from './components/Modal';
 import { PreferencesSheet } from './components/PreferencesSheet';
 import { CloseChatPrompt } from './components/CloseChatPrompt';
@@ -39,7 +41,7 @@ import { HighlightProvider } from './lib/highlightBus';
 import { playPing, playUrgentDing } from './lib/ping';
 import type { NotificationAction, NotificationRecord } from '@shared/notifications';
 import { NotificationToastStack } from './components/NotificationToast';
-import type { CreateChatInput } from '@shared/ipc';
+import type { CreateChatInput, TranscriptSearchHit } from '@shared/ipc';
 import { useChats } from './lib/useChats';
 import { useReadiness } from './lib/useReadiness';
 import { hotkey } from './lib/hotkeys';
@@ -108,6 +110,8 @@ export default function App(): JSX.Element {
   const [settingsForId, setSettingsForId] = useState<string | null>(null);
   // Sign-in dialog opened from a chat's "sign-in expired" warning.
   const [signInFor, setSignInFor] = useState<'claude' | 'codex' | null>(null);
+  // Transcript search (⌘⇧F / View ▸ Search Chats…).
+  const [searchOpen, setSearchOpen] = useState(false);
   useEffect(() => {
     const onSignIn = (e: Event): void => {
       const provider = (e as CustomEvent<{ provider?: 'claude' | 'codex' }>).detail?.provider;
@@ -770,6 +774,21 @@ export default function App(): JSX.Element {
     }
   };
 
+  /** A Search-panel hit: focus its chat — reopening it from the archive
+   *  when it's closed — and have the transcript scroll to the message. */
+  const goToMessage = async (hit: TranscriptSearchHit): Promise<void> => {
+    requestJump(hit.chatId, hit.messageId);
+    const open = chats.find((c) => c.id === hit.chatId);
+    if (open) {
+      scrollToChat(open.id);
+      return;
+    }
+    // focusOrAttach only needs the id to reopen; the record it gets
+    // back from main is the one that matters.
+    const closed = closedChats.find((c) => c.id === hit.chatId) ?? ({ id: hit.chatId } as ChatRecord);
+    await focusOrAttach(closed);
+  };
+
   const handleSpawnFromTicket = (ticket: Ticket) => {
     const existing =
       chats.find((c) => c.ticket === ticket.id) ??
@@ -1249,6 +1268,27 @@ export default function App(): JSX.Element {
     });
   };
 
+  // ⌘F (Ctrl+F) outside a text field, or ⌘⇧F anywhere, opens the
+  // transcript search. The plain form stays out of inputs and the
+  // terminal so their own find / shortcuts keep working.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent): void => {
+      if (e.key !== 'f' && e.key !== 'F') return;
+      if (!(e.metaKey || e.ctrlKey) || e.altKey) return;
+      if (!e.shiftKey) {
+        const target = e.target as HTMLElement | null;
+        if (target) {
+          const tag = target.tagName;
+          if (tag === 'INPUT' || tag === 'TEXTAREA' || target.isContentEditable) return;
+        }
+      }
+      e.preventDefault();
+      setSearchOpen(true);
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, []);
+
   // Cmd-K (Ctrl-K elsewhere) → "+ new chat" — the same flow as the
   // thumbnail bar's "+" button. We skip the shortcut while focus is on
   // a text input / textarea / contentEditable so it doesn't intercept
@@ -1330,6 +1370,7 @@ export default function App(): JSX.Element {
       <Titlebar
         onOpenModal={setModal}
         onOpenPrefs={() => openPrefsAt()}
+        onSearchChats={() => setSearchOpen(true)}
         onNewChat={() => void handleNewChat('lite')}
         onOpenAbout={() => setAboutOpen(true)}
         gitPanelOpen={gitPanelOpen}
@@ -1480,6 +1521,13 @@ export default function App(): JSX.Element {
               />
             )}
             <div className="center-actions">
+              <button
+                className="iconbtn"
+                title={t('search.buttonTitle', { shortcut: window.popbot.platform === 'darwin' ? '⌘⇧F' : 'Ctrl+Shift+F' })}
+                onClick={() => setSearchOpen(true)}
+              >
+                <i className="fa-solid fa-magnifying-glass" />
+              </button>
               <button className="iconbtn" title={t('app.actions.commandPalette', { shortcut: hotkey('K') })}>{hotkey('K')}</button>
               <button
                 className="iconbtn primary"
@@ -1604,6 +1652,12 @@ export default function App(): JSX.Element {
             setPendingCreate(null);
             void pc.run(input);
           }}
+        />
+      )}
+      {searchOpen && (
+        <SearchPanel
+          onClose={() => setSearchOpen(false)}
+          onGoTo={(hit) => void goToMessage(hit)}
         />
       )}
       {signInFor && (

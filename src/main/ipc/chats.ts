@@ -10,6 +10,7 @@ import {
   type ForkChatInput,
   type ForkChatResult,
   type ReopenChatResult,
+  type TranscriptSearchOptions,
 } from '@shared/ipc';
 import {
   allocateSlotPreferring,
@@ -37,6 +38,7 @@ import { appendMessage, copyMessages, listMessages } from '../persistence/messag
 import { getSetting, setSetting } from '../persistence/settings';
 import { AgentHost, sessionCwdForChat } from '../agents/AgentHost';
 import { forgetCloudChat, linkCloudSession, teleportCloudChat } from '../agents/cloudSessions';
+import { searchTranscripts } from '../search/transcriptSearch';
 import { getCodexBinaryPath } from '../agents/codexProbe';
 import { forkClaudeSession, forkCodexThread } from '../agents/forkAgentContext';
 import { dlog } from '../diagLog';
@@ -444,6 +446,9 @@ export function registerChatHandlers(): void {
 
   ipcMain.handle(IpcChannel.ChatsSearch, (_e, query: string, limit?: number) =>
     searchChats(query, limit),
+  );
+  ipcMain.handle(IpcChannel.ChatsSearchTranscripts, (_e, query: string, opts?: TranscriptSearchOptions) =>
+    searchTranscripts(typeof query === 'string' ? query : '', opts ?? {}),
   );
 
   ipcMain.handle(IpcChannel.MessagesList, (_e, chatId: string, tail?: number) =>

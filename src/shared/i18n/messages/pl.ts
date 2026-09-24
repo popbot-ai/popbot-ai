@@ -67,6 +67,7 @@ export const pl = {
   'menu.paste': 'Wklej',
   'menu.selectAll': 'Zaznacz wszystko',
   'menu.gitPanel': 'Panel Git',
+  'menu.searchChats': 'Szukaj w czatach…',
   'menu.resetZoom': 'Resetuj powiększenie',
   'menu.zoomIn': 'Powiększ',
   'menu.zoomOut': 'Pomniejsz',
@@ -296,6 +297,15 @@ export const pl = {
   'work.tickets': 'Tickety',
   'work.prs': 'PR-y',
   'work.chats': 'Czaty',
+  'search.title': 'Szukaj w czatach',
+  'search.placeholder': 'Przeszukuje wszystkie zapisy – wystarczy fragment nazwy, identyfikatora lub błędu',
+  'search.tooShort': 'Wpisz co najmniej 3 znaki.',
+  'search.noResults': 'Brak wyników.',
+  'search.goTo': 'Przejdź',
+  'search.archived': 'zarchiwizowany',
+  'search.more': 'jeszcze {count} w tym czacie',
+  'search.hint': 'Enter otwiera najlepszy wynik · Esc zamyka',
+  'search.buttonTitle': 'Szukaj w czatach ({shortcut})',
   'work.emptyHint':
     'Brak wyników. Przypnij nowy: id Linear jak {id}, numer PR jak {pr}, albo Swarm review jak {swarm}.',
 

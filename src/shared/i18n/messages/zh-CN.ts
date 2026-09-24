@@ -129,6 +129,7 @@ export const zhCN = {
   'menu.paste': '粘贴',
   'menu.selectAll': '全选',
   'menu.gitPanel': 'Git 面板',
+  'menu.searchChats': '搜索对话…',
   'menu.resetZoom': '重置缩放',
   'menu.zoomIn': '放大',
   'menu.zoomOut': '缩小',
@@ -348,6 +349,15 @@ export const zhCN = {
   'work.tickets': '工单',
   'work.prs': 'PR',
   'work.chats': '聊天',
+  'search.title': '搜索对话',
+  'search.placeholder': '搜索所有对话记录，名称、标识符或错误信息的一个片段就够了',
+  'search.tooShort': '请至少输入 3 个字符。',
+  'search.noResults': '没有匹配项。',
+  'search.goTo': '前往',
+  'search.archived': '已归档',
+  'search.more': '此对话中还有 {count} 条',
+  'search.hint': 'Enter 打开最佳匹配 · Esc 关闭',
+  'search.buttonTitle': '搜索对话（{shortcut}）',
   'work.emptyHint':
     '无匹配项。尝试输入 Linear id（如 {id}）或 PR 编号（如 {pr}）以固定新项。',
 

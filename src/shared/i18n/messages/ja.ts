@@ -129,6 +129,7 @@ export const ja = {
   'menu.paste': '貼り付け',
   'menu.selectAll': 'すべて選択',
   'menu.gitPanel': 'Git パネル',
+  'menu.searchChats': 'チャットを検索…',
   'menu.resetZoom': 'ズームをリセット',
   'menu.zoomIn': '拡大',
   'menu.zoomOut': '縮小',
@@ -348,6 +349,15 @@ export const ja = {
   'work.tickets': 'チケット',
   'work.prs': 'PR',
   'work.chats': 'チャット',
+  'search.title': 'チャットを検索',
+  'search.placeholder': 'すべての記録を検索します。名前、識別子、エラーの断片だけで十分です',
+  'search.tooShort': '3 文字以上入力してください。',
+  'search.noResults': '一致なし。',
+  'search.goTo': '移動',
+  'search.archived': 'アーカイブ済み',
+  'search.more': 'このチャットにあと {count} 件',
+  'search.hint': 'Enter で最上位の一致を開く · Esc で閉じる',
+  'search.buttonTitle': 'チャットを検索（{shortcut}）',
   'work.emptyHint':
     '一致するものはありません。{id} のような Linear ID や {pr} のような PR 番号を入力すると新規にピン留めできます。',
 

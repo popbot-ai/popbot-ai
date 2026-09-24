@@ -35,6 +35,8 @@ interface MenuBarProps {
   onOpenPrefs: () => void;
   onToggleGitPanel?: () => void;
   gitPanelOpen?: boolean;
+  /** Open the transcript search panel (View ▸ Search Chats…). */
+  onSearchChats?: () => void;
   /** Opens the About dialog (Help ▸ About PopBot). */
   onOpenAbout?: () => void;
 }
@@ -43,7 +45,9 @@ const win = (name: WinActionName) => (): void => { void window.popbot.win.action
 
 const REPO_URL = 'https://github.com/popbot-ai/popbot-ai';
 
-export function MenuBar({ onNewChat, onOpenPrefs, onToggleGitPanel, gitPanelOpen, onOpenAbout }: MenuBarProps): JSX.Element {
+export function MenuBar({
+  onNewChat, onOpenPrefs, onToggleGitPanel, gitPanelOpen, onOpenAbout, onSearchChats,
+}: MenuBarProps): JSX.Element {
   const { t } = useTranslation();
   // Which menu is open, by id. The app-icon system menu uses id '__sys'.
   const [open, setOpen] = useState<string | null>(null);
@@ -100,6 +104,7 @@ export function MenuBar({ onNewChat, onOpenPrefs, onToggleGitPanel, gitPanelOpen
       label: t('menu.view'),
       items: [
         { label: t('menu.gitPanel'), checked: gitPanelOpen, onClick: onToggleGitPanel },
+        ...(onSearchChats ? [{ label: t('menu.searchChats'), accel: 'Ctrl+Shift+F', onClick: onSearchChats }] : []),
         { separator: true },
         { label: t('menu.resetZoom'), accel: 'Ctrl+0', onClick: win('zoom-reset') },
         { label: t('menu.zoomIn'), accel: 'Ctrl++', onClick: win('zoom-in') },

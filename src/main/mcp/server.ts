@@ -22,7 +22,7 @@ import { createServer, type IncomingMessage, type Server, type ServerResponse } 
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import { z } from 'zod';
-import type { SearchMatch } from './transcript';
+import type { TranscriptSearchHit } from '@shared/ipc';
 
 export interface ChatSummary {
   id: string;
@@ -68,7 +68,7 @@ export interface PopbotToolHandlers {
       contextChars: number; maxResults: number; caseSensitive: boolean;
     },
     caller: string | null,
-  ): { matches: Array<SearchMatch & { chatId: string; chatName: string; closed: boolean }> } | ToolFailure;
+  ): { matches: TranscriptSearchHit[] } | ToolFailure;
 }
 
 function text(value: unknown): { content: Array<{ type: 'text'; text: string }>; isError?: boolean } {

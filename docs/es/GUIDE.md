@@ -138,7 +138,7 @@ Cada chat es una **transcripción duradera** almacenada localmente — prosa, ll
 
 - **Cerrar** un chat libera su slot (liberando un espacio de trabajo para otros agentes) pero **conserva todo**. El chat pasa al **archivo**.
 - **Reabrir** un chat desde el archivo vuelve a arrendar un slot, restaura su rama, y el agente retoma con su **historial completo** — puedes retomar una funcionalidad días después para atender los comentarios de la revisión sin tener que reexplicar nada. Si se reabre en un slot *diferente*, PopBot se lo informa al agente de entrada, para que se reoriente limpiamente al nuevo directorio de trabajo.
-- El archivo se puede buscar por nombre, ticket, rama, y contenido.
+- El archivo se puede buscar por nombre, ticket, rama y contenido, y **Buscar en los chats** (⌘⇧F / Ctrl+Mayús+F, o *Ver ▸ Buscar en los chats…*) busca en todas las transcripciones, abiertas y archivadas: las líneas coincidentes se muestran por chat, las mejores primero, e *Ir* abre el chat —reabriéndolo desde el archivo si hace falta— y se desplaza hasta esa línea.
 
 Como retroceder es simplemente "enviar otro mensaje" (no hay ediciones destructivas del historial), un chat acumula la historia completa y auditable de cómo se hizo un cambio.
 

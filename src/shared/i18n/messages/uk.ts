@@ -67,6 +67,7 @@ export const uk = {
   'menu.paste': 'Вставити',
   'menu.selectAll': 'Виділити все',
   'menu.gitPanel': 'Панель Git',
+  'menu.searchChats': 'Пошук у чатах…',
   'menu.resetZoom': 'Скинути масштаб',
   'menu.zoomIn': 'Збільшити',
   'menu.zoomOut': 'Зменшити',
@@ -296,6 +297,15 @@ export const uk = {
   'work.tickets': 'Тикети',
   'work.prs': 'PR',
   'work.chats': 'Чати',
+  'search.title': 'Пошук у чатах',
+  'search.placeholder': 'Шукає в усіх розшифровках — досить фрагмента імені, ідентифікатора чи помилки',
+  'search.tooShort': 'Введіть щонайменше 3 символи.',
+  'search.noResults': 'Збігів немає.',
+  'search.goTo': 'Перейти',
+  'search.archived': 'в архіві',
+  'search.more': 'ще {count} у цьому чаті',
+  'search.hint': 'Enter відкриває найкращий збіг · Esc закриває',
+  'search.buttonTitle': 'Пошук у чатах ({shortcut})',
   'work.emptyHint':
     'Немає збігів. Закріпіть новий: id Linear на кшталт {id}, номер PR на кшталт {pr}, або Swarm-ревʼю на кшталт {swarm}.',
 

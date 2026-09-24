@@ -79,6 +79,7 @@ export const en = {
   'menu.paste': 'Paste',
   'menu.selectAll': 'Select All',
   'menu.gitPanel': 'Git Panel',
+  'menu.searchChats': 'Search Chats…',
   'menu.resetZoom': 'Reset Zoom',
   'menu.zoomIn': 'Zoom In',
   'menu.zoomOut': 'Zoom Out',
@@ -322,6 +323,15 @@ export const en = {
   'work.tickets': 'Tickets',
   'work.prs': 'PRs',
   'work.chats': 'Chats',
+  'search.title': 'Search chats',
+  'search.placeholder': 'Search every transcript — a fragment of a name, identifier or error is enough',
+  'search.tooShort': 'Type at least 3 characters.',
+  'search.noResults': 'No matches.',
+  'search.goTo': 'Go to',
+  'search.archived': 'archived',
+  'search.more': '{count} more in this chat',
+  'search.hint': 'Enter opens the best match · Esc closes',
+  'search.buttonTitle': 'Search chats ({shortcut})',
   'work.emptyHint':
     'No matches. Pin a new one: a Linear id like {id}, a PR number like {pr}, or a Swarm review like {swarm}.',
 

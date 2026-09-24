@@ -54,6 +54,8 @@ import type {
   PerforceRepoConfig,
   RepoRecord,
   RepoWorktreeMode,
+  MessageKind,
+  MessageRole,
 } from './persistence';
 import type { SourceControlProviderId } from './sourceControl';
 
@@ -67,6 +69,8 @@ export const IpcChannel = {
   ChatsReopen: 'pb:chats:reopen',
   ChatsDelete: 'pb:chats:delete',
   ChatsSearch: 'pb:chats:search',
+  /** Full-text search over transcripts — the Search panel. */
+  ChatsSearchTranscripts: 'pb:chats:search-transcripts',
   ChatsAttachSlot: 'pb:chats:attach-slot',
   ChatsClosePrep: 'pb:chats:close-prep',
   /** Persist a drag-and-drop arrangement of the open chats. */
@@ -417,6 +421,39 @@ export type CreateChatResult =
   | { ok: false; reason: 'no-free-slot' }
   | { ok: false; reason: 'worktree-failed'; message: string };
 
+/** One transcript search hit: where it is, and the text around it. */
+export interface TranscriptSearchHit {
+  chatId: string;
+  chatName: string;
+  /** The chat is archived; going to it reopens it. */
+  closed: boolean;
+  messageId: string;
+  /** The message's position in its chat (get_chat_transcript's index). */
+  index: number;
+  role: MessageRole;
+  kind: MessageKind;
+  ts: number;
+  offset: number;
+  before: string;
+  match: string;
+  after: string;
+}
+
+export interface TranscriptSearchOptions {
+  /** Only these chats; default every open chat (plus archived with includeClosed). */
+  chatIds?: string[];
+  includeClosed?: boolean;
+  /** text: a literal substring (3+ chars); fts: FTS5 syntax. */
+  mode?: 'text' | 'fts';
+  contextChars?: number;
+  maxResults?: number;
+  caseSensitive?: boolean;
+}
+
+export type TranscriptSearchResult =
+  | { ok: true; hits: TranscriptSearchHit[] }
+  | { ok: false; error: string };
+
 export interface ForkChatInput {
   chatId: string;
   /** Name for the fork. Built by the renderer so it is localized;
@@ -668,6 +705,8 @@ export interface PopBotApi {
      *  after the original in the strip. */
     fork(input: ForkChatInput): Promise<ForkChatResult>;
     listMessages(chatId: string, tail?: number): Promise<MessageRecord[]>;
+    /** Full-text search over transcripts, best matches first. */
+    searchTranscripts(query: string, opts?: TranscriptSearchOptions): Promise<TranscriptSearchResult>;
   };
   settings: {
     get<T = unknown>(key: string): Promise<T | null>;

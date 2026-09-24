@@ -57,6 +57,8 @@ interface TitlebarProps {
   /** Current open/closed state of the right git sidebar. */
   gitPanelOpen?: boolean;
   onToggleGitPanel?: () => void;
+  /** Open the transcript search panel (menu bar View ▸ Search Chats…). */
+  onSearchChats?: () => void;
   /** Fired when the user clicks any action on a notification in the
    *  bell dropdown. App-level routes the action (open URL, spawn chat,
    *  etc.). */
@@ -78,6 +80,7 @@ export function Titlebar({
   onToggleGitPanel,
   onNotificationAction,
   centerFly,
+  onSearchChats,
 }: TitlebarProps): JSX.Element {
   const { t } = useTranslation();
   // Windows AND Linux draw our custom in-app menu bar (both run frameless
@@ -143,6 +146,7 @@ export function Titlebar({
         onToggleGitPanel={onToggleGitPanel}
         gitPanelOpen={gitPanelOpen}
         onOpenAbout={onOpenAbout}
+        onSearchChats={onSearchChats}
       />
       <div className="titlebar-drag" />
       {rightButtons}

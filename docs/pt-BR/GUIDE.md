@@ -138,7 +138,7 @@ Todo chat é uma **transcrição durável** armazenada localmente — texto, cha
 
 - **Fechar** um chat libera seu slot (liberando um workspace para outros agentes) mas **mantém tudo**. O chat se move para o **arquivo**.
 - **Reabrir** um chat a partir do arquivo re-arrenda um slot, restaura seu branch, e o agente retoma com seu **histórico completo** — você pode retomar uma feature dias depois para tratar feedback de revisão sem reexplicar nada. Se ele reabrir em um slot *diferente*, o PopBot avisa o agente disso de antemão, para que ele se reoriente ao novo diretório de trabalho de forma limpa.
-- O arquivo é pesquisável por nome, ticket, branch e conteúdo.
+- O arquivo é pesquisável por nome, ticket, branch e conteúdo, e **Pesquisar nos chats** (⌘⇧F / Ctrl+Shift+F, ou *Exibir ▸ Pesquisar nos chats…*) pesquisa todas as transcrições, abertas e arquivadas: as linhas encontradas aparecem por chat, as melhores primeiro, e *Ir* abre o chat — reabrindo-o do arquivo se preciso — e rola até essa linha.
 
 Como reverter é apenas "enviar outra mensagem" (não há edições destrutivas de histórico), um chat acumula a história completa e auditável de como uma mudança foi feita.
 

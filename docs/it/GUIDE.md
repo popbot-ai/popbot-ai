@@ -138,7 +138,7 @@ Ogni chat è un **transcript durevole** memorizzato localmente — prosa, chiama
 
 - **Chiudere** una chat rilascia il suo slot (liberando un workspace per altri agenti) ma **mantiene tutto**. La chat si sposta nell'**archivio**.
 - **Riaprire** una chat dall'archivio prende nuovamente in leasing uno slot, ripristina il suo branch, e l'agente riprende con la sua **cronologia completa** — puoi riprendere una feature giorni dopo per affrontare i commenti della review senza dover rispiegare nulla. Se si riapre in uno slot *diverso*, PopBot lo comunica subito all'agente, così si riorienta pulitamente alla nuova directory di lavoro.
-- L'archivio è ricercabile per nome, ticket, branch e contenuto.
+- L'archivio è ricercabile per nome, ticket, branch e contenuto, e **Cerca nelle chat** (⌘⇧F / Ctrl+Maiusc+F, oppure *Visualizza ▸ Cerca nelle chat…*) cerca in tutte le trascrizioni, aperte e archiviate: le righe trovate sono raggruppate per chat, le migliori prima, e *Vai* apre la chat — riaprendola dall'archivio se serve — e scorre fino a quella riga.
 
 Poiché il rollback è solo "invia un altro messaggio" (non ci sono modifiche distruttive alla cronologia), una chat accumula la storia completa e verificabile di come è stata realizzata una modifica.
 

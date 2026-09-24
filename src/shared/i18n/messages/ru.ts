@@ -67,6 +67,7 @@ export const ru = {
   'menu.paste': 'Вставить',
   'menu.selectAll': 'Выделить всё',
   'menu.gitPanel': 'Панель Git',
+  'menu.searchChats': 'Поиск по чатам…',
   'menu.resetZoom': 'Сбросить масштаб',
   'menu.zoomIn': 'Увеличить',
   'menu.zoomOut': 'Уменьшить',
@@ -296,6 +297,15 @@ export const ru = {
   'work.tickets': 'Тикеты',
   'work.prs': 'PR',
   'work.chats': 'Чаты',
+  'search.title': 'Поиск по чатам',
+  'search.placeholder': 'Ищет по всем расшифровкам — достаточно фрагмента имени, идентификатора или ошибки',
+  'search.tooShort': 'Введите не менее 3 символов.',
+  'search.noResults': 'Совпадений нет.',
+  'search.goTo': 'Перейти',
+  'search.archived': 'в архиве',
+  'search.more': 'ещё {count} в этом чате',
+  'search.hint': 'Enter открывает лучшее совпадение · Esc закрывает',
+  'search.buttonTitle': 'Поиск по чатам ({shortcut})',
   'work.emptyHint':
     'Нет совпадений. Закрепите новый: id Linear вроде {id}, номер PR вроде {pr}, или Swarm-ревью вроде {swarm}.',
 
