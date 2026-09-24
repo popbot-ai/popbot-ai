@@ -739,6 +739,8 @@ export const ko = {
   'agent.effort.ultra': '울트라',
   'agent.label': '에이전트',
   'agent.model': '모델',
+  'agent.cloudToggle': '클라우드',
+  'agent.cloudToggleTitle': '이 채팅을 Claude Code on the web에서 실행합니다. PopBot을 종료해도 계속 작동합니다. Claude 전용.',
   'agent.effort': '노력',
 
   // ---------------------------------------------------------------------------
@@ -814,8 +816,6 @@ export const ko = {
   'branch.picker.tagRecent': '최근',
   'branch.picker.tagDefault': '기본값',
   'branch.picker.tagRepoRoot': '저장소 루트',
-  'branch.picker.cloud': '클라우드에서 실행',
-  'branch.picker.tagCloud': 'Claude Code on the web',
   'branch.dialog.disabled.pickRepo': '저장소를 선택하세요.',
   'branch.dialog.disabled.loadingBranches': '브랜치 불러오는 중…',
   'branch.dialog.disabled.noBranches':

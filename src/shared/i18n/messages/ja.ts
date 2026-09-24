@@ -739,6 +739,8 @@ export const ja = {
   'agent.effort.ultra': 'ウルトラ',
   'agent.label': 'エージェント',
   'agent.model': 'モデル',
+  'agent.cloudToggle': 'クラウド',
+  'agent.cloudToggleTitle': 'このチャットを Claude Code on the web で実行します。PopBot を終了しても動き続けます。Claude のみ。',
   'agent.effort': 'エフォート',
 
   // ---------------------------------------------------------------------------
@@ -814,8 +816,6 @@ export const ja = {
   'branch.picker.tagRecent': '最近',
   'branch.picker.tagDefault': 'デフォルト',
   'branch.picker.tagRepoRoot': 'リポジトリルート',
-  'branch.picker.cloud': 'クラウドで実行',
-  'branch.picker.tagCloud': 'Claude Code on the web',
   'branch.dialog.disabled.pickRepo': 'リポジトリを選択してください。',
   'branch.dialog.disabled.loadingBranches': 'ブランチを読み込み中…',
   'branch.dialog.disabled.noBranches':

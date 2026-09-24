@@ -692,6 +692,8 @@ export const uk = {
   'agent.effort.ultra': 'Ультра',
   'agent.label': 'Агент',
   'agent.model': 'Модель',
+  'agent.cloudToggle': 'Хмара',
+  'agent.cloudToggleTitle': 'Запустити цей чат у Claude Code у вебі — він працюватиме далі після закриття PopBot. Лише Claude.',
   'agent.effort': 'Рівень зусиль',
 
   // ---------------------------------------------------------------------------
@@ -812,8 +814,6 @@ export const uk = {
   'branch.picker.tagRecent': 'нещодавня',
   'branch.picker.tagDefault': 'за замовчуванням',
   'branch.picker.tagRepoRoot': 'корінь репозиторію',
-  'branch.picker.cloud': 'Запустити в хмарі',
-  'branch.picker.tagCloud': 'Claude Code у вебі',
   'branch.dialog.disabled.pickRepo': 'Виберіть репозиторій.',
   'branch.dialog.disabled.loadingBranches': 'Завантаження гілок…',
   'branch.dialog.disabled.noBranches':

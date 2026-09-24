@@ -183,12 +183,18 @@ export function compactAgentCreateConfig(value: AgentCreateConfig): AgentCreateC
 export function AgentCreateControls({
   value,
   onChange,
+  cloud,
 }: {
   value: AgentCreateConfig;
   onChange: (next: AgentCreateConfig) => void;
+  /** A "Cloud" toggle beside the selectors: on, the chat drives a Claude
+   *  Code cloud session (Claude only, no effort to pick). Only the
+   *  generic new-chat flow offers it. */
+  cloud?: { value: boolean; onChange: (cloud: boolean) => void };
 }): JSX.Element {
   const { t } = useTranslation();
   const agent = value.agent;
+  const isCloud = cloud?.value === true;
   const claudeModel = normalizeClaudeModel(value.claudeModel);
   const codexModel = normalizeCodexModel(value.codexModel);
   const claudeEffort = value.claudeReasoningEffort ?? DEFAULT_CLAUDE_REASONING_EFFORT;
@@ -250,6 +256,19 @@ export function AgentCreateControls({
             <option key={item} value={item}>{t(REASONING_LABEL_KEYS[item])}</option>
           ))}
         </select>
+        {/* A cloud session is Claude Code on the web: the toggle exists
+            only while a Claude model is selected. */}
+        {cloud && agent === 'claude' && (
+          <button
+            type="button"
+            className={`cloud-toggle${isCloud ? ' on' : ''}`}
+            aria-pressed={isCloud}
+            title={t('agent.cloudToggleTitle')}
+            onClick={() => cloud.onChange(!isCloud)}
+          >
+            <i className="fa-solid fa-cloud" aria-hidden /> {t('agent.cloudToggle')}
+          </button>
+        )}
       </div>
     </div>
   );

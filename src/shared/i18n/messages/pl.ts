@@ -692,6 +692,8 @@ export const pl = {
   'agent.effort.ultra': 'Ultra',
   'agent.label': 'Agent',
   'agent.model': 'Model',
+  'agent.cloudToggle': 'Chmura',
+  'agent.cloudToggleTitle': 'Uruchom ten czat w Claude Code w przeglądarce – pracuje dalej po zamknięciu PopBota. Tylko Claude.',
   'agent.effort': 'Nakład pracy',
 
   // ---------------------------------------------------------------------------
@@ -812,8 +814,6 @@ export const pl = {
   'branch.picker.tagRecent': 'ostatnie',
   'branch.picker.tagDefault': 'domyślny',
   'branch.picker.tagRepoRoot': 'katalog główny repo',
-  'branch.picker.cloud': 'Uruchom w chmurze',
-  'branch.picker.tagCloud': 'Claude Code w przeglądarce',
   'branch.dialog.disabled.pickRepo': 'Wybierz repozytorium.',
   'branch.dialog.disabled.loadingBranches': 'Wczytywanie branchy…',
   'branch.dialog.disabled.noBranches':

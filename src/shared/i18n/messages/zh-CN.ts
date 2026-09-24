@@ -739,6 +739,8 @@ export const zhCN = {
   'agent.effort.ultra': '极限',
   'agent.label': '代理',
   'agent.model': '模型',
+  'agent.cloudToggle': '云端',
+  'agent.cloudToggleTitle': '让此对话在 Claude Code 网页版上运行，PopBot 退出后仍会继续工作。仅限 Claude。',
   'agent.effort': '努力程度',
 
   // ---------------------------------------------------------------------------
@@ -814,8 +816,6 @@ export const zhCN = {
   'branch.picker.tagRecent': '最近',
   'branch.picker.tagDefault': '默认',
   'branch.picker.tagRepoRoot': '仓库根目录',
-  'branch.picker.cloud': '在云端运行',
-  'branch.picker.tagCloud': 'Claude Code 网页版',
   'branch.dialog.disabled.pickRepo': '请选择一个仓库。',
   'branch.dialog.disabled.loadingBranches': '正在加载分支…',
   'branch.dialog.disabled.noBranches':
