@@ -8,7 +8,10 @@
  *   cr:                only code-review chats   cr:123           one PR / review
  *   last:week          messages from the last day | week | month | year,
  *                      or a count: last:3d, last:2w, last:6m
- *   from:user          who wrote it: user | agent | tool | system (comma list)
+ *   from:user          who wrote it: user | agent | tool | system (comma list).
+ *                      Without it a search covers what the user and the
+ *                      agent wrote; tool calls, their output (patches,
+ *                      command output) and system notes only with from:.
  *   tool:Bash          tool calls whose tool name contains this
  *   agent:codex        chats driven by claude | codex
  *   in:archive         archived chats only; in:open; in:all (the default)
@@ -126,6 +129,16 @@ export function parseSearchQuery(raw: string): ParsedSearchQuery {
     filters,
     hasFilters: Object.keys(filters).length > 0,
   };
+}
+
+/** What a search covers when no `from:` is given: the conversation —
+ *  not tool calls and their output, which are most of the bytes and
+ *  rarely what someone is looking for. */
+export const DEFAULT_SEARCH_FROM: SearchWho[] = ['user', 'agent'];
+
+/** The filters with the `from:` default applied. */
+export function withSearchDefaults(filters: SearchFilters): SearchFilters {
+  return filters.from && filters.from.length > 0 ? filters : { ...filters, from: DEFAULT_SEARCH_FROM };
 }
 
 /** The tags the Search panel offers as buttons. `value` is what a click

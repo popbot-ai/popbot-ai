@@ -7,7 +7,7 @@
  * Search panel (IPC) and the popbot MCP tool.
  */
 import type { TranscriptSearchHit, TranscriptSearchOptions, TranscriptSearchResult } from '@shared/ipc';
-import { parseSearchQuery } from '@shared/searchQuery';
+import { parseSearchQuery, withSearchDefaults } from '@shared/searchQuery';
 import { MIN_FTS_QUERY_CHARS, filterPredicates, ftsQueryFor } from '../persistence/fts';
 import { getChat, listOpenChats } from '../persistence/chats';
 import { indexOfMessage, searchMessages } from '../persistence/messages';
@@ -32,7 +32,9 @@ export function searchTranscripts(query: string, opts: TranscriptSearchOptions =
     rows = searchMessages(match, {
       chatIds: opts.chatIds,
       includeClosed,
-      predicates: filterPredicates(parsed.filters),
+      // User and agent messages unless from: says otherwise — tool output
+      // and patches are most of the bytes and rarely what's being sought.
+      predicates: filterPredicates(withSearchDefaults(parsed.filters)),
       limit: Math.max(50, maxResults * 3),
     });
   } catch (err) {

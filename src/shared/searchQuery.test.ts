@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { parseSearchQuery } from './searchQuery';
+import { parseSearchQuery, withSearchDefaults } from './searchQuery';
 
 const DAY = 24 * 60 * 60 * 1000;
 
@@ -33,6 +33,12 @@ describe('parseSearchQuery', () => {
     // A quoted value with no spaces keeps no quotes either.
     expect(parseSearchQuery('timeout chat:"[cr]"').filters).toEqual({ chat: '[cr]' });
     expect(parseSearchQuery('timeout chat:"[cr]"').text).toBe('timeout');
+  });
+
+  it('covers user and agent messages unless from: says otherwise', () => {
+    expect(withSearchDefaults({}).from).toEqual(['user', 'agent']);
+    expect(withSearchDefaults({ ticket: true }).from).toEqual(['user', 'agent']);
+    expect(withSearchDefaults({ from: ['tool'] }).from).toEqual(['tool']);
   });
 
   it('leaves unknown key:value pairs — a URL — as text', () => {
