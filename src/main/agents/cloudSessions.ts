@@ -31,7 +31,6 @@ import { appendMessage } from '../persistence/messages';
 import { getRepo } from '../persistence/repos';
 import * as pty from '../term/ptyManager';
 import { getClaudeBinaryPath, probeClaude } from './claudeProbe';
-import { isCloudTuiAttached, noteOwnPrompt, startCloudMirror, stopCloudMirror, typeIntoCloudTui } from './cloudMirror';
 
 export type Emit = (event: AgentEvent) => void;
 
@@ -155,14 +154,6 @@ export async function handleCloudSend(chat: ChatRecord, text: string, emit: Emit
   });
   emit({ type: 'message-added', chatId: chat.id, message: userMsg, ts: Date.now() });
 
-  // The CLI that created the session is still attached in the terminal:
-  // type the message into it — the cloud queues it, and the reply shows
-  // up in this column through the mirror.
-  if (isCloudTuiAttached(chat.id)) {
-    dlog('cloud.send', { chatId: chat.id, action: 'type', sessionId: chat.cloud.sessionId, textLen: text.length });
-    typeIntoCloudTui(chat.id, text);
-    return;
-  }
   const action = cloudActionFor(chat.cloud, starting.has(chat.id));
   dlog('cloud.send', { chatId: chat.id, action, sessionId: chat.cloud.sessionId, textLen: text.length });
   if (action === 'follow-up') {
@@ -181,11 +172,6 @@ async function startSession(chat: ChatRecord, task: string, emit: Emit): Promise
   const claude = await claudeForShell();
   pty.open(chat.id, cwd);
   watchForSessionId(chat.id, emit);
-  // Mirror the attached CLI into this column from here on; the task on
-  // the command line is echoed as the first prompt, which we already
-  // have.
-  startCloudMirror(chat.id, emit);
-  noteOwnPrompt(chat.id, task);
   starting.add(chat.id);
   const cloudCmd = `${claude} --cloud ${pty.quoteForShell(task)}`;
   // A chat with its own branch (a slot or worktree): the cloud clones the
@@ -196,20 +182,35 @@ async function startSession(chat: ChatRecord, task: string, emit: Emit): Promise
   updateChatStatus(chat.id, 'idle', task.slice(0, 140));
   note(chat.id, emit,
     (ownBranch
-      ? `cloud: Pushing ${chat.branch} to origin and creating the cloud session in the terminal below — the CLI shows its setup steps there and takes questions. `
-      : 'cloud: Creating the cloud session in the terminal below — the CLI shows its setup steps there and takes questions. ') +
-    'While it stays attached, the conversation is mirrored here and messages you send go straight into it. ' +
-    'The session link will appear here once it is created; if it does not, paste it from claude.ai/code in the chat settings.');
+      ? `cloud: Pushing ${chat.branch} to origin and creating the cloud session in the terminal below. `
+      : 'cloud: Creating the cloud session in the terminal below. ') +
+    'The session link will appear here once it is created (if it does not, paste it from claude.ai/code in the chat settings). ' +
+    'Replies live on claude.ai — open the session from the Cloud chip; messages you send here are queued into it.');
   dlog('cloud.start', { chatId: chat.id, cwd, ownBranch });
 }
 
-/** Read the terminal for the id the CLI prints, then link it. */
+/**
+ * Read the terminal for the id the CLI prints, then link it. On the way,
+ * answer the CLI's "is this a folder you trust?" question with yes: the
+ * folder is the chat's own workspace (or home, for a chat with no repo),
+ * PopBot is driving the terminal, and the question would otherwise sit
+ * there unanswered under the transcript.
+ */
 function watchForSessionId(chatId: string, emit: Emit): void {
   watchers.get(chatId)?.();
   let tail = '';
+  let trustAnswered = false;
   const off = pty.onOutput(chatId, (data) => {
     tail = (tail + data).slice(-TAIL_CHARS);
-    const ref = parseCloudSessionRef(tail);
+    const plain = stripAnsi(tail);
+    if (!trustAnswered && /Yes, I trust this folder/.test(plain) && /Enter to confirm/.test(plain)) {
+      trustAnswered = true;
+      dlog('cloud.trustPrompt.accepted', { chatId });
+      // "No, exit" is preselected: down to "Yes", then Enter.
+      setTimeout(() => pty.write(chatId, '\x1b[B'), 300);
+      setTimeout(() => pty.write(chatId, '\r'), 600);
+    }
+    const ref = parseCloudSessionRef(plain);
     if (!ref) return;
     stopWatching(chatId);
     linkSession(chatId, ref, emit, 'terminal');
@@ -320,5 +321,4 @@ export function linkCloudSession(chatId: string, ref: string, emit: Emit): { ok:
 /** The chat is gone or closing: forget any in-progress start. */
 export function forgetCloudChat(chatId: string): void {
   stopWatching(chatId);
-  stopCloudMirror(chatId);
 }

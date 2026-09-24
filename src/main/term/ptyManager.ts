@@ -27,8 +27,6 @@ interface Entry {
   rows: number;
   /** Main-side readers of this pty's output (besides the renderer). */
   listeners: Set<(data: string) => void>;
-  /** Main-side readers of resizes — a mirror terminal must track them. */
-  resizeListeners: Set<(cols: number, rows: number) => void>;
 }
 
 /** Which shell family the in-app terminal runs — decides how a command
@@ -122,7 +120,7 @@ export function open(chatId: string, cwdWanted: string, cols = 100, rows = 30): 
       cwd,
       env: process.env as Record<string, string>,
     });
-    entry = { pty, buffer: '', cwd, cols, rows, listeners: new Set(), resizeListeners: new Set() };
+    entry = { pty, buffer: '', cwd, cols, rows, listeners: new Set() };
     pty.onData((data: string) => {
       entry!.buffer += data;
       // Truncate from the front when we exceed the cap.
@@ -169,27 +167,6 @@ export function resize(chatId: string, cols: number, rows: number): void {
   e.cols = cols;
   e.rows = rows;
   try { e.pty.resize(cols, rows); } catch { /* pty may have just exited */ }
-  for (const fn of e.resizeListeners) {
-    try { fn(cols, rows); } catch { /* a reader's bug must not break the terminal */ }
-  }
-}
-
-/** The pty's current size, for a mirror terminal to start from. */
-export function size(chatId: string): { cols: number; rows: number } | null {
-  const e = sessions.get(chatId);
-  return e ? { cols: e.cols, rows: e.rows } : null;
-}
-
-/** The output already produced, for a mirror that starts late. */
-export function replayBuffer(chatId: string): string {
-  return sessions.get(chatId)?.buffer ?? '';
-}
-
-export function onResize(chatId: string, fn: (cols: number, rows: number) => void): () => void {
-  const e = sessions.get(chatId);
-  if (!e) return () => undefined;
-  e.resizeListeners.add(fn);
-  return () => { e.resizeListeners.delete(fn); };
 }
 
 export function dispose(chatId: string): void {
