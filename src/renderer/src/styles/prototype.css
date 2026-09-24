@@ -663,36 +663,24 @@ input, textarea { font: inherit; color: inherit; background: none; border: 0; ou
 /* (Earlier iteration had a top-edge color bar here; removed because
    the unified per-chat color blip on the status glyph below already
    conveys the repo association without coloring the whole row.) */
-/* A review chat's mark is its PR author's avatar, in the same round
-   slot the repo dot occupies (`.status-glyph`, `.mon-glyph`,
-   `.col-name-dot`): the picture fills the disc, the repo color stays
-   as a thin ring, and the status pulse / sizing of the host class
-   still apply. Without a picture (Swarm, or the image failed) the
-   disc keeps its color and shows the author's initials. Slightly
-   larger than the dot so a face is recognisable. */
+/* A review chat's mark is the Reviews tab's author circle (`.avatar`
+   above: two characters of the login on the author's hashed colour),
+   in the same round slot the repo dot occupies (`.status-glyph`,
+   `.mon-glyph`, `.col-name-dot`). The host class keeps its status
+   pulse; the size and type match the Reviews tab at 18px and scale
+   down with the smaller marks. The background is set inline. */
 .review-avatar {
-  overflow: hidden;
-  padding: 0;
-  box-shadow: 0 0 0 1.5px var(--col-accent, var(--acc));
+  font-family: inherit; font-weight: 600; letter-spacing: 0.04em;
+  color: white; padding: 0; overflow: hidden;
 }
-.review-avatar.has-image { background: var(--bg-3); }
-.review-avatar img {
-  width: 100%; height: 100%; display: block;
-  border-radius: 50%; object-fit: cover;
-}
-.review-avatar-initials {
-  font-family: var(--font-mono); font-size: 7px; font-weight: 700; letter-spacing: 0;
-  line-height: 1;
-}
-.chat-row .status-glyph.scm-glyph.review-avatar { width: 18px; height: 18px; flex-basis: 18px; margin-top: 1px; }
-.chat-row .status-glyph.scm-glyph.review-avatar .review-avatar-initials { font-size: 8px; }
-.mon-head .mon-glyph.review-avatar { width: 16px; height: 16px; flex-basis: 16px; }
-.mon-thin .mon-glyph.review-avatar { width: 12px; height: 12px; flex-basis: 12px; }
-.mon-thin .mon-glyph.review-avatar .review-avatar-initials { font-size: 6px; }
+/* The host marks set the mono face later in this file; the circle
+   keeps the UI face the Reviews tab uses, so the two read the same. */
+.chat-row .status-glyph.scm-glyph.review-avatar { width: 18px; height: 18px; flex-basis: 18px; margin-top: 1px; font-size: 9px; font-family: inherit; }
+.mon-head .mon-glyph.review-avatar { width: 16px; height: 16px; flex-basis: 16px; font-size: 8px; font-family: inherit; }
+.mon-thin .mon-glyph.review-avatar { width: 12px; height: 12px; flex-basis: 12px; font-size: 6px; letter-spacing: 0; font-family: inherit; }
 .col-head .col-name-dot.review-avatar {
-  width: 16px; height: 16px; flex-basis: 16px;
+  width: 16px; height: 16px; flex-basis: 16px; font-size: 8px; font-family: inherit;
   display: inline-flex; align-items: center; justify-content: center;
-  color: var(--col-accent-fg, #fff);
 }
 
 /* Unified per-chat color blip — filled circle in the chat's repo

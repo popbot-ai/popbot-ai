@@ -227,7 +227,7 @@ export function MonitorCard({
         // blinker — enough to find and click the chat.
         <div className="mon-thin">
           {chat.prAuthor
-            ? <ReviewAvatar author={chat.prAuthor} scm={chat.scm} className={`mon-glyph status-${chat.status}`} />
+            ? <ReviewAvatar author={chat.prAuthor} className={`mon-glyph status-${chat.status}`} />
             : <span className={`mon-glyph status-${chat.status}`}>{glyph}</span>}
           <span className="mon-thin-name">{chat.name}</span>
           {attention && <span className="mon-thin-attn" data-kind={attention.toLowerCase()} title={t(ATTENTION_LABEL_KEY[attention])} />}
@@ -244,7 +244,7 @@ export function MonitorCard({
         {/* A review chat wears its PR author's face where the repo dot
             goes — the quickest way to find whose review this is. */}
         {chat.prAuthor
-          ? <ReviewAvatar author={chat.prAuthor} scm={chat.scm} className={`mon-glyph status-${chat.status}`} />
+          ? <ReviewAvatar author={chat.prAuthor} className={`mon-glyph status-${chat.status}`} />
           : <span className={`mon-glyph status-${chat.status}`}>{glyph}</span>}
         <span className="mon-name" title={chat.name}>{chat.name}</span>
         <span

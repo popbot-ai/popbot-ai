@@ -579,7 +579,7 @@ export function ChatColumn({
               Inherits `--col-accent` from the col element. A review
               chat shows its PR author's avatar instead, as those do. */}
           {chat.prAuthor
-            ? <ReviewAvatar author={chat.prAuthor} scm={chat.repoScm} className="col-name-dot" title={`${chat.prAuthor} · ${repoTitle}`} />
+            ? <ReviewAvatar author={chat.prAuthor} className="col-name-dot" title={`${chat.prAuthor} · ${repoTitle}`} />
             : <span className="col-name-dot" aria-hidden="true" title={repoTitle} />}
           {renaming ? (
             <input

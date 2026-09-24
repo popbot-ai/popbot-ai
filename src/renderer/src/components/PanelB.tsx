@@ -64,7 +64,7 @@ function ChatRow({ chat, focused, inactive, removing, onClick, onDelete }: ChatR
       style={colAccentStyle(chat.repoColor)}
     >
       {chat.prAuthor ? (
-        <ReviewAvatar author={chat.prAuthor} scm={chat.scm} className={`status-glyph scm-glyph status-${chat.status}`} />
+        <ReviewAvatar author={chat.prAuthor} className={`status-glyph scm-glyph status-${chat.status}`} />
       ) : (
         <span className={`status-glyph scm-glyph status-${chat.status}`}>
           <ScmGlyph scm={chat.scm} />

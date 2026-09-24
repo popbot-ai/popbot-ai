@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { authorInitials, mergePinnedReviews, reviewAvatarUrl, type ReviewItem } from './reviews';
+import { mergePinnedReviews, type ReviewItem } from './reviews';
 
 function item(number: number, over: Partial<ReviewItem> = {}): ReviewItem {
   return {
@@ -57,24 +57,5 @@ describe('mergePinnedReviews', () => {
     const [row] = mergePinnedReviews([item(7, { tier: 'team' })], []);
     expect(row.pinned).toBe(true);
     expect(row.tier).toBe('team');
-  });
-});
-
-describe('reviewAvatarUrl / authorInitials', () => {
-  it('points at the GitHub avatar for a login and at nothing for Swarm', () => {
-    expect(reviewAvatarUrl('github', 'benjcooley')).toBe('https://avatars.githubusercontent.com/benjcooley?size=64');
-    expect(reviewAvatarUrl('git', 'octo-cat')).toBe('https://avatars.githubusercontent.com/octo-cat?size=64');
-    expect(reviewAvatarUrl('swarm', 'bcooley')).toBeNull();
-    expect(reviewAvatarUrl('perforce', 'bcooley')).toBeNull();
-    expect(reviewAvatarUrl('github', '')).toBeNull();
-    expect(reviewAvatarUrl('github', 'not a login')).toBeNull();
-    expect(reviewAvatarUrl(null, 'x')).toBe('https://avatars.githubusercontent.com/x?size=64');
-  });
-
-  it('makes initials out of a login', () => {
-    expect(authorInitials('benjcooley')).toBe('BE');
-    expect(authorInitials('ben.cooley')).toBe('BC');
-    expect(authorInitials('coderabbitai[bot]')).toBe('CB');
-    expect(authorInitials('')).toBe('?');
   });
 });
