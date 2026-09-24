@@ -224,6 +224,19 @@ export interface ChatsChangedEvent {
 }
 
 /**
+ * An agent asks the app to show a message: the popbot go_to_message tool.
+ * The renderer focuses the chat (reopening it from the archive if it has
+ * to) and scrolls its transcript to the row — what the Search panel's
+ * "Go to" does.
+ */
+export interface GoToMessageEvent {
+  type: 'go-to-message';
+  chatId: string;
+  messageId: string;
+  ts: number;
+}
+
+/**
  * A row AgentHost has removed from the transcript. Used for messages
  * that were only ever provisional — the "no response, retrying…" notice
  * is deleted the moment the retry produces a real reply, so a
@@ -248,6 +261,7 @@ export type AgentEvent =
   | MessageRemovedEvent
   | ChatUpdatedEvent
   | ChatsChangedEvent
+  | GoToMessageEvent
   | TurnStartEvent
   | TurnSteeredEvent
   | SessionStatusEvent

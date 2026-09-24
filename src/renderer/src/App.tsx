@@ -16,6 +16,7 @@ import { ChatSettingsSheet } from './components/ChatSettingsSheet';
 import { SignInDialog } from './components/SignInDialog';
 import { SearchPanel } from './components/SearchPanel';
 import { requestJump } from './lib/jumpToMessage';
+import { subscribeAgentEvents } from './lib/agentEventBus';
 import { Modal } from './components/Modal';
 import { PreferencesSheet } from './components/PreferencesSheet';
 import { CloseChatPrompt } from './components/CloseChatPrompt';
@@ -788,6 +789,12 @@ export default function App(): JSX.Element {
     const closed = closedChats.find((c) => c.id === hit.chatId) ?? ({ id: hit.chatId } as ChatRecord);
     await focusOrAttach(closed);
   };
+
+  // An agent's go_to_message (popbot MCP): same path as the Search panel.
+  useEffect(() => subscribeAgentEvents((event) => {
+    if (event.type !== 'go-to-message') return;
+    void goToMessage({ chatId: event.chatId, messageId: event.messageId } as TranscriptSearchHit);
+  }));
 
   const handleSpawnFromTicket = (ticket: Ticket) => {
     const existing =

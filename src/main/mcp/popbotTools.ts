@@ -27,8 +27,8 @@ import {
 import { AgentHost } from '../agents/AgentHost';
 import { dlog } from '../diagLog';
 import { closeChatWithWorkspace, createChatWithWorkspace, reopenChatWithWorkspace } from '../ipc/chats';
-import { getChat, listClosedChats, listOpenChats } from '../persistence/chats';
-import { listMessages } from '../persistence/messages';
+import { getChat, listChatRefs, listClosedChats, listOpenChats } from '../persistence/chats';
+import { getMessage, listMessages } from '../persistence/messages';
 import { getRepo, listRepos } from '../persistence/repos';
 import { getSetting } from '../persistence/settings';
 import { getReviewByNumber } from '../reviews';
@@ -341,6 +341,20 @@ export function createPopbotToolHandlers(): PopbotToolHandlers {
       dlog('mcp.popbot.ticket', { by: caller, chatId: result.chat.id, ticket: id });
       changed(result.chat.id, 'created');
       return { chat: summarize(result.chat, caller, false), existing: false };
+    },
+
+    listRefs() {
+      return listChatRefs();
+    },
+
+    goToMessage({ chatId, messageId }, caller) {
+      const chat = getChat(chatId);
+      if (!chat) return fail(`no chat ${chatId}`);
+      const message = getMessage(messageId);
+      if (!message || message.chatId !== chatId) return fail(`no message ${messageId} in chat ${chatId}`);
+      AgentHost.emit({ type: 'go-to-message', chatId, messageId, ts: Date.now() });
+      dlog('mcp.popbot.goTo', { by: caller, chatId, messageId });
+      return { ok: true };
     },
 
     getTranscript({ chatId: wanted, from, to, includeTools, maxChars }, caller) {

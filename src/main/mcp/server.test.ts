@@ -19,6 +19,8 @@ const handlers: PopbotToolHandlers = {
   openTicketChat: async (input, caller) => ({ chat: chat('chat_t', input.ticket, caller), existing: true }),
   getTranscript: (input, caller) => ({ chatId: input.chatId ?? caller ?? '?', text: '#0 user @ t\nhi\n', count: 1, total: 1, truncated: false }),
   searchTranscripts: () => ({ matches: [] }),
+  listRefs: () => ({ tickets: [], prs: [], chats: [] }),
+  goToMessage: (input) => (input.messageId ? { ok: true } : { error: 'no message' }),
 };
 
 describe('popbot MCP server over Streamable HTTP', () => {
@@ -36,7 +38,7 @@ describe('popbot MCP server over Streamable HTTP', () => {
     const client = await connect('chat_a');
     const { tools } = await client.listTools();
     expect(tools.map((t) => t.name).sort()).toEqual([
-      'close_chat', 'create_chat', 'get_chat_transcript', 'list_chats',
+      'close_chat', 'create_chat', 'get_chat_transcript', 'go_to_message', 'list_chats', 'list_refs',
       'open_ticket_chat', 'reopen_chat', 'search_chats', 'send_to_chat', 'start_code_review',
     ]);
     const send = tools.find((t) => t.name === 'send_to_chat')!;

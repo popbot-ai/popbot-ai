@@ -22,7 +22,7 @@ import { createServer, type IncomingMessage, type Server, type ServerResponse } 
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import { z } from 'zod';
-import type { TranscriptSearchHit } from '@shared/ipc';
+import type { ChatRefs, TranscriptSearchHit } from '@shared/ipc';
 
 export interface ChatSummary {
   id: string;
@@ -69,6 +69,10 @@ export interface PopbotToolHandlers {
     },
     caller: string | null,
   ): { matches: TranscriptSearchHit[] } | ToolFailure;
+  /** What search_chats' ticket: / cr: / chat: tags can name. */
+  listRefs(caller: string | null): ChatRefs;
+  /** Show a message in the app: focus its chat, scroll to the row. */
+  goToMessage(input: { chatId: string; messageId: string }, caller: string | null): { ok: true } | ToolFailure;
 }
 
 function text(value: unknown): { content: Array<{ type: 'text'; text: string }>; isError?: boolean } {
@@ -191,6 +195,23 @@ export function registerPopbotTools(server: McpServer, h: PopbotToolHandlers, ca
       caseSensitive: z.boolean().default(false).describe('text mode only: drop hits whose case differs'),
     },
   }, async (input) => guarded(() => h.searchTranscripts(input, caller)));
+
+  server.registerTool('list_refs', {
+    title: 'List the tickets, PRs and chats a search can name',
+    annotations: { readOnlyHint: true, openWorldHint: false },
+    description: 'The values search_chats’ tags can take: every ticket key (ticket:ENG-123), PR / review number (cr:67) and chat (chat:<id>, shown with its name and whether it is archived) on a chat PopBot knows, most recently active first.',
+    inputSchema: {},
+  }, async () => guarded(() => h.listRefs(caller)));
+
+  server.registerTool('go_to_message', {
+    title: 'Show a message in the app',
+    annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
+    description: 'Bring a message in front of the user: PopBot focuses its chat — reopening it from the archive if needed — and scrolls the transcript to that message, highlighting it. Use the chatId and messageId of a search_chats hit (or an entry from get_chat_transcript). Nothing is sent to the chat.',
+    inputSchema: {
+      chatId: z.string(),
+      messageId: z.string(),
+    },
+  }, async (input) => guarded(() => h.goToMessage(input, caller)));
 
 
 }
