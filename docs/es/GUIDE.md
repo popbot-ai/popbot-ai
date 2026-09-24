@@ -186,6 +186,8 @@ Así que el diseño se compromete con dos cosas:
 
 El resultado es la capacidad de **intervenir a tiempo**. El error costoso con agentes autónomos no es un fallo — es un agente gastando una hora con confianza construyendo lo equivocado. Una vista que muestra la intención continuamente convierte eso de un descubrimiento posterior en una corrección de rumbo a mitad de camino. Esa es toda la razón por la que la flota está en pantalla todo el tiempo en lugar de detrás de pestañas o una notificación.
 
+La propia tira muestra todos los chats abiertos a la vez, sean los que sean. Los chats alrededor del que estás mirando aparecen como miniaturas completas; el resto se contrae en franjas finas —el icono de estado, el nombre en vertical, el parpadeo cuando está trabajando— bien apretadas para que todos sigan a la vista. Desplazarse lateralmente sobre la tira mueve el rango abierto: a un lado las franjas se estiran hasta ser miniaturas mientras al otro las miniaturas se comprimen en franjas. Hacer clic en una franja la abre y enfoca su chat, y arrastrar funciona igual con franjas y miniaturas.
+
 ---
 
 ## Cómo se usó en Proof of Play

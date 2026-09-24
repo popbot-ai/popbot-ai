@@ -1,11 +1,12 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type MouseEvent } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type MouseEvent } from 'react';
 import { RAW_CHAT_REPO_ID, type ChatRecord } from '@shared/persistence';
 import { Titlebar } from './components/Titlebar';
 import { AboutDialog } from './components/AboutDialog';
 import { WhatsNewDialog } from './components/WhatsNewDialog';
 import { PanelA } from './components/PanelA';
 import { PanelB } from './components/PanelB';
-import { MonitorCard } from './components/MonitorCard';
+import { MonitorCard, THIN_MODE_BELOW } from './components/MonitorCard';
+import { accordionLayout, scrollToReveal } from './lib/accordion';
 import { ChatColumn, EmptyColumn, ReadinessGateModal } from './components/ChatColumn';
 import { P4LoginModal } from './components/P4LoginModal';
 import { PanelD } from './components/PanelD';
@@ -63,6 +64,9 @@ type ColumnLayoutVars = CSSProperties & {
 /** Min width per column. Mirrors `.col { min-width }` in prototype.css.
  *  TODO: make this user-adjustable in prefs. */
 const MIN_COL_WIDTH = 560;
+/** Thumbnail strip accordion: a full thumbnail, a thin stripe, the gap. */
+const THUMB = { full: 240, thin: 24, gap: 6 };
+const THUMB_STRIP_PAD = 16;
 
 /**
  * Adapter: many of the prototype-derived components (PanelB row,
@@ -352,6 +356,69 @@ export default function App(): JSX.Element {
     ids.splice(side === 'after' ? at + 1 : at, 0, source);
     void reorder(ids);
   };
+  // The strip's accordion (lib/accordion.ts): one scroll position picks
+  // which cards are open; the layout hands every card its width.
+  const [stripWidth, setStripWidth] = useState(0);
+  const [stripScroll, setStripScroll] = useState(0);
+  const stripScrollRef = useRef(0);
+  const stripMaxScrollRef = useRef(0);
+  const revealTweenRef = useRef<number | null>(null);
+  useEffect(() => {
+    const el = thumbstripRef.current;
+    if (!el) return;
+    const measure = (): void => setStripWidth(Math.max(0, el.clientWidth - THUMB_STRIP_PAD));
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  const accordion = useMemo(
+    () => accordionLayout(chats.length, stripWidth, stripScroll, THUMB),
+    [chats.length, stripWidth, stripScroll],
+  );
+  stripMaxScrollRef.current = accordion.maxScroll;
+  useEffect(() => {
+    // Fewer chats or a wider strip: keep the scroll in range.
+    if (stripScroll > accordion.maxScroll) {
+      stripScrollRef.current = accordion.maxScroll;
+      setStripScroll(accordion.maxScroll);
+    }
+  }, [accordion.maxScroll, stripScroll]);
+  // The wheel slides the open range; native scrolling is off. Passive
+  // must be false so the page doesn't also scroll.
+  useEffect(() => {
+    const el = thumbstripRef.current;
+    if (!el) return;
+    const onWheel = (e: WheelEvent): void => {
+      if (stripMaxScrollRef.current <= 0) return;
+      const delta = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY;
+      if (!delta) return;
+      e.preventDefault();
+      if (revealTweenRef.current) { cancelAnimationFrame(revealTweenRef.current); revealTweenRef.current = null; }
+      const next = Math.min(stripMaxScrollRef.current, Math.max(0, stripScrollRef.current + delta));
+      stripScrollRef.current = next;
+      setStripScroll(next);
+    };
+    el.addEventListener('wheel', onWheel, { passive: false });
+    return () => el.removeEventListener('wheel', onWheel);
+  }, []);
+  /** Slide the strip so card `idx` is a full thumbnail — the least
+   *  distance that does it, animated. */
+  const revealCard = (idx: number): void => {
+    const target = scrollToReveal(idx, stripScrollRef.current, chats.length, stripWidth, THUMB);
+    const from = stripScrollRef.current;
+    if (target === from) return;
+    if (revealTweenRef.current) cancelAnimationFrame(revealTweenRef.current);
+    const t0 = performance.now();
+    const step = (now: number): void => {
+      const k = Math.min(1, (now - t0) / 180);
+      const v = k >= 1 ? target : from + (target - from) * (1 - Math.pow(1 - k, 3));
+      stripScrollRef.current = v;
+      setStripScroll(v);
+      revealTweenRef.current = k < 1 ? requestAnimationFrame(step) : null;
+    };
+    revealTweenRef.current = requestAnimationFrame(step);
+  };
   const visibleStartRef = useRef<HTMLDivElement | null>(null);
   const visibleEndRef = useRef<HTMLDivElement | null>(null);
   const [overlayRect, setOverlayRect] = useState<{
@@ -410,7 +477,7 @@ export default function App(): JSX.Element {
 
   useLayoutEffect(() => {
     computeOverlay();
-  }, [computeOverlay, chats, windowStart, visibleCols]);
+  }, [computeOverlay, chats, windowStart, visibleCols, stripScroll, stripWidth]);
 
   useEffect(() => {
     const head = centerHeadRef.current;
@@ -580,6 +647,7 @@ export default function App(): JSX.Element {
     const idx = chats.findIndex((c) => c.id === id);
     if (idx < 0) return;
     setFocusedId(id);
+    revealCard(idx);
     if (idx >= windowStart && idx < windowStart + visibleCols) return;
     const newStart = idx < windowStart ? idx : Math.max(0, idx - (visibleCols - 1));
     setWindowStart(Math.min(maxStart, Math.max(0, newStart)));
@@ -1477,6 +1545,7 @@ export default function App(): JSX.Element {
                       if (isWindowEnd) visibleEndRef.current = el;
                     }
                   : undefined;
+                const width = accordion.widths[idx] ?? THUMB.full;
                 return (
                   <MonitorCard
                     key={c.id}
@@ -1485,6 +1554,10 @@ export default function App(): JSX.Element {
                     isForeground={c.id === foregroundId}
                     isVisible={isVisible}
                     refSetter={refSetter}
+                    width={width}
+                    mode={width < THIN_MODE_BELOW ? 'thin' : 'full'}
+                    anchor={accordion.anchors[idx] ?? 'left'}
+                    fullWidth={THUMB.full}
                     onClick={() => scrollToChat(c.id)}
                     onBringForward={() =>
                       setForegroundId((prev) => (prev === c.id ? null : c.id))

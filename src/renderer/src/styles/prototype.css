@@ -716,13 +716,14 @@ input, textarea { font: inherit; color: inherit; background: none; border: 0; ou
   background: var(--bg-1);
   flex: 0 0 auto;
 }
+/* The strip is an accordion (lib/accordion.ts): every open chat fits,
+   as a full thumbnail or a thin stripe, and the wheel slides the open
+   range along — so no native scrolling here. */
 .thumbstrip {
   flex: 1 1 auto;
   display: flex; gap: 6px;
   padding: 8px 8px 8px 8px;
-  overflow-x: auto;
-  overflow-y: hidden;
-  scrollbar-width: thin;
+  overflow: hidden;
   min-width: 0;
 }
 
@@ -737,17 +738,53 @@ input, textarea { font: inherit; color: inherit; background: none; border: 0; ou
    ============================================================ */
 .monitor {
   flex: 0 0 240px;
+  width: 240px;
   height: 156px;
+  box-sizing: border-box;
   background: var(--bg-2);
   border: 1px solid var(--line-2);
   border-left-width: 3px;
   border-radius: var(--radius-sm);
-  padding: 6px 8px 6px;
-  display: flex; flex-direction: column;
   cursor: pointer;
   position: relative;
   overflow: hidden;
   transition: border-color 0.12s, background 0.12s;
+}
+/* The full thumbnail: laid out at its natural width inside the (maybe
+   narrower) card and clipped by it — anchored to whichever edge the
+   card is opening from. */
+.mon-full {
+  position: absolute; top: 0; bottom: 0; left: 0;
+  box-sizing: border-box;
+  padding: 6px 8px 6px;
+  display: flex; flex-direction: column;
+}
+.monitor.anchor-right .mon-full { left: auto; right: 0; }
+/* The stripe: glyph on top, the name running down, the blinker at the
+   foot. A hair smaller than the thumbnail's type so stripes pack. */
+.mon-thin {
+  position: absolute; inset: 0;
+  display: flex; flex-direction: column; align-items: center; gap: 6px;
+  padding: 6px 0 7px;
+}
+.mon-thin .mon-glyph { flex: 0 0 12px; }
+.mon-thin-name {
+  writing-mode: vertical-rl;
+  font-size: 10px; font-weight: 600; color: var(--fg-1); letter-spacing: 0.01em;
+  flex: 1 1 auto; min-height: 0;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.monitor.is-thin.focused .mon-thin-name { color: var(--fg-0); }
+.mon-thin-attn {
+  flex: 0 0 auto; width: 7px; height: 7px; border-radius: 50%;
+  background: var(--st-wait);
+}
+.mon-thin-attn[data-kind='plan'] { background: var(--acc); }
+/* The working blinker, lying across the stripe. */
+.mon-thin-cursor {
+  flex: 0 0 auto; width: 10px; height: 4px; border-radius: 1px;
+  background: var(--acc-hi);
+  animation: blink 1s steps(2) infinite;
 }
 .monitor:hover { background: var(--bg-3); }
 .monitor.focused {
@@ -4098,8 +4135,10 @@ input.input.mono, select.input.mono { font-family: var(--font-mono); font-size: 
    stay authoritative and our overrides win on cascade order.
    ============================================================ */
 
-/* Dim out-of-window thumbnails so the visible group reads. */
+/* Dim out-of-window thumbnails so the visible group reads. Stripes
+   less so — the point of them is that every chat stays legible. */
 .monitor.is-offscreen { opacity: 0.5; }
+.monitor.is-thin.is-offscreen { opacity: 0.78; }
 .monitor.is-offscreen:hover { opacity: 0.85; }
 
 /* Wait state — needs-you indicator on the thumbnail. The design's base

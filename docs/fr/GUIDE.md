@@ -186,6 +186,8 @@ Donc la conception s'engage sur deux points :
 
 Le gain, c'est la capacité d'**intervenir tôt**. L'erreur coûteuse avec des agents autonomes n'est pas un crash — c'est un agent qui passe une heure avec assurance à construire la mauvaise chose. Une vue qui affiche continuellement l'intention transforme cela d'une découverte a posteriori en une correction de trajectoire à mi-parcours. C'est toute la raison pour laquelle la flotte est à l'écran en permanence plutôt que derrière des onglets ou une notification.
 
+La bande elle-même affiche toutes les conversations ouvertes à la fois, quel qu'en soit le nombre. Celles qui entourent la conversation regardée apparaissent en miniatures complètes ; les autres se replient en fines bandes — l'icône d'état, le nom écrit de haut en bas, le clignotement quand ça travaille — serrées pour que toutes restent visibles. Faire défiler la bande latéralement déplace la plage ouverte : d'un côté les bandes s'étirent en miniatures, de l'autre les miniatures se compriment en bandes. Cliquer sur une bande l'ouvre et met sa conversation au premier plan, et le glisser-déposer fonctionne pareil pour les bandes et les miniatures.
+
 ---
 
 ## Comment il a été utilisé chez Proof of Play

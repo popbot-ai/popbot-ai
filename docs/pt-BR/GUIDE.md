@@ -186,6 +186,8 @@ Então o design se compromete com duas coisas:
 
 O retorno é a capacidade de **intervir cedo**. O erro caro com agentes autônomos não é uma falha — é um agente confiantemente gastando uma hora construindo a coisa errada. Uma visão que revela intenção continuamente transforma isso de uma descoberta posterior em uma correção de meio de percurso. Essa é toda a razão pela qual a frota fica na tela o tempo todo em vez de atrás de abas ou uma notificação.
 
+A própria faixa cabe todos os chats abertos de uma vez, sejam quantos forem. Os chats ao redor do que você está olhando aparecem como miniaturas completas; o resto se recolhe em faixas finas — o ícone de status, o nome escrito na vertical, o piscar quando está trabalhando — bem compactadas para que todos continuem à vista. Rolar de lado sobre a faixa desloca o intervalo aberto: de um lado as faixas se esticam em miniaturas enquanto do outro as miniaturas se comprimem em faixas. Clicar numa faixa a abre e foca seu chat, e arrastar funciona igual para faixas e miniaturas.
+
 ---
 
 ## Como foi usado na Proof of Play

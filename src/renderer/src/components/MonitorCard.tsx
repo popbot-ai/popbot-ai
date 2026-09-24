@@ -78,7 +78,19 @@ interface MonitorCardProps {
   onDragEnd?: () => void;
   isDragging?: boolean;
   dropSide?: 'before' | 'after' | null;
+  /** Accordion strip: the card's current width, whether it renders as a
+   *  thin stripe or a (possibly clipped) full thumbnail, and which edge
+   *  the full content hugs while it is partly open. Absent = plain full
+   *  card at its natural width. */
+  width?: number;
+  mode?: 'thin' | 'full';
+  anchor?: 'left' | 'right';
+  fullWidth?: number;
 }
+
+/** Below this width a card renders as its stripe; above it, as the full
+ *  thumbnail clipped to the width. */
+export const THIN_MODE_BELOW = 24 + 44;
 
 type AttentionKind = 'PLAN' | 'PERMISSION' | 'QUESTION' | 'WAIT';
 
@@ -133,6 +145,10 @@ export function MonitorCard({
   onDragEnd,
   isDragging = false,
   dropSide = null,
+  width,
+  mode = 'full',
+  anchor = 'left',
+  fullWidth = 240,
 }: MonitorCardProps): JSX.Element {
   const { t } = useTranslation();
   // Thumbnail renders the last 6 activity lines, full stop — nothing
@@ -186,22 +202,35 @@ export function MonitorCard({
     onBringForward();
   };
 
+  const thin = mode === 'thin';
   return (
     <div
       ref={refSetter}
-      className={`monitor ${chat.status} ${isFocused ? 'focused' : ''} ${isForeground ? 'is-foreground' : ''} ${isVisible ? 'is-visible' : 'is-offscreen'} ${isDragging ? 'is-dragging' : ''} ${dropSide ? `drop-${dropSide}` : ''}`}
+      className={`monitor ${chat.status} ${isFocused ? 'focused' : ''} ${isForeground ? 'is-foreground' : ''} ${isVisible ? 'is-visible' : 'is-offscreen'} ${isDragging ? 'is-dragging' : ''} ${dropSide ? `drop-${dropSide}` : ''} ${thin ? 'is-thin' : 'is-full'} ${anchor === 'right' ? 'anchor-right' : ''}`}
       onClick={onClick}
       draggable={!!onDragStart}
       onDragStart={onDragStart}
       onDragOver={onDragOver}
       onDrop={onDrop}
       onDragEnd={onDragEnd}
+      title={thin ? chat.name : undefined}
       // Per-card accent → drives the focused border + foreground ring
       // in this chat's repo color, plus the perceptual `--col-accent-fg`
       // for chips on top of the accent. Falls back to apple-blue when
       // repoColor isn't set.
-      style={colAccentStyle(chat.repoColor)}
+      style={{ ...colAccentStyle(chat.repoColor), ...(width != null ? { width, flex: '0 0 auto' } : {}) }}
     >
+      {thin ? (
+        // The stripe: status glyph, the name running down, the working
+        // blinker — enough to find and click the chat.
+        <div className="mon-thin">
+          <span className={`mon-glyph status-${chat.status}`}>{glyph}</span>
+          <span className="mon-thin-name">{chat.name}</span>
+          {attention && <span className="mon-thin-attn" data-kind={attention.toLowerCase()} title={t(ATTENTION_LABEL_KEY[attention])} />}
+          {chat.status === 'run' && <span className="mon-thin-cursor" />}
+        </div>
+      ) : (
+      <div className="mon-full" style={{ width: fullWidth }}>
       {isForeground && <span className="fg-tag">{t('monitor.foregroundTag')}</span>}
       {attention && (
         <span className="attn-tag" data-kind={attention.toLowerCase()}>{t(ATTENTION_LABEL_KEY[attention])}</span>
@@ -311,6 +340,8 @@ export function MonitorCard({
           )}
         </button>
       </div>
+      </div>
+      )}
     </div>
   );
 }
