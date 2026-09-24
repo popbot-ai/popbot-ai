@@ -844,7 +844,6 @@ export const zhCN = {
     '在 Anthropic 云端沙盒中运行：对话照常获得槽位和分支，分支被推送到 origin，沙盒再克隆它。槽位保留在本地；可以从对话菜单把云端的提交拉取进来。PopBot 退出后继续工作。',
   'branch.dialog.cloudGithubNote': '沙盒使用你的 GitHub 令牌克隆：偏好设置 ▸ 智能体 ▸ 云端对话中保存的令牌，或 gh 当前登录所用的令牌。',
   'branch.dialog.cloudNoKey': '云端对话需要 Anthropic API 密钥。请在偏好设置 ▸ 智能体 ▸ 云端对话中添加。',
-  'branch.dialog.disabled.cloudNoKey': '请先添加 Anthropic API 密钥',
   'branch.dialog.createChat': '创建聊天',
 
   // ---------------------------------------------------------------------------

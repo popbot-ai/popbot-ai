@@ -848,7 +848,6 @@ export const ja = {
   'branch.dialog.cloudGithubNote':
     'サンドボックスはあなたの GitHub トークンでクローンします。環境設定 ▸ エージェント ▸ クラウドチャットに保存したもの、または gh がサインインしているものです。',
   'branch.dialog.cloudNoKey': 'クラウドチャットには Anthropic API キーが必要です。環境設定 ▸ エージェント ▸ クラウドチャットで追加してください。',
-  'branch.dialog.disabled.cloudNoKey': '先に Anthropic API キーを追加してください',
   'branch.dialog.createChat': 'チャットを作成',
 
   // ---------------------------------------------------------------------------

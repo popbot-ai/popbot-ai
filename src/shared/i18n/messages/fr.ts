@@ -850,7 +850,6 @@ export const fr = {
     'Le bac à sable clone avec votre jeton GitHub : celui enregistré dans Préférences ▸ Agents ▸ Chats cloud, ou celui avec lequel gh est connecté.',
   'branch.dialog.cloudNoKey':
     'Les chats cloud ont besoin d’une clé API Anthropic. Ajoutez-en une dans Préférences ▸ Agents ▸ Chats cloud.',
-  'branch.dialog.disabled.cloudNoKey': 'Ajoutez d’abord une clé API Anthropic',
   'branch.dialog.createChat': 'Créer le chat',
 
   // ---------------------------------------------------------------------------

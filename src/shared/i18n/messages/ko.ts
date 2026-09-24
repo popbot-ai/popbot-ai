@@ -848,7 +848,6 @@ export const ko = {
   'branch.dialog.cloudGithubNote':
     '샌드박스는 사용자의 GitHub 토큰으로 클론합니다. 환경설정 ▸ 에이전트 ▸ 클라우드 채팅에 저장한 토큰이나 gh가 로그인한 토큰을 사용합니다.',
   'branch.dialog.cloudNoKey': '클라우드 채팅에는 Anthropic API 키가 필요합니다. 환경설정 ▸ 에이전트 ▸ 클라우드 채팅에서 추가하세요.',
-  'branch.dialog.disabled.cloudNoKey': '먼저 Anthropic API 키를 추가하세요',
   'branch.dialog.createChat': '채팅 만들기',
 
   // ---------------------------------------------------------------------------

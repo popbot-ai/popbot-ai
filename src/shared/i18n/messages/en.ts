@@ -876,7 +876,6 @@ export const en = {
     'The sandbox clones with your GitHub token: the one saved in Preferences ▸ Agents ▸ Cloud chats, or the one gh is signed in with.',
   'branch.dialog.cloudNoKey':
     'Cloud chats need an Anthropic API key. Add one in Preferences ▸ Agents ▸ Cloud chats.',
-  'branch.dialog.disabled.cloudNoKey': 'Add an Anthropic API key first',
   'branch.dialog.createChat': 'Create chat',
 
   // ---------------------------------------------------------------------------

@@ -850,7 +850,6 @@ export const de = {
     'Die Sandbox klont mit deinem GitHub-Token: dem in Einstellungen ▸ Agenten ▸ Cloud-Chats gespeicherten oder dem, mit dem gh angemeldet ist.',
   'branch.dialog.cloudNoKey':
     'Cloud-Chats brauchen einen Anthropic-API-Key. Trage ihn unter Einstellungen ▸ Agenten ▸ Cloud-Chats ein.',
-  'branch.dialog.disabled.cloudNoKey': 'Zuerst einen Anthropic-API-Key eintragen',
   'branch.dialog.createChat': 'Chat erstellen',
 
   // ---------------------------------------------------------------------------

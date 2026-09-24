@@ -333,6 +333,10 @@ export function BaseBranchDialog({
     return () => { cancelled = true; };
   }, [isCloud]);
   const cloudNoKey = isCloud && cloudKey === false;
+  // Pressing Create without a key is answered with an error, not a
+  // greyed-out button: the reason and the way to fix it are spelled out.
+  const [cloudError, setCloudError] = useState(false);
+  useEffect(() => { if (!cloudNoKey) setCloudError(false); }, [cloudNoKey]);
 
   // Initial load: repos + (when not locked) the last-used repo id from
   // settings. Locked-repo callers skip the picker entirely; their repo
@@ -398,6 +402,10 @@ export function BaseBranchDialog({
   }, [pickedRepoId, repos]);
 
   const submit = (): void => {
+    if (cloudNoKey) {
+      setCloudError(true);
+      return;
+    }
     const chosenAgent = showAgentPicker ? compactAgentCreateConfig(agentConfig) : undefined;
     if (chosenAgent) void window.popbot.settings.set(LAST_AGENT_SETTING, chosenAgent);
     if (isRawChat) {
@@ -458,10 +466,9 @@ export function BaseBranchDialog({
   const noBranches = !isRawChat && !isFreeChat && !isPerforce && branches != null && allBranches.length === 0;
   const noBranchPicked = !isRawChat && !isFreeChat && !isPerforce && !noBranches && !picked;
   const branchesLoading = !isRawChat && !isFreeChat && !isPerforce && branches == null && !error;
-  const confirmDisabled = noRepo || noBranches || noBranchPicked || branchesLoading || cloudNoKey;
+  const confirmDisabled = noRepo || noBranches || noBranchPicked || branchesLoading;
   // Plain-language reason shown beside a disabled Create button.
-  const disabledReason = cloudNoKey ? t('branch.dialog.disabled.cloudNoKey')
-    : noRepo ? t('branch.dialog.disabled.pickRepo')
+  const disabledReason = noRepo ? t('branch.dialog.disabled.pickRepo')
     : branchesLoading ? t('branch.dialog.disabled.loadingBranches')
       : noBranches ? t('branch.dialog.disabled.noBranches')
         : noBranchPicked ? t('branch.dialog.disabled.pickBranch')
@@ -645,6 +652,24 @@ export function BaseBranchDialog({
         <div className="confirm-foot">
           {confirmDisabled && disabledReason && (
             <span style={{ fontSize: 11.5, color: 'var(--fg-3)', marginRight: 'auto' }}>{disabledReason}</span>
+          )}
+          {cloudError && (
+            <span style={{ fontSize: 11.5, color: '#e89696', marginRight: 'auto' }}>
+              <i className="fa-solid fa-circle-exclamation" aria-hidden style={{ marginRight: 5 }} />
+              {t('branch.dialog.cloudNoKey')}
+              {onOpenPrefs && (
+                <>
+                  {' '}
+                  <button
+                    type="button"
+                    className="btn-link"
+                    onClick={() => { onOpenPrefs('agents'); onCancel(); }}
+                  >
+                    {t('app.noSlots.openPreferences')}
+                  </button>
+                </>
+              )}
+            </span>
           )}
           <button className="btn ghost" onClick={onCancel}>{t('common.cancel')}</button>
           <button

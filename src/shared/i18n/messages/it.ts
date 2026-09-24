@@ -850,7 +850,6 @@ export const it = {
     'La sandbox clona con il tuo token GitHub: quello salvato in Preferenze ▸ Agenti ▸ Chat cloud, oppure quello con cui gh ha effettuato l’accesso.',
   'branch.dialog.cloudNoKey':
     'Le chat cloud richiedono una chiave API Anthropic. Aggiungine una in Preferenze ▸ Agenti ▸ Chat cloud.',
-  'branch.dialog.disabled.cloudNoKey': 'Aggiungi prima una chiave API Anthropic',
   'branch.dialog.createChat': 'Crea chat',
 
   // ---------------------------------------------------------------------------

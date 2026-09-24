@@ -851,7 +851,6 @@ export const pl = {
     'Sandbox klonuje Twoim tokenem GitHub: zapisanym w Preferencje ▸ Agenci ▸ Czaty w chmurze albo tym, którym zalogowany jest gh.',
   'branch.dialog.cloudNoKey':
     'Czaty w chmurze wymagają klucza API Anthropic. Dodaj go w Preferencje ▸ Agenci ▸ Czaty w chmurze.',
-  'branch.dialog.disabled.cloudNoKey': 'Najpierw dodaj klucz API Anthropic',
   'branch.dialog.createChat': 'Utwórz czat',
 
   // ---------------------------------------------------------------------------

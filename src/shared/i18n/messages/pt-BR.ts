@@ -850,7 +850,6 @@ export const ptBR = {
     'O sandbox clona com o seu token do GitHub: o salvo em Preferências ▸ Agentes ▸ Chats na nuvem, ou aquele com que o gh está autenticado.',
   'branch.dialog.cloudNoKey':
     'Chats na nuvem precisam de uma chave de API da Anthropic. Adicione uma em Preferências ▸ Agentes ▸ Chats na nuvem.',
-  'branch.dialog.disabled.cloudNoKey': 'Adicione antes uma chave de API da Anthropic',
   'branch.dialog.createChat': 'Criar chat',
 
   // ---------------------------------------------------------------------------
