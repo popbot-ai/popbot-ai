@@ -213,29 +213,7 @@ function BaseBranchPicker({
             {branches.length === 0 && !allowRepoRoot && (
               <div style={{ padding: 8, color: 'var(--fg-3)', fontSize: 12 }}>{t('branch.picker.noBranches')}</div>
             )}
-            {shownRecents.map((b) => (
-              <button
-                type="button"
-                key={`recent-${b}`}
-                className={`base-branch-row ${value === b ? 'selected' : ''}`}
-                onClick={() => pick(b)}
-              >
-                <span className="base-branch-name">{b}</span>
-                <span className="base-branch-tag">{t('branch.picker.tagRecent')}</span>
-              </button>
-            ))}
-            {shownRecents.length > 0 && others.length > 0 && <div className="base-branch-divider" />}
-            {others.map((b) => (
-              <button
-                type="button"
-                key={b}
-                className={`base-branch-row ${value === b ? 'selected' : ''}`}
-                onClick={() => pick(b)}
-              >
-                <span className="base-branch-name">{b}</span>
-                {b === defaultBase && <span className="base-branch-tag">{t('branch.picker.tagDefault')}</span>}
-              </button>
-            ))}
+            {/* The two non-branch choices first, where they can't be missed. */}
             {allowRepoRoot && (!q || freeChatHaystack.includes(q)) && (
               <button
                 type="button"
@@ -259,6 +237,30 @@ function BaseBranchPicker({
                 <span className="base-branch-tag">{t('branch.picker.tagCloud')}</span>
               </button>
             )}
+            {(allowRepoRoot || allowCloud) && (shownRecents.length > 0 || others.length > 0) && <div className="base-branch-divider" />}
+            {shownRecents.map((b) => (
+              <button
+                type="button"
+                key={`recent-${b}`}
+                className={`base-branch-row ${value === b ? 'selected' : ''}`}
+                onClick={() => pick(b)}
+              >
+                <span className="base-branch-name">{b}</span>
+                <span className="base-branch-tag">{t('branch.picker.tagRecent')}</span>
+              </button>
+            ))}
+            {shownRecents.length > 0 && others.length > 0 && <div className="base-branch-divider" />}
+            {others.map((b) => (
+              <button
+                type="button"
+                key={b}
+                className={`base-branch-row ${value === b ? 'selected' : ''}`}
+                onClick={() => pick(b)}
+              >
+                <span className="base-branch-name">{b}</span>
+                {b === defaultBase && <span className="base-branch-tag">{t('branch.picker.tagDefault')}</span>}
+              </button>
+            ))}
           </div>
         </div>
       )}
