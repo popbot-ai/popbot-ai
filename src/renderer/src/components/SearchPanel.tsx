@@ -10,7 +10,7 @@
  */
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import type { TranscriptSearchHit } from '@shared/ipc';
+import type { ChatRefs, TranscriptSearchHit } from '@shared/ipc';
 import { SEARCH_TAGS, parseSearchQuery } from '@shared/searchQuery';
 import type { MessageKey } from '@shared/i18n';
 import { useTranslation } from '../lib/i18n';
@@ -38,6 +38,50 @@ const TAG_HINT: Record<(typeof SEARCH_TAGS)[number]['value'], MessageKey> = {
   'in:archive': 'search.tag.inArchive',
   'chat:': 'search.tag.chat',
 };
+
+/** A completion for the `ticket:` / `cr:` / `chat:` value being typed. */
+interface Suggestion {
+  /** What goes into the box after the key, e.g. ENG-123 or "login bug". */
+  insert: string;
+  label: string;
+  detail: string;
+  closed: boolean;
+}
+
+/** The `key:partial` token at the end of the query (the one being
+ *  typed), when it is one we can complete. */
+function completableToken(query: string): { start: number; key: 'ticket' | 'cr' | 'chat'; partial: string } | null {
+  const m = /(^|\s)(ticket|cr|pr|chat):("?)([^"]*)$/i.exec(query);
+  if (!m) return null;
+  const partial = m[4];
+  // Unquoted values end at a space — a space means the user moved on.
+  if (!m[3] && /\s/.test(partial)) return null;
+  const key = m[2].toLowerCase() === 'pr' ? 'cr' : (m[2].toLowerCase() as 'ticket' | 'cr' | 'chat');
+  return { start: m.index + m[1].length, key, partial: partial.toLowerCase() };
+}
+
+function suggestionsFor(refs: ChatRefs | null, token: ReturnType<typeof completableToken>): Suggestion[] {
+  if (!refs || !token) return [];
+  const p = token.partial;
+  const has = (s: string): boolean => s.toLowerCase().includes(p);
+  const starts = (s: string): boolean => s.toLowerCase().startsWith(p);
+  let out: Suggestion[];
+  if (token.key === 'ticket') {
+    out = refs.tickets
+      .filter((t) => !p || has(t.key) || has(t.chatName))
+      .sort((a, b) => Number(starts(b.key)) - Number(starts(a.key)))
+      .map((t) => ({ insert: t.key, label: t.key, detail: t.chatName, closed: t.closed }));
+  } else if (token.key === 'cr') {
+    out = refs.prs
+      .filter((r) => !p || starts(String(r.number)) || has(r.chatName))
+      .map((r) => ({ insert: String(r.number), label: `#${r.number}`, detail: r.chatName, closed: r.closed }));
+  } else {
+    out = refs.chats
+      .filter((c) => !p || has(c.name))
+      .map((c) => ({ insert: `"${c.name.replace(/"/g, '')}"`, label: c.name, detail: '', closed: c.closed }));
+  }
+  return out.slice(0, 7);
+}
 
 interface ChatGroup {
   chatId: string;
@@ -69,6 +113,28 @@ export function SearchPanel({ onClose, onGoTo }: SearchPanelProps): JSX.Element 
   // They ride along with the search without appearing in the box; only
   // prefixes that need a value (ticket:, cr:, tool:, chat:) go into it.
   const [chips, setChips] = useState<string[]>([]);
+  // Autocomplete for ticket: / cr: / chat: values, from the chats we know.
+  const [refs, setRefs] = useState<ChatRefs | null>(null);
+  const [suggestIdx, setSuggestIdx] = useState(0);
+  useEffect(() => {
+    void window.popbot.chats.listRefs().then(setRefs).catch(() => setRefs(null));
+  }, []);
+  const token = useMemo(() => completableToken(query), [query]);
+  const suggestions = useMemo(() => suggestionsFor(refs, token), [refs, token]);
+  useEffect(() => { setSuggestIdx(0); }, [query]);
+
+  /** Put the suggestion into the box in place of the partial value. */
+  const accept = (s: Suggestion): void => {
+    if (!token) return;
+    const next = `${query.slice(0, token.start)}${token.key}:${s.insert} `;
+    setQuery(next);
+    requestAnimationFrame(() => {
+      const input = inputRef.current;
+      if (!input) return;
+      input.focus();
+      input.setSelectionRange(next.length, next.length);
+    });
+  };
 
   // The search as the parser reads it: chips plus what's typed. The
   // "enough to search" rule is on the text part only (tags alone list
@@ -167,6 +233,7 @@ export function SearchPanel({ onClose, onGoTo }: SearchPanelProps): JSX.Element 
           <i className="fa-solid fa-magnifying-glass" aria-hidden /> {t('search.title')}
         </div>
         <div className="confirm-body" style={{ paddingBottom: 6 }}>
+          <div className="search-panel-input-wrap">
           <input
             ref={inputRef}
             className="pref-input mono narrow"
@@ -174,13 +241,42 @@ export function SearchPanel({ onClose, onGoTo }: SearchPanelProps): JSX.Element 
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={(e) => {
-              if (e.key === 'Escape') onClose();
+              if (suggestions.length > 0 && (e.key === 'Tab' || (e.key === 'Enter' && token && token.partial.length > 0))) {
+                e.preventDefault();
+                accept(suggestions[Math.min(suggestIdx, suggestions.length - 1)]);
+              } else if (suggestions.length > 0 && e.key === 'ArrowDown') {
+                e.preventDefault();
+                setSuggestIdx((i) => (i + 1) % suggestions.length);
+              } else if (suggestions.length > 0 && e.key === 'ArrowUp') {
+                e.preventDefault();
+                setSuggestIdx((i) => (i - 1 + suggestions.length) % suggestions.length);
+              } else if (e.key === 'Escape') onClose();
               else if (e.key === 'Enter' && hits.length > 0) go(hits[0]);
             }}
             style={{ width: '100%' }}
             spellCheck={false}
             autoFocus
           />
+          {suggestions.length > 0 && (
+            <div className="search-panel-suggest" role="listbox">
+              {suggestions.map((s, i) => (
+                <button
+                  type="button"
+                  key={`${token?.key}:${s.insert}`}
+                  role="option"
+                  aria-selected={i === suggestIdx}
+                  className={`search-panel-suggest-row${i === suggestIdx ? ' active' : ''}`}
+                  onMouseEnter={() => setSuggestIdx(i)}
+                  onMouseDown={(e) => { e.preventDefault(); accept(s); }}
+                >
+                  <span className="mono">{s.label}</span>
+                  {s.detail && <span className="search-panel-suggest-detail">{s.detail}</span>}
+                  {s.closed && <span className="search-panel-tag">{t('search.archived')}</span>}
+                </button>
+              ))}
+            </div>
+          )}
+          </div>
           {/* Filter tags: a click inserts the tag — complete ones such as
               last:week as they are, prefixes such as ticket: for the value
               to be typed. Lit while the query carries that tag. */}
@@ -196,7 +292,7 @@ export function SearchPanel({ onClose, onGoTo }: SearchPanelProps): JSX.Element 
                   title={t(TAG_HINT[tag.value])}
                   onClick={() => clickTag(tag.value)}
                 >
-                  {prefix ? `${tag.value}…` : tag.value}
+                  {prefix ? `${tag.value}…` : tag.value.slice(tag.value.indexOf(':') + 1)}
                 </button>
               );
             })}
@@ -245,7 +341,7 @@ export function SearchPanel({ onClose, onGoTo }: SearchPanelProps): JSX.Element 
           </div>
         </div>
         <div className="confirm-foot">
-          <span className="search-panel-keys">{t('search.hint')}</span>
+          <span className="search-panel-keys">{suggestions.length > 0 ? t('search.hintSuggest') : t('search.hint')}</span>
           <button className="btn ghost" onClick={onClose}>{t('common.close')}</button>
         </div>
       </div>

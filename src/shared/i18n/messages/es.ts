@@ -357,6 +357,7 @@ export const es = {
   'search.archived': 'archivado',
   'search.more': '{count} más en este chat',
   'search.hint': 'Intro abre la mejor coincidencia · Esc cierra',
+  'search.hintSuggest': 'Tab acepta la sugerencia · Intro abre la mejor coincidencia · Esc cierra',
   'search.buttonTitle': 'Buscar en los chats ({shortcut})',
   'search.tagsLabel': 'Filtros',
   'search.tagsOnly': 'Entradas más recientes que cumplen estos filtros; añade palabras para buscar en su texto.',

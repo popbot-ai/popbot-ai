@@ -357,6 +357,7 @@ export const ptBR = {
   'search.archived': 'arquivado',
   'search.more': 'mais {count} neste chat',
   'search.hint': 'Enter abre o melhor resultado · Esc fecha',
+  'search.hintSuggest': 'Tab aceita a sugestão · Enter abre o melhor resultado · Esc fecha',
   'search.buttonTitle': 'Pesquisar nos chats ({shortcut})',
   'search.tagsLabel': 'Filtros',
   'search.tagsOnly': 'Entradas mais recentes que atendem a esses filtros; adicione palavras para pesquisar no texto delas.',

@@ -305,6 +305,7 @@ export const pl = {
   'search.archived': 'zarchiwizowany',
   'search.more': 'jeszcze {count} w tym czacie',
   'search.hint': 'Enter otwiera najlepszy wynik · Esc zamyka',
+  'search.hintSuggest': 'Tab przyjmuje podpowiedź · Enter otwiera najlepszy wynik · Esc zamyka',
   'search.buttonTitle': 'Szukaj w czatach ({shortcut})',
   'search.tagsLabel': 'Filtry',
   'search.tagsOnly': 'Najnowsze wpisy pasujące do tych filtrów – dodaj słowa, aby przeszukać ich tekst.',

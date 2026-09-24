@@ -331,6 +331,7 @@ export const en = {
   'search.archived': 'archived',
   'search.more': '{count} more in this chat',
   'search.hint': 'Enter opens the best match · Esc closes',
+  'search.hintSuggest': 'Tab accepts the suggestion · Enter opens the best match · Esc closes',
   'search.buttonTitle': 'Search chats ({shortcut})',
   'search.tagsLabel': 'Filters',
   'search.tagsOnly': 'Newest entries matching these filters — add words to search their text.',

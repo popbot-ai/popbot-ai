@@ -305,6 +305,7 @@ export const it = {
   'search.archived': 'archiviata',
   'search.more': 'altri {count} in questa chat',
   'search.hint': 'Invio apre il risultato migliore · Esc chiude',
+  'search.hintSuggest': 'Tab accetta il suggerimento · Invio apre il risultato migliore · Esc chiude',
   'search.buttonTitle': 'Cerca nelle chat ({shortcut})',
   'search.tagsLabel': 'Filtri',
   'search.tagsOnly': 'Voci più recenti per questi filtri; aggiungi parole per cercare nel loro testo.',

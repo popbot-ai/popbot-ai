@@ -305,6 +305,7 @@ export const ru = {
   'search.archived': 'в архиве',
   'search.more': 'ещё {count} в этом чате',
   'search.hint': 'Enter открывает лучшее совпадение · Esc закрывает',
+  'search.hintSuggest': 'Tab принимает подсказку · Enter открывает лучшее совпадение · Esc закрывает',
   'search.buttonTitle': 'Поиск по чатам ({shortcut})',
   'search.tagsLabel': 'Фильтры',
   'search.tagsOnly': 'Новейшие записи по этим фильтрам — добавьте слова, чтобы искать в их тексте.',

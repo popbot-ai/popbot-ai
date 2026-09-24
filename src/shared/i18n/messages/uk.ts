@@ -305,6 +305,7 @@ export const uk = {
   'search.archived': 'в архіві',
   'search.more': 'ще {count} у цьому чаті',
   'search.hint': 'Enter відкриває найкращий збіг · Esc закриває',
+  'search.hintSuggest': 'Tab приймає підказку · Enter відкриває найкращий збіг · Esc закриває',
   'search.buttonTitle': 'Пошук у чатах ({shortcut})',
   'search.tagsLabel': 'Фільтри',
   'search.tagsOnly': 'Найновіші записи за цими фільтрами — додайте слова, щоб шукати в їхньому тексті.',

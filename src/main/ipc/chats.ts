@@ -21,6 +21,7 @@ import {
   deleteChat,
   getChat,
   getChatPermissionRules,
+  listChatRefs,
   listClosedChats,
   listOpenChats,
   listSlotOccupants,
@@ -450,6 +451,7 @@ export function registerChatHandlers(): void {
   ipcMain.handle(IpcChannel.ChatsSearchTranscripts, (_e, query: string, opts?: TranscriptSearchOptions) =>
     searchTranscripts(typeof query === 'string' ? query : '', opts ?? {}),
   );
+  ipcMain.handle(IpcChannel.ChatsListRefs, () => listChatRefs());
 
   ipcMain.handle(IpcChannel.MessagesList, (_e, chatId: string, tail?: number) =>
     listMessages(chatId, tail),

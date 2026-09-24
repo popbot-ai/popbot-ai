@@ -357,6 +357,7 @@ export const zhCN = {
   'search.archived': '已归档',
   'search.more': '此对话中还有 {count} 条',
   'search.hint': 'Enter 打开最佳匹配 · Esc 关闭',
+  'search.hintSuggest': 'Tab 接受建议 · Enter 打开最佳匹配 · Esc 关闭',
   'search.buttonTitle': '搜索对话（{shortcut}）',
   'search.tagsLabel': '筛选',
   'search.tagsOnly': '符合这些筛选条件的最新条目；添加词语可搜索其文本。',

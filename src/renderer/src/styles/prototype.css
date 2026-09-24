@@ -447,6 +447,24 @@ input, textarea { font: inherit; color: inherit; background: none; border: 0; ou
 .search-panel-note { padding: 14px 4px 4px; font-size: 12px; color: var(--fg-3); }
 .search-panel-keys { margin-right: auto; font-size: 11px; color: var(--fg-3); }
 
+/* Completions for ticket: / cr: / chat: values: a panel floating under
+   the box, over the buttons and results, so nothing shifts while typing. */
+.search-panel-input-wrap { position: relative; }
+.search-panel-suggest {
+  position: absolute; left: 0; right: 0; top: calc(100% + 4px); z-index: 5;
+  max-height: 260px; overflow-y: auto;
+  padding: 4px; border: 1px solid var(--line-2); border-radius: 6px;
+  background: var(--bg-2); box-shadow: 0 8px 24px rgba(0,0,0,0.35);
+}
+.search-panel-suggest-row {
+  display: flex; align-items: center; gap: 10px; width: 100%;
+  padding: 5px 8px; background: transparent; border: 0; border-radius: 4px;
+  color: var(--fg-1); font-size: 12px; text-align: left; cursor: pointer; font-family: inherit;
+}
+.search-panel-suggest-row .mono { color: var(--fg-0); font-size: 11px; flex: 0 0 auto; }
+.search-panel-suggest-row.active { background: var(--bg-3); }
+.search-panel-suggest-detail { color: var(--fg-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
 /* Filter tag buttons under the search box. */
 .search-panel-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
 .search-panel-tag-btn {

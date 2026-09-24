@@ -357,6 +357,7 @@ export const fr = {
   'search.archived': 'archivée',
   'search.more': '{count} de plus dans cette conversation',
   'search.hint': 'Entrée ouvre le meilleur résultat · Échap ferme',
+  'search.hintSuggest': 'Tab accepte la suggestion · Entrée ouvre le meilleur résultat · Échap ferme',
   'search.buttonTitle': 'Rechercher dans les conversations ({shortcut})',
   'search.tagsLabel': 'Filtres',
   'search.tagsOnly': 'Entrées les plus récentes pour ces filtres ; ajoutez des mots pour chercher dans leur texte.',

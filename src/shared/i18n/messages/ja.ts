@@ -357,6 +357,7 @@ export const ja = {
   'search.archived': 'アーカイブ済み',
   'search.more': 'このチャットにあと {count} 件',
   'search.hint': 'Enter で最上位の一致を開く · Esc で閉じる',
+  'search.hintSuggest': 'Tab で候補を確定 · Enter で最上位の一致を開く · Esc で閉じる',
   'search.buttonTitle': 'チャットを検索（{shortcut}）',
   'search.tagsLabel': 'フィルター',
   'search.tagsOnly': 'これらのフィルターに一致する最新のエントリです。語句を追加するとテキストを検索します。',

@@ -20,6 +20,7 @@ import {
   normalizeCodexModel,
 } from '@shared/persistence';
 import type { ChatStatus } from '@shared/domain';
+import type { ChatRefs } from '@shared/ipc';
 import { db } from './db';
 import { CHATS_WITH_MATCH_SQL, ftsQueryFor } from './fts';
 
@@ -465,6 +466,29 @@ export function setChatSlot(id: string, slotId: number, worktreePath: string): v
 
 /** Bind an ephemeral chat to its just-created worktree. Same shape as
  *  `setChatSlot` minus the slot id — ephemeral chats never hold one. */
+/** The ticket keys, PR numbers and names on every non-deleted chat,
+ *  most recently active first and de-duplicated — what the Search panel
+ *  completes `ticket:` / `cr:` / `chat:` with. */
+export function listChatRefs(): ChatRefs {
+  const rows = db()
+    .prepare<[], { ticket: string | null; pr: number | null; name: string; closed_at: number | null }>(
+      `SELECT ticket, pr, name, closed_at FROM chats
+        WHERE deleted_at IS NULL
+        ORDER BY last_active_at DESC`,
+    )
+    .all();
+  const tickets = new Map<string, ChatRefs['tickets'][number]>();
+  const prs = new Map<number, ChatRefs['prs'][number]>();
+  const chats = new Map<string, ChatRefs['chats'][number]>();
+  for (const r of rows) {
+    const closed = r.closed_at != null;
+    if (r.ticket && !tickets.has(r.ticket)) tickets.set(r.ticket, { key: r.ticket, chatName: r.name, closed });
+    if (r.pr != null && !prs.has(r.pr)) prs.set(r.pr, { number: r.pr, chatName: r.name, closed });
+    if (!chats.has(r.name)) chats.set(r.name, { name: r.name, closed });
+  }
+  return { tickets: [...tickets.values()], prs: [...prs.values()], chats: [...chats.values()] };
+}
+
 /** Cloud chats: record the session the chat drives (or clear it). */
 export function setChatCloud(id: string, cloud: CloudChatInfo | null): void {
   db()

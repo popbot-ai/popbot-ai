@@ -71,6 +71,9 @@ export const IpcChannel = {
   ChatsSearch: 'pb:chats:search',
   /** Full-text search over transcripts — the Search panel. */
   ChatsSearchTranscripts: 'pb:chats:search-transcripts',
+  /** The tickets, PRs and chat names the database knows — for the
+   *  Search panel's autocomplete of ticket: / cr: / chat: values. */
+  ChatsListRefs: 'pb:chats:list-refs',
   ChatsAttachSlot: 'pb:chats:attach-slot',
   ChatsClosePrep: 'pb:chats:close-prep',
   /** Persist a drag-and-drop arrangement of the open chats. */
@@ -450,6 +453,14 @@ export interface TranscriptSearchOptions {
   caseSensitive?: boolean;
 }
 
+/** What the Search panel can complete: every ticket key, PR number and
+ *  chat name on a non-deleted chat, most recently active first. */
+export interface ChatRefs {
+  tickets: Array<{ key: string; chatName: string; closed: boolean }>;
+  prs: Array<{ number: number; chatName: string; closed: boolean }>;
+  chats: Array<{ name: string; closed: boolean }>;
+}
+
 export type TranscriptSearchResult =
   | { ok: true; hits: TranscriptSearchHit[] }
   | { ok: false; error: string };
@@ -707,6 +718,7 @@ export interface PopBotApi {
     listMessages(chatId: string, tail?: number): Promise<MessageRecord[]>;
     /** Full-text search over transcripts, best matches first. */
     searchTranscripts(query: string, opts?: TranscriptSearchOptions): Promise<TranscriptSearchResult>;
+    listRefs(): Promise<ChatRefs>;
   };
   settings: {
     get<T = unknown>(key: string): Promise<T | null>;

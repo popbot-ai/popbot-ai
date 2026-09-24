@@ -357,6 +357,7 @@ export const de = {
   'search.archived': 'archiviert',
   'search.more': '{count} weitere in diesem Chat',
   'search.hint': 'Enter öffnet den besten Treffer · Esc schließt',
+  'search.hintSuggest': 'Tab übernimmt den Vorschlag · Enter öffnet den besten Treffer · Esc schließt',
   'search.buttonTitle': 'Chats durchsuchen ({shortcut})',
   'search.tagsLabel': 'Filter',
   'search.tagsOnly': 'Neueste Einträge zu diesen Filtern – Wörter hinzufügen, um in ihrem Text zu suchen.',

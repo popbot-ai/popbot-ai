@@ -357,6 +357,7 @@ export const ko = {
   'search.archived': '보관됨',
   'search.more': '이 채팅에 {count}개 더',
   'search.hint': 'Enter는 최상위 결과 열기 · Esc는 닫기',
+  'search.hintSuggest': 'Tab은 제안 수락 · Enter는 최상위 결과 열기 · Esc는 닫기',
   'search.buttonTitle': '채팅 검색 ({shortcut})',
   'search.tagsLabel': '필터',
   'search.tagsOnly': '이 필터에 맞는 최신 항목입니다. 단어를 추가하면 텍스트를 검색합니다.',

@@ -61,6 +61,7 @@ const api: PopBotApi = {
     fork: (input: ForkChatInput) => ipcRenderer.invoke(IpcChannel.ChatsFork, input),
     searchTranscripts: (query: string, opts?: TranscriptSearchOptions) =>
       ipcRenderer.invoke(IpcChannel.ChatsSearchTranscripts, query, opts),
+    listRefs: () => ipcRenderer.invoke(IpcChannel.ChatsListRefs),
     listMessages: (chatId: string, tail?: number) =>
       ipcRenderer.invoke(IpcChannel.MessagesList, chatId, tail),
   },
