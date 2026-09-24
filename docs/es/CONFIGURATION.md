@@ -53,6 +53,8 @@ Más esfuerzo significa razonamiento más profundo y un uso de herramientas más
 
 **Herramientas de PopBot para los agentes** *(activado por defecto)* — da al agente de cada chat un servidor MCP `popbot` con herramientas para listar, crear, cerrar y reabrir chats, enviar mensajes a otro chat y esperar su respuesta, iniciar revisiones de código y chats de tickets, y leer y buscar en las transcripciones (ver [Herramientas de PopBot para los agentes](GUIDE.md#herramientas-de-popbot-para-los-agentes)). El servidor solo escucha en localhost, en un puerto aleatorio con un secreto por arranque en su URL. Desactivarlo se aplica a partir de la siguiente sesión de agente de cada chat.
 
+**Chats en la nube** — la *clave de API de Anthropic* con la que se ejecutan los chats en la nube (guardada localmente; si falta, se usa la variable de entorno `ANTHROPIC_API_KEY`) y el *token de GitHub* con el que el sandbox clona repositorios (ámbito `repo`; si falta, se usa `gh auth token`). Un chat en la nube con repositorio necesita ambos; uno sin repositorio solo la clave. Al guardar con clave, primero se comprueba contra la API. Las sesiones en la nube se facturan por token a la cuenta de Console de la clave, no a una suscripción de Claude. En el primer uso, PopBot crea en esa cuenta un entorno y un agente por modelo y esfuerzo, y después los reutiliza (ver [Ejecutar en la nube](GUIDE.md#chats)).
+
 ## Runtime y slots
 
 Este panel controla la **retención de adjuntos**. (El dimensionamiento del pool de slots ahora es por repositorio y vive en [Repositorios](#repositorios) — ver la nota allí.)

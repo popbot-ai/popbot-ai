@@ -453,8 +453,8 @@ export const uk = {
     'Агент працює… введіть текст, щоб додати повідомлення в чергу  ·  Shift+Enter для нового рядка',
   'chat.input.placeholderIdle': 'Надішліть повідомлення…  ·  Shift+Enter для нового рядка',
   'chat.input.placeholderInactive': 'Натисніть, щоб зробити цей чат активним',
-  'chat.input.placeholderCloudFirst': 'Опишіть завдання для запуску в хмарі…',
-  'chat.input.placeholderCloud': 'Надіслати уточнення до хмарної сесії…',
+  'chat.input.placeholderCloudFirst': 'Опишіть завдання для хмарного агента…',
+  'chat.input.placeholderCloud': 'Надіслати повідомлення хмарному агенту…',
   'chat.input.attachImage': 'Прикріпити зображення',
   'chat.input.attachFile': 'Прикріпити файл',
   'chat.input.model': 'Модель',
@@ -478,10 +478,9 @@ export const uk = {
   'chat.agentSwitch.confirm': 'Перезапустити',
   'chat.fork.name': '{name} (відгалуження)',
   'chat.cloud.chip': 'Хмара',
-  'chat.cloud.chipTitle': 'Відкрити хмарну сесію на claude.ai',
-  'chat.cloud.chipPending': 'Хмара · не прив’язана',
-  'chat.cloud.chipPendingTitle':
-    'Хмарної сесії ще немає. Надішліть завдання або вставте посилання на сесію в налаштуваннях чату.',
+  'chat.cloud.chipTitle': 'Працює в хмарній пісочниці Anthropic · відкрити налаштування чату',
+  'chat.cloud.chipPendingTitle': 'Хмарної сесії ще немає — вона почнеться з вашого першого повідомлення.',
+  'chat.cloud.pull': 'Забрати роботу з хмари в локальну копію',
   'chat.app.terminal': 'Термінал',
   'chat.app.editor': 'Редактор',
   'chat.app.unity': 'Unity',
@@ -655,15 +654,14 @@ export const uk = {
   'chatSettings.forkRunningHint': 'Дочекайтеся завершення роботи агента, потім відгалузьте.',
   'chatSettings.cloud': 'Хмарна сесія',
   'chatSettings.cloudDesc':
-    'Цей чат керує хмарною сесією Claude Code. Надіслані тут повідомлення ставляться в її чергу; відкрийте її на claude.ai, щоб стежити за роботою або відповідати на запитання.',
+    'Цей чат працює на Anthropic Managed Agents у хмарній пісочниці. Він продовжує працювати після закриття PopBot; усе, що він зробив за вашої відсутності, відтворюється тут, коли ви повертаєтесь.',
   'chatSettings.cloudSession': 'Сесія',
-  'chatSettings.cloudNone': 'Ще не прив’язана',
-  'chatSettings.cloudLinkPlaceholder': 'Вставте посилання claude.ai/code або ID сесії',
-  'chatSettings.cloudLinkButton': 'Прив’язати',
-  'chatSettings.cloudLinkInvalid': 'Це не посилання й не ID сесії claude.ai/code.',
-  'chatSettings.cloudTeleport': 'Телепортувати в термінал',
-  'chatSettings.cloudTeleportDesc':
-    'Запускає claude --teleport у терміналі цього чату в корені репозиторію: отримує гілку сесії, перемикається на неї та завантажує розмову локально. Перед тим як відкласти (stash) незакомічені зміни, запитує підтвердження.',
+  'chatSettings.cloudNone': 'Ще не запущена — почнеться з вашого першого повідомлення.',
+  'chatSettings.cloudEnded': 'завершена · наступне повідомлення почне нову сесію',
+  'chatSettings.cloudRepo': 'Репозиторій',
+  'chatSettings.cloudPullDesc':
+    'Пісочниця комітить і пушить у гілку чату на origin. Pull забирає ці коміти в локальну копію цього чату (лише fast-forward).',
+  'chatSettings.cloudPull': 'Pull з origin',
   'chatSettings.tryReconnect': 'Спробувати перепідключитися',
   'chatSettings.reconnectDesc':
     'Виберіть збережену сесію Claude для worktree цього чату. Корисно, якщо автоперепідключення вибрало не ту сесію і ви хочете примусово вказати конкретну стенограму. Вибрана сесія буде закріплена, і агент перезапуститься в ній.',
@@ -693,7 +691,8 @@ export const uk = {
   'agent.label': 'Агент',
   'agent.model': 'Модель',
   'agent.cloudToggle': 'Хмара',
-  'agent.cloudToggleTitle': 'Запустити цей чат у Claude Code у вебі — він працюватиме далі після закриття PopBot. Лише Claude.',
+  'agent.cloudToggleTitle':
+    'Запустити цей чат у хмарній пісочниці Anthropic (Managed Agents, оплата за API-ключем) — він продовжить працювати після закриття PopBot. Лише Claude.',
   'agent.effort': 'Рівень зусиль',
 
   // ---------------------------------------------------------------------------
@@ -842,13 +841,16 @@ export const uk = {
   'branch.dialog.freeChatDesc':
     'Працює в {repo} з кореня репозиторію — без слота, worktree чи гілки.',
   'branch.dialog.cloudDescNoRepo':
-    'Працює в Claude Code у вебі без репозиторію та продовжує після закриття PopBot.',
+    'Працює в хмарній пісочниці Anthropic без репозиторію і продовжує після закриття PopBot.',
   'branch.dialog.cloudDescRoot':
-    'Працює в Claude Code у вебі з GitHub-remote репозиторію {repo} на тій гілці, на якій стоїть корінь репозиторію — спочатку зробіть push. Продовжує після закриття PopBot.',
+    'Працює в хмарній пісочниці Anthropic, яка клонує GitHub-remote {repo} на гілці, на якій перебуває корінь репозиторію (спочатку її буде запушено, якщо на origin її ще немає). Продовжує після закриття PopBot.',
   'branch.dialog.cloudDescSlot':
-    'Працює в Claude Code у вебі: чат отримує слот і гілку як звичайно, гілка надсилається в origin, і хмара її клонує. Слот лишається локальним, щоб телепортувати роботу назад. Продовжує після закриття PopBot.',
+    'Працює в хмарній пісочниці Anthropic: чат як завжди отримує слот і гілку, гілка пушиться на origin, і пісочниця її клонує. Слот лишається локальним; коміти з хмари забираються через меню чату. Продовжує після закриття PopBot.',
   'branch.dialog.cloudGithubNote':
-    'Хмара звертається до GitHub через ваш обліковий запис claude.ai, а не через цей комп’ютер: встановіть Claude GitHub App із claude.ai/code або один раз виконайте /web-setup у термінальній сесії claude.',
+    'Пісочниця клонує з вашим токеном GitHub: збереженим у Налаштування ▸ Агенти ▸ Хмарні чати або тим, під яким авторизовано gh.',
+  'branch.dialog.cloudNoKey':
+    'Хмарним чатам потрібен API-ключ Anthropic. Додайте його в Налаштування ▸ Агенти ▸ Хмарні чати.',
+  'branch.dialog.disabled.cloudNoKey': 'Спочатку додайте API-ключ Anthropic',
   'branch.dialog.createChat': 'Створити чат',
 
   // ---------------------------------------------------------------------------
@@ -909,6 +911,22 @@ export const uk = {
     'Дає агенту кожного чату MCP-сервер «popbot»: перелічувати, створювати, закривати й знову відкривати чати, писати іншим чатам і чекати на їхню відповідь, запускати код-рев’ю та чати за тікетами, читати й шукати в розшифровках. Діє з наступної сесії агента в кожному чаті.',
   'prefs.agents.mcp.on': 'Увімк — агенти можуть керувати PopBot',
   'prefs.agents.mcp.off': 'Вимк — без інструментів popbot',
+  'prefs.agents.cloud.title': 'Хмарні чати',
+  'prefs.agents.cloud.desc':
+    'Чат, створений із чипом Cloud, працює на Anthropic Managed Agents: сесія в хмарній пісочниці Anthropic, яка оплачується за токени з вашого облікового запису Console і продовжує працювати після закриття PopBot.',
+  'prefs.agents.cloud.apiKey.title': 'API-ключ Anthropic',
+  'prefs.agents.cloud.apiKey.desc':
+    'Зберігається локально в базі даних застосунку. Залиште порожнім, щоб використовувати змінну середовища ANTHROPIC_API_KEY.',
+  'prefs.agents.cloud.getKey': 'Отримати ключ',
+  'prefs.agents.cloud.githubToken.title': 'Токен GitHub',
+  'prefs.agents.cloud.githubToken.desc':
+    'Пісочниця клонує ваші репозиторії з ним (scope repo). Залиште порожнім, щоб використовувати токен, під яким авторизовано gh.',
+  'prefs.agents.cloud.envKey': 'Використовується змінна середовища ANTHROPIC_API_KEY.',
+  'prefs.agents.cloud.noKey': 'Ключа ще немає — хмарні чати недоступні.',
+  'prefs.agents.cloud.ghToken': 'GitHub: використовується токен, під яким авторизовано gh.',
+  'prefs.agents.cloud.noGh': 'GitHub: токена немає — збережіть його тут або виконайте gh auth login.',
+  'prefs.agents.cloud.ok': 'Ключ працює.',
+  'prefs.agents.cloud.error': 'Ключ не спрацював: {error}',
 
   // Preferences — Runtime / attachment retention pane.
   'prefs.runtime.title': 'Зберігання вкладень',

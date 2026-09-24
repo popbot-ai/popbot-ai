@@ -192,19 +192,56 @@ export function popbotMcpEnabled(settings: PopbotMcpSettings | null | undefined)
 export type ChatType = 'lite' | 'client_test' | 'server_test';
 export type ChatMode = 'interactive' | 'autonomous';
 
+/** Settings stored under `agent.cloud` (Preferences ▸ Agents ▸ Cloud chats). */
+export const CLOUD_SETTINGS_KEY = 'agent.cloud';
+/** Main-only cache of the cloud resources PopBot created (environment,
+ *  agents per model). Kept apart from the user-edited settings so a
+ *  Preferences save can never clobber it. */
+export const CLOUD_CACHE_SETTINGS_KEY = 'agent.cloud.cache';
+
+export interface CloudSettings {
+  /** Anthropic API key (Console billing). Falls back to the
+   *  ANTHROPIC_API_KEY environment variable when empty. */
+  apiKey?: string;
+  /** GitHub token the sandbox clones with. Falls back to `gh auth token`
+   *  when empty. */
+  githubToken?: string;
+}
+
+export interface CloudCache {
+  /** The one cloud environment every PopBot session runs in. */
+  environmentId?: string;
+  /** Agent per model + effort, keyed `${model}|${effort}`. */
+  agents?: Record<string, { id: string; version: number }>;
+}
+
 /**
- * A chat that drives a Claude Code CLOUD session (claude.ai/code) instead
- * of a local agent. The session is created from the chat's terminal with
- * `claude --cloud`, follow-ups are queued with `claude -p --cloud <id>`,
- * and it keeps running after PopBot quits. `sessionId`/`url` are null
- * until the CLI prints the new session's id (or the user pastes it).
+ * A chat that runs on Anthropic Managed Agents (an API-key session in an
+ * Anthropic cloud sandbox) instead of a local CLI. The session keeps
+ * running after PopBot quits; PopBot streams its events into the chat
+ * whenever it is open and lists what it missed on reattach.
+ * `sessionId` is null until the first message creates the session.
  */
 export interface CloudChatInfo {
-  provider: 'claude';
+  provider: 'anthropic';
+  /** `sesn_…` — the Managed Agents session. */
   sessionId: string | null;
+  /** Reserved (no web UI for a session today); kept for the schema. */
   url: string | null;
-  /** When the session was linked to this chat, or null before that. */
+  /** When the session was created, or null before that. */
   startedAt: number | null;
+  /** Newest session event applied to the transcript, so a reattach
+   *  replays only what came after it. */
+  lastEventId?: string | null;
+  /** Where the chat's repository is cloned in the sandbox, e.g.
+   *  `/workspace/my-app`; null when the chat has no repository. */
+  mountPath?: string | null;
+  /** The branch the sandbox checked out (and pushes to); null without
+   *  a repository. */
+  branch?: string | null;
+  /** The session ended (terminated, archived, deleted): the next message
+   *  starts a new one, primed with the conversation so far. */
+  ended?: boolean;
 }
 
 export interface ChatRecord {

@@ -501,8 +501,8 @@ export const zhCN = {
     '代理运行中… 输入以排队消息  ·  Shift+Enter 换行',
   'chat.input.placeholderIdle': '发送消息…  ·  Shift+Enter 换行',
   'chat.input.placeholderInactive': '点击将此设为活动聊天',
-  'chat.input.placeholderCloudFirst': '描述要在云端运行的任务…',
-  'chat.input.placeholderCloud': '向云端会话发送后续指令…',
+  'chat.input.placeholderCloudFirst': '描述要交给云端智能体的任务…',
+  'chat.input.placeholderCloud': '给云端智能体发送消息…',
   'chat.input.attachImage': '附加图片',
   'chat.input.attachFile': '附加文件',
   'chat.input.model': '模型',
@@ -526,9 +526,9 @@ export const zhCN = {
   'chat.agentSwitch.confirm': '重新启动',
   'chat.fork.name': '{name}（分叉）',
   'chat.cloud.chip': '云端',
-  'chat.cloud.chipTitle': '在 claude.ai 上打开云端会话',
-  'chat.cloud.chipPending': '云端 · 未关联',
-  'chat.cloud.chipPendingTitle': '还没有云端会话。发送任务，或在对话设置中粘贴会话链接。',
+  'chat.cloud.chipTitle': '在 Anthropic 云端沙盒中运行 · 打开对话设置',
+  'chat.cloud.chipPendingTitle': '还没有云端会话，它会随你的第一条消息开始。',
+  'chat.cloud.pull': '把云端的工作拉取到本地检出',
   'chat.app.terminal': '终端',
   'chat.app.editor': '编辑器',
   'chat.app.unity': 'Unity',
@@ -701,16 +701,13 @@ export const zhCN = {
   'chatSettings.forkButton': '分叉对话',
   'chatSettings.forkRunningHint': '请等待智能体完成后再分叉。',
   'chatSettings.cloud': '云端会话',
-  'chatSettings.cloudDesc':
-    '此对话驱动一个 Claude Code 云端会话。在这里发送的消息会排入会话队列；在 claude.ai 上打开它可以查看进展或回答它的问题。',
+  'chatSettings.cloudDesc': '这个对话在 Anthropic Managed Agents 的云端沙盒中运行。PopBot 退出后它会继续工作；你不在时它做的事情会在你回来后在这里回放。',
   'chatSettings.cloudSession': '会话',
-  'chatSettings.cloudNone': '尚未关联',
-  'chatSettings.cloudLinkPlaceholder': '粘贴 claude.ai/code 链接或会话 ID',
-  'chatSettings.cloudLinkButton': '关联',
-  'chatSettings.cloudLinkInvalid': '这不是 claude.ai/code 的会话链接或 ID。',
-  'chatSettings.cloudTeleport': '传送到终端',
-  'chatSettings.cloudTeleportDesc':
-    '在此对话的终端中、于仓库根目录运行 claude --teleport：拉取会话的分支并检出，然后把对话加载到本地。在暂存（stash）未提交的更改前会先询问。',
+  'chatSettings.cloudNone': '尚未开始，它会随你的第一条消息开始。',
+  'chatSettings.cloudEnded': '已结束 · 下一条消息会开始新的会话',
+  'chatSettings.cloudRepo': '仓库',
+  'chatSettings.cloudPullDesc': '沙盒会提交并推送到 origin 上该对话的分支。Pull 会把这些提交拉取到本对话的检出中（仅 fast-forward）。',
+  'chatSettings.cloudPull': '从 origin 拉取',
   'chatSettings.tryReconnect': '尝试重新连接',
   'chatSettings.reconnectDesc':
     '为此聊天的工作树选择一个已保存的 Claude 会话。当自动重连选错了，而您想强制使用特定记录时很有用。所选会话将被固定，代理将重新生成到其中。',
@@ -740,7 +737,7 @@ export const zhCN = {
   'agent.label': '代理',
   'agent.model': '模型',
   'agent.cloudToggle': '云端',
-  'agent.cloudToggleTitle': '让此对话在 Claude Code 网页版上运行，PopBot 退出后仍会继续工作。仅限 Claude。',
+  'agent.cloudToggleTitle': '在 Anthropic 云端沙盒中运行这个对话（Managed Agents，按 API 密钥计费），PopBot 退出后它会继续工作。仅限 Claude。',
   'agent.effort': '努力程度',
 
   // ---------------------------------------------------------------------------
@@ -840,14 +837,14 @@ export const zhCN = {
   'branch.dialog.loadBranchesError': '无法加载分支：{error}',
   'branch.dialog.freeChatDesc':
     '在 {repo} 的仓库根目录中运行 — 无槽位、工作树或分支。',
-  'branch.dialog.cloudDescNoRepo':
-    '无仓库，在 Claude Code 网页版上运行，PopBot 退出后仍会继续。',
+  'branch.dialog.cloudDescNoRepo': '在 Anthropic 云端沙盒中运行，不带仓库，PopBot 退出后继续工作。',
   'branch.dialog.cloudDescRoot':
-    '基于 {repo} 的 GitHub 远程仓库、以仓库根目录当前所在的分支在 Claude Code 网页版上运行——请先推送。PopBot 退出后仍会继续。',
+    '在 Anthropic 云端沙盒中运行，它会以仓库根目录所在的分支克隆 {repo} 的 GitHub 远程仓库（若 origin 上还没有该分支，会先推送）。PopBot 退出后继续工作。',
   'branch.dialog.cloudDescSlot':
-    '在 Claude Code 网页版上运行：对话照常获得卡槽和分支，分支会推送到 origin，云端再克隆它。卡槽保留在本地，便于把工作传送回来。PopBot 退出后仍会继续。',
-  'branch.dialog.cloudGithubNote':
-    '云端通过你的 claude.ai 账户访问 GitHub，而不是这台电脑：请从 claude.ai/code 安装 Claude GitHub App，或在终端的 claude 会话中运行一次 /web-setup。',
+    '在 Anthropic 云端沙盒中运行：对话照常获得槽位和分支，分支被推送到 origin，沙盒再克隆它。槽位保留在本地；可以从对话菜单把云端的提交拉取进来。PopBot 退出后继续工作。',
+  'branch.dialog.cloudGithubNote': '沙盒使用你的 GitHub 令牌克隆：偏好设置 ▸ 智能体 ▸ 云端对话中保存的令牌，或 gh 当前登录所用的令牌。',
+  'branch.dialog.cloudNoKey': '云端对话需要 Anthropic API 密钥。请在偏好设置 ▸ 智能体 ▸ 云端对话中添加。',
+  'branch.dialog.disabled.cloudNoKey': '请先添加 Anthropic API 密钥',
   'branch.dialog.createChat': '创建聊天',
 
   // ---------------------------------------------------------------------------
@@ -908,6 +905,20 @@ export const zhCN = {
     '为每个对话的智能体提供一个“popbot”MCP 服务器：列出、创建、关闭和重新打开对话，向其他对话发消息并等待回复，发起代码审查和工单对话，以及阅读和搜索对话记录。从每个对话的下一次智能体会话开始生效。',
   'prefs.agents.mcp.on': '开启 — 智能体可以操控 PopBot',
   'prefs.agents.mcp.off': '关闭 — 无 popbot 工具',
+  'prefs.agents.cloud.title': '云端对话',
+  'prefs.agents.cloud.desc':
+    '带云端标记创建的对话在 Anthropic Managed Agents 上运行：这是 Anthropic 云端沙盒中的一个会话，按 token 计入你的 Console 账户，PopBot 退出后也会继续工作。',
+  'prefs.agents.cloud.apiKey.title': 'Anthropic API 密钥',
+  'prefs.agents.cloud.apiKey.desc': '保存在本应用的本地数据库中。留空则使用环境变量 ANTHROPIC_API_KEY。',
+  'prefs.agents.cloud.getKey': '获取密钥',
+  'prefs.agents.cloud.githubToken.title': 'GitHub 令牌',
+  'prefs.agents.cloud.githubToken.desc': '沙盒用它克隆你的仓库（repo 权限）。留空则使用 gh 当前登录所用的令牌。',
+  'prefs.agents.cloud.envKey': '正在使用环境变量 ANTHROPIC_API_KEY。',
+  'prefs.agents.cloud.noKey': '还没有密钥，云端对话不可用。',
+  'prefs.agents.cloud.ghToken': 'GitHub：正在使用 gh 当前登录所用的令牌。',
+  'prefs.agents.cloud.noGh': 'GitHub：没有令牌。在这里保存一个，或运行 gh auth login。',
+  'prefs.agents.cloud.ok': '密钥可用。',
+  'prefs.agents.cloud.error': '密钥不可用：{error}',
 
   // Preferences — Runtime / attachment retention pane.
   'prefs.runtime.title': '附件保留',

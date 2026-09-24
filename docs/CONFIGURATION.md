@@ -53,6 +53,8 @@ Higher effort means deeper reasoning and more thorough tool use, at higher cost 
 
 **PopBot tools for agents** *(on by default)* — hands every chat's agent a `popbot` MCP server with tools to list, create, close and reopen chats, message another chat and wait for its answer, start code reviews and ticket chats, and read and search transcripts (see [PopBot tools for agents](GUIDE.md#popbot-tools-for-agents)). The server listens on localhost only, on a random port with a per-launch secret in its URL. Switching it off applies from each chat's next agent session.
 
+**Cloud chats** — the *Anthropic API key* cloud chats run on (stored locally; falls back to the `ANTHROPIC_API_KEY` environment variable) and the *GitHub token* the sandbox clones repositories with (`repo` scope; falls back to `gh auth token`). A cloud chat with a repository needs both; one without needs only the key. Saving with a key checks it against the API first. Cloud sessions are billed by the token to the key's Console account, not to a Claude subscription. On first use PopBot creates one environment and one agent per model and effort in that account and reuses them afterwards (see [Run in the cloud](GUIDE.md#chats)).
+
 ## Runtime & slots
 
 This panel controls **attachment retention**. (Slot-pool sizing is now per-repository and lives under [Repositories](#repositories) — see the note there.)

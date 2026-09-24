@@ -28,12 +28,11 @@ export function PanelD({ focusedChat, focusedRecord }: PanelDProps): JSX.Element
   const { t } = useTranslation();
   const [opened, setOpened] = useState<Set<string>>(() => new Set());
   const chatId = focusedRecord?.id ?? null;
-  // A cloud chat lives in its terminal (that's where `claude --cloud`
-  // runs and shows its progress), so it opens on its own, at the repo
-  // root. Every other chat needs a worktree and a click.
-  // '~' = home: main's pty manager maps it (a no-repo cloud chat).
-  const cwd = focusedRecord?.worktreePath || (focusedRecord?.cloud ? (focusedRecord.repoPath || '~') : null) || null;
-  const isOpened = chatId !== null && (opened.has(chatId) || !!focusedRecord?.cloud);
+  // A cloud chat's agent runs in an Anthropic sandbox; its terminal here
+  // opens at the local checkout the cloud mirrors (the repo root for a
+  // chat without a worktree) — handy for pulling and inspecting.
+  const cwd = focusedRecord?.worktreePath || (focusedRecord?.cloud ? focusedRecord.repoPath : null) || null;
+  const isOpened = chatId !== null && opened.has(chatId);
 
   const openTerminal = () => {
     if (!chatId) return;

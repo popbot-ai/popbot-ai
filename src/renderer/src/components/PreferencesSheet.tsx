@@ -24,9 +24,11 @@ import {
   ATTACHMENT_TTL_DAYS_MIN,
   CLAUDE_REASONING_EFFORTS,
   CODEX_REASONING_EFFORTS,
+  CLOUD_SETTINGS_KEY,
   CODEX_SETTINGS_KEY,
   POPBOT_MCP_SETTINGS_KEY,
   popbotMcpEnabled,
+  type CloudSettings,
   type PopbotMcpSettings,
   codexUsesAppServer,
   type CodexSettings,
@@ -384,8 +386,151 @@ function PrefsAgents(): JSX.Element {
             </span>
           </div>
         </div>
+
+        <CloudChatsRows
+          initial={get<CloudSettings>(CLOUD_SETTINGS_KEY) ?? {}}
+          onSave={(next) => set(CLOUD_SETTINGS_KEY, next)}
+        />
       </div>
     </div>
+  );
+}
+
+/**
+ * Cloud chats (Anthropic Managed Agents): the API key the sessions run
+ * on and the GitHub token the sandbox clones with. Both optional here —
+ * the environment variable and `gh` stand in — and both saved together.
+ * Saving with a key checks it first.
+ */
+function CloudChatsRows({
+  initial,
+  onSave,
+}: {
+  initial: CloudSettings;
+  onSave: (next: CloudSettings) => Promise<void>;
+}): JSX.Element {
+  const { t } = useTranslation();
+  const [apiKey, setApiKey] = useState(initial.apiKey ?? '');
+  const [githubToken, setGithubToken] = useState(initial.githubToken ?? '');
+  const [saving, setSaving] = useState(false);
+  const [result, setResult] = useState<{ ok: boolean; text: string } | null>(null);
+  // What the cloud would run with right now: the saved key or the
+  // environment, `gh` for GitHub. Refreshed after every save.
+  const [status, setStatus] = useState<{ apiKey: 'settings' | 'env' | null; githubToken: 'settings' | 'gh' | null } | null>(null);
+  const [statusAt, setStatusAt] = useState(0);
+  useEffect(() => {
+    let cancelled = false;
+    void window.popbot.cloud.status().then((s) => { if (!cancelled) setStatus(s); });
+    return () => { cancelled = true; };
+  }, [statusAt]);
+
+  const dirty = apiKey.trim() !== (initial.apiKey ?? '') || githubToken.trim() !== (initial.githubToken ?? '');
+
+  const save = async () => {
+    setSaving(true);
+    setResult(null);
+    try {
+      const key = apiKey.trim();
+      if (key) {
+        const check = await window.popbot.cloud.testKey(key);
+        if (!check.ok) {
+          setResult({ ok: false, text: t('prefs.agents.cloud.error', { error: check.error }) });
+          return;
+        }
+      }
+      await onSave({
+        ...(key ? { apiKey: key } : {}),
+        ...(githubToken.trim() ? { githubToken: githubToken.trim() } : {}),
+      });
+      setResult(key ? { ok: true, text: t('prefs.agents.cloud.ok') } : null);
+      setStatusAt(Date.now());
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const keyLine = status
+    ? status.apiKey === 'env'
+      ? t('prefs.agents.cloud.envKey')
+      : status.apiKey === null
+        ? t('prefs.agents.cloud.noKey')
+        : null
+    : null;
+  const ghLine = status
+    ? status.githubToken === 'gh'
+      ? t('prefs.agents.cloud.ghToken')
+      : status.githubToken === null
+        ? t('prefs.agents.cloud.noGh')
+        : null
+    : null;
+
+  return (
+    <>
+      <div className="pref-row wide">
+        <div className="pref-label" style={{ width: '100%' }}>
+          <div className="pref-label-title">
+            <i className="fa-solid fa-cloud" aria-hidden style={{ color: '#cf9d6a', marginRight: 6 }} />
+            {t('prefs.agents.cloud.title')}
+          </div>
+          <div className="pref-label-desc">{t('prefs.agents.cloud.desc')}</div>
+        </div>
+      </div>
+      <div className="pref-row">
+        <div className="pref-label">
+          <div className="pref-label-title">{t('prefs.agents.cloud.apiKey.title')}</div>
+          <div className="pref-label-desc">
+            {t('prefs.agents.cloud.apiKey.desc')}{' '}
+            <a
+              href="https://platform.claude.com/settings/keys"
+              onClick={(e) => { e.preventDefault(); window.open('https://platform.claude.com/settings/keys', '_blank'); }}
+              style={{ color: 'var(--acc)', cursor: 'pointer' }}
+            >
+              {t('prefs.agents.cloud.getKey')}
+            </a>
+            {keyLine && <div style={{ marginTop: 4 }}>{keyLine}</div>}
+          </div>
+        </div>
+        <div className="pref-control" style={{ flex: 1, minWidth: 280 }}>
+          <input
+            className="pref-input mono"
+            type="password"
+            placeholder="sk-ant-…"
+            value={apiKey}
+            onChange={(e) => { setApiKey(e.target.value); setResult(null); }}
+            style={{ width: '100%' }}
+          />
+        </div>
+      </div>
+      <div className="pref-row">
+        <div className="pref-label">
+          <div className="pref-label-title">{t('prefs.agents.cloud.githubToken.title')}</div>
+          <div className="pref-label-desc">
+            {t('prefs.agents.cloud.githubToken.desc')}
+            {ghLine && <div style={{ marginTop: 4 }}>{ghLine}</div>}
+          </div>
+        </div>
+        <div className="pref-control" style={{ flex: 1, minWidth: 280 }}>
+          <input
+            className="pref-input mono"
+            type="password"
+            placeholder="ghp_… / github_pat_…"
+            value={githubToken}
+            onChange={(e) => { setGithubToken(e.target.value); setResult(null); }}
+            style={{ width: '100%' }}
+          />
+        </div>
+      </div>
+      <div className="pref-row wide">
+        <div className="pref-control" style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 8, width: '100%' }}>
+          {result && (
+            <span style={{ color: result.ok ? 'var(--fg-3)' : '#e89696', fontSize: 11 }}>{result.text}</span>
+          )}
+          <button className="btn primary sm" disabled={!dirty || saving} onClick={() => void save()}>
+            {saving ? t('common.saving') : t('common.save')}
+          </button>
+        </div>
+      </div>
+    </>
   );
 }
 

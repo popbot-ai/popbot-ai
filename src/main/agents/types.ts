@@ -3,6 +3,7 @@ import type { PickedAttachment } from '@shared/ipc';
 import type {
   ClaudeModelId,
   ClaudeReasoningEffort,
+  CloudChatInfo,
   CodexModelId,
   CodexReasoningEffort,
 } from '@shared/persistence';
@@ -15,7 +16,7 @@ import type {
  * `onEvent` callback. The host re-broadcasts to renderer + persistence.
  */
 export interface AgentBackend {
-  readonly id: 'claude' | 'codex' | 'stub';
+  readonly id: 'claude' | 'codex' | 'cloud' | 'stub';
   readonly capabilities: {
     skills: boolean;
     memory: boolean;
@@ -100,6 +101,29 @@ export interface SpawnOpts {
    * backend (Claude) consumes this today. Keyed by server name.
    */
   mcpServers?: Record<string, { type: 'http'; url: string }>;
+  /**
+   * Cloud chats only (the Managed Agents backend): the session to
+   * reattach to, what to mount, and how to record what the backend
+   * learns. The host owns the chat row; the backend reports through
+   * `onCloudUpdate` and never writes the DB itself.
+   */
+  cloud?: CloudSpawnOpts;
+}
+
+export interface CloudSpawnOpts {
+  /** The chat's stored cloud state, as it stands at spawn. */
+  info: CloudChatInfo;
+  /** Session title on the Anthropic side — the chat's name. */
+  title: string;
+  /** The local checkout the cloud session mirrors: a slot / worktree on
+   *  its own branch (pushed before the session is created), or the repo
+   *  root on whatever branch it is on. Null for a chat with no repo. */
+  workspace: { localPath: string; branch: string | null; ownBranch: boolean } | null;
+  /** The "respond in the user's language" sentence for the preamble
+   *  (empty for English). */
+  languageDirective: string;
+  /** Merge a change into the chat's stored cloud state. */
+  onCloudUpdate(patch: Partial<CloudChatInfo>): void;
 }
 
 export interface AgentSession {

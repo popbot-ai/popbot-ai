@@ -247,8 +247,9 @@ const api: PopBotApi = {
     },
   },
   cloud: {
-    teleport: (chatId: string) => ipcRenderer.invoke(IpcChannel.CloudTeleport, chatId),
-    link: (chatId: string, ref: string) => ipcRenderer.invoke(IpcChannel.CloudLink, chatId, ref),
+    status: () => ipcRenderer.invoke(IpcChannel.CloudStatus),
+    testKey: (apiKey: string) => ipcRenderer.invoke(IpcChannel.CloudTestKey, apiKey),
+    pull: (chatId: string) => ipcRenderer.invoke(IpcChannel.CloudPull, chatId),
   },
   updates: {
     onAvailable: (handler: (info: UpdateInfo) => void) => {

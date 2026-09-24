@@ -453,8 +453,8 @@ export const it = {
     'Agente in esecuzione… scrivi per accodare un messaggio  ·  Maiusc+Invio per andare a capo',
   'chat.input.placeholderIdle': 'Invia un messaggio…  ·  Maiusc+Invio per andare a capo',
   'chat.input.placeholderInactive': 'Fai clic per rendere questa la chat attiva',
-  'chat.input.placeholderCloudFirst': 'Descrivi il compito da eseguire nel cloud…',
-  'chat.input.placeholderCloud': 'Invia un follow-up alla sessione cloud…',
+  'chat.input.placeholderCloudFirst': 'Descrivi il compito per l’agente cloud…',
+  'chat.input.placeholderCloud': 'Invia un messaggio all’agente cloud…',
   'chat.input.attachImage': 'Allega immagine',
   'chat.input.attachFile': 'Allega file',
   'chat.input.model': 'Modello',
@@ -478,10 +478,9 @@ export const it = {
   'chat.agentSwitch.confirm': 'Riavvia',
   'chat.fork.name': '{name} (diramazione)',
   'chat.cloud.chip': 'Cloud',
-  'chat.cloud.chipTitle': 'Apri la sessione cloud su claude.ai',
-  'chat.cloud.chipPending': 'Cloud · non collegata',
-  'chat.cloud.chipPendingTitle':
-    'Nessuna sessione cloud ancora. Invia il compito, oppure incolla il link della sessione nelle impostazioni della chat.',
+  'chat.cloud.chipTitle': 'Gira in una sandbox cloud di Anthropic · apri le impostazioni della chat',
+  'chat.cloud.chipPendingTitle': 'Nessuna sessione cloud ancora: parte con il tuo primo messaggio.',
+  'chat.cloud.pull': 'Porta il lavoro del cloud nel checkout',
   'chat.app.terminal': 'Terminale',
   'chat.app.editor': 'Editor',
   'chat.app.unity': 'Unity',
@@ -655,15 +654,14 @@ export const it = {
   'chatSettings.forkRunningHint': 'Attendi che l’agente finisca, poi dirama.',
   'chatSettings.cloud': 'Sessione cloud',
   'chatSettings.cloudDesc':
-    'Questa chat guida una sessione cloud di Claude Code. I messaggi inviati qui vengono accodati nella sessione; aprila su claude.ai per seguirla o rispondere alle sue domande.',
+    'Questa chat gira su Anthropic Managed Agents, in una sandbox cloud. Continua a lavorare quando PopBot viene chiuso; quello che ha fatto mentre eri via viene riprodotto qui al tuo ritorno.',
   'chatSettings.cloudSession': 'Sessione',
-  'chatSettings.cloudNone': 'Non ancora collegata',
-  'chatSettings.cloudLinkPlaceholder': 'Incolla un link claude.ai/code o l’ID della sessione',
-  'chatSettings.cloudLinkButton': 'Collega',
-  'chatSettings.cloudLinkInvalid': 'Non è un link né un ID di sessione claude.ai/code.',
-  'chatSettings.cloudTeleport': 'Teletrasporta nel terminale',
-  'chatSettings.cloudTeleportDesc':
-    'Esegue claude --teleport nel terminale di questa chat, nella radice del repository: recupera il branch della sessione, lo estrae e carica la conversazione in locale. Chiede conferma prima di mettere da parte (stash) le modifiche non committate.',
+  'chatSettings.cloudNone': 'Non ancora avviata: parte con il tuo primo messaggio.',
+  'chatSettings.cloudEnded': 'terminata · il prossimo messaggio avvia una nuova sessione',
+  'chatSettings.cloudRepo': 'Repository',
+  'chatSettings.cloudPullDesc':
+    'La sandbox fa commit e push sul branch della chat su origin. Pull porta quei commit nel checkout di questa chat (solo fast-forward).',
+  'chatSettings.cloudPull': 'Pull da origin',
   'chatSettings.tryReconnect': 'Prova a riconnettere',
   'chatSettings.reconnectDesc':
     'Scegli una sessione Claude salvata per il worktree di questa chat. Utile se la riconnessione automatica ha scelto quella sbagliata e vuoi forzare una trascrizione specifica. La sessione scelta verrà appuntata e l’agente riavviato al suo interno.',
@@ -693,7 +691,8 @@ export const it = {
   'agent.label': 'Agente',
   'agent.model': 'Modello',
   'agent.cloudToggle': 'Cloud',
-  'agent.cloudToggleTitle': 'Esegui questa chat su Claude Code sul web: continua a lavorare dopo la chiusura di PopBot. Solo Claude.',
+  'agent.cloudToggleTitle':
+    'Esegui questa chat in una sandbox cloud di Anthropic (Managed Agents, fatturazione con chiave API): continua a lavorare quando PopBot viene chiuso. Solo Claude.',
   'agent.effort': 'Impegno',
 
   // ---------------------------------------------------------------------------
@@ -842,13 +841,16 @@ export const it = {
   'branch.dialog.freeChatDesc':
     'Viene eseguita in {repo} dalla radice del repository — nessuno slot, worktree o branch.',
   'branch.dialog.cloudDescNoRepo':
-    'Gira su Claude Code sul web senza repository e continua a lavorare dopo la chiusura di PopBot.',
+    'Gira in una sandbox cloud di Anthropic senza repository e continua quando PopBot viene chiuso.',
   'branch.dialog.cloudDescRoot':
-    'Gira su Claude Code sul web dal remoto GitHub di {repo}, sul branch su cui si trova la radice del repository: fai prima il push. Continua a lavorare dopo la chiusura di PopBot.',
+    'Gira in una sandbox cloud di Anthropic che clona il remoto GitHub di {repo} sul branch su cui si trova la radice del repo (viene fatto push prima, se origin non lo ha ancora). Continua quando PopBot viene chiuso.',
   'branch.dialog.cloudDescSlot':
-    'Gira su Claude Code sul web: la chat riceve slot e branch come al solito, il branch viene inviato a origin e il cloud lo clona. Lo slot resta locale per riportare indietro il lavoro col teletrasporto. Continua a lavorare dopo la chiusura di PopBot.',
+    'Gira in una sandbox cloud di Anthropic: la chat riceve slot e branch come al solito, il branch viene pushato su origin e la sandbox lo clona. Lo slot resta locale; porta i commit del cloud dal menu della chat. Continua quando PopBot viene chiuso.',
   'branch.dialog.cloudGithubNote':
-    'Il cloud raggiunge GitHub tramite il tuo account claude.ai, non questa macchina: installa la Claude GitHub App da claude.ai/code oppure esegui /web-setup una volta in una sessione claude nel terminale.',
+    'La sandbox clona con il tuo token GitHub: quello salvato in Preferenze ▸ Agenti ▸ Chat cloud, oppure quello con cui gh ha effettuato l’accesso.',
+  'branch.dialog.cloudNoKey':
+    'Le chat cloud richiedono una chiave API Anthropic. Aggiungine una in Preferenze ▸ Agenti ▸ Chat cloud.',
+  'branch.dialog.disabled.cloudNoKey': 'Aggiungi prima una chiave API Anthropic',
   'branch.dialog.createChat': 'Crea chat',
 
   // ---------------------------------------------------------------------------
@@ -909,6 +911,22 @@ export const it = {
     'Dà all’agente di ogni chat un server MCP «popbot»: elencare, creare, chiudere e riaprire chat, inviare messaggi ad altre chat e attenderne la risposta, avviare code review e chat per ticket, leggere e cercare nelle trascrizioni. Vale dalla prossima sessione dell’agente di ogni chat.',
   'prefs.agents.mcp.on': 'Attivo — gli agenti possono guidare PopBot',
   'prefs.agents.mcp.off': 'Disattivo — nessuno strumento popbot',
+  'prefs.agents.cloud.title': 'Chat cloud',
+  'prefs.agents.cloud.desc':
+    'Una chat creata con il chip Cloud gira su Anthropic Managed Agents: una sessione in una sandbox cloud di Anthropic, fatturata a token sul tuo account Console, che continua a lavorare quando PopBot viene chiuso.',
+  'prefs.agents.cloud.apiKey.title': 'Chiave API Anthropic',
+  'prefs.agents.cloud.apiKey.desc':
+    'Salvata localmente nel database di questa app. Lascia vuoto per usare la variabile d’ambiente ANTHROPIC_API_KEY.',
+  'prefs.agents.cloud.getKey': 'Ottieni una chiave',
+  'prefs.agents.cloud.githubToken.title': 'Token GitHub',
+  'prefs.agents.cloud.githubToken.desc':
+    'La sandbox clona i tuoi repository con questo token (scope repo). Lascia vuoto per usare quello con cui gh ha effettuato l’accesso.',
+  'prefs.agents.cloud.envKey': 'Viene usata la variabile d’ambiente ANTHROPIC_API_KEY.',
+  'prefs.agents.cloud.noKey': 'Nessuna chiave ancora: le chat cloud non sono disponibili.',
+  'prefs.agents.cloud.ghToken': 'GitHub: viene usato il token con cui gh ha effettuato l’accesso.',
+  'prefs.agents.cloud.noGh': 'GitHub: nessun token. Salvane uno qui o esegui gh auth login.',
+  'prefs.agents.cloud.ok': 'La chiave funziona.',
+  'prefs.agents.cloud.error': 'La chiave non ha funzionato: {error}',
 
   // Preferences — Runtime / attachment retention pane.
   'prefs.runtime.title': 'Conservazione allegati',

@@ -53,6 +53,8 @@ Un effort plus élevé signifie un raisonnement plus profond et un usage d'outil
 
 **Outils PopBot pour les agents** *(activé par défaut)* — donne à l'agent de chaque conversation un serveur MCP `popbot` avec des outils pour lister, créer, fermer et rouvrir des conversations, envoyer un message à une autre conversation et attendre sa réponse, lancer des revues de code et des conversations de ticket, et lire et chercher dans les transcriptions (voir [Outils PopBot pour les agents](GUIDE.md#outils-popbot-pour-les-agents)). Le serveur n'écoute que sur localhost, sur un port aléatoire avec un secret propre à chaque lancement dans son URL. Le désactiver s'applique à partir de la prochaine session d'agent de chaque conversation.
 
+**Chats cloud** — la *clé API Anthropic* sur laquelle tournent les chats cloud (stockée localement ; à défaut, la variable d'environnement `ANTHROPIC_API_KEY`) et le *jeton GitHub* avec lequel le bac à sable clone les dépôts (portée `repo` ; à défaut, `gh auth token`). Un chat cloud avec dépôt a besoin des deux ; sans dépôt, seule la clé est nécessaire. Enregistrer avec une clé la vérifie d'abord auprès de l'API. Les sessions cloud sont facturées au jeton sur le compte Console de la clé, pas sur un abonnement Claude. À la première utilisation, PopBot crée dans ce compte un environnement et un agent par modèle et effort, puis les réutilise (voir [Exécuter dans le cloud](GUIDE.md#chats)).
+
 ## Runtime & slots
 
 Ce panneau contrôle la **rétention des pièces jointes**. (Le dimensionnement du pool de slots est maintenant par dépôt et se trouve sous [Dépôts](#dépôts) — voir la note à cet endroit.)

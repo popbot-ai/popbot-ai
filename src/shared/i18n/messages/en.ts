@@ -479,8 +479,8 @@ export const en = {
     'Agent running… type to queue a message  ·  Shift+Enter for newline',
   'chat.input.placeholderIdle': 'Send a message…  ·  Shift+Enter for newline',
   'chat.input.placeholderInactive': 'Click to make this the active chat',
-  'chat.input.placeholderCloudFirst': 'Describe the task to run in the cloud…',
-  'chat.input.placeholderCloud': 'Send a follow-up to the cloud session…',
+  'chat.input.placeholderCloudFirst': 'Describe the task for the cloud agent…',
+  'chat.input.placeholderCloud': 'Send a message to the cloud agent…',
   'chat.input.attachImage': 'Attach image',
   'chat.input.attachFile': 'Attach file',
   'chat.input.model': 'Model',
@@ -505,10 +505,9 @@ export const en = {
   'chat.agentSwitch.confirm': 'Restart',
   'chat.fork.name': '{name} (fork)',
   'chat.cloud.chip': 'Cloud',
-  'chat.cloud.chipTitle': 'Open the cloud session on claude.ai',
-  'chat.cloud.chipPending': 'Cloud · not linked',
-  'chat.cloud.chipPendingTitle':
-    'No cloud session yet. Send the task, or paste the session link in the chat settings.',
+  'chat.cloud.chipTitle': 'Runs in an Anthropic cloud sandbox · open the chat settings',
+  'chat.cloud.chipPendingTitle': 'No cloud session yet — it starts with your first message.',
+  'chat.cloud.pull': 'Pull cloud work into the checkout',
   'chat.app.terminal': 'Terminal',
   'chat.app.editor': 'Editor',
   'chat.app.unity': 'Unity',
@@ -682,15 +681,14 @@ export const en = {
   'chatSettings.forkRunningHint': 'Wait for the agent to finish, then fork.',
   'chatSettings.cloud': 'Cloud session',
   'chatSettings.cloudDesc':
-    'This chat drives a Claude Code cloud session. Messages sent here are queued into it; open it on claude.ai to watch it work or answer its questions.',
+    'This chat runs on Anthropic Managed Agents in a cloud sandbox. It keeps working after PopBot quits; whatever it did while you were away is replayed here when you come back.',
   'chatSettings.cloudSession': 'Session',
-  'chatSettings.cloudNone': 'Not linked yet',
-  'chatSettings.cloudLinkPlaceholder': 'Paste a claude.ai/code link or session ID',
-  'chatSettings.cloudLinkButton': 'Link',
-  'chatSettings.cloudLinkInvalid': 'That is not a claude.ai/code session link or ID.',
-  'chatSettings.cloudTeleport': 'Teleport into the terminal',
-  'chatSettings.cloudTeleportDesc':
-    'Runs claude --teleport in this chat’s terminal at the repo root: it fetches the session’s branch, checks it out, and loads the conversation locally. It asks before stashing uncommitted changes.',
+  'chatSettings.cloudNone': 'Not started yet — it starts with your first message.',
+  'chatSettings.cloudEnded': 'ended · the next message starts a new session',
+  'chatSettings.cloudRepo': 'Repository',
+  'chatSettings.cloudPullDesc':
+    'The sandbox commits and pushes to the chat’s branch on origin. Pull brings those commits into this chat’s checkout (fast-forward only).',
+  'chatSettings.cloudPull': 'Pull from origin',
   'chatSettings.tryReconnect': 'Try reconnect',
   'chatSettings.reconnectDesc':
     'Pick a saved Claude session for this chat’s worktree. Useful if auto-reconnect picked the wrong one and you want to force a specific transcript. The picked session will be pinned and the agent re-spawned into it.',
@@ -720,7 +718,7 @@ export const en = {
   'agent.label': 'Agent',
   'agent.model': 'Model',
   'agent.cloudToggle': 'Cloud',
-  'agent.cloudToggleTitle': 'Run this chat on Claude Code on the web — it keeps working after PopBot quits. Claude only.',
+  'agent.cloudToggleTitle': 'Run this chat in an Anthropic cloud sandbox (Managed Agents, API-key billing) — it keeps working after PopBot quits. Claude only.',
   'agent.effort': 'Effort',
 
   // ---------------------------------------------------------------------------
@@ -869,13 +867,16 @@ export const en = {
   'branch.dialog.freeChatDesc':
     'Runs in {repo} from the repo root — no slot, worktree, or branch.',
   'branch.dialog.cloudDescNoRepo':
-    'Runs on Claude Code on the web with no repository, and keeps going after PopBot quits.',
+    'Runs in an Anthropic cloud sandbox with no repository, and keeps going after PopBot quits.',
   'branch.dialog.cloudDescRoot':
-    'Runs on Claude Code on the web from the GitHub remote of {repo}, at the branch the repo root is on — push it first. Keeps going after PopBot quits.',
+    'Runs in an Anthropic cloud sandbox that clones the GitHub remote of {repo} at the branch the repo root is on (pushed first if origin does not have it yet). Keeps going after PopBot quits.',
   'branch.dialog.cloudDescSlot':
-    'Runs on Claude Code on the web: the chat gets its slot and branch as usual, the branch is pushed to origin, and the cloud clones it. The slot stays local for teleporting the work back. Keeps going after PopBot quits.',
+    'Runs in an Anthropic cloud sandbox: the chat gets its slot and branch as usual, the branch is pushed to origin, and the sandbox clones it. The slot stays local; pull the cloud’s commits into it from the chat menu. Keeps going after PopBot quits.',
   'branch.dialog.cloudGithubNote':
-    'The cloud reaches GitHub through your claude.ai account, not this machine: install the Claude GitHub App from claude.ai/code, or run /web-setup once in a terminal claude session.',
+    'The sandbox clones with your GitHub token: the one saved in Preferences ▸ Agents ▸ Cloud chats, or the one gh is signed in with.',
+  'branch.dialog.cloudNoKey':
+    'Cloud chats need an Anthropic API key. Add one in Preferences ▸ Agents ▸ Cloud chats.',
+  'branch.dialog.disabled.cloudNoKey': 'Add an Anthropic API key first',
   'branch.dialog.createChat': 'Create chat',
 
   // ---------------------------------------------------------------------------
@@ -936,6 +937,21 @@ export const en = {
     'Gives every chat’s agent a “popbot” MCP server: list, create, close and reopen chats, message other chats and wait for their answer, start code reviews and ticket chats, and read and search transcripts. Applies from each chat’s next agent session.',
   'prefs.agents.mcp.on': 'On — agents can drive PopBot',
   'prefs.agents.mcp.off': 'Off — no popbot tools',
+  'prefs.agents.cloud.title': 'Cloud chats',
+  'prefs.agents.cloud.desc':
+    'A chat created with the Cloud chip runs on Anthropic Managed Agents: a session in an Anthropic cloud sandbox, billed to your Console account by the token, that keeps working after PopBot quits.',
+  'prefs.agents.cloud.apiKey.title': 'Anthropic API key',
+  'prefs.agents.cloud.apiKey.desc': 'Stored locally in this app’s database. Leave empty to use the ANTHROPIC_API_KEY environment variable.',
+  'prefs.agents.cloud.getKey': 'Get a key',
+  'prefs.agents.cloud.githubToken.title': 'GitHub token',
+  'prefs.agents.cloud.githubToken.desc':
+    'The sandbox clones your repositories with it (repo scope). Leave empty to use the token gh is signed in with.',
+  'prefs.agents.cloud.envKey': 'Using the ANTHROPIC_API_KEY environment variable.',
+  'prefs.agents.cloud.noKey': 'No key yet — cloud chats are unavailable.',
+  'prefs.agents.cloud.ghToken': 'GitHub: using the token gh is signed in with.',
+  'prefs.agents.cloud.noGh': 'GitHub: no token — save one here, or run gh auth login.',
+  'prefs.agents.cloud.ok': 'The key works.',
+  'prefs.agents.cloud.error': 'The key did not work: {error}',
 
   // Preferences — Runtime / attachment retention pane.
   'prefs.runtime.title': 'Attachment retention',

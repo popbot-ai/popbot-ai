@@ -672,28 +672,18 @@ export function ChatColumn({
             </>
           )}
           {chat.cloud && (
-            <>
-              <button
-                type="button"
-                className="chat-menu-item"
-                role="menuitem"
-                disabled={!chat.cloud.url}
-                onClick={() => { setMenu(null); if (chat.cloud?.url) window.open(chat.cloud.url, '_blank'); }}
-              >
-                <i className="fa-solid fa-cloud" aria-hidden="true" />
-                {t('chat.cloud.chipTitle')}
-              </button>
-              <button
-                type="button"
-                className="chat-menu-item"
-                role="menuitem"
-                disabled={!chat.cloud.sessionId}
-                onClick={() => { setMenu(null); void window.popbot.cloud.teleport(chat.id); }}
-              >
-                <i className="fa-solid fa-cloud-arrow-down" aria-hidden="true" />
-                {t('chatSettings.cloudTeleport')}
-              </button>
-            </>
+            // The sandbox pushes to the chat's branch; this brings those
+            // commits into the local checkout. Only once there is a branch.
+            <button
+              type="button"
+              className="chat-menu-item"
+              role="menuitem"
+              disabled={!(chat.cloud.branch ?? chat.branch)}
+              onClick={() => { setMenu(null); void window.popbot.cloud.pull(chat.id); }}
+            >
+              <i className="fa-solid fa-cloud-arrow-down" aria-hidden="true" />
+              {t('chat.cloud.pull')}
+            </button>
           )}
           <div className="chat-menu-sep" />
           <button
@@ -838,7 +828,7 @@ export function ChatColumn({
           <textarea
             placeholder={
               chat.cloud
-                ? chat.cloud.sessionId
+                ? chat.cloud.sessionId && !chat.cloud.ended
                   ? t('chat.input.placeholderCloud')
                   : t('chat.input.placeholderCloudFirst')
                 : isActive
@@ -876,7 +866,8 @@ export function ChatColumn({
               disabled={configuringAgent || chat.status === 'run'}
               onChange={(e) => changeModel(e.currentTarget.value)}
             >
-              {MODEL_OPTIONS.map((m) => (
+              {/* A cloud chat is Claude in an Anthropic sandbox: no Codex. */}
+              {MODEL_OPTIONS.filter((m) => !chat.cloud || m.agent === 'claude').map((m) => (
                 <option key={m.value} value={m.value}>{m.label}</option>
               ))}
             </select>
@@ -894,18 +885,15 @@ export function ChatColumn({
                 <option key={effort} value={effort}>{t(REASONING_LABEL_KEYS[effort])}</option>
               ))}
             </select>
-            {/* Cloud chats only: the chip says so beside the agent, and
-                opens the session on claude.ai — or, before the CLI has
-                reported an id, the settings where one can be pasted. */}
+            {/* Cloud chats only: the chip says so beside the agent and
+                opens the settings, where the session is shown. Outlined
+                until the first message has started a session. */}
             {chat.cloud && (
               <button
                 type="button"
-                className={`cloud-chip${chat.cloud.url ? '' : ' pending'}`}
-                title={chat.cloud.url ? t('chat.cloud.chipTitle') : t('chat.cloud.chipPendingTitle')}
-                onClick={(e) => {
-                  if (chat.cloud?.url) window.open(chat.cloud.url, '_blank');
-                  else handleSettings(e);
-                }}
+                className={`cloud-chip${chat.cloud.sessionId && !chat.cloud.ended ? '' : ' pending'}`}
+                title={chat.cloud.sessionId ? t('chat.cloud.chipTitle') : t('chat.cloud.chipPendingTitle')}
+                onClick={(e) => handleSettings(e)}
               >
                 <i className="fa-solid fa-cloud" aria-hidden /> {t('chat.cloud.chip')}
               </button>

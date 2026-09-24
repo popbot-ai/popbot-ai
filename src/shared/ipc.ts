@@ -280,10 +280,11 @@ export const IpcChannel = {
   AuthLoginCancel: 'pb:auth:login-cancel',
   AuthLoginEvent: 'pb:auth:login-event',
 
-  /** Cloud chats: pull the session into the chat's terminal
-   *  (`claude --teleport`), or link a session id the CLI didn't print. */
-  CloudTeleport: 'pb:cloud:teleport',
-  CloudLink: 'pb:cloud:link',
+  /** Cloud chats (Anthropic Managed Agents): is the cloud set up, does
+   *  a key work, pull the sandbox's commits into the local checkout. */
+  CloudStatus: 'pb:cloud:status',
+  CloudTestKey: 'pb:cloud:test-key',
+  CloudPull: 'pb:cloud:pull',
 
   /** Push channel — main → renderer. A newer release exists but can't be
    *  installed in-app (unsigned build / updater error) — surface a
@@ -411,8 +412,9 @@ export interface CreateChatInput {
   claudeReasoningEffort?: ClaudeReasoningEffort;
   codexModel?: CodexModelId;
   codexReasoningEffort?: CodexReasoningEffort;
-  /** Make this a cloud chat: it drives a Claude Code cloud session
-   *  instead of a local agent. No slot or worktree; the agent is Claude. */
+  /** Make this a cloud chat: it runs on Anthropic Managed Agents instead
+   *  of a local CLI, on top of whatever workspace is chosen. The agent
+   *  is Claude. */
   cloud?: boolean;
 }
 
@@ -654,6 +656,16 @@ export type AuthLoginEvent =
   | { provider: AuthProvider; type: 'exit'; code: number; message?: string };
 
 /** Online/offline state of the agent CLI backends. */
+/** How cloud chats are set up on this machine. */
+export interface CloudStatus {
+  /** Where the Anthropic API key comes from, or null when there is none. */
+  apiKey: 'settings' | 'env' | null;
+  /** Where the GitHub token the sandbox clones with comes from. */
+  githubToken: 'settings' | 'gh' | null;
+  /** A key is saved in Preferences (as opposed to only the environment). */
+  hasSettingsKey: boolean;
+}
+
 export interface AgentBackendsStatus {
   claude: AgentBackendStatus;
   codex: AgentBackendStatus;
@@ -1046,12 +1058,12 @@ export interface PopBotApi {
     onLoginEvent(handler: (event: AuthLoginEvent) => void): () => void;
   };
   cloud: {
-    /** Run `claude --teleport <session>` in the chat's terminal at the
-     *  repo root, so the session's branch + conversation come local. */
-    teleport(chatId: string): Promise<{ ok: true } | { ok: false; error: string }>;
-    /** Link a cloud session by claude.ai/code URL or bare id, for when
-     *  the CLI's output didn't yield one. Resolves to the updated chat. */
-    link(chatId: string, ref: string): Promise<{ ok: true; chat: ChatRecord } | { ok: false; error: string }>;
+    /** Which key and GitHub token cloud chats would run with. */
+    status(): Promise<CloudStatus>;
+    /** Does this Anthropic API key work for Managed Agents? */
+    testKey(apiKey: string): Promise<{ ok: true } | { ok: false; error: string }>;
+    /** Fast-forward the chat's checkout to what the cloud pushed. */
+    pull(chatId: string): Promise<{ ok: true; summary: string } | { ok: false; error: string }>;
   };
   updates: {
     /** Subscribe to "newer release available, download manually" pushes

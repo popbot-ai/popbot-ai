@@ -60,29 +60,15 @@ export function ChatSettingsSheet({ chat, onClose, onFork }: ChatSettingsSheetPr
   const [search, setSearch] = useState('');
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [threadIdCopied, setThreadIdCopied] = useState(false);
-  // Cloud chats: a pasted session link, and the last link/teleport error.
-  const [cloudRef, setCloudRef] = useState('');
-  const [cloudError, setCloudError] = useState<string | null>(null);
+  // Cloud chats: the outcome of the last pull (the transcript gets a row too).
+  const [cloudNote, setCloudNote] = useState<{ ok: boolean; text: string } | null>(null);
 
-  const linkCloud = async (): Promise<void> => {
-    const ref = cloudRef.trim();
-    if (!ref) return;
+  const pullCloud = async (): Promise<void> => {
     setBusy(true);
+    setCloudNote(null);
     try {
-      const res = await window.popbot.cloud.link(chat.id, ref);
-      if (res.ok) setCloudRef('');
-      else setCloudError(t('chatSettings.cloudLinkInvalid'));
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const teleport = async (): Promise<void> => {
-    setBusy(true);
-    try {
-      const res = await window.popbot.cloud.teleport(chat.id);
-      if (res.ok) onClose();
-      else setCloudError(res.error);
+      const res = await window.popbot.cloud.pull(chat.id);
+      setCloudNote(res.ok ? { ok: true, text: res.summary } : { ok: false, text: res.error });
     } finally {
       setBusy(false);
     }
@@ -234,54 +220,44 @@ export function ChatSettingsSheet({ chat, onClose, onFork }: ChatSettingsSheetPr
                 {t('chatSettings.cloudDesc')}
               </p>
               <Field label={t('chatSettings.cloudSession')}>
-                {chat.cloud.url ? (
-                  <a
-                    className="mono"
-                    href={chat.cloud.url}
-                    target="_blank"
-                    rel="noreferrer noopener"
-                    style={{ fontSize: 11, overflowWrap: 'anywhere' }}
-                  >
-                    {chat.cloud.sessionId} <i className="fa-solid fa-arrow-up-right-from-square" aria-hidden />
-                  </a>
+                {chat.cloud.sessionId ? (
+                  <span className="mono" style={{ fontSize: 11, overflowWrap: 'anywhere' }}>
+                    {chat.cloud.sessionId}
+                    {chat.cloud.ended && (
+                      <span style={{ color: 'var(--fg-3)', fontFamily: 'inherit' }}> · {t('chatSettings.cloudEnded')}</span>
+                    )}
+                  </span>
                 ) : (
                   <span style={{ color: 'var(--fg-3)' }}>{t('chatSettings.cloudNone')}</span>
                 )}
               </Field>
-              <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 8 }}>
-                <input
-                  className="input mono"
-                  placeholder={t('chatSettings.cloudLinkPlaceholder')}
-                  value={cloudRef}
-                  onChange={(e) => { setCloudRef(e.target.value); setCloudError(null); }}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      e.preventDefault();
-                      void linkCloud();
-                    }
-                    e.stopPropagation();
-                  }}
-                  style={{ flex: 1 }}
-                  spellCheck={false}
-                />
-                <button className="btn sm" disabled={busy || !cloudRef.trim()} onClick={() => void linkCloud()}>
-                  {t('chatSettings.cloudLinkButton')}
-                </button>
-              </div>
-              {cloudError && <div style={{ color: '#e89696', fontSize: 12, marginTop: 6 }}>{cloudError}</div>}
-              <p className="pref-section-desc" style={{ marginTop: 14, marginBottom: 8 }}>
-                {t('chatSettings.cloudTeleportDesc')}
-              </p>
-              <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-                <button
-                  className="btn primary"
-                  disabled={busy || !chat.cloud.sessionId}
-                  onClick={() => void teleport()}
-                  title={t('chatSettings.cloudTeleport')}
-                >
-                  <i className="fa-solid fa-cloud-arrow-down" aria-hidden /> {t('chatSettings.cloudTeleport')}
-                </button>
-              </div>
+              {chat.cloud.mountPath && (
+                <Field label={t('chatSettings.cloudRepo')}>
+                  <span className="mono" style={{ fontSize: 11, overflowWrap: 'anywhere' }}>
+                    {chat.cloud.mountPath}{chat.cloud.branch ? ` · ${chat.cloud.branch}` : ''}
+                  </span>
+                </Field>
+              )}
+              {(chat.cloud.branch ?? chat.branch) && (
+                <>
+                  <p className="pref-section-desc" style={{ marginTop: 14, marginBottom: 8 }}>
+                    {t('chatSettings.cloudPullDesc')}
+                  </p>
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 10 }}>
+                    {cloudNote && (
+                      <span style={{ color: cloudNote.ok ? 'var(--fg-3)' : '#e89696', fontSize: 12 }}>{cloudNote.text}</span>
+                    )}
+                    <button
+                      className="btn primary"
+                      disabled={busy}
+                      onClick={() => void pullCloud()}
+                      title={t('chat.cloud.pull')}
+                    >
+                      <i className="fa-solid fa-cloud-arrow-down" aria-hidden /> {t('chatSettings.cloudPull')}
+                    </button>
+                  </div>
+                </>
+              )}
             </div>
           )}
 

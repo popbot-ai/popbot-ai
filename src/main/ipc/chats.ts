@@ -38,7 +38,7 @@ import {
 import { appendMessage, copyMessages, listMessages } from '../persistence/messages';
 import { getSetting, setSetting } from '../persistence/settings';
 import { AgentHost, sessionCwdForChat } from '../agents/AgentHost';
-import { forgetCloudChat, linkCloudSession, teleportCloudChat } from '../agents/cloudSessions';
+import { cloudStatus, pullCloudBranch, testCloudApiKey } from '../agents/cloudSessions';
 import { searchTranscripts } from '../search/transcriptSearch';
 import { getCodexBinaryPath } from '../agents/codexProbe';
 import { forkClaudeSession, forkCodexThread } from '../agents/forkAgentContext';
@@ -403,13 +403,13 @@ export function registerChatHandlers(): void {
     return created ? { ok: true, chat: created } : { ok: false, reason: 'not-found' };
   });
 
-  // ---- Cloud chats: bring the session local, or link one by hand.
-  ipcMain.handle(IpcChannel.CloudTeleport, (_e, chatId: string) => {
-    return teleportCloudChat(chatId, (event) => AgentHost.emit(event));
-  });
-  ipcMain.handle(IpcChannel.CloudLink, (_e, chatId: string, ref: string) => {
-    return linkCloudSession(chatId, typeof ref === 'string' ? ref : '', (event) => AgentHost.emit(event));
-  });
+  // ---- Cloud chats: setup status, key check, and pulling the cloud's
+  // commits into the local checkout.
+  ipcMain.handle(IpcChannel.CloudStatus, () => cloudStatus());
+  ipcMain.handle(IpcChannel.CloudTestKey, (_e, apiKey: string) =>
+    testCloudApiKey(typeof apiKey === 'string' ? apiKey.trim() : ''));
+  ipcMain.handle(IpcChannel.CloudPull, (_e, chatId: string) =>
+    pullCloudBranch(chatId, (event) => AgentHost.emit(event)));
 
   ipcMain.handle(IpcChannel.ChatsReorder, (_e, ids: string[]) => {
     if (!Array.isArray(ids)) return;
@@ -424,7 +424,6 @@ export function registerChatHandlers(): void {
     const chat = getChat(chatId);
     await AgentHost.dispose(chatId);
     disposePty(chatId);
-    forgetCloudChat(chatId);
     // If the chat is ephemeral and still has a live worktree on disk
     // (i.e. delete-from-open, not delete-after-close), tear it down so
     // we don't leak <worktreesDir>/<slug> directories. Slot-backed
@@ -465,14 +464,14 @@ export function registerChatHandlers(): void {
  */
 export async function createChatWithWorkspace(input: CreateChatInput): Promise<CreateChatResult> {
   const wantsWorkspace = input.slotId != null || input.allocateSlot === true;
-  // A cloud chat drives a Claude Code cloud session (claude.ai/code) on
-  // top of whatever workspace it gets here — none, the repo root, a slot
-  // or a worktree. Always Claude. See cloudSessions.ts for what happens
-  // on its first message.
+  // A cloud chat runs on Anthropic Managed Agents on top of whatever
+  // workspace it gets here — none, the repo root, a slot or a worktree.
+  // Always Claude. See ManagedAgentsBackend.ts for what happens on its
+  // first message.
   const cloud = input.cloud === true;
   const cloudArgs = {
     agent: cloud ? ('claude' as const) : input.agent,
-    cloud: cloud ? { provider: 'claude' as const, sessionId: null, url: null, startedAt: null } : null,
+    cloud: cloud ? { provider: 'anthropic' as const, sessionId: null, url: null, startedAt: null } : null,
   };
 
   // No workspace requested → cheap path. Used by lite chats that run
@@ -664,7 +663,6 @@ export async function closeChatWithWorkspace(chatId: string, opts?: CloseChatOpt
   // chat lands on "no conversation found".
   await AgentHost.dispose(chatId);
   disposePty(chatId);
-  forgetCloudChat(chatId);
 
   // Slot-backed chat: park to its parking branch + leave the worktree
   // in place for the next slot allocation. Parking branch must be

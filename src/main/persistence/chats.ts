@@ -104,11 +104,19 @@ function parseCloud(json: string | null): CloudChatInfo | null {
   try {
     const parsed = JSON.parse(json) as Partial<CloudChatInfo> | null;
     if (!parsed || typeof parsed !== 'object') return null;
+    // Rows from the claude.ai-backed prototype carry `session_…` ids the
+    // Managed Agents backend cannot resume: read them as ended.
+    const sessionId = typeof parsed.sessionId === 'string' ? parsed.sessionId : null;
+    const legacy = !!sessionId && !sessionId.startsWith('sesn_');
     return {
-      provider: 'claude',
-      sessionId: typeof parsed.sessionId === 'string' ? parsed.sessionId : null,
+      provider: 'anthropic',
+      sessionId,
       url: typeof parsed.url === 'string' ? parsed.url : null,
       startedAt: typeof parsed.startedAt === 'number' ? parsed.startedAt : null,
+      lastEventId: typeof parsed.lastEventId === 'string' ? parsed.lastEventId : null,
+      mountPath: typeof parsed.mountPath === 'string' ? parsed.mountPath : null,
+      branch: typeof parsed.branch === 'string' ? parsed.branch : null,
+      ended: parsed.ended === true || legacy,
     };
   } catch {
     return null;

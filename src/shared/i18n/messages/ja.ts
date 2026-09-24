@@ -501,8 +501,8 @@ export const ja = {
     'エージェント実行中… 入力するとメッセージがキューに追加されます  ·  Shift+Enter で改行',
   'chat.input.placeholderIdle': 'メッセージを送信…  ·  Shift+Enter で改行',
   'chat.input.placeholderInactive': 'クリックしてこのチャットをアクティブにします',
-  'chat.input.placeholderCloudFirst': 'クラウドで実行するタスクを記述…',
-  'chat.input.placeholderCloud': 'クラウドセッションにフォローアップを送信…',
+  'chat.input.placeholderCloudFirst': 'クラウドエージェントに任せるタスクを説明してください…',
+  'chat.input.placeholderCloud': 'クラウドエージェントにメッセージを送信…',
   'chat.input.attachImage': '画像を添付',
   'chat.input.attachFile': 'ファイルを添付',
   'chat.input.model': 'モデル',
@@ -526,9 +526,9 @@ export const ja = {
   'chat.agentSwitch.confirm': '再起動',
   'chat.fork.name': '{name}（分岐）',
   'chat.cloud.chip': 'クラウド',
-  'chat.cloud.chipTitle': 'claude.ai でクラウドセッションを開く',
-  'chat.cloud.chipPending': 'クラウド · 未リンク',
-  'chat.cloud.chipPendingTitle': 'クラウドセッションはまだありません。タスクを送信するか、チャット設定でセッションのリンクを貼り付けてください。',
+  'chat.cloud.chipTitle': 'Anthropic のクラウドサンドボックスで実行中 · チャット設定を開く',
+  'chat.cloud.chipPendingTitle': 'クラウドセッションはまだありません。最初のメッセージで開始します。',
+  'chat.cloud.pull': 'クラウドの作業をチェックアウトに取り込む',
   'chat.app.terminal': 'ターミナル',
   'chat.app.editor': 'エディター',
   'chat.app.unity': 'Unity',
@@ -702,15 +702,14 @@ export const ja = {
   'chatSettings.forkRunningHint': 'エージェントの完了を待ってから分岐してください。',
   'chatSettings.cloud': 'クラウドセッション',
   'chatSettings.cloudDesc':
-    'このチャットは Claude Code のクラウドセッションを操作します。ここで送ったメッセージはセッションのキューに入ります。作業の様子を見たり質問に答えたりするには claude.ai で開いてください。',
+    'このチャットは Anthropic Managed Agents のクラウドサンドボックスで実行されます。PopBot を終了しても動き続け、離れている間の作業は戻ったときにここに再生されます。',
   'chatSettings.cloudSession': 'セッション',
-  'chatSettings.cloudNone': 'まだリンクされていません',
-  'chatSettings.cloudLinkPlaceholder': 'claude.ai/code のリンクまたはセッション ID を貼り付け',
-  'chatSettings.cloudLinkButton': 'リンク',
-  'chatSettings.cloudLinkInvalid': 'claude.ai/code のセッションのリンクや ID ではありません。',
-  'chatSettings.cloudTeleport': 'ターミナルにテレポート',
-  'chatSettings.cloudTeleportDesc':
-    'このチャットのターミナルでリポジトリのルートから claude --teleport を実行します。セッションのブランチを取得してチェックアウトし、会話をローカルに読み込みます。未コミットの変更を stash する前に確認を求めます。',
+  'chatSettings.cloudNone': 'まだ開始していません。最初のメッセージで開始します。',
+  'chatSettings.cloudEnded': '終了 · 次のメッセージで新しいセッションが始まります',
+  'chatSettings.cloudRepo': 'リポジトリ',
+  'chatSettings.cloudPullDesc':
+    'サンドボックスは origin のチャットのブランチにコミットしてプッシュします。Pull でそのコミットをこのチャットのチェックアウトに取り込みます（fast-forward のみ）。',
+  'chatSettings.cloudPull': 'origin から Pull',
   'chatSettings.tryReconnect': '再接続を試す',
   'chatSettings.reconnectDesc':
     'このチャットの worktree に対して保存された Claude セッションを選択します。自動再接続が誤ったものを選択し、特定のトランスクリプトを強制したい場合に便利です。選択したセッションがピン留めされ、エージェントがそこに再起動されます。',
@@ -740,7 +739,8 @@ export const ja = {
   'agent.label': 'エージェント',
   'agent.model': 'モデル',
   'agent.cloudToggle': 'クラウド',
-  'agent.cloudToggleTitle': 'このチャットを Claude Code on the web で実行します。PopBot を終了しても動き続けます。Claude のみ。',
+  'agent.cloudToggleTitle':
+    'このチャットを Anthropic のクラウドサンドボックス（Managed Agents、API キー課金）で実行します。PopBot を終了しても動き続けます。Claude のみ。',
   'agent.effort': 'エフォート',
 
   // ---------------------------------------------------------------------------
@@ -840,14 +840,15 @@ export const ja = {
   'branch.dialog.loadBranchesError': 'ブランチを読み込めませんでした: {error}',
   'branch.dialog.freeChatDesc':
     'リポジトリルートから {repo} で実行します — スロット、worktree、ブランチなし。',
-  'branch.dialog.cloudDescNoRepo':
-    'リポジトリなしで Claude Code on the web 上で実行され、PopBot を終了しても動き続けます。',
+  'branch.dialog.cloudDescNoRepo': 'リポジトリなしで Anthropic のクラウドサンドボックスで実行し、PopBot を終了しても動き続けます。',
   'branch.dialog.cloudDescRoot':
-    '{repo} の GitHub リモートから、リポジトリのルートが今いるブランチで Claude Code on the web 上に実行されます。先に push してください。PopBot を終了しても動き続けます。',
+    '{repo} の GitHub リモートをリポジトリルートのブランチでクローンする Anthropic のクラウドサンドボックスで実行します（origin にまだなければ先にプッシュ）。PopBot を終了しても動き続けます。',
   'branch.dialog.cloudDescSlot':
-    'Claude Code on the web 上で実行されます。チャットは通常どおりスロットとブランチを受け取り、ブランチは origin に push され、クラウドがそれをクローンします。作業をテレポートで戻せるよう、スロットはローカルに残ります。PopBot を終了しても動き続けます。',
+    'Anthropic のクラウドサンドボックスで実行します。チャットは通常どおりスロットとブランチを持ち、ブランチは origin にプッシュされ、サンドボックスがそれをクローンします。スロットはローカルに残り、クラウドのコミットはチャットメニューから取り込めます。PopBot を終了しても動き続けます。',
   'branch.dialog.cloudGithubNote':
-    'クラウドはこのマシンではなく、あなたの claude.ai アカウント経由で GitHub にアクセスします。claude.ai/code から Claude GitHub App をインストールするか、ターミナルの claude セッションで /web-setup を一度実行してください。',
+    'サンドボックスはあなたの GitHub トークンでクローンします。環境設定 ▸ エージェント ▸ クラウドチャットに保存したもの、または gh がサインインしているものです。',
+  'branch.dialog.cloudNoKey': 'クラウドチャットには Anthropic API キーが必要です。環境設定 ▸ エージェント ▸ クラウドチャットで追加してください。',
+  'branch.dialog.disabled.cloudNoKey': '先に Anthropic API キーを追加してください',
   'branch.dialog.createChat': 'チャットを作成',
 
   // ---------------------------------------------------------------------------
@@ -908,6 +909,21 @@ export const ja = {
     '各チャットのエージェントに「popbot」MCP サーバーを提供します。チャットの一覧・作成・クローズ・再オープン、他のチャットへのメッセージ送信と返答待ち、コードレビューやチケットチャットの開始、記録の閲覧と検索ができます。各チャットの次回のエージェントセッションから適用されます。',
   'prefs.agents.mcp.on': 'オン — エージェントが PopBot を操作できます',
   'prefs.agents.mcp.off': 'オフ — popbot ツールなし',
+  'prefs.agents.cloud.title': 'クラウドチャット',
+  'prefs.agents.cloud.desc':
+    'Cloud チップを付けて作成したチャットは Anthropic Managed Agents で実行されます。Anthropic のクラウドサンドボックス内のセッションで、Console アカウントにトークン単位で課金され、PopBot を終了しても動き続けます。',
+  'prefs.agents.cloud.apiKey.title': 'Anthropic API キー',
+  'prefs.agents.cloud.apiKey.desc': 'このアプリのデータベースにローカル保存されます。空のままにすると環境変数 ANTHROPIC_API_KEY を使います。',
+  'prefs.agents.cloud.getKey': 'キーを取得',
+  'prefs.agents.cloud.githubToken.title': 'GitHub トークン',
+  'prefs.agents.cloud.githubToken.desc':
+    'サンドボックスはこのトークンでリポジトリをクローンします（repo スコープ）。空のままにすると gh がサインインしているトークンを使います。',
+  'prefs.agents.cloud.envKey': '環境変数 ANTHROPIC_API_KEY を使用中です。',
+  'prefs.agents.cloud.noKey': 'キーがまだありません。クラウドチャットは利用できません。',
+  'prefs.agents.cloud.ghToken': 'GitHub: gh がサインインしているトークンを使用中です。',
+  'prefs.agents.cloud.noGh': 'GitHub: トークンがありません。ここに保存するか gh auth login を実行してください。',
+  'prefs.agents.cloud.ok': 'キーは有効です。',
+  'prefs.agents.cloud.error': 'キーが使えませんでした: {error}',
 
   // Preferences — Runtime / attachment retention pane.
   'prefs.runtime.title': '添付ファイルの保持',

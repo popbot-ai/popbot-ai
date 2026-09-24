@@ -453,8 +453,8 @@ export const pl = {
     'Agent pracuje… wpisz, aby dodać wiadomość do kolejki  ·  Shift+Enter dla nowej linii',
   'chat.input.placeholderIdle': 'Wyślij wiadomość…  ·  Shift+Enter dla nowej linii',
   'chat.input.placeholderInactive': 'Kliknij, aby ustawić ten czat jako aktywny',
-  'chat.input.placeholderCloudFirst': 'Opisz zadanie do uruchomienia w chmurze…',
-  'chat.input.placeholderCloud': 'Wyślij uzupełnienie do sesji w chmurze…',
+  'chat.input.placeholderCloudFirst': 'Opisz zadanie dla agenta w chmurze…',
+  'chat.input.placeholderCloud': 'Wyślij wiadomość do agenta w chmurze…',
   'chat.input.attachImage': 'Dołącz obraz',
   'chat.input.attachFile': 'Dołącz plik',
   'chat.input.model': 'Model',
@@ -478,10 +478,10 @@ export const pl = {
   'chat.agentSwitch.confirm': 'Uruchom ponownie',
   'chat.fork.name': '{name} (rozgałęzienie)',
   'chat.cloud.chip': 'Chmura',
-  'chat.cloud.chipTitle': 'Otwórz sesję w chmurze na claude.ai',
-  'chat.cloud.chipPending': 'Chmura · niepowiązana',
+  'chat.cloud.chipTitle': 'Działa w chmurowym sandboxie Anthropic · otwórz ustawienia czatu',
   'chat.cloud.chipPendingTitle':
-    'Nie ma jeszcze sesji w chmurze. Wyślij zadanie albo wklej link do sesji w ustawieniach czatu.',
+    'Nie ma jeszcze sesji w chmurze – zacznie się od Twojej pierwszej wiadomości.',
+  'chat.cloud.pull': 'Pobierz pracę z chmury do checkoutu',
   'chat.app.terminal': 'Terminal',
   'chat.app.editor': 'Edytor',
   'chat.app.unity': 'Unity',
@@ -655,15 +655,14 @@ export const pl = {
   'chatSettings.forkRunningHint': 'Poczekaj, aż agent skończy, a potem rozgałęź.',
   'chatSettings.cloud': 'Sesja w chmurze',
   'chatSettings.cloudDesc':
-    'Ten czat steruje sesją Claude Code w chmurze. Wysyłane tu wiadomości są kolejkowane w sesji; otwórz ją na claude.ai, aby śledzić pracę lub odpowiadać na pytania.',
+    'Ten czat działa na Anthropic Managed Agents, w chmurowym sandboxie. Pracuje dalej po zamknięciu PopBota; to, co zrobił pod Twoją nieobecność, zostanie tu odtworzone po powrocie.',
   'chatSettings.cloudSession': 'Sesja',
-  'chatSettings.cloudNone': 'Jeszcze niepowiązana',
-  'chatSettings.cloudLinkPlaceholder': 'Wklej link claude.ai/code lub ID sesji',
-  'chatSettings.cloudLinkButton': 'Powiąż',
-  'chatSettings.cloudLinkInvalid': 'To nie jest link ani ID sesji claude.ai/code.',
-  'chatSettings.cloudTeleport': 'Teleportuj do terminala',
-  'chatSettings.cloudTeleportDesc':
-    'Uruchamia claude --teleport w terminalu tego czatu, w katalogu głównym repozytorium: pobiera gałąź sesji, przełącza się na nią i wczytuje rozmowę lokalnie. Przed odłożeniem (stash) niezatwierdzonych zmian pyta o zgodę.',
+  'chatSettings.cloudNone': 'Jeszcze nie uruchomiona – zacznie się od Twojej pierwszej wiadomości.',
+  'chatSettings.cloudEnded': 'zakończona · następna wiadomość rozpocznie nową sesję',
+  'chatSettings.cloudRepo': 'Repozytorium',
+  'chatSettings.cloudPullDesc':
+    'Sandbox commituje i pushuje na gałąź czatu w origin. Pull sprowadza te commity do checkoutu tego czatu (tylko fast-forward).',
+  'chatSettings.cloudPull': 'Pull z origin',
   'chatSettings.tryReconnect': 'Spróbuj połączyć ponownie',
   'chatSettings.reconnectDesc':
     'Wybierz zapisaną sesję Claude dla worktree tego czatu. Przydatne, gdy automatyczne ponowne połączenie wybrało niewłaściwą i chcesz wymusić konkretną transkrypcję. Wybrana sesja zostanie przypięta, a agent uruchomiony w niej ponownie.',
@@ -693,7 +692,8 @@ export const pl = {
   'agent.label': 'Agent',
   'agent.model': 'Model',
   'agent.cloudToggle': 'Chmura',
-  'agent.cloudToggleTitle': 'Uruchom ten czat w Claude Code w przeglądarce – pracuje dalej po zamknięciu PopBota. Tylko Claude.',
+  'agent.cloudToggleTitle':
+    'Uruchom ten czat w chmurowym sandboxie Anthropic (Managed Agents, rozliczanie kluczem API) – pracuje dalej po zamknięciu PopBota. Tylko Claude.',
   'agent.effort': 'Nakład pracy',
 
   // ---------------------------------------------------------------------------
@@ -842,13 +842,16 @@ export const pl = {
   'branch.dialog.freeChatDesc':
     'Działa w {repo} od katalogu głównego repo — bez slotu, worktree ani brancha.',
   'branch.dialog.cloudDescNoRepo':
-    'Działa w Claude Code w przeglądarce bez repozytorium i pracuje dalej po zamknięciu PopBota.',
+    'Działa w chmurowym sandboxie Anthropic bez repozytorium i pracuje dalej po zamknięciu PopBota.',
   'branch.dialog.cloudDescRoot':
-    'Działa w Claude Code w przeglądarce ze zdalnego repozytorium GitHub {repo}, na gałęzi, na której stoi katalog główny – najpierw zrób push. Pracuje dalej po zamknięciu PopBota.',
+    'Działa w chmurowym sandboxie Anthropic, który klonuje zdalne repozytorium GitHub {repo} na gałęzi, na której jest root repozytorium (najpierw wypchniętej, jeśli origin jej jeszcze nie ma). Pracuje dalej po zamknięciu PopBota.',
   'branch.dialog.cloudDescSlot':
-    'Działa w Claude Code w przeglądarce: czat dostaje slot i gałąź jak zwykle, gałąź jest wypychana do origin, a chmura ją klonuje. Slot zostaje lokalnie, by teleportować pracę z powrotem. Pracuje dalej po zamknięciu PopBota.',
+    'Działa w chmurowym sandboxie Anthropic: czat dostaje slot i gałąź jak zwykle, gałąź jest wypychana do origin, a sandbox ją klonuje. Slot zostaje lokalnie; commity z chmury pobierzesz z menu czatu. Pracuje dalej po zamknięciu PopBota.',
   'branch.dialog.cloudGithubNote':
-    'Chmura łączy się z GitHubem przez Twoje konto claude.ai, nie przez ten komputer: zainstaluj Claude GitHub App z claude.ai/code albo uruchom raz /web-setup w terminalowej sesji claude.',
+    'Sandbox klonuje Twoim tokenem GitHub: zapisanym w Preferencje ▸ Agenci ▸ Czaty w chmurze albo tym, którym zalogowany jest gh.',
+  'branch.dialog.cloudNoKey':
+    'Czaty w chmurze wymagają klucza API Anthropic. Dodaj go w Preferencje ▸ Agenci ▸ Czaty w chmurze.',
+  'branch.dialog.disabled.cloudNoKey': 'Najpierw dodaj klucz API Anthropic',
   'branch.dialog.createChat': 'Utwórz czat',
 
   // ---------------------------------------------------------------------------
@@ -909,6 +912,22 @@ export const pl = {
     'Daje agentowi każdego czatu serwer MCP „popbot”: listowanie, tworzenie, zamykanie i ponowne otwieranie czatów, wysyłanie wiadomości do innych czatów i czekanie na odpowiedź, uruchamianie code review i czatów do ticketów oraz czytanie i przeszukiwanie zapisów. Obowiązuje od następnej sesji agenta w każdym czacie.',
   'prefs.agents.mcp.on': 'Włączone — agenci mogą sterować PopBotem',
   'prefs.agents.mcp.off': 'Wyłączone — bez narzędzi popbot',
+  'prefs.agents.cloud.title': 'Czaty w chmurze',
+  'prefs.agents.cloud.desc':
+    'Czat utworzony z chipem Cloud działa na Anthropic Managed Agents: sesja w chmurowym sandboxie Anthropic, rozliczana za tokeny na Twoim koncie Console, która pracuje dalej po zamknięciu PopBota.',
+  'prefs.agents.cloud.apiKey.title': 'Klucz API Anthropic',
+  'prefs.agents.cloud.apiKey.desc':
+    'Przechowywany lokalnie w bazie danych tej aplikacji. Zostaw puste, aby użyć zmiennej środowiskowej ANTHROPIC_API_KEY.',
+  'prefs.agents.cloud.getKey': 'Uzyskaj klucz',
+  'prefs.agents.cloud.githubToken.title': 'Token GitHub',
+  'prefs.agents.cloud.githubToken.desc':
+    'Sandbox klonuje nim Twoje repozytoria (zakres repo). Zostaw puste, aby użyć tokenu, którym zalogowany jest gh.',
+  'prefs.agents.cloud.envKey': 'Używana jest zmienna środowiskowa ANTHROPIC_API_KEY.',
+  'prefs.agents.cloud.noKey': 'Nie ma jeszcze klucza – czaty w chmurze są niedostępne.',
+  'prefs.agents.cloud.ghToken': 'GitHub: używany jest token, którym zalogowany jest gh.',
+  'prefs.agents.cloud.noGh': 'GitHub: brak tokenu – zapisz go tutaj albo uruchom gh auth login.',
+  'prefs.agents.cloud.ok': 'Klucz działa.',
+  'prefs.agents.cloud.error': 'Klucz nie zadziałał: {error}',
 
   // Preferences — Runtime / attachment retention pane.
   'prefs.runtime.title': 'Przechowywanie załączników',

@@ -102,7 +102,7 @@ export function registerPopbotTools(server: McpServer, h: PopbotToolHandlers, ca
   server.registerTool('create_chat', {
     title: 'Create a chat',
     annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
-    description: 'Create a new PopBot chat with its own agent. workspace "slot" gives it a fresh git worktree on a new branch off baseBranch; "repo-root" runs it at the repository root with no branch; "cloud" makes a Claude Code cloud session (Claude only). Optionally send it a first message right away (it runs in the background — use send_to_chat to wait for an answer).',
+    description: 'Create a new PopBot chat with its own agent. workspace "slot" gives it a fresh git worktree on a new branch off baseBranch; "repo-root" runs it at the repository root with no branch; "cloud" runs it on Anthropic Managed Agents in a cloud sandbox that keeps working after PopBot quits (Claude only; needs an API key in Preferences). Optionally send it a first message right away (it runs in the background — use send_to_chat to wait for an answer).',
     inputSchema: {
       name: z.string().min(1).describe('Chat name (also seeds the branch name for a slot chat)'),
       repoId: z.string().optional().describe('Repository id from list_chats / PopBot Preferences; defaults to the last one used'),

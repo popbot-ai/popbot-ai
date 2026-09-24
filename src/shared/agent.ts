@@ -16,6 +16,7 @@ export type AgentEventType =
   | 'session-status'
   | 'usage'
   | 'compaction'
+  | 'note'
   | 'error';
 
 export interface MessageStartEvent {
@@ -144,6 +145,22 @@ export interface CompactionEvent {
   ts: number;
 }
 
+/**
+ * A durable note from the backend for the transcript — a cloud session
+ * was created, ended, or its branch was pushed. Persisted by AgentHost
+ * as a system row (`<prefix>: text`, the prefix picks the row style)
+ * and re-broadcast as `message-added`; unlike `error`, it survives
+ * reloads.
+ */
+export interface NoteEvent {
+  type: 'note';
+  chatId: string;
+  /** The system-row prefix: `cloud` renders the cloud row. */
+  prefix: 'cloud';
+  text: string;
+  ts: number;
+}
+
 export interface ErrorEvent {
   type: 'error';
   chatId: string;
@@ -267,6 +284,7 @@ export type AgentEvent =
   | SessionStatusEvent
   | UsageEvent
   | CompactionEvent
+  | NoteEvent
   | ErrorEvent;
 
 /**

@@ -501,8 +501,8 @@ export const fr = {
     'Agent en cours… saisissez pour mettre un message en file  ·  Maj+Entrée pour un saut de ligne',
   'chat.input.placeholderIdle': 'Envoyer un message…  ·  Maj+Entrée pour un saut de ligne',
   'chat.input.placeholderInactive': 'Cliquez pour activer ce chat',
-  'chat.input.placeholderCloudFirst': 'Décrivez la tâche à exécuter dans le cloud…',
-  'chat.input.placeholderCloud': 'Envoyez une relance à la session cloud…',
+  'chat.input.placeholderCloudFirst': 'Décrivez la tâche pour l’agent cloud…',
+  'chat.input.placeholderCloud': 'Envoyer un message à l’agent cloud…',
   'chat.input.attachImage': 'Joindre une image',
   'chat.input.attachFile': 'Joindre un fichier',
   'chat.input.model': 'Modèle',
@@ -526,10 +526,9 @@ export const fr = {
   'chat.agentSwitch.confirm': 'Redémarrer',
   'chat.fork.name': '{name} (copie)',
   'chat.cloud.chip': 'Cloud',
-  'chat.cloud.chipTitle': 'Ouvrir la session cloud sur claude.ai',
-  'chat.cloud.chipPending': 'Cloud · non liée',
-  'chat.cloud.chipPendingTitle':
-    'Pas encore de session cloud. Envoyez la tâche, ou collez le lien de la session dans les réglages de la conversation.',
+  'chat.cloud.chipTitle': 'S’exécute dans un bac à sable cloud Anthropic · ouvrir les réglages du chat',
+  'chat.cloud.chipPendingTitle': 'Pas encore de session cloud : elle démarre avec votre premier message.',
+  'chat.cloud.pull': 'Rapatrier le travail du cloud dans le checkout',
   'chat.app.terminal': 'Terminal',
   'chat.app.editor': 'Éditeur',
   'chat.app.unity': 'Unity',
@@ -703,15 +702,14 @@ export const fr = {
   'chatSettings.forkRunningHint': 'Attendez que l’agent ait terminé, puis dupliquez.',
   'chatSettings.cloud': 'Session cloud',
   'chatSettings.cloudDesc':
-    'Cette conversation pilote une session cloud de Claude Code. Les messages envoyés ici y sont mis en file ; ouvrez-la sur claude.ai pour la suivre ou répondre à ses questions.',
+    'Ce chat s’exécute sur Anthropic Managed Agents, dans un bac à sable cloud. Il continue de travailler après la fermeture de PopBot ; ce qu’il a fait en votre absence est rejoué ici à votre retour.',
   'chatSettings.cloudSession': 'Session',
-  'chatSettings.cloudNone': 'Pas encore liée',
-  'chatSettings.cloudLinkPlaceholder': 'Collez un lien claude.ai/code ou un ID de session',
-  'chatSettings.cloudLinkButton': 'Lier',
-  'chatSettings.cloudLinkInvalid': 'Ce n’est pas un lien ni un ID de session claude.ai/code.',
-  'chatSettings.cloudTeleport': 'Téléporter dans le terminal',
-  'chatSettings.cloudTeleportDesc':
-    'Lance claude --teleport dans le terminal de cette conversation, à la racine du dépôt : il récupère la branche de la session, la bascule et charge la conversation en local. Il demande avant de remiser (stash) les modifications non validées.',
+  'chatSettings.cloudNone': 'Pas encore démarrée : elle démarre avec votre premier message.',
+  'chatSettings.cloudEnded': 'terminée · le prochain message démarre une nouvelle session',
+  'chatSettings.cloudRepo': 'Dépôt',
+  'chatSettings.cloudPullDesc':
+    'Le bac à sable commite et pousse sur la branche du chat sur origin. Pull ramène ces commits dans le checkout de ce chat (fast-forward uniquement).',
+  'chatSettings.cloudPull': 'Pull depuis origin',
   'chatSettings.tryReconnect': 'Tenter une reconnexion',
   'chatSettings.reconnectDesc':
     'Choisissez une session Claude enregistrée pour le worktree de ce chat. Utile si la reconnexion automatique a choisi la mauvaise et que vous voulez forcer une transcription spécifique. La session choisie sera épinglée et l’agent recréé dedans.',
@@ -741,7 +739,8 @@ export const fr = {
   'agent.label': 'Agent',
   'agent.model': 'Modèle',
   'agent.cloudToggle': 'Cloud',
-  'agent.cloudToggleTitle': 'Exécute cette conversation sur Claude Code sur le web — elle continue après la fermeture de PopBot. Claude uniquement.',
+  'agent.cloudToggleTitle':
+    'Exécuter ce chat dans un bac à sable cloud Anthropic (Managed Agents, facturation par clé API) : il continue de travailler après la fermeture de PopBot. Claude uniquement.',
   'agent.effort': 'Effort',
 
   // ---------------------------------------------------------------------------
@@ -842,13 +841,16 @@ export const fr = {
   'branch.dialog.freeChatDesc':
     'S’exécute dans {repo} depuis la racine du dépôt — aucun emplacement, worktree ni branche.',
   'branch.dialog.cloudDescNoRepo':
-    'S’exécute sur Claude Code sur le web sans dépôt, et continue après la fermeture de PopBot.',
+    'S’exécute dans un bac à sable cloud Anthropic sans dépôt, et continue après la fermeture de PopBot.',
   'branch.dialog.cloudDescRoot':
-    'S’exécute sur Claude Code sur le web à partir du dépôt distant GitHub de {repo}, sur la branche où se trouve la racine du dépôt — poussez-la d’abord. Continue après la fermeture de PopBot.',
+    'S’exécute dans un bac à sable cloud Anthropic qui clone le dépôt GitHub distant de {repo} sur la branche où se trouve la racine du dépôt (poussée d’abord si origin ne l’a pas encore). Continue après la fermeture de PopBot.',
   'branch.dialog.cloudDescSlot':
-    'S’exécute sur Claude Code sur le web : la conversation reçoit son slot et sa branche comme d’habitude, la branche est poussée vers origin et le cloud la clone. Le slot reste local pour téléporter le travail en retour. Continue après la fermeture de PopBot.',
+    'S’exécute dans un bac à sable cloud Anthropic : le chat reçoit son slot et sa branche comme d’habitude, la branche est poussée sur origin et le bac à sable la clone. Le slot reste local ; rapatriez les commits du cloud depuis le menu du chat. Continue après la fermeture de PopBot.',
   'branch.dialog.cloudGithubNote':
-    'Le cloud accède à GitHub via votre compte claude.ai, pas via cette machine : installez la Claude GitHub App depuis claude.ai/code, ou lancez /web-setup une fois dans une session claude du terminal.',
+    'Le bac à sable clone avec votre jeton GitHub : celui enregistré dans Préférences ▸ Agents ▸ Chats cloud, ou celui avec lequel gh est connecté.',
+  'branch.dialog.cloudNoKey':
+    'Les chats cloud ont besoin d’une clé API Anthropic. Ajoutez-en une dans Préférences ▸ Agents ▸ Chats cloud.',
+  'branch.dialog.disabled.cloudNoKey': 'Ajoutez d’abord une clé API Anthropic',
   'branch.dialog.createChat': 'Créer le chat',
 
   // ---------------------------------------------------------------------------
@@ -909,6 +911,22 @@ export const fr = {
     'Donne à l’agent de chaque conversation un serveur MCP « popbot » : lister, créer, fermer et rouvrir des conversations, envoyer un message à une autre conversation et attendre sa réponse, lancer des revues de code et des conversations de ticket, lire et chercher dans les transcriptions. S’applique à partir de la prochaine session d’agent de chaque conversation.',
   'prefs.agents.mcp.on': 'Activé — les agents peuvent piloter PopBot',
   'prefs.agents.mcp.off': 'Désactivé — pas d’outils popbot',
+  'prefs.agents.cloud.title': 'Chats cloud',
+  'prefs.agents.cloud.desc':
+    'Un chat créé avec la puce Cloud s’exécute sur Anthropic Managed Agents : une session dans un bac à sable cloud Anthropic, facturée au jeton sur votre compte Console, qui continue de travailler après la fermeture de PopBot.',
+  'prefs.agents.cloud.apiKey.title': 'Clé API Anthropic',
+  'prefs.agents.cloud.apiKey.desc':
+    'Stockée localement dans la base de données de l’application. Laissez vide pour utiliser la variable d’environnement ANTHROPIC_API_KEY.',
+  'prefs.agents.cloud.getKey': 'Obtenir une clé',
+  'prefs.agents.cloud.githubToken.title': 'Jeton GitHub',
+  'prefs.agents.cloud.githubToken.desc':
+    'Le bac à sable clone vos dépôts avec ce jeton (portée repo). Laissez vide pour utiliser celui avec lequel gh est connecté.',
+  'prefs.agents.cloud.envKey': 'La variable d’environnement ANTHROPIC_API_KEY est utilisée.',
+  'prefs.agents.cloud.noKey': 'Pas encore de clé : les chats cloud sont indisponibles.',
+  'prefs.agents.cloud.ghToken': 'GitHub : jeton de la session gh utilisé.',
+  'prefs.agents.cloud.noGh': 'GitHub : aucun jeton. Enregistrez-en un ici ou exécutez gh auth login.',
+  'prefs.agents.cloud.ok': 'La clé fonctionne.',
+  'prefs.agents.cloud.error': 'La clé ne fonctionne pas : {error}',
 
   // Preferences — Runtime / attachment retention pane.
   'prefs.runtime.title': 'Rétention des pièces jointes',

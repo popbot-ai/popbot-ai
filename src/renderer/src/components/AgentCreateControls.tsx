@@ -187,8 +187,8 @@ export function AgentCreateControls({
 }: {
   value: AgentCreateConfig;
   onChange: (next: AgentCreateConfig) => void;
-  /** A "Cloud" toggle beside the selectors: on, the chat drives a Claude
-   *  Code cloud session (Claude only, no effort to pick). Only the
+  /** A "Cloud" toggle beside the selectors: on, the chat runs in an
+   *  Anthropic cloud sandbox (Managed Agents; Claude only). Only the
    *  generic new-chat flow offers it. */
   cloud?: { value: boolean; onChange: (cloud: boolean) => void };
 }): JSX.Element {
@@ -256,7 +256,7 @@ export function AgentCreateControls({
             <option key={item} value={item}>{t(REASONING_LABEL_KEYS[item])}</option>
           ))}
         </select>
-        {/* A cloud session is Claude Code on the web: the toggle exists
+        {/* A cloud session is Claude in an Anthropic sandbox: the toggle exists
             only while a Claude model is selected. */}
         {cloud && agent === 'claude' && (
           <button

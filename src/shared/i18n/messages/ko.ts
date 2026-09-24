@@ -501,8 +501,8 @@ export const ko = {
     '에이전트 실행 중… 입력하여 메시지 대기열에 추가  ·  Shift+Enter로 줄바꿈',
   'chat.input.placeholderIdle': '메시지 보내기…  ·  Shift+Enter로 줄바꿈',
   'chat.input.placeholderInactive': '클릭하여 이 채팅을 활성 채팅으로 만들기',
-  'chat.input.placeholderCloudFirst': '클라우드에서 실행할 작업을 설명하세요…',
-  'chat.input.placeholderCloud': '클라우드 세션에 후속 메시지 보내기…',
+  'chat.input.placeholderCloudFirst': '클라우드 에이전트에게 맡길 작업을 설명하세요…',
+  'chat.input.placeholderCloud': '클라우드 에이전트에게 메시지 보내기…',
   'chat.input.attachImage': '이미지 첨부',
   'chat.input.attachFile': '파일 첨부',
   'chat.input.model': '모델',
@@ -526,9 +526,9 @@ export const ko = {
   'chat.agentSwitch.confirm': '다시 시작',
   'chat.fork.name': '{name} (분기)',
   'chat.cloud.chip': '클라우드',
-  'chat.cloud.chipTitle': 'claude.ai에서 클라우드 세션 열기',
-  'chat.cloud.chipPending': '클라우드 · 연결 안 됨',
-  'chat.cloud.chipPendingTitle': '아직 클라우드 세션이 없습니다. 작업을 보내거나 채팅 설정에 세션 링크를 붙여넣으세요.',
+  'chat.cloud.chipTitle': 'Anthropic 클라우드 샌드박스에서 실행 중 · 채팅 설정 열기',
+  'chat.cloud.chipPendingTitle': '아직 클라우드 세션이 없습니다. 첫 메시지와 함께 시작됩니다.',
+  'chat.cloud.pull': '클라우드 작업을 체크아웃으로 가져오기',
   'chat.app.terminal': '터미널',
   'chat.app.editor': '편집기',
   'chat.app.unity': 'Unity',
@@ -702,15 +702,14 @@ export const ko = {
   'chatSettings.forkRunningHint': '에이전트가 끝날 때까지 기다린 뒤 분기하세요.',
   'chatSettings.cloud': '클라우드 세션',
   'chatSettings.cloudDesc':
-    '이 채팅은 Claude Code 클라우드 세션을 조종합니다. 여기서 보낸 메시지는 세션 대기열에 들어갑니다. 작업을 지켜보거나 질문에 답하려면 claude.ai에서 여세요.',
+    '이 채팅은 Anthropic Managed Agents의 클라우드 샌드박스에서 실행됩니다. PopBot을 종료해도 계속 작업하며, 자리를 비운 동안의 작업은 돌아왔을 때 여기에 재생됩니다.',
   'chatSettings.cloudSession': '세션',
-  'chatSettings.cloudNone': '아직 연결되지 않음',
-  'chatSettings.cloudLinkPlaceholder': 'claude.ai/code 링크 또는 세션 ID 붙여넣기',
-  'chatSettings.cloudLinkButton': '연결',
-  'chatSettings.cloudLinkInvalid': 'claude.ai/code 세션 링크나 ID가 아닙니다.',
-  'chatSettings.cloudTeleport': '터미널로 텔레포트',
-  'chatSettings.cloudTeleportDesc':
-    '이 채팅의 터미널에서 저장소 루트로 claude --teleport를 실행합니다. 세션의 브랜치를 가져와 체크아웃하고 대화를 로컬로 불러옵니다. 커밋되지 않은 변경 사항을 stash하기 전에 확인을 요청합니다.',
+  'chatSettings.cloudNone': '아직 시작되지 않았습니다. 첫 메시지와 함께 시작됩니다.',
+  'chatSettings.cloudEnded': '종료됨 · 다음 메시지로 새 세션이 시작됩니다',
+  'chatSettings.cloudRepo': '리포지토리',
+  'chatSettings.cloudPullDesc':
+    '샌드박스는 origin의 채팅 브랜치에 커밋하고 푸시합니다. Pull은 그 커밋을 이 채팅의 체크아웃으로 가져옵니다(fast-forward만).',
+  'chatSettings.cloudPull': 'origin에서 Pull',
   'chatSettings.tryReconnect': '재연결 시도',
   'chatSettings.reconnectDesc':
     '이 채팅의 워크트리에 대해 저장된 Claude 세션을 선택하세요. 자동 재연결이 잘못된 세션을 선택했고 특정 대화 기록을 강제하려는 경우 유용합니다. 선택한 세션이 고정되고 에이전트가 해당 세션으로 다시 생성됩니다.',
@@ -740,7 +739,8 @@ export const ko = {
   'agent.label': '에이전트',
   'agent.model': '모델',
   'agent.cloudToggle': '클라우드',
-  'agent.cloudToggleTitle': '이 채팅을 Claude Code on the web에서 실행합니다. PopBot을 종료해도 계속 작동합니다. Claude 전용.',
+  'agent.cloudToggleTitle':
+    '이 채팅을 Anthropic 클라우드 샌드박스(Managed Agents, API 키 과금)에서 실행합니다. PopBot을 종료해도 계속 작업합니다. Claude 전용.',
   'agent.effort': '노력',
 
   // ---------------------------------------------------------------------------
@@ -840,14 +840,15 @@ export const ko = {
   'branch.dialog.loadBranchesError': '브랜치를 불러올 수 없습니다: {error}',
   'branch.dialog.freeChatDesc':
     '{repo}의 저장소 루트에서 실행됩니다 — 슬롯, 워크트리, 브랜치 없음.',
-  'branch.dialog.cloudDescNoRepo':
-    '저장소 없이 Claude Code on the web에서 실행되며, PopBot을 종료해도 계속 작동합니다.',
+  'branch.dialog.cloudDescNoRepo': '리포지토리 없이 Anthropic 클라우드 샌드박스에서 실행되며, PopBot을 종료해도 계속됩니다.',
   'branch.dialog.cloudDescRoot':
-    '{repo}의 GitHub 원격 저장소에서, 저장소 루트가 현재 있는 브랜치로 Claude Code on the web에서 실행됩니다. 먼저 push하세요. PopBot을 종료해도 계속 작동합니다.',
+    '{repo}의 GitHub 원격을 리포지토리 루트가 있는 브랜치로 클론하는 Anthropic 클라우드 샌드박스에서 실행됩니다(origin에 없으면 먼저 푸시). PopBot을 종료해도 계속됩니다.',
   'branch.dialog.cloudDescSlot':
-    'Claude Code on the web에서 실행됩니다. 채팅은 평소처럼 슬롯과 브랜치를 받고, 브랜치는 origin으로 push되며 클라우드가 그것을 클론합니다. 작업을 텔레포트로 되돌릴 수 있도록 슬롯은 로컬에 남습니다. PopBot을 종료해도 계속 작동합니다.',
+    'Anthropic 클라우드 샌드박스에서 실행됩니다. 채팅은 평소처럼 슬롯과 브랜치를 받고, 브랜치는 origin으로 푸시되며 샌드박스가 이를 클론합니다. 슬롯은 로컬에 남고, 클라우드의 커밋은 채팅 메뉴에서 가져올 수 있습니다. PopBot을 종료해도 계속됩니다.',
   'branch.dialog.cloudGithubNote':
-    '클라우드는 이 컴퓨터가 아니라 당신의 claude.ai 계정을 통해 GitHub에 접근합니다. claude.ai/code에서 Claude GitHub App을 설치하거나, 터미널 claude 세션에서 /web-setup을 한 번 실행하세요.',
+    '샌드박스는 사용자의 GitHub 토큰으로 클론합니다. 환경설정 ▸ 에이전트 ▸ 클라우드 채팅에 저장한 토큰이나 gh가 로그인한 토큰을 사용합니다.',
+  'branch.dialog.cloudNoKey': '클라우드 채팅에는 Anthropic API 키가 필요합니다. 환경설정 ▸ 에이전트 ▸ 클라우드 채팅에서 추가하세요.',
+  'branch.dialog.disabled.cloudNoKey': '먼저 Anthropic API 키를 추가하세요',
   'branch.dialog.createChat': '채팅 만들기',
 
   // ---------------------------------------------------------------------------
@@ -908,6 +909,20 @@ export const ko = {
     '각 채팅의 에이전트에게 “popbot” MCP 서버를 제공합니다. 채팅 목록 조회·생성·닫기·다시 열기, 다른 채팅에 메시지를 보내고 답을 기다리기, 코드 리뷰와 티켓 채팅 시작, 기록 읽기와 검색을 할 수 있습니다. 각 채팅의 다음 에이전트 세션부터 적용됩니다.',
   'prefs.agents.mcp.on': '켜짐 — 에이전트가 PopBot을 조작할 수 있음',
   'prefs.agents.mcp.off': '꺼짐 — popbot 도구 없음',
+  'prefs.agents.cloud.title': '클라우드 채팅',
+  'prefs.agents.cloud.desc':
+    'Cloud 칩으로 만든 채팅은 Anthropic Managed Agents에서 실행됩니다. Anthropic 클라우드 샌드박스의 세션으로, Console 계정에 토큰 단위로 과금되며 PopBot을 종료해도 계속 작업합니다.',
+  'prefs.agents.cloud.apiKey.title': 'Anthropic API 키',
+  'prefs.agents.cloud.apiKey.desc': '이 앱의 데이터베이스에 로컬로 저장됩니다. 비워 두면 환경 변수 ANTHROPIC_API_KEY를 사용합니다.',
+  'prefs.agents.cloud.getKey': '키 받기',
+  'prefs.agents.cloud.githubToken.title': 'GitHub 토큰',
+  'prefs.agents.cloud.githubToken.desc': '샌드박스가 이 토큰으로 리포지토리를 클론합니다(repo 범위). 비워 두면 gh가 로그인한 토큰을 사용합니다.',
+  'prefs.agents.cloud.envKey': '환경 변수 ANTHROPIC_API_KEY를 사용 중입니다.',
+  'prefs.agents.cloud.noKey': '아직 키가 없습니다. 클라우드 채팅을 사용할 수 없습니다.',
+  'prefs.agents.cloud.ghToken': 'GitHub: gh가 로그인한 토큰을 사용 중입니다.',
+  'prefs.agents.cloud.noGh': 'GitHub: 토큰이 없습니다. 여기에 저장하거나 gh auth login을 실행하세요.',
+  'prefs.agents.cloud.ok': '키가 정상 작동합니다.',
+  'prefs.agents.cloud.error': '키가 작동하지 않았습니다: {error}',
 
   // Preferences — Runtime / attachment retention pane.
   'prefs.runtime.title': '첨부 파일 보존',

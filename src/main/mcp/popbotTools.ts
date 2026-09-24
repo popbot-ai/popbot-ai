@@ -234,13 +234,9 @@ export function createPopbotToolHandlers(): PopbotToolHandlers {
       const chat = getChat(chatId);
       if (!chat) return fail(`no chat ${chatId}`);
       if (!isOpen(chatId)) return fail(`chat ${chatId} is closed; reopen it first`);
-      if (chat.cloud || !waitForReply) {
+      if (!waitForReply) {
         sendInBackground(chatId, text);
-        return {
-          outcome: 'sent',
-          reply: chat.cloud ? 'queued into the cloud session (its replies live on claude.ai)' : '',
-          entries: 0,
-        };
+        return { outcome: 'sent', reply: '', entries: 0 };
       }
       const { outcome, messages } = await AgentHost.sendAndWait(chatId, text, timeoutSeconds * 1000);
       const entries = transcriptEntries(messages, { includeTools: false });

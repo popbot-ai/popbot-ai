@@ -319,6 +319,16 @@ export function BaseBranchDialog({
   const [cloud, setCloud] = useState(false);
   const cloudAllowed = allowRepoRoot === true && showAgentPicker === true;
   const isCloud = cloudAllowed && cloud && agentConfig.agent !== 'codex';
+  // Cloud chats run on an Anthropic API key; without one there is no
+  // point creating the chat. Checked once the toggle is on.
+  const [cloudKey, setCloudKey] = useState<boolean | null>(null);
+  useEffect(() => {
+    if (!isCloud) return;
+    let cancelled = false;
+    void window.popbot.cloud.status().then((s) => { if (!cancelled) setCloudKey(s.apiKey !== null); });
+    return () => { cancelled = true; };
+  }, [isCloud]);
+  const cloudNoKey = isCloud && cloudKey === false;
 
   // Initial load: repos + (when not locked) the last-used repo id from
   // settings. Locked-repo callers skip the picker entirely; their repo
@@ -444,9 +454,10 @@ export function BaseBranchDialog({
   const noBranches = !isRawChat && !isFreeChat && !isPerforce && branches != null && allBranches.length === 0;
   const noBranchPicked = !isRawChat && !isFreeChat && !isPerforce && !noBranches && !picked;
   const branchesLoading = !isRawChat && !isFreeChat && !isPerforce && branches == null && !error;
-  const confirmDisabled = noRepo || noBranches || noBranchPicked || branchesLoading;
+  const confirmDisabled = noRepo || noBranches || noBranchPicked || branchesLoading || cloudNoKey;
   // Plain-language reason shown beside a disabled Create button.
-  const disabledReason = noRepo ? t('branch.dialog.disabled.pickRepo')
+  const disabledReason = cloudNoKey ? t('branch.dialog.disabled.cloudNoKey')
+    : noRepo ? t('branch.dialog.disabled.pickRepo')
     : branchesLoading ? t('branch.dialog.disabled.loadingBranches')
       : noBranches ? t('branch.dialog.disabled.noBranches')
         : noBranchPicked ? t('branch.dialog.disabled.pickBranch')
@@ -606,7 +617,8 @@ export function BaseBranchDialog({
                 : isFreeChat
                   ? t('branch.dialog.cloudDescRoot', { repo: pickedRepoId ?? '' })
                   : t('branch.dialog.cloudDescSlot', { repo: pickedRepoId ?? '' })}
-              {' '}{t('branch.dialog.cloudGithubNote')}
+              {!isRawChat && <>{' '}{t('branch.dialog.cloudGithubNote')}</>}
+              {cloudNoKey && <>{' '}<strong>{t('branch.dialog.cloudNoKey')}</strong></>}
             </span>
           </div>
         )}

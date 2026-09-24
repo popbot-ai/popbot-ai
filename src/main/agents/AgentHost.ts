@@ -17,6 +17,7 @@ import {
   type ClaudeModelId,
   type ChatRecord,
   type ClaudeReasoningEffort,
+  type CloudChatInfo,
   type CodexModelId,
   type CodexReasoningEffort,
   type CodexSettings,
@@ -35,6 +36,7 @@ import {
   clearChatCodexThreadId,
   getChat,
   getChatPermissionRules,
+  setChatCloud,
   setChatCodexThreadId,
   setChatProviderContextAt,
   setChatSessionId,
@@ -46,7 +48,6 @@ import { isDbOpen } from '../persistence/db';
 import { getRepo } from '../persistence/repos';
 import { dlog } from '../diagLog';
 import { getClaudeBinaryPath } from './claudeProbe';
-import { forgetCloudChat, handleCloudSend } from './cloudSessions';
 import { popbotMcpUrlForChat } from '../mcp/registry';
 import { getSetting, setSetting } from '../persistence/settings';
 import { appendMessage, getMessage, listMessages, updateMessageBody } from '../persistence/messages';
@@ -61,6 +62,7 @@ import { StubBackend } from './StubBackend';
 import { ClaudeBackend } from './ClaudeBackend';
 import { CodexBackend } from './CodexBackend';
 import { CodexAppServerBackend } from './CodexAppServerBackend';
+import { CloudSetupError, ManagedAgentsBackend } from './ManagedAgentsBackend';
 import { getCodexBinaryPath } from './codexProbe';
 import { persistChatAttachments } from '../attachments/store';
 
@@ -451,19 +453,18 @@ class AgentHostImpl {
   async send(chatId: string, text: string, attachments?: PickedAttachment[]): Promise<void> {
     const chat = getChat(chatId);
     if (!chat) throw new Error(`send: chat ${chatId} not found`);
-    // A cloud chat has no local agent: the message goes to claude.ai.
-    if (chat.cloud) {
-      await handleCloudSend(chat, text, (event) => this.broadcast(event));
-      return;
-    }
     // A new instruction ends the stopped state. Failures from this turn are
     // genuine and must be surfaced normally.
     this.stoppedChats.delete(chatId);
     // A fresh user action gets a fresh self-heal budget. Recovery attempts are
     // bounded per unanswered request, not forever across the life of a chat.
     this.autoRetries.delete(chatId);
-    const provider: ProviderAgent = chat.agent === 'codex' ? 'codex' : 'claude';
-    const nativeHandle = provider === 'codex' ? chat.codexThreadId : chat.sessionId;
+    const provider: ProviderAgent = chat.agent === 'codex' && !chat.cloud ? 'codex' : 'claude';
+    // A cloud chat's native conversation is its Managed Agents session;
+    // once that has ended, the next one starts from the transcript bridge.
+    const nativeHandle = chat.cloud
+      ? (chat.cloud.ended ? null : chat.cloud.sessionId)
+      : provider === 'codex' ? chat.codexThreadId : chat.sessionId;
     const providerContextAt = nativeHandle
       ? (provider === 'codex' ? chat.codexContextAt : chat.claudeContextAt)
       : 0;
@@ -500,7 +501,9 @@ class AgentHostImpl {
     const isCompactCommand = provider === 'claude' && /^\/compact(\s|$)/.test(text.trim());
     // Read (don't consume) for the same reason as the resume flag.
     const forkNote = firstOfSession ? this.pendingForkNote(chatId) : null;
-    const preamble = firstOfSession && !isCompactCommand
+    // A cloud chat's working directory is in the sandbox, not here; its
+    // backend writes its own first-message preamble.
+    const preamble = firstOfSession && !isCompactCommand && !chat.cloud
       ? firstMessageCwdPreamble(chat, isFresh, resumed, forkNote)
       : '';
 
@@ -557,9 +560,21 @@ class AgentHostImpl {
       // Spawn-time failure: surface immediately as a chat error so the
       // user sees something instead of a silent stuck 'run' status.
       dlog('agent.send.spawn-failed', { chatId, error: (err as Error).message });
-      this.surfaceSpawnError(chatId, (err as Error).message);
+      if (chat.cloud) this.surfaceCloudError(chatId, err);
+      else this.surfaceSpawnError(chatId, (err as Error).message);
       throw err;
     }
+  }
+
+  /** A cloud chat could not be set up or reached — a missing key or
+   *  token, a repo without a GitHub origin, a push that failed, an API
+   *  refusal. The message names what to fix; nothing is respawned. */
+  private surfaceCloudError(chatId: string, err: unknown): void {
+    if (!isDbOpen()) return;
+    const message = err instanceof CloudSetupError || err instanceof Error ? err.message : String(err);
+    this.surfaceDiagnostic(chatId, 'error', `cloud: ${message}`);
+    updateChatStatus(chatId, 'err', message.slice(0, 140));
+    this.broadcast({ type: 'session-status', chatId, status: 'errored', ts: Date.now() });
   }
 
   /** Spawn-failure surface: synchronously when getOrSpawnSession or
@@ -759,6 +774,7 @@ class AgentHostImpl {
       case 'message-end':
       case 'usage':
       case 'compaction':
+      case 'note':
       case 'error':
         return true;
       case 'session-status':
@@ -788,6 +804,14 @@ class AgentHostImpl {
     // Deliberately NOT gated on status === 'run': the point of this
     // path is that the status can be wrong.
     if (!chat || chat.status === 'err') return;
+    // A cloud session is not a local process that can wedge: a long
+    // silence is a sandbox being provisioned or a long tool run, and
+    // respawning would only send the instruction into it again.
+    if (chat.cloud) {
+      dlog('agent.turn-stalled.cloud-ignored', { chatId, sessionId: chat.cloud.sessionId });
+      this.queuedTurns.delete(chatId);
+      return;
+    }
     dlog('agent.turn-stalled', {
       chatId,
       afterMs: AgentHostImpl.TURN_STALL_MS,
@@ -1002,6 +1026,23 @@ class AgentHostImpl {
       codexReasoningEffort: input.codexReasoningEffort,
     });
     if (!updated) throw new Error(`configureAgent: chat ${input.chatId} not found`);
+    // A cloud session runs one model at one effort for its whole life:
+    // a change ends it, and the next message starts a new session
+    // primed with the conversation so far (the provider bridge).
+    if (previous?.cloud?.sessionId && !previous.cloud.ended
+      && (previous.claudeModel !== updated.claudeModel
+        || previous.claudeReasoningEffort !== updated.claudeReasoningEffort)) {
+      setChatCloud(input.chatId, { ...previous.cloud, ended: true });
+      const fresh = getChat(input.chatId);
+      if (fresh) this.broadcast({ type: 'chat-updated', chatId: input.chatId, chat: fresh, ts: Date.now() });
+      const note = appendMessage({
+        chatId: input.chatId,
+        role: 'system',
+        kind: 'system',
+        body: { text: 'cloud: Model changed · your next message starts a new cloud session, primed with this conversation.' },
+      });
+      this.broadcast({ type: 'message-added', chatId: input.chatId, message: note, ts: Date.now() });
+    }
     if (updated.status === 'run') {
       updateChatStatus(input.chatId, 'idle');
     }
@@ -1153,7 +1194,6 @@ class AgentHostImpl {
   /** Tear down the session for a chat (e.g. on close). Awaits the
    *  backend's flush so we don't lose in-flight session JSONL writes. */
   async dispose(chatId: string): Promise<void> {
-    forgetCloudChat(chatId);
     // Always clear the timer, even with no live session — otherwise a
     // closed chat can still fire onTurnStalled and resurrect itself
     // into 'err' after the user walked away from it.
@@ -1215,7 +1255,10 @@ class AgentHostImpl {
     // uses chats.codex_thread_id + ~/.codex/sessions. Keep them
     // separate so switching backends doesn't overwrite either handle.
     const isCodex = backend.id === 'codex';
-    let sessionId = isCodex ? chat?.codexThreadId ?? null : chat?.sessionId ?? null;
+    const isCloud = backend.id === 'cloud';
+    let sessionId = isCloud
+      ? (chat?.cloud?.ended ? null : chat?.cloud?.sessionId ?? null)
+      : isCodex ? chat?.codexThreadId ?? null : chat?.sessionId ?? null;
     let discoverySource: 'pinned' | 'jsonl-discovery' | 'fresh' = sessionId ? 'pinned' : 'fresh';
     // Only run JSONL discovery for chats that already have an AGENT
     // message in them — that's the marker of a real legacy chat from
@@ -1248,7 +1291,7 @@ class AgentHostImpl {
       chat,
     );
     // Session discovery must use the SAME cwd we'll spawn in.
-    if (!isCodex && !sessionId && liveWorktree && cwd) {
+    if (!isCodex && !isCloud && !sessionId && liveWorktree && cwd) {
       const hasPriorAgent = listMessages(chatId).some((m) => m.role === 'agent');
       if (hasPriorAgent) {
         sessionId = await this.discoverSessionId(cwd, chatId, chat?.branch ?? null);
@@ -1274,7 +1317,7 @@ class AgentHostImpl {
     // reads from `sqliteSessionStore.load()` — claude's local JSONL
     // is just a redundant cache. We log for diagnostics but no
     // longer treat its absence as a context-loss event.
-    if (!isCodex && sessionId && cwd) {
+    if (!isCodex && !isCloud && sessionId && cwd) {
       const jsonlPath = sdkSessionJsonlPath(cwd, sessionId);
       const present = jsonlPath ? existsSync(jsonlPath) : false;
       dlog('agent.spawn.jsonl-check', {
@@ -1307,12 +1350,42 @@ class AgentHostImpl {
       popbotMcp: popbotMcp ? 'on' : 'off',
     });
 
+    // The cloud session mirrors the chat's checkout: a slot / worktree
+    // on its own branch (pushed for the sandbox to clone), or the repo
+    // root on whatever branch it is on. A raw chat mounts nothing.
+    const cloud = isCloud && chat?.cloud
+      ? {
+          info: chat.cloud,
+          title: chat.name,
+          workspace: liveWorktree
+            ? { localPath: liveWorktree, branch: chat.branch, ownBranch: !!chat.branch }
+            : repoFallback && !isRawChat
+              ? { localPath: repoFallback, branch: null, ownBranch: false }
+              : null,
+          languageDirective: languageDirective(),
+          onCloudUpdate: (patch: Partial<CloudChatInfo>) => {
+            if (!isDbOpen()) return;
+            const current = getChat(chatId);
+            if (!current?.cloud) return;
+            const next = { ...current.cloud, ...patch };
+            setChatCloud(chatId, next);
+            // The session id and its end change what the chat shows
+            // (the chip, the settings); the watermark is bookkeeping.
+            if (patch.sessionId !== undefined || patch.ended !== undefined) {
+              const fresh = getChat(chatId);
+              if (fresh) this.broadcast({ type: 'chat-updated', chatId, chat: fresh, ts: Date.now() });
+            }
+          },
+        }
+      : undefined;
+
     const session = backend.spawn({
       chatId,
       history: [],
       cwd,
       sessionId,
       mcpServers,
+      cloud,
       claudeModel: !isCodex ? chat?.claudeModel ?? DEFAULT_CLAUDE_MODEL : null,
       claudeReasoningEffort: !isCodex
         ? chat?.claudeReasoningEffort ?? DEFAULT_CLAUDE_REASONING_EFFORT
@@ -1329,7 +1402,7 @@ class AgentHostImpl {
         appendCodexThreadEvent(event);
       },
       onSessionId: (sid) => {
-        if (!isDbOpen()) return;
+        if (!isDbOpen() || isCloud) return;
         const current = getChat(chatId);
         const prior = isCodex ? current?.codexThreadId ?? null : current?.sessionId ?? null;
         if (prior !== sid) {
@@ -1680,6 +1753,9 @@ class AgentHostImpl {
     // Set POPBOT_USE_STUB=1 to force the echo backend (useful for UI work
     // when you don't want to burn API credits).
     if (process.env.POPBOT_USE_STUB === '1') return StubBackend;
+    // A cloud chat runs on Managed Agents whatever its agent column says
+    // (it is always Claude; the column is what the composer shows).
+    if (chat.cloud) return ManagedAgentsBackend;
     if (chat.agent === 'claude') return ClaudeBackend;
     if (chat.agent === 'codex') {
       // Opt-in (Preferences ▸ Agents): the app-server protocol, which can
@@ -2048,6 +2124,17 @@ class AgentHostImpl {
           body: { text: `context: ${compactionNoteText(event)}` },
         });
         this.broadcast({ type: 'message-added', chatId: event.chatId, message: note, ts: event.ts });
+        return;
+      }
+
+      case 'note': {
+        const row = appendMessage({
+          chatId: event.chatId,
+          role: 'system',
+          kind: 'system',
+          body: { text: `${event.prefix}: ${event.text}` },
+        });
+        this.broadcast({ type: 'message-added', chatId: event.chatId, message: row, ts: event.ts });
         return;
       }
 
