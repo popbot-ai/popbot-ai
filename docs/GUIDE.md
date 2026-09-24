@@ -151,7 +151,7 @@ Every chat's agent — Claude or Codex — gets a `popbot` MCP server, so an age
 - **Chats** — `list_chats` (names, ids, status, and which chat is calling), `create_chat` (a slot chat on a new branch, a repo-root chat, or a cloud chat, optionally with a first message), `close_chat`, `reopen_chat`.
 - **Other agents** — `send_to_chat` posts a message to another chat and, by default, waits for that agent's turn to finish and returns its reply; a busy chat gets the message queued behind its current work. A chat cannot message or close itself.
 - **Work** — `start_code_review` opens a review chat for a PR (or a Swarm review) exactly as the Reviews list does, prompt template included; `open_ticket_chat` opens a ticket chat on a `<you>/<ticket>-<slug>` branch, sends the start-ticket prompt, and moves the ticket to In Progress.
-- **Transcripts** — `get_chat_transcript` reads a chat (its own or another's) as numbered entries, whole or by range; `search_chats` finds a term with the text around each hit, in one chat or across every open one.
+- **Transcripts** — `get_chat_transcript` reads a chat (its own or another's) as numbered entries, whole or by range; `search_chats` finds a term with the text around each hit, in one chat, every open one, or the whole archive — a trigram full-text index over every message, tool call and result, so a fragment of an identifier or an error message is enough. The archive's own search box uses the same index.
 
 The server listens on localhost only, on a random port with a per-launch secret in its URL, and can be switched off under *Preferences ▸ Agents*.
 

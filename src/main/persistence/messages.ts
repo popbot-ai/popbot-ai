@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import type { MessageKind, MessageRecord, MessageRole } from '@shared/persistence';
 import { db } from './db';
+import { searchMessagesSql } from './fts';
 
 interface MessageRow {
   id: string;
@@ -49,6 +50,43 @@ export function listMessages(chatId: string, tail?: number): MessageRecord[] {
     )
     .all(chatId);
   return rows.map(rowToRecord);
+}
+
+export interface MessageSearchHit {
+  message: MessageRecord;
+  /** bm25 score: lower is a better match. */
+  rank: number;
+}
+
+/**
+ * Full-text search over message bodies (see fts.ts). `match` is an FTS5
+ * MATCH expression — build it with {@link ftsQueryFor}. Scoped to
+ * `chatIds` when given; archived chats' messages only with
+ * `includeClosed`. Throws on FTS5 syntax errors in a raw query.
+ */
+export function searchMessages(
+  match: string,
+  opts: { chatIds?: string[]; includeClosed?: boolean; limit?: number } = {},
+): MessageSearchHit[] {
+  const chatIds = opts.chatIds ?? [];
+  const rows = db()
+    .prepare<unknown[], MessageRow & { rank: number }>(
+      searchMessagesSql({ chatIdCount: chatIds.length, includeClosed: opts.includeClosed === true }),
+    )
+    .all(match, ...chatIds, opts.limit ?? 50);
+  return rows.map((r) => ({ message: rowToRecord(r), rank: r.rank }));
+}
+
+/** A message's position in its chat — the index listMessages would give
+ *  it — so a search hit can be read in context with get_chat_transcript. */
+export function indexOfMessage(m: Pick<MessageRecord, 'id' | 'chatId' | 'createdAt'>): number {
+  const row = db()
+    .prepare<[string, number, number, string], { n: number }>(
+      `SELECT COUNT(*) AS n FROM messages
+        WHERE chat_id = ? AND (created_at < ? OR (created_at = ? AND id < ?))`,
+    )
+    .get(m.chatId, m.createdAt, m.createdAt, m.id);
+  return row?.n ?? 0;
 }
 
 export function getMessage(id: string): MessageRecord | null {

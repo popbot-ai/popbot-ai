@@ -63,9 +63,12 @@ export interface PopbotToolHandlers {
     caller: string | null,
   ): { chatId: string; text: string; count: number; total: number; truncated: boolean } | ToolFailure;
   searchTranscripts(
-    input: { query: string; chatId?: string; allChats: boolean; contextChars: number; maxResults: number; caseSensitive: boolean },
+    input: {
+      query: string; chatId?: string; allChats: boolean; includeClosed: boolean; mode: 'text' | 'fts';
+      contextChars: number; maxResults: number; caseSensitive: boolean;
+    },
     caller: string | null,
-  ): { matches: Array<SearchMatch & { chatId: string; chatName: string }> } | ToolFailure;
+  ): { matches: Array<SearchMatch & { chatId: string; chatName: string; closed: boolean }> } | ToolFailure;
 }
 
 function text(value: unknown): { content: Array<{ type: 'text'; text: string }>; isError?: boolean } {
@@ -176,14 +179,16 @@ export function registerPopbotTools(server: McpServer, h: PopbotToolHandlers, ca
   server.registerTool('search_chats', {
     title: 'Search chat transcripts',
     annotations: { readOnlyHint: true, openWorldHint: false },
-    description: 'Find a term in a chat’s transcript (yours by default, another with chatId, or every open chat with allChats) and get each occurrence with the text around it, plus the entry index to read more with get_chat_transcript.',
+    description: 'Full-text search over chat transcripts, including tool calls and their output: your chat by default, another with chatId, every open chat with allChats, or the whole archive with includeClosed. Indexed (trigram), so a fragment of an identifier or error message is enough — the query is a case-insensitive substring, 3+ characters. Each hit comes with the text around it, the chat, and the entry index to read more with get_chat_transcript. Best matches first.',
     inputSchema: {
       query: z.string().min(1),
-      chatId: z.string().optional(),
-      allChats: z.boolean().default(false),
+      chatId: z.string().optional().describe('Search only this chat (default: the chat you are running in)'),
+      allChats: z.boolean().default(false).describe('Search every open chat'),
+      includeClosed: z.boolean().default(false).describe('Search every chat, archived ones included (implies allChats)'),
+      mode: z.enum(['text', 'fts']).default('text').describe('text: a literal substring; fts: FTS5 syntax — "a phrase", AND, OR, NOT, NEAR(a b)'),
       contextChars: z.number().int().min(0).max(2000).default(200),
       maxResults: z.number().int().min(1).max(200).default(20),
-      caseSensitive: z.boolean().default(false),
+      caseSensitive: z.boolean().default(false).describe('text mode only: drop hits whose case differs'),
     },
   }, async (input) => guarded(() => h.searchTranscripts(input, caller)));
 

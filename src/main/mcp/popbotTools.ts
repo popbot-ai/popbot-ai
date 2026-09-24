@@ -28,7 +28,8 @@ import { AgentHost } from '../agents/AgentHost';
 import { dlog } from '../diagLog';
 import { closeChatWithWorkspace, createChatWithWorkspace, reopenChatWithWorkspace } from '../ipc/chats';
 import { getChat, listClosedChats, listOpenChats } from '../persistence/chats';
-import { listMessages } from '../persistence/messages';
+import { MIN_FTS_QUERY_CHARS, ftsQueryFor } from '../persistence/fts';
+import { indexOfMessage, listMessages, searchMessages } from '../persistence/messages';
 import { getRepo, listRepos } from '../persistence/repos';
 import { getSetting } from '../persistence/settings';
 import { getReviewByNumber } from '../reviews';
@@ -351,19 +352,46 @@ export function createPopbotToolHandlers(): PopbotToolHandlers {
       return { chatId, text: r.text, count: r.count, total: entries.length, truncated: r.truncated };
     },
 
-    searchTranscripts({ query, chatId: wanted, allChats, contextChars, maxResults, caseSensitive }, caller) {
-      const targets: ChatRecord[] = allChats
-        ? listOpenChats()
-        : (() => { const c = getChat(wanted ?? caller ?? ''); return c ? [c] : []; })();
-      if (targets.length === 0) return fail(wanted ? `no chat ${wanted}` : 'pass chatId or allChats');
-      const matches: Array<ReturnType<typeof searchTranscript>[number] & { chatId: string; chatName: string }> = [];
-      for (const chat of targets) {
-        const entries = transcriptEntries(listMessages(chat.id), { includeTools: true });
-        for (const m of searchTranscript(entries, query, { contextChars, maxResults: maxResults - matches.length, caseSensitive })) {
-          matches.push({ ...m, chatId: chat.id, chatName: chat.name });
-        }
-        if (matches.length >= maxResults) break;
+    searchTranscripts({ query, chatId: wanted, allChats, includeClosed, mode, contextChars, maxResults, caseSensitive }, caller) {
+      const match = ftsQueryFor(query, mode);
+      if (!match) return fail(`the search needs at least ${MIN_FTS_QUERY_CHARS} characters`);
+      // Scope: one chat, every open chat, or everything.
+      let chatIds: string[] | undefined;
+      if (!allChats && !includeClosed) {
+        const id = wanted ?? caller;
+        if (!id || !getChat(id)) return fail(wanted ? `no chat ${wanted}` : 'pass chatId, allChats or includeClosed');
+        chatIds = [id];
       }
+      // The index narrows the rows; the context around each hit is cut
+      // from the row's text here, so contextChars means characters.
+      let hits;
+      try {
+        hits = searchMessages(match, { chatIds, includeClosed, limit: Math.max(50, maxResults * 3) });
+      } catch (err) {
+        return fail(`bad search query: ${err instanceof Error ? err.message : String(err)}`);
+      }
+      const openIds = new Set(listOpenChats().map((c) => c.id));
+      const chatNames = new Map<string, string>();
+      const matches: Array<ReturnType<typeof searchTranscript>[number] & { chatId: string; chatName: string; closed: boolean }> = [];
+      for (const hit of hits) {
+        if (matches.length >= maxResults) break;
+        const { message } = hit;
+        if (!chatNames.has(message.chatId)) chatNames.set(message.chatId, getChat(message.chatId)?.name ?? message.chatId);
+        const entry = transcriptEntries([message], { includeTools: true })[0];
+        if (!entry) continue;
+        entry.index = indexOfMessage(message);
+        const meta = { chatId: message.chatId, chatName: chatNames.get(message.chatId)!, closed: !openIds.has(message.chatId) };
+        if (mode === 'fts') {
+          // Operators can't be located as one substring: hand back the
+          // start of the row instead.
+          matches.push({ index: entry.index, id: entry.id, role: entry.role, ts: entry.ts, offset: 0, before: '', match: entry.text.slice(0, contextChars * 2), after: '', ...meta });
+          continue;
+        }
+        for (const m of searchTranscript([entry], query, { contextChars, maxResults: maxResults - matches.length, caseSensitive })) {
+          matches.push({ ...m, ...meta });
+        }
+      }
+      dlog('mcp.popbot.search', { by: caller, mode, scope: chatIds ? 'chat' : includeClosed ? 'all' : 'open', hits: hits.length, matches: matches.length });
       return { matches };
     },
 

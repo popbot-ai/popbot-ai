@@ -1,4 +1,5 @@
 import { app } from 'electron';
+import { FTS_MIGRATION_SQL } from './fts';
 import { mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import Database from 'better-sqlite3';
@@ -373,6 +374,9 @@ const SCHEMA = [
   `
   ALTER TABLE chats ADD COLUMN cloud TEXT;
   `,
+  // v24 — full-text search over message text (FTS5, trigram), kept
+  // current by triggers and backfilled here. See fts.ts.
+  FTS_MIGRATION_SQL,
 ];
 
 export function initDb(): Database.Database {
