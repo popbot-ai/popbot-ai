@@ -22,6 +22,7 @@
  * Per CORE_MODEL.md the AgentHost-owned broadcast is passed in as `emit`.
  */
 import { spawn } from 'node:child_process';
+import { homedir } from 'node:os';
 import type { AgentEvent } from '@shared/agent';
 import type { ChatRecord, CloudChatInfo, MessageBodyText } from '@shared/persistence';
 import { dlog } from '../diagLog';
@@ -101,8 +102,15 @@ export function cloudActionFor(cloud: CloudChatInfo, started: boolean): 'start' 
 const starting = new Set<string>();
 const watchers = new Map<string, () => void>();
 
-function cloudCwd(chat: ChatRecord): string | null {
-  return chat.repoPath ?? getRepo(chat.repoId)?.repoPath ?? null;
+/** Where the CLI runs: the chat's worktree (a slot or ephemeral checkout
+ *  on its own branch), else the repo root, else — no repo — home. */
+function cloudCwd(chat: ChatRecord): string {
+  return chat.worktreePath || chat.repoPath || getRepo(chat.repoId)?.repoPath || homedir();
+}
+
+/** `a && b` for the in-app shell. Windows PowerShell 5 has no `&&`. */
+function andThen(a: string, b: string): string {
+  return pty.shellKind() === 'powershell' ? `${a}; if ($?) { ${b} }` : `${a} && ${b}`;
 }
 
 /** The `claude` to type into the terminal. The absolute path when the
@@ -161,20 +169,23 @@ export async function handleCloudSend(chat: ChatRecord, text: string, emit: Emit
 
 async function startSession(chat: ChatRecord, task: string, emit: Emit): Promise<void> {
   const cwd = cloudCwd(chat);
-  if (!cwd) {
-    note(chat.id, emit, 'error: This cloud chat has no repository folder to start from.');
-    return;
-  }
   const claude = await claudeForShell();
   pty.open(chat.id, cwd);
   watchForSessionId(chat.id, emit);
   starting.add(chat.id);
-  pty.write(chat.id, `${claude} --cloud ${pty.quoteForShell(task)}\r`);
+  const cloudCmd = `${claude} --cloud ${pty.quoteForShell(task)}`;
+  // A chat with its own branch (a slot or worktree): the cloud clones the
+  // GitHub remote at that branch, so it has to be there first. Pushing in
+  // the same terminal keeps any failure (no remote, no access) in view.
+  const ownBranch = !!chat.worktreePath && !!chat.branch;
+  pty.write(chat.id, `${ownBranch ? andThen(`git push -u origin ${pty.quoteForShell(chat.branch!)}`, cloudCmd) : cloudCmd}\r`);
   updateChatStatus(chat.id, 'idle', task.slice(0, 140));
   note(chat.id, emit,
-    'cloud: Creating the cloud session in the terminal below — the CLI shows its setup steps there and takes questions. ' +
+    (ownBranch
+      ? `cloud: Pushing ${chat.branch} to origin and creating the cloud session in the terminal below — the CLI shows its setup steps there and takes questions. `
+      : 'cloud: Creating the cloud session in the terminal below — the CLI shows its setup steps there and takes questions. ') +
     'The session link will appear here once it is created; if it does not, paste it from claude.ai/code in the chat settings.');
-  dlog('cloud.start', { chatId: chat.id, cwd });
+  dlog('cloud.start', { chatId: chat.id, cwd, ownBranch });
 }
 
 /** Read the terminal for the id the CLI prints, then link it. */
@@ -269,12 +280,11 @@ export async function teleportCloudChat(chatId: string, emit: Emit): Promise<{ o
   if (!chat?.cloud) return { ok: false, error: 'not a cloud chat' };
   if (!chat.cloud.sessionId) return { ok: false, error: 'no cloud session is linked to this chat yet' };
   const cwd = cloudCwd(chat);
-  if (!cwd) return { ok: false, error: 'this chat has no repository folder' };
   const claude = await claudeForShell();
   pty.open(chatId, cwd);
   pty.write(chatId, `${claude} --teleport ${chat.cloud.sessionId}\r`);
   note(chatId, emit,
-    'cloud: Teleporting the session into the terminal below — it fetches the session’s branch, checks it out at the repo root, ' +
+    `cloud: Teleporting the session into the terminal below — it fetches the session’s branch, checks it out in ${chat.worktreePath ? 'this chat’s workspace' : 'the repo root'}, ` +
     'and loads the conversation there. Answer its prompts in the terminal (it asks before stashing uncommitted changes).');
   dlog('cloud.teleport', { chatId, sessionId: chat.cloud.sessionId, cwd });
   return { ok: true };

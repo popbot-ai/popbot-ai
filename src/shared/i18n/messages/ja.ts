@@ -840,8 +840,14 @@ export const ja = {
   'branch.dialog.loadBranchesError': 'ブランチを読み込めませんでした: {error}',
   'branch.dialog.freeChatDesc':
     'リポジトリルートから {repo} で実行します — スロット、worktree、ブランチなし。',
-  'branch.dialog.cloudDesc':
-    'このチャットは、PopBot を終了しても動き続ける Claude Code のクラウドセッションを操作します。セッションは {repo} の GitHub リモートから、ルートのチェックアウトが今いるブランチで作成されるので、先に push してください。最初のメッセージがタスクになり、以降のメッセージはフォローアップとしてセッションのキューに入ります。',
+  'branch.dialog.cloudDescNoRepo':
+    'リポジトリなしで Claude Code on the web 上で実行され、PopBot を終了しても動き続けます。',
+  'branch.dialog.cloudDescRoot':
+    '{repo} の GitHub リモートから、リポジトリのルートが今いるブランチで Claude Code on the web 上に実行されます。先に push してください。PopBot を終了しても動き続けます。',
+  'branch.dialog.cloudDescSlot':
+    'Claude Code on the web 上で実行されます。チャットは通常どおりスロットとブランチを受け取り、ブランチは origin に push され、クラウドがそれをクローンします。作業をテレポートで戻せるよう、スロットはローカルに残ります。PopBot を終了しても動き続けます。',
+  'branch.dialog.cloudGithubNote':
+    'クラウドはこのマシンではなく、あなたの claude.ai アカウント経由で GitHub にアクセスします。claude.ai/code から Claude GitHub App をインストールするか、ターミナルの claude セッションで /web-setup を一度実行してください。',
   'branch.dialog.createChat': 'チャットを作成',
 
   // ---------------------------------------------------------------------------

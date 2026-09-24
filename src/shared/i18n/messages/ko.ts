@@ -840,8 +840,14 @@ export const ko = {
   'branch.dialog.loadBranchesError': '브랜치를 불러올 수 없습니다: {error}',
   'branch.dialog.freeChatDesc':
     '{repo}의 저장소 루트에서 실행됩니다 — 슬롯, 워크트리, 브랜치 없음.',
-  'branch.dialog.cloudDesc':
-    '이 채팅은 PopBot을 종료해도 계속 실행되는 Claude Code 클라우드 세션을 조종합니다. 세션은 {repo}의 GitHub 원격 저장소에서, 루트 체크아웃이 현재 있는 브랜치로 만들어지므로 먼저 push하세요. 첫 메시지가 작업이 되고, 이후 메시지는 후속 메시지로 세션 대기열에 들어갑니다.',
+  'branch.dialog.cloudDescNoRepo':
+    '저장소 없이 Claude Code on the web에서 실행되며, PopBot을 종료해도 계속 작동합니다.',
+  'branch.dialog.cloudDescRoot':
+    '{repo}의 GitHub 원격 저장소에서, 저장소 루트가 현재 있는 브랜치로 Claude Code on the web에서 실행됩니다. 먼저 push하세요. PopBot을 종료해도 계속 작동합니다.',
+  'branch.dialog.cloudDescSlot':
+    'Claude Code on the web에서 실행됩니다. 채팅은 평소처럼 슬롯과 브랜치를 받고, 브랜치는 origin으로 push되며 클라우드가 그것을 클론합니다. 작업을 텔레포트로 되돌릴 수 있도록 슬롯은 로컬에 남습니다. PopBot을 종료해도 계속 작동합니다.',
+  'branch.dialog.cloudGithubNote':
+    '클라우드는 이 컴퓨터가 아니라 당신의 claude.ai 계정을 통해 GitHub에 접근합니다. claude.ai/code에서 Claude GitHub App을 설치하거나, 터미널 claude 세션에서 /web-setup을 한 번 실행하세요.',
   'branch.dialog.createChat': '채팅 만들기',
 
   // ---------------------------------------------------------------------------

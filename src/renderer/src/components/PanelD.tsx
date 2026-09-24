@@ -31,7 +31,8 @@ export function PanelD({ focusedChat, focusedRecord }: PanelDProps): JSX.Element
   // A cloud chat lives in its terminal (that's where `claude --cloud`
   // runs and shows its progress), so it opens on its own, at the repo
   // root. Every other chat needs a worktree and a click.
-  const cwd = focusedRecord?.worktreePath || (focusedRecord?.cloud ? focusedRecord.repoPath : null) || null;
+  // '~' = home: main's pty manager maps it (a no-repo cloud chat).
+  const cwd = focusedRecord?.worktreePath || (focusedRecord?.cloud ? (focusedRecord.repoPath || '~') : null) || null;
   const isOpened = chatId !== null && (opened.has(chatId) || !!focusedRecord?.cloud);
 
   const openTerminal = () => {

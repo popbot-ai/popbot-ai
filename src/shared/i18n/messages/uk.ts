@@ -841,8 +841,14 @@ export const uk = {
   'branch.dialog.loadBranchesError': 'Не вдалося завантажити гілки: {error}',
   'branch.dialog.freeChatDesc':
     'Працює в {repo} з кореня репозиторію — без слота, worktree чи гілки.',
-  'branch.dialog.cloudDesc':
-    'Чат керує хмарною сесією Claude Code, яка працює далі після закриття PopBot. Вона створюється з GitHub-remote репозиторію {repo} на тій гілці, на якій стоїть коренева робоча копія, тож спочатку зробіть push. Перше повідомлення — це завдання; наступні ставляться в чергу сесії як уточнення.',
+  'branch.dialog.cloudDescNoRepo':
+    'Працює в Claude Code у вебі без репозиторію та продовжує після закриття PopBot.',
+  'branch.dialog.cloudDescRoot':
+    'Працює в Claude Code у вебі з GitHub-remote репозиторію {repo} на тій гілці, на якій стоїть корінь репозиторію — спочатку зробіть push. Продовжує після закриття PopBot.',
+  'branch.dialog.cloudDescSlot':
+    'Працює в Claude Code у вебі: чат отримує слот і гілку як звичайно, гілка надсилається в origin, і хмара її клонує. Слот лишається локальним, щоб телепортувати роботу назад. Продовжує після закриття PopBot.',
+  'branch.dialog.cloudGithubNote':
+    'Хмара звертається до GitHub через ваш обліковий запис claude.ai, а не через цей комп’ютер: встановіть Claude GitHub App із claude.ai/code або один раз виконайте /web-setup у термінальній сесії claude.',
   'branch.dialog.createChat': 'Створити чат',
 
   // ---------------------------------------------------------------------------

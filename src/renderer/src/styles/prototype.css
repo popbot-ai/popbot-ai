@@ -409,6 +409,15 @@ input, textarea { font: inherit; color: inherit; background: none; border: 0; ou
   font-size: 11px;
 }
 
+/* The cloud note under the workspace choice in the new-chat dialog. */
+.cloud-note {
+  display: flex; gap: 8px; align-items: flex-start;
+  margin: 0 16px 10px; padding: 8px 10px; border-radius: 6px;
+  background: rgba(207,157,106,0.08); border: 1px solid rgba(207,157,106,0.35);
+  color: var(--fg-2); font-size: 12px; line-height: 1.45;
+}
+.cloud-note i { color: #cf9d6a; margin-top: 2px; }
+
 /* The Cloud chip. In the new-chat dialog it's a toggle beside the agent
    selectors: a faded outline when off, filled in Claude's color (the one
    the agent selector uses) when the chat will run on Claude Code on the

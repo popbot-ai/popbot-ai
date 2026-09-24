@@ -868,8 +868,14 @@ export const en = {
   'branch.dialog.loadBranchesError': 'Couldn’t load branches: {error}',
   'branch.dialog.freeChatDesc':
     'Runs in {repo} from the repo root — no slot, worktree, or branch.',
-  'branch.dialog.cloudDesc':
-    'The chat drives a Claude Code cloud session that keeps running after PopBot quits. It is created from the GitHub remote of {repo} at the branch its root checkout is on, so push first. Your first message is the task; later ones are queued into the session as follow-ups.',
+  'branch.dialog.cloudDescNoRepo':
+    'Runs on Claude Code on the web with no repository, and keeps going after PopBot quits.',
+  'branch.dialog.cloudDescRoot':
+    'Runs on Claude Code on the web from the GitHub remote of {repo}, at the branch the repo root is on — push it first. Keeps going after PopBot quits.',
+  'branch.dialog.cloudDescSlot':
+    'Runs on Claude Code on the web: the chat gets its slot and branch as usual, the branch is pushed to origin, and the cloud clones it. The slot stays local for teleporting the work back. Keeps going after PopBot quits.',
+  'branch.dialog.cloudGithubNote':
+    'The cloud reaches GitHub through your claude.ai account, not this machine: install the Claude GitHub App from claude.ai/code, or run /web-setup once in a terminal claude session.',
   'branch.dialog.createChat': 'Create chat',
 
   // ---------------------------------------------------------------------------

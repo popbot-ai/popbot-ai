@@ -465,13 +465,19 @@ export function registerChatHandlers(): void {
  */
 export async function createChatWithWorkspace(input: CreateChatInput): Promise<CreateChatResult> {
   const wantsWorkspace = input.slotId != null || input.allocateSlot === true;
+  // A cloud chat drives a Claude Code cloud session (claude.ai/code) on
+  // top of whatever workspace it gets here — none, the repo root, a slot
+  // or a worktree. Always Claude. See cloudSessions.ts for what happens
+  // on its first message.
+  const cloud = input.cloud === true;
+  const cloudArgs = {
+    agent: cloud ? ('claude' as const) : input.agent,
+    cloud: cloud ? { provider: 'claude' as const, sessionId: null, url: null, startedAt: null } : null,
+  };
 
   // No workspace requested → cheap path. Used by lite chats that run
   // against the repo root and never need a worktree (e.g. CR chats).
   if (!wantsWorkspace) {
-    // A cloud chat drives a Claude Code cloud session (claude.ai/code):
-    // no slot, no worktree, and always Claude — see cloudSessions.ts.
-    const cloud = input.cloud === true;
     const chat = createChat({
       name: input.name,
       ticket: input.ticket ?? null,
@@ -482,8 +488,7 @@ export async function createChatWithWorkspace(input: CreateChatInput): Promise<C
       slotId: null,
       worktreePath: null,
       repoId: input.repoId,
-      agent: cloud ? 'claude' : input.agent,
-      cloud: cloud ? { provider: 'claude', sessionId: null, url: null, startedAt: null } : null,
+      ...cloudArgs,
       claudeModel: input.claudeModel,
       claudeReasoningEffort: input.claudeReasoningEffort,
       codexModel: input.codexModel,
@@ -535,7 +540,7 @@ export async function createChatWithWorkspace(input: CreateChatInput): Promise<C
       slotId: null,
       worktreePath: null,
       repoId: repo.id,
-      agent: input.agent,
+      ...cloudArgs,
       claudeModel: input.claudeModel,
       claudeReasoningEffort: input.claudeReasoningEffort,
       codexModel: input.codexModel,
@@ -633,7 +638,7 @@ export async function createChatWithWorkspace(input: CreateChatInput): Promise<C
     slotId,
     worktreePath,
     repoId: repo.id,
-    agent: input.agent,
+    ...cloudArgs,
     claudeModel: input.claudeModel,
     claudeReasoningEffort: input.claudeReasoningEffort,
     codexModel: input.codexModel,

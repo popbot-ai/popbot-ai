@@ -841,8 +841,14 @@ export const it = {
   'branch.dialog.loadBranchesError': 'Impossibile caricare i branch: {error}',
   'branch.dialog.freeChatDesc':
     'Viene eseguita in {repo} dalla radice del repository — nessuno slot, worktree o branch.',
-  'branch.dialog.cloudDesc':
-    'La chat guida una sessione cloud di Claude Code che continua a girare dopo la chiusura di PopBot. Viene creata dal remoto GitHub di {repo} sul branch su cui si trova il checkout radice, quindi fai prima il push. Il primo messaggio è il compito; i successivi vengono accodati nella sessione come follow-up.',
+  'branch.dialog.cloudDescNoRepo':
+    'Gira su Claude Code sul web senza repository e continua a lavorare dopo la chiusura di PopBot.',
+  'branch.dialog.cloudDescRoot':
+    'Gira su Claude Code sul web dal remoto GitHub di {repo}, sul branch su cui si trova la radice del repository: fai prima il push. Continua a lavorare dopo la chiusura di PopBot.',
+  'branch.dialog.cloudDescSlot':
+    'Gira su Claude Code sul web: la chat riceve slot e branch come al solito, il branch viene inviato a origin e il cloud lo clona. Lo slot resta locale per riportare indietro il lavoro col teletrasporto. Continua a lavorare dopo la chiusura di PopBot.',
+  'branch.dialog.cloudGithubNote':
+    'Il cloud raggiunge GitHub tramite il tuo account claude.ai, non questa macchina: installa la Claude GitHub App da claude.ai/code oppure esegui /web-setup una volta in una sessione claude nel terminale.',
   'branch.dialog.createChat': 'Crea chat',
 
   // ---------------------------------------------------------------------------

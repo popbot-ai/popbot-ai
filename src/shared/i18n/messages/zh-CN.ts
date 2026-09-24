@@ -840,8 +840,14 @@ export const zhCN = {
   'branch.dialog.loadBranchesError': '无法加载分支：{error}',
   'branch.dialog.freeChatDesc':
     '在 {repo} 的仓库根目录中运行 — 无槽位、工作树或分支。',
-  'branch.dialog.cloudDesc':
-    '此对话驱动一个 Claude Code 云端会话，PopBot 退出后它仍会继续运行。会话基于 {repo} 的 GitHub 远程仓库、以根目录检出当前所在的分支创建，因此请先推送。你的第一条消息就是任务；之后的消息会作为后续指令排入会话队列。',
+  'branch.dialog.cloudDescNoRepo':
+    '无仓库，在 Claude Code 网页版上运行，PopBot 退出后仍会继续。',
+  'branch.dialog.cloudDescRoot':
+    '基于 {repo} 的 GitHub 远程仓库、以仓库根目录当前所在的分支在 Claude Code 网页版上运行——请先推送。PopBot 退出后仍会继续。',
+  'branch.dialog.cloudDescSlot':
+    '在 Claude Code 网页版上运行：对话照常获得卡槽和分支，分支会推送到 origin，云端再克隆它。卡槽保留在本地，便于把工作传送回来。PopBot 退出后仍会继续。',
+  'branch.dialog.cloudGithubNote':
+    '云端通过你的 claude.ai 账户访问 GitHub，而不是这台电脑：请从 claude.ai/code 安装 Claude GitHub App，或在终端的 claude 会话中运行一次 /web-setup。',
   'branch.dialog.createChat': '创建聊天',
 
   // ---------------------------------------------------------------------------

@@ -317,7 +317,8 @@ export default function App(): JSX.Element {
       baseBranch: string | null;
       subject?: string;
       branch?: string;
-      workspaceMode?: 'slot' | 'repo-root' | 'cloud';
+      workspaceMode?: 'slot' | 'repo-root';
+      cloud?: boolean;
       agentConfig?: AgentCreateConfig;
     }) => void | Promise<void>;
   } | null>(null);
@@ -1292,14 +1293,19 @@ export default function App(): JSX.Element {
       allowNoRepo: true,
       allowRepoRoot: type === 'lite',
       showAgentPicker: true,
-      run: async ({ repoId, baseBranch, subject, branch, workspaceMode, agentConfig }) => {
+      run: async ({ repoId, baseBranch, subject, branch, workspaceMode, cloud, agentConfig }) => {
         const name = (subject?.trim() || (type === 'lite' ? t('common.newChat') : t('app.create.newClientTestChat')));
+        // A cloud chat (Claude Code on the web drives the work) can have
+        // any of the workspaces below; main pushes a slot's branch for the
+        // cloud to clone. Claude only — the dialog enforces it.
+        const cloudBits = cloud ? { agent: 'claude' as const, cloud: true } : {};
         if (repoId === null) {
           await createWithSlot({
             name,
             type,
             repoId: RAW_CHAT_REPO_ID,
             ...agentConfig,
+            ...cloudBits,
           });
           return;
         }
@@ -1309,19 +1315,7 @@ export default function App(): JSX.Element {
             type,
             repoId,
             ...agentConfig,
-          });
-          return;
-        }
-        // A cloud chat: Claude Code on the web drives the work, from
-        // the repo root — no slot. Claude only; the dialog enforces it.
-        if (workspaceMode === 'cloud') {
-          await createWithSlot({
-            name,
-            type,
-            repoId,
-            ...agentConfig,
-            agent: 'claude',
-            cloud: true,
+            ...cloudBits,
           });
           return;
         }
@@ -1334,6 +1328,7 @@ export default function App(): JSX.Element {
           allocateSlot: true,
           repoId,
           ...agentConfig,
+          ...cloudBits,
         });
       },
     });

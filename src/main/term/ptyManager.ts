@@ -8,6 +8,7 @@
  * so we keep a rolling output buffer here and replay it whenever a
  * fresh xterm attaches via `attach()`.
  */
+import { homedir } from 'node:os';
 import { spawn, type IPty } from 'node-pty';
 import type { WebContents } from 'electron';
 import { IpcChannel } from '@shared/ipc';
@@ -102,7 +103,9 @@ function broadcast(chatId: string, data: string): void {
  * existing entry's, we tear it down and start fresh — usually a sign
  * the slot worktree got reassigned.
  */
-export function open(chatId: string, cwd: string, cols = 100, rows = 30): { ok: true; buffer: string } {
+export function open(chatId: string, cwdWanted: string, cols = 100, rows = 30): { ok: true; buffer: string } {
+  // A chat with no folder of its own (a no-repo cloud chat) gets home.
+  const cwd = cwdWanted && cwdWanted !== '~' ? cwdWanted : homedir();
   let entry = sessions.get(chatId);
   if (entry && entry.cwd !== cwd) {
     dispose(chatId);

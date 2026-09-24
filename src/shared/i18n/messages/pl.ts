@@ -841,8 +841,14 @@ export const pl = {
   'branch.dialog.loadBranchesError': 'Nie udało się wczytać branchy: {error}',
   'branch.dialog.freeChatDesc':
     'Działa w {repo} od katalogu głównego repo — bez slotu, worktree ani brancha.',
-  'branch.dialog.cloudDesc':
-    'Czat steruje sesją Claude Code w chmurze, która działa dalej po zamknięciu PopBota. Jest tworzona ze zdalnego repozytorium GitHub {repo} na gałęzi, na której stoi główna kopia robocza – najpierw zrób push. Pierwsza wiadomość to zadanie; kolejne są kolejkowane w sesji jako uzupełnienia.',
+  'branch.dialog.cloudDescNoRepo':
+    'Działa w Claude Code w przeglądarce bez repozytorium i pracuje dalej po zamknięciu PopBota.',
+  'branch.dialog.cloudDescRoot':
+    'Działa w Claude Code w przeglądarce ze zdalnego repozytorium GitHub {repo}, na gałęzi, na której stoi katalog główny – najpierw zrób push. Pracuje dalej po zamknięciu PopBota.',
+  'branch.dialog.cloudDescSlot':
+    'Działa w Claude Code w przeglądarce: czat dostaje slot i gałąź jak zwykle, gałąź jest wypychana do origin, a chmura ją klonuje. Slot zostaje lokalnie, by teleportować pracę z powrotem. Pracuje dalej po zamknięciu PopBota.',
+  'branch.dialog.cloudGithubNote':
+    'Chmura łączy się z GitHubem przez Twoje konto claude.ai, nie przez ten komputer: zainstaluj Claude GitHub App z claude.ai/code albo uruchom raz /web-setup w terminalowej sesji claude.',
   'branch.dialog.createChat': 'Utwórz czat',
 
   // ---------------------------------------------------------------------------
