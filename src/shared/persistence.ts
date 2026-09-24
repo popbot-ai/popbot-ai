@@ -14,17 +14,18 @@ export type AgentBackendId = 'claude' | 'codex';
  * The model pickers, in display order. Each provider's default comes
  * first, then the rest of the current line-up.
  *
- * The newest tier on each side — Claude Fable 5.1 and GPT-6 Astra — is
- * listed but deliberately NOT the default and never a roll-forward
+ * The newest tiers — Claude Opus 5.5, Claude Fable 5.1 and GPT-6 Astra —
+ * are listed but deliberately NOT the default and never a roll-forward
  * target (see {@link normalizeClaudeModel} / {@link normalizeCodexModel}).
- * Both are limited-availability launches at top-tier pricing: Fable
+ * New launches come at top-tier pricing and limited availability: Fable
  * needs usage credits on the Claude side, and Codex only serves Astra to
  * API-key logins for now (a ChatGPT-account login gets a 400). A chat
  * lands on one of them only because the user picked it, so nobody's
- * running Opus/Sol chat quietly turns into a Fable/Astra bill.
+ * running Opus 5 / Sol chat quietly turns into a pricier bill.
  */
 export const CLAUDE_MODELS = [
   'claude-opus-5',
+  'claude-opus-5-5',
   'claude-sonnet-5',
   'claude-fable-5',
   'claude-fable-5-1',
@@ -49,6 +50,7 @@ export type AgentReasoningEffort = ClaudeReasoningEffort | CodexReasoningEffort;
 /** Display names for the model pickers. Product names, not localized. */
 export const CLAUDE_MODEL_LABELS: Record<ClaudeModelId, string> = {
   'claude-opus-5': 'Claude Opus 5',
+  'claude-opus-5-5': 'Claude Opus 5.5',
   'claude-sonnet-5': 'Claude Sonnet 5',
   'claude-fable-5': 'Claude Fable 5',
   'claude-fable-5-1': 'Claude Fable 5.1',
@@ -66,11 +68,12 @@ export const CODEX_MODEL_LABELS: Record<CodexModelId, string> = {
  *  main-side row mappers.
  *
  *  Retired Opus versions (4.8, 4.7, 4.6, …) deliberately roll forward to
- *  the current Opus rather than staying pinned: unlike the Codex tiers,
- *  which are distinct concurrent models, the Opus line is a single model
- *  that supersedes itself, and old versions are eventually retired
- *  upstream. A chat pinned to a retired ID would fail at request time,
- *  so we always point it at the latest Opus.
+ *  Opus 5 rather than staying pinned: unlike the Codex tiers, which are
+ *  distinct concurrent models, the Opus line is a single model that
+ *  supersedes itself, and old versions are eventually retired upstream.
+ *  A chat pinned to a retired ID would fail at request time, so we point
+ *  it at the Opus that is the default — not at Opus 5.5, which is a new
+ *  launch a chat should reach only by the user's choice.
  *
  *  Fable is the one line that does NOT roll forward: a chat on Claude
  *  Fable 5 stays there even though Fable 5.1 exists. Both are still
@@ -78,7 +81,7 @@ export const CODEX_MODEL_LABELS: Record<CodexModelId, string> = {
  *  decision that belongs to the user. */
 export function normalizeClaudeModel(value: string | null | undefined): ClaudeModelId {
   if (CLAUDE_MODELS.includes(value as ClaudeModelId)) return value as ClaudeModelId;
-  // Any prior Opus (claude-opus-4-8, -4-7, -4-6, -4-5, -4-1, …) → current Opus.
+  // Any prior Opus (claude-opus-4-8, -4-7, -4-6, -4-5, -4-1, …) → the default Opus.
   if (typeof value === 'string' && value.startsWith('claude-opus-')) return 'claude-opus-5';
   return DEFAULT_CLAUDE_MODEL;
 }
