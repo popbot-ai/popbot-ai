@@ -27,18 +27,31 @@ describe('parseSearchQuery', () => {
 
   it('collects who wrote it, tools, agent, archive scope, chat and repo', () => {
     const p = parseSearchQuery('from:user,agent tool:Bash agent:Codex in:archive chat:"login bug" repo:app boom');
-    expect(p.filters).toEqual({ from: ['user', 'agent'], tool: 'Bash', agent: 'codex', in: 'archive', chat: 'login bug', repo: 'app' });
+    expect(p.filters).toEqual({ from: ['user', 'agent'], tool: ['Bash'], agent: 'codex', in: 'archive', chat: ['login', 'bug'], repo: 'app' });
     expect(p.text).toBe('boom');
     expect(parseSearchQuery('tool: x').filters).toEqual({ from: ['tool'] });
     // A quoted value with no spaces keeps no quotes either.
-    expect(parseSearchQuery('timeout chat:"[cr]"').filters).toEqual({ chat: '[cr]' });
+    expect(parseSearchQuery('timeout chat:"[cr]"').filters).toEqual({ chat: ['[cr]'] });
     expect(parseSearchQuery('timeout chat:"[cr]"').text).toBe('timeout');
   });
 
-  it('covers user and agent messages unless from: says otherwise', () => {
+  it('joins a tag value’s words with + — every word must match — and leaves + alone in free text', () => {
+    const p = parseSearchQuery('chat:login+bug tool:mcp+popbot a+b');
+    expect(p.filters.chat).toEqual(['login', 'bug']);
+    expect(p.filters.tool).toEqual(['mcp', 'popbot']);
+    expect(p.text).toBe('a+b');
+  });
+
+  it('covers user and agent messages unless from: says otherwise — or a tool: name does', () => {
     expect(withSearchDefaults({}).from).toEqual(['user', 'agent']);
     expect(withSearchDefaults({ ticket: true }).from).toEqual(['user', 'agent']);
     expect(withSearchDefaults({ from: ['tool'] }).from).toEqual(['tool']);
+    expect(withSearchDefaults({ tool: ['Bash'] }).from).toEqual(['tool']);
+  });
+
+  it('takes a chat id as one chat, and words as a title match', () => {
+    expect(parseSearchQuery('chat:chat_0a1b2c3d4e5f x').filters).toEqual({ chatId: 'chat_0a1b2c3d4e5f' });
+    expect(parseSearchQuery('chat:chat_0a1b2c3d4e5f x').text).toBe('x');
   });
 
   it('leaves unknown key:value pairs — a URL — as text', () => {

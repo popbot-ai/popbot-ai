@@ -471,8 +471,8 @@ export function setChatSlot(id: string, slotId: number, worktreePath: string): v
  *  completes `ticket:` / `cr:` / `chat:` with. */
 export function listChatRefs(): ChatRefs {
   const rows = db()
-    .prepare<[], { ticket: string | null; pr: number | null; name: string; closed_at: number | null }>(
-      `SELECT ticket, pr, name, closed_at FROM chats
+    .prepare<[], { id: string; ticket: string | null; pr: number | null; name: string; closed_at: number | null }>(
+      `SELECT id, ticket, pr, name, closed_at FROM chats
         WHERE deleted_at IS NULL
         ORDER BY last_active_at DESC`,
     )
@@ -484,7 +484,7 @@ export function listChatRefs(): ChatRefs {
     const closed = r.closed_at != null;
     if (r.ticket && !tickets.has(r.ticket)) tickets.set(r.ticket, { key: r.ticket, chatName: r.name, closed });
     if (r.pr != null && !prs.has(r.pr)) prs.set(r.pr, { number: r.pr, chatName: r.name, closed });
-    if (!chats.has(r.name)) chats.set(r.name, { name: r.name, closed });
+    chats.set(r.id, { id: r.id, name: r.name, closed });
   }
   return { tickets: [...tickets.values()], prs: [...prs.values()], chats: [...chats.values()] };
 }

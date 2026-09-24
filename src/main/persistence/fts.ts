@@ -118,11 +118,15 @@ export function filterPredicates(f: SearchFilters, now: number = Date.now()): Sq
     }
     if (parts.length > 0) where.push(`(${parts.join(' OR ')})`);
   }
-  if (f.tool) { where.push("m.kind = 'tool' AND json_valid(m.body) AND json_extract(m.body, '$.name') LIKE ?"); params.push(`%${f.tool}%`); }
+  for (const word of f.tool ?? []) {
+    where.push("m.kind = 'tool' AND json_valid(m.body) AND json_extract(m.body, '$.name') LIKE ?");
+    params.push(`%${word}%`);
+  }
   if (f.agent) { where.push('c.agent = ?'); params.push(f.agent); }
   if (f.in === 'open') where.push('c.closed_at IS NULL');
   else if (f.in === 'archive') where.push('c.closed_at IS NOT NULL');
-  if (f.chat) { where.push('c.name LIKE ?'); params.push(`%${f.chat}%`); }
+  for (const word of f.chat ?? []) { where.push('c.name LIKE ?'); params.push(`%${word}%`); }
+  if (f.chatId) { where.push('c.id = ?'); params.push(f.chatId); }
   if (f.repo) { where.push('c.repo_id = ?'); params.push(f.repo); }
   return { where, params };
 }

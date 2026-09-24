@@ -15,12 +15,15 @@
  *   tool:Bash          tool calls whose tool name contains this
  *   agent:codex        chats driven by claude | codex
  *   in:archive         archived chats only; in:open; in:all (the default)
- *   chat:login         chats whose name contains this
+ *   chat:login+bug     chats whose name contains every `+`-joined word;
+ *                      chat:chat_1a2b3c… (an id, what a completion inserts) one chat
  *   repo:app           chats in this repository
  *
- * Anything else — including `key:value` pairs with an unknown key, so a
- * URL still searches as text — is the text to search for. Values with
- * spaces go in quotes: chat:"login bug".
+ * In a tag value `+` joins words that must all match (`chat:login+bug`),
+ * so a multi-word title needs no quotes; quotes still work. `+` means
+ * nothing special in the free text. Anything else — including
+ * `key:value` pairs with an unknown key, so a URL still searches as
+ * text — is the text to search for.
  */
 
 export type SearchWho = 'user' | 'agent' | 'tool' | 'system';
@@ -33,10 +36,14 @@ export interface SearchFilters {
   /** Milliseconds back from now. */
   lastMs?: number;
   from?: SearchWho[];
-  tool?: string;
+  /** Every word must appear in the tool name. */
+  tool?: string[];
   agent?: 'claude' | 'codex';
   in?: 'open' | 'archive' | 'all';
-  chat?: string;
+  /** Every word must appear in the chat name. */
+  chat?: string[];
+  /** Exactly this chat (a `chat:` value that is a chat id). */
+  chatId?: string;
   repo?: string;
 }
 
@@ -67,6 +74,11 @@ function tokenize(raw: string): string[] {
 }
 
 const unquote = (v: string): string => v.replace(/^"(.*)"$/, '$1').trim();
+
+/** A tag value's words: `+`-joined (and, inside quotes, space-separated). */
+export function tagWords(value: string): string[] {
+  return value.split(/[+\s]+/).map((w) => w.trim()).filter(Boolean);
+}
 
 export function parseSearchQuery(raw: string): ParsedSearchQuery {
   const filters: SearchFilters = {};
@@ -100,7 +112,7 @@ export function parseSearchQuery(raw: string): ParsedSearchQuery {
         continue;
       }
       case 'tool':
-        if (val) filters.tool = val; else filters.from = [...new Set([...(filters.from ?? []), 'tool' as const])];
+        if (val) filters.tool = tagWords(val); else filters.from = [...new Set([...(filters.from ?? []), 'tool' as const])];
         continue;
       case 'agent':
         if (val.toLowerCase() === 'claude' || val.toLowerCase() === 'codex') filters.agent = val.toLowerCase() as 'claude' | 'codex';
@@ -114,9 +126,12 @@ export function parseSearchQuery(raw: string): ParsedSearchQuery {
         else words.push(tok);
         continue;
       }
-      case 'chat':
-        if (val) filters.chat = val; else words.push(tok);
+      case 'chat': {
+        if (/^chat_[a-z0-9]+$/i.test(val)) { filters.chatId = val; continue; }
+        const parts = tagWords(val);
+        if (parts.length > 0) filters.chat = parts; else words.push(tok);
         continue;
+      }
       case 'repo':
         if (val) filters.repo = val; else words.push(tok);
         continue;
@@ -136,9 +151,11 @@ export function parseSearchQuery(raw: string): ParsedSearchQuery {
  *  rarely what someone is looking for. */
 export const DEFAULT_SEARCH_FROM: SearchWho[] = ['user', 'agent'];
 
-/** The filters with the `from:` default applied. */
+/** The filters with the `from:` default applied: the conversation, or
+ *  tool rows when a `tool:` name was asked for. */
 export function withSearchDefaults(filters: SearchFilters): SearchFilters {
-  return filters.from && filters.from.length > 0 ? filters : { ...filters, from: DEFAULT_SEARCH_FROM };
+  if (filters.from && filters.from.length > 0) return filters;
+  return { ...filters, from: filters.tool ? ['tool'] : DEFAULT_SEARCH_FROM };
 }
 
 /** The tags the Search panel offers as buttons. `value` is what a click

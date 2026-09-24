@@ -11,7 +11,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { ChatRefs, TranscriptSearchHit } from '@shared/ipc';
-import { SEARCH_TAGS, parseSearchQuery } from '@shared/searchQuery';
+import { SEARCH_TAGS, parseSearchQuery, tagWords } from '@shared/searchQuery';
 import type { MessageKey } from '@shared/i18n';
 import { useTranslation } from '../lib/i18n';
 
@@ -63,7 +63,9 @@ function completableToken(query: string): { start: number; key: 'ticket' | 'cr' 
 function suggestionsFor(refs: ChatRefs | null, token: ReturnType<typeof completableToken>): Suggestion[] {
   if (!refs || !token) return [];
   const p = token.partial;
-  const has = (s: string): boolean => s.toLowerCase().includes(p);
+  // `+` in the partial joins words that must all appear.
+  const words = tagWords(p);
+  const has = (s: string): boolean => { const l = s.toLowerCase(); return words.every((w) => l.includes(w)); };
   const starts = (s: string): boolean => s.toLowerCase().startsWith(p);
   let out: Suggestion[];
   if (token.key === 'ticket') {
@@ -76,9 +78,10 @@ function suggestionsFor(refs: ChatRefs | null, token: ReturnType<typeof completa
       .filter((r) => !p || starts(String(r.number)) || has(r.chatName))
       .map((r) => ({ insert: String(r.number), label: `#${r.number}`, detail: r.chatName, closed: r.closed }));
   } else {
+    // Shown by title, inserted as the id — unambiguous, whatever the title.
     out = refs.chats
-      .filter((c) => !p || has(c.name))
-      .map((c) => ({ insert: `"${c.name.replace(/"/g, '')}"`, label: c.name, detail: '', closed: c.closed }));
+      .filter((c) => !p || has(c.name) || c.id.toLowerCase().startsWith(p))
+      .map((c) => ({ insert: c.id, label: c.name, detail: c.id, closed: c.closed }));
   }
   return out.slice(0, 7);
 }

@@ -458,7 +458,7 @@ export interface TranscriptSearchOptions {
 export interface ChatRefs {
   tickets: Array<{ key: string; chatName: string; closed: boolean }>;
   prs: Array<{ number: number; chatName: string; closed: boolean }>;
-  chats: Array<{ name: string; closed: boolean }>;
+  chats: Array<{ id: string; name: string; closed: boolean }>;
 }
 
 export type TranscriptSearchResult =
