@@ -1,6 +1,6 @@
 # Configurando o PopBot
 
-Tudo no PopBot é configurado no próprio app através de **Preferências** (a engrenagem na barra de título, ou `⌘,`) — não há arquivos de configuração para editar manualmente. Este guia percorre cada painel na ordem em que a navegação os lista, o que é aproximadamente a ordem em que você os configuraria pela primeira vez.
+Tudo no PopBot é configurado no próprio app através de **Preferências** (a engrenagem na barra de título, ou `⌘,`) — não há arquivos de configuração para editar manualmente. Este guia percorre cada painel na ordem em que a navegação os lista, o que é aproximadamente a ordem em que você os configuraria pela primeira vez. Não há botão Salvar em lugar nenhum: um campo é salvo no momento em que você sai dele (ou pressiona Enter), um interruptor no momento em que você o alterna, e fechar as Preferências salva o que ainda estiver pendente.
 
 > Credenciais que você insere (Linear, Jira, GitHub, Perforce, etc.) são armazenadas **localmente na sua máquina** no próprio banco de dados do app — nunca neste repositório.
 
@@ -22,7 +22,7 @@ Um único rastreador de issues ativo alimenta a fila de Tickets. Escolha-o no se
 - **Jira** — insira a URL do seu site (`https://your-domain.atlassian.net`), o e-mail da conta, e um token de API (de *id.atlassian.com → Security → API tokens*). Opcionalmente restrinja a um **Project** e adicione um filtro **JQL** (por exemplo, `labels = backend`). Salvar verifica as credenciais antes de persisti-las.
 - **GitHub** — GitHub Issues não precisa de credenciais aqui: o provedor invoca a CLI `gh` que você já autenticou para revisões e ações git, e a fila abrange os mesmos repositórios configurados em [Repositórios](#repositórios). O formulário é uma verificação de status que confirma que o `gh` está instalado e autenticado e relata quantos repositórios ele cobre.
 
-Cada rastreador com credenciais as verifica ao **Salvar** antes de persistir, e mostra uma pílula de status *Conectado / Não conectado*.
+Cada rastreador com credenciais as verifica assim que você sai de um campo de credencial, as salva de qualquer forma e mostra uma pílula de status *Conectado / Não conectado* com o resultado.
 
 ### Engines de jogo
 

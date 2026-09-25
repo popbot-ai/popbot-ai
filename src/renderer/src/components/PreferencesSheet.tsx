@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { hotkey } from '../lib/hotkeys';
 import { useTranslation } from '../lib/i18n';
@@ -238,6 +238,66 @@ interface LinearSettings {
   projectId?: string;
 }
 
+/**
+ * A settings panel with no Save button. `commit` writes the panel's
+ * draft when it differs from what is saved; the panel calls it when a
+ * field is left (blur, Enter) or a switch changes (with the new value
+ * as an override, since the state update has not rendered yet), and
+ * the hook calls it once more when the panel unmounts, so closing the
+ * sheet saves what is still pending. The draft and its saved twin are
+ * read through a ref, so a commit from a blur or an unmount sees the
+ * latest values. A write in flight is not repeated for the same draft;
+ * a draft that changed meanwhile is written after it.
+ */
+function useAutoCommit<T extends object>(fns: {
+  draft: () => T;
+  saved: () => T;
+  write: (next: T) => Promise<void>;
+}): (override?: Partial<T>) => Promise<void> {
+  const ref = useRef(fns);
+  ref.current = fns;
+  const running = useRef(false);
+  const queued = useRef<T | null>(null);
+  const lastWritten = useRef<string | null>(null);
+  const commit = useCallback(async (override?: Partial<T>): Promise<void> => {
+    const next = { ...ref.current.draft(), ...(override ?? {}) } as T;
+    const sig = JSON.stringify(next);
+    if (sig === JSON.stringify(ref.current.saved()) || sig === lastWritten.current) return;
+    if (running.current) {
+      queued.current = next;
+      return;
+    }
+    running.current = true;
+    try {
+      let cur: T | null = next;
+      while (cur) {
+        lastWritten.current = JSON.stringify(cur);
+        try {
+          await ref.current.write(cur);
+        } catch (err) {
+          // eslint-disable-next-line no-console
+          console.warn('settings write failed', err);
+        }
+        cur = queued.current;
+        queued.current = null;
+        if (cur && JSON.stringify(cur) === lastWritten.current) cur = null;
+      }
+    } finally {
+      running.current = false;
+    }
+  }, []);
+  useEffect(() => () => { void commit(); }, [commit]);
+  return commit;
+}
+
+/** Enter in a single-line field leaves it, which saves it. */
+function blurOnEnter(e: React.KeyboardEvent<HTMLInputElement>): void {
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    e.currentTarget.blur();
+  }
+}
+
 function PrefsAgents(): JSX.Element {
   const { t } = useTranslation();
   const { get, set, loading } = useSettings();
@@ -245,7 +305,6 @@ function PrefsAgents(): JSX.Element {
     get<AgentEffortDefaultsSettings>(AGENT_EFFORT_DEFAULTS_SETTING),
   );
   const [values, setValues] = useState(saved);
-  const [savedAt, setSavedAt] = useState<number | null>(null);
 
   useEffect(() => {
     setValues(saved);
@@ -255,21 +314,21 @@ function PrefsAgents(): JSX.Element {
     saved.codeReviewClaudeReasoningEffort,
     saved.codeReviewCodexReasoningEffort,
   ]);
+  // A picked effort is written at once; there is nothing to hold back for.
+  const commit = useAutoCommit<AgentEffortDefaultsSettings>({
+    draft: () => values,
+    saved: () => saved,
+    write: (next) => set(AGENT_EFFORT_DEFAULTS_SETTING, next),
+  });
+  const pick = (patch: Partial<AgentEffortDefaultsSettings>): void => {
+    setValues((prev) => ({ ...prev, ...patch }));
+    void commit(patch);
+  };
 
   if (loading) return <div className="pref-section"><h3>{t('prefs.agents.title')}</h3></div>;
 
   const codexAppServer = codexUsesAppServer(get<CodexSettings>(CODEX_SETTINGS_KEY));
   const mcpOn = popbotMcpEnabled(get<PopbotMcpSettings>(POPBOT_MCP_SETTINGS_KEY));
-  const dirty =
-    values.claudeReasoningEffort !== saved.claudeReasoningEffort
-    || values.codexReasoningEffort !== saved.codexReasoningEffort
-    || values.codeReviewClaudeReasoningEffort !== saved.codeReviewClaudeReasoningEffort
-    || values.codeReviewCodexReasoningEffort !== saved.codeReviewCodexReasoningEffort;
-
-  const save = async () => {
-    await set(AGENT_EFFORT_DEFAULTS_SETTING, values satisfies AgentEffortDefaultsSettings);
-    setSavedAt(Date.now());
-  };
 
   return (
     <div className="pref-section">
@@ -290,13 +349,13 @@ function PrefsAgents(): JSX.Element {
               label="Claude"
               value={values.claudeReasoningEffort}
               options={CLAUDE_REASONING_EFFORTS}
-              onChange={(claudeReasoningEffort) => setValues((prev) => ({ ...prev, claudeReasoningEffort }))}
+              onChange={(claudeReasoningEffort) => pick({ claudeReasoningEffort })}
             />
             <AgentEffortField
               label="Codex"
               value={values.codexReasoningEffort}
               options={CODEX_REASONING_EFFORTS}
-              onChange={(codexReasoningEffort) => setValues((prev) => ({ ...prev, codexReasoningEffort }))}
+              onChange={(codexReasoningEffort) => pick({ codexReasoningEffort })}
             />
           </div>
         </div>
@@ -313,30 +372,17 @@ function PrefsAgents(): JSX.Element {
               label="Claude"
               value={values.codeReviewClaudeReasoningEffort}
               options={CLAUDE_REASONING_EFFORTS}
-              onChange={(codeReviewClaudeReasoningEffort) => setValues((prev) => ({ ...prev, codeReviewClaudeReasoningEffort }))}
+              onChange={(codeReviewClaudeReasoningEffort) => pick({ codeReviewClaudeReasoningEffort })}
             />
             <AgentEffortField
               label="Codex"
               value={values.codeReviewCodexReasoningEffort}
               options={CODEX_REASONING_EFFORTS}
-              onChange={(codeReviewCodexReasoningEffort) => setValues((prev) => ({ ...prev, codeReviewCodexReasoningEffort }))}
+              onChange={(codeReviewCodexReasoningEffort) => pick({ codeReviewCodexReasoningEffort })}
             />
           </div>
         </div>
 
-        <div className="pref-row wide">
-          <div className="pref-control" style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, width: '100%' }}>
-            {savedAt && !dirty && (
-              <span style={{ color: 'var(--fg-3)', fontSize: 11, alignSelf: 'center' }}>{t('common.saved')}</span>
-            )}
-            <button className="btn primary sm" disabled={!dirty} onClick={() => void save()}>
-              {t('common.save')}
-            </button>
-          </div>
-        </div>
-
-        {/* Applies on its own — a switch with a Save button beside the
-            effort form's would read as part of that form. */}
         <div className="pref-row">
           <div className="pref-label">
             <div className="pref-label-title">{t('prefs.agents.codexSteering.title')}</div>
@@ -614,15 +660,17 @@ function PrefsAttachments(): JSX.Element {
   const initial = get<AttachmentsSettings>('attachments', {}) ?? {};
   const savedDays = clampAttachmentTtlDays(initial.ttlDays ?? ATTACHMENT_TTL_DAYS_DEFAULT);
   const [days, setDays] = useState<number>(savedDays);
-  const [savedAt, setSavedAt] = useState<number | null>(null);
 
   // Sync once useSettings finishes loading — same pattern as PrefsApps:
   // the first render captures the default before the saved value lands.
   useEffect(() => { setDays(savedDays); }, [savedDays]);
+  const commit = useAutoCommit<AttachmentsSettings>({
+    draft: () => ({ ttlDays: clampAttachmentTtlDays(days) }),
+    saved: () => ({ ttlDays: savedDays }),
+    write: (next) => set('attachments', next),
+  });
 
   if (loading) return <div className="pref-section"><h3>{t('prefs.runtime.title')}</h3></div>;
-
-  const dirty = days !== savedDays;
 
   return (
     <div className="pref-section">
@@ -653,29 +701,11 @@ function PrefsAttachments(): JSX.Element {
                 const n = parseInt(e.target.value, 10);
                 if (Number.isFinite(n)) setDays(n);
               }}
+              onBlur={() => { setDays(clampAttachmentTtlDays(days)); void commit(); }}
+              onKeyDown={blurOnEnter}
               style={{ width: 90 }}
             />
             <span style={{ color: 'var(--fg-3)', fontSize: 12 }}>{t('common.days')}</span>
-          </div>
-        </div>
-        <div className="pref-row">
-          <div className="pref-label" />
-          <div className="pref-control" style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-            <button
-              className="btn primary sm"
-              disabled={!dirty}
-              onClick={async () => {
-                const ttlDays = clampAttachmentTtlDays(days);
-                setDays(ttlDays);
-                await set('attachments', { ttlDays } satisfies AttachmentsSettings);
-                setSavedAt(Date.now());
-              }}
-            >
-              {t('common.save')}
-            </button>
-            {savedAt && !dirty && (
-              <span style={{ color: 'var(--fg-3)', fontSize: 11 }}>{t('common.saved')}</span>
-            )}
           </div>
         </div>
       </div>
@@ -966,8 +996,22 @@ function PrefsGit(): JSX.Element {
   const [maxFiles, setMaxFiles] = useState<number>(
     clampMaxChangedFiles(scInitial.maxChangedFiles ?? MAX_CHANGED_FILES_DEFAULT),
   );
-  const [savedCap, setSavedCap] = useState(false);
-  const [savedGit, setSavedGit] = useState(false);
+  // Two settings keys, one draft: each field writes its own key on blur.
+  const commit = useAutoCommit<{ maxFiles: number; username: string }>({
+    draft: () => ({ maxFiles: clampMaxChangedFiles(maxFiles), username: username.trim() }),
+    saved: () => ({
+      maxFiles: clampMaxChangedFiles(scInitial.maxChangedFiles ?? MAX_CHANGED_FILES_DEFAULT),
+      username: initial.username ?? '',
+    }),
+    write: async (next) => {
+      if (next.maxFiles !== clampMaxChangedFiles(scInitial.maxChangedFiles ?? MAX_CHANGED_FILES_DEFAULT)) {
+        await set('sourceControl', { ...scInitial, maxChangedFiles: next.maxFiles } satisfies SourceControlSettings);
+      }
+      if (next.username !== (initial.username ?? '')) {
+        await set('git', { ...initial, username: next.username });
+      }
+    },
+  });
 
   // Same sync-on-load fix as PrefsApps / UnityConfig. Without this,
   // useState captures defaults while useSettings is still loading and
@@ -1013,20 +1057,10 @@ function PrefsGit(): JSX.Element {
                   ),
                 )
               }
+              onBlur={() => { setMaxFiles(clampMaxChangedFiles(maxFiles)); void commit(); }}
+              onKeyDown={blurOnEnter}
               style={{ width: 100 }}
             />
-            <button
-              className="btn primary sm"
-              onClick={async () => {
-                const max = clampMaxChangedFiles(maxFiles);
-                setMaxFiles(max);
-                await set('sourceControl', { ...scInitial, maxChangedFiles: max } satisfies SourceControlSettings);
-                setSavedCap(true);
-              }}
-            >
-              {t('common.save')}
-            </button>
-            {savedCap && <span style={{ color: 'var(--fg-3)', fontSize: 11 }}>{t('common.saved')}</span>}
           </div>
         </div>
       </div>
@@ -1052,18 +1086,10 @@ function PrefsGit(): JSX.Element {
                   placeholder={t('prefs.git.usernamePlaceholder')}
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
+                  onBlur={() => void commit()}
+                  onKeyDown={blurOnEnter}
                   style={{ width: 160 }}
                 />
-                <button
-                  className="btn primary sm"
-                  onClick={async () => {
-                    await set('git', { ...initial, username: username.trim() });
-                    setSavedGit(true);
-                  }}
-                >
-                  {t('common.save')}
-                </button>
-                {savedGit && <span style={{ color: 'var(--fg-3)', fontSize: 11 }}>{t('common.saved')}</span>}
               </div>
             </div>
           </div>
@@ -1100,7 +1126,28 @@ function PerforceConfigPanel(): JSX.Element {
   const [parallelThreads, setParallelThreads] = useState<number>(initial.parallelThreads ?? 4);
   const [revertUnchanged, setRevertUnchanged] = useState<boolean>(initial.revertUnchanged !== false);
   const [reviewPollSec, setReviewPollSec] = useState<number>(Math.round((initial.reviewPollIntervalMs ?? 120_000) / 1000));
-  const [saved, setSaved] = useState(false);
+  const commit = useAutoCommit<PerforceSettings>({
+    draft: () => ({
+      ...initial,
+      p4Path: p4Path.trim() || undefined,
+      defaultPort: defaultPort.trim() || undefined,
+      defaultUser: defaultUser.trim() || undefined,
+      parallelThreads,
+      revertUnchanged,
+      reviewPollIntervalMs: Math.min(3600, Math.max(30, reviewPollSec)) * 1000,
+    }),
+    saved: () => ({
+      ...initial,
+      p4Path: initial.p4Path || undefined,
+      defaultPort: initial.defaultPort || undefined,
+      defaultUser: initial.defaultUser || undefined,
+      parallelThreads: initial.parallelThreads ?? 4,
+      revertUnchanged: initial.revertUnchanged !== false,
+      reviewPollIntervalMs: initial.reviewPollIntervalMs ?? 120_000,
+    }),
+    write: (next) => set('perforce', next),
+  });
+  const leave = (): void => void commit();
 
   useEffect(() => { setP4Path(initial.p4Path ?? ''); }, [initial.p4Path]);
   useEffect(() => { setDefaultPort(initial.defaultPort ?? ''); }, [initial.defaultPort]);
@@ -1126,7 +1173,7 @@ function PerforceConfigPanel(): JSX.Element {
             </div>
             <div className="pref-control">
               <input className="pref-input mono" placeholder="p4" value={p4Path}
-                     onChange={(e) => setP4Path(e.target.value)} style={{ width: 240 }} />
+                     onChange={(e) => setP4Path(e.target.value)} onBlur={leave} onKeyDown={blurOnEnter} style={{ width: 240 }} />
             </div>
           </div>
           <div className="pref-row">
@@ -1136,7 +1183,7 @@ function PerforceConfigPanel(): JSX.Element {
             </div>
             <div className="pref-control">
               <input className="pref-input mono" placeholder="ssl:host:1666" value={defaultPort}
-                     onChange={(e) => setDefaultPort(e.target.value)} style={{ width: 240 }} />
+                     onChange={(e) => setDefaultPort(e.target.value)} onBlur={leave} onKeyDown={blurOnEnter} style={{ width: 240 }} />
             </div>
           </div>
           <div className="pref-row">
@@ -1146,7 +1193,7 @@ function PerforceConfigPanel(): JSX.Element {
             </div>
             <div className="pref-control">
               <input className="pref-input mono" placeholder="user" value={defaultUser}
-                     onChange={(e) => setDefaultUser(e.target.value)} style={{ width: 240 }} />
+                     onChange={(e) => setDefaultUser(e.target.value)} onBlur={leave} onKeyDown={blurOnEnter} style={{ width: 240 }} />
             </div>
           </div>
           <div className="pref-row">
@@ -1157,7 +1204,7 @@ function PerforceConfigPanel(): JSX.Element {
             <div className="pref-control">
               <input type="number" className="pref-input mono" min={1} max={64} value={parallelThreads}
                      onChange={(e) => setParallelThreads(Math.max(1, Math.min(64, Number(e.target.value) || 1)))}
-                     style={{ width: 100 }} />
+                     onBlur={leave} onKeyDown={blurOnEnter} style={{ width: 100 }} />
             </div>
           </div>
           <div className="pref-row">
@@ -1167,7 +1214,7 @@ function PerforceConfigPanel(): JSX.Element {
             </div>
             <div className="pref-control">
               <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                <input type="checkbox" checked={revertUnchanged} onChange={(e) => setRevertUnchanged(e.target.checked)} />
+                <input type="checkbox" checked={revertUnchanged} onChange={(e) => { setRevertUnchanged(e.target.checked); void commit({ revertUnchanged: e.target.checked }); }} />
                 <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--fg-2)' }}>{t('prefs.perforce.revertUnchanged.toggle')}</span>
               </label>
             </div>
@@ -1180,31 +1227,8 @@ function PerforceConfigPanel(): JSX.Element {
             <div className="pref-control" style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
               <input type="number" className="pref-input mono" min={30} max={3600} value={reviewPollSec}
                      onChange={(e) => setReviewPollSec(Math.max(30, Math.min(3600, Number(e.target.value) || 30)))}
-                     style={{ width: 100 }} />
+                     onBlur={leave} onKeyDown={blurOnEnter} style={{ width: 100 }} />
               <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--fg-2)' }}>{t('prefs.perforce.reviewPoll.unit')}</span>
-            </div>
-          </div>
-          <div className="pref-row">
-            <div className="pref-label" />
-            <div className="pref-control" style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-              <button
-                className="btn primary sm"
-                onClick={async () => {
-                  await set('perforce', {
-                    ...initial,
-                    p4Path: p4Path.trim() || undefined,
-                    defaultPort: defaultPort.trim() || undefined,
-                    defaultUser: defaultUser.trim() || undefined,
-                    parallelThreads,
-                    revertUnchanged,
-                    reviewPollIntervalMs: Math.min(3600, Math.max(30, reviewPollSec)) * 1000,
-                  } satisfies PerforceSettings);
-                  setSaved(true);
-                }}
-              >
-                {t('common.save')}
-              </button>
-              {saved && <span style={{ color: 'var(--fg-3)', fontSize: 11 }}>{t('common.saved')}</span>}
             </div>
           </div>
         </div>
@@ -1274,7 +1298,23 @@ function PrefsApps(): JSX.Element {
   const [windowsShell, setWindowsShell] = useState(initial.windowsShell || 'powershell');
   const [editorApp, setEditorApp] = useState(initial.editorApp || 'vscode');
   const [browserChromeProfile, setBrowserChromeProfile] = useState(initial.browserChromeProfile || '');
-  const [savedAt, setSavedAt] = useState<number | null>(null);
+  const commit = useAutoCommit<AppsSettings>({
+    draft: () => ({
+      ...initial,
+      terminalApp,
+      windowsShell,
+      editorApp,
+      browserChromeProfile: browserChromeProfile.trim() || undefined,
+    }),
+    saved: () => ({
+      ...initial,
+      terminalApp: initial.terminalApp || 'iTerm',
+      windowsShell: initial.windowsShell || 'powershell',
+      editorApp: initial.editorApp || 'vscode',
+      browserChromeProfile: initial.browserChromeProfile || undefined,
+    }),
+    write: (next) => set('apps', next),
+  });
 
   // useState only captures its initial value once, on first mount.
   // But useSettings starts with `loading=true` and an empty cache, so
@@ -1289,12 +1329,6 @@ function PrefsApps(): JSX.Element {
   useEffect(() => { setBrowserChromeProfile(initial.browserChromeProfile || ''); }, [initial.browserChromeProfile]);
 
   if (loading) return <div className="pref-section"><h3>{t('prefs.apps.title')}</h3></div>;
-
-  const dirty =
-    terminalApp !== (initial.terminalApp || 'iTerm') ||
-    windowsShell !== (initial.windowsShell || 'powershell') ||
-    editorApp !== (initial.editorApp || 'vscode') ||
-    browserChromeProfile !== (initial.browserChromeProfile || '');
 
   return (
     <div className="pref-section">
@@ -1312,7 +1346,7 @@ function PrefsApps(): JSX.Element {
             <select
               className="pref-input"
               value={terminalApp}
-              onChange={(e) => setTerminalApp(e.target.value)}
+              onChange={(e) => { setTerminalApp(e.target.value); void commit({ terminalApp: e.target.value }); }}
               style={{ width: 200 }}
             >
               {TERMINAL_OPTIONS.map((o) => (
@@ -1333,7 +1367,7 @@ function PrefsApps(): JSX.Element {
               <select
                 className="pref-input"
                 value={windowsShell}
-                onChange={(e) => setWindowsShell(e.target.value)}
+                onChange={(e) => { setWindowsShell(e.target.value); void commit({ windowsShell: e.target.value }); }}
                 style={{ width: 200 }}
               >
                 {WINDOWS_SHELL_OPTIONS.map((o) => (
@@ -1354,7 +1388,7 @@ function PrefsApps(): JSX.Element {
             <select
               className="pref-input"
               value={editorApp}
-              onChange={(e) => setEditorApp(e.target.value)}
+              onChange={(e) => { setEditorApp(e.target.value); void commit({ editorApp: e.target.value }); }}
               style={{ width: 200 }}
             >
               {EDITOR_OPTIONS.map((o) => (
@@ -1385,32 +1419,10 @@ function PrefsApps(): JSX.Element {
               placeholder={t('prefs.apps.chromeProfile.placeholder')}
               value={browserChromeProfile}
               onChange={(e) => setBrowserChromeProfile(e.target.value)}
+              onBlur={() => void commit()}
+              onKeyDown={blurOnEnter}
               style={{ width: '100%' }}
             />
-          </div>
-        </div>
-        <div className="pref-row">
-          <div className="pref-label" />
-          <div className="pref-control" style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-            <button
-              className="btn primary sm"
-              disabled={!dirty}
-              onClick={async () => {
-                await set('apps', {
-                  ...initial,
-                  terminalApp,
-                  windowsShell,
-                  editorApp,
-                  browserChromeProfile: browserChromeProfile.trim() || undefined,
-                } satisfies AppsSettings);
-                setSavedAt(Date.now());
-              }}
-            >
-              {t('common.save')}
-            </button>
-            {savedAt && !dirty && (
-              <span style={{ color: 'var(--fg-3)', fontSize: 11 }}>{t('common.saved')}</span>
-            )}
           </div>
         </div>
       </div>
@@ -1440,7 +1452,6 @@ function EngineConfigPanel({ engineId }: { engineId: GameEngineId }): JSX.Elemen
   const [subpath, setSubpath] = useState(cfg.projectSubpath ?? legacySubpath ?? '');
   const [runPosix, setRunPosix] = useState(cfg.runPosix ?? '');
   const [runWindows, setRunWindows] = useState(cfg.runWindows ?? '');
-  const [savedAt, setSavedAt] = useState<number | null>(null);
   // Result of the Unity "install title-bar script" button (path or error).
   const [titleScript, setTitleScript] = useState<{ ok: boolean; msg: string } | null>(null);
   const enabled = engineEnabled(cfg, engineId);
@@ -1472,15 +1483,6 @@ function EngineConfigPanel({ engineId }: { engineId: GameEngineId }): JSX.Elemen
     setMcpBasePort(String(cfg.mcpBasePort ?? engineDefaultMcpPort));
   }, [cfg.mcpBasePort, engineDefaultMcpPort]);
 
-  if (loading) return <p className="pref-section-desc">{t('common.loading')}</p>;
-
-  const dirty = isCustom
-    ? runPosix !== (cfg.runPosix ?? '') ||
-      runWindows !== (cfg.runWindows ?? '') ||
-      subpath !== (cfg.projectSubpath ?? legacySubpath ?? '')
-    : binary !== (cfg.binary ?? legacyBinary ?? '') ||
-      subpath !== (cfg.projectSubpath ?? legacySubpath ?? '');
-
   // Merge a patch into apps.engines[engineId] (preserving other engines).
   const writeEngine = async (patch: Partial<GameEngineConfig>): Promise<void> => {
     // The three EngineConfigPanels (unity/unreal/custom) each keep an INDEPENDENT
@@ -1494,18 +1496,28 @@ function EngineConfigPanel({ engineId }: { engineId: GameEngineId }): JSX.Elemen
     await set('apps', { ...cur, engines: { ...curEngines, [engineId]: nextCfg } } satisfies AppsSettings);
   };
 
-  const save = async (): Promise<void> => {
-    await writeEngine(
-      isCustom
-        ? {
-            projectSubpath: subpath.trim() || undefined,
-            runPosix: runPosix.trim() || undefined,
-            runWindows: runWindows.trim() || undefined,
-          }
-        : { binary: binary.trim() || undefined, projectSubpath: subpath.trim() || undefined },
-    );
-    setSavedAt(Date.now());
-  };
+  // The typed fields (the switches above write on their own): a field
+  // writes when left, a picked version at once.
+  type EngineDraft = Pick<GameEngineConfig, 'binary' | 'projectSubpath' | 'runPosix' | 'runWindows'>;
+  const commit = useAutoCommit<EngineDraft>({
+    draft: () => (isCustom
+      ? {
+          projectSubpath: subpath.trim() || undefined,
+          runPosix: runPosix.trim() || undefined,
+          runWindows: runWindows.trim() || undefined,
+        }
+      : { binary: binary.trim() || undefined, projectSubpath: subpath.trim() || undefined }),
+    saved: () => (isCustom
+      ? {
+          projectSubpath: cfg.projectSubpath || legacySubpath || undefined,
+          runPosix: cfg.runPosix || undefined,
+          runWindows: cfg.runWindows || undefined,
+        }
+      : { binary: cfg.binary || legacyBinary || undefined, projectSubpath: cfg.projectSubpath || legacySubpath || undefined }),
+    write: (next) => writeEngine(next),
+  });
+
+  if (loading) return <p className="pref-section-desc">{t('common.loading')}</p>;
 
   const binaryPlaceholder =
     engineId === 'unity'
@@ -1552,7 +1564,7 @@ function EngineConfigPanel({ engineId }: { engineId: GameEngineId }): JSX.Elemen
               <select
                 className="pref-input mono"
                 value={binary}
-                onChange={(e) => setBinary(e.target.value)}
+                onChange={(e) => { setBinary(e.target.value); void commit({ binary: e.target.value || undefined }); }}
                 style={{ width: '100%' }}
                 disabled={versions.length === 0}
               >
@@ -1582,6 +1594,8 @@ function EngineConfigPanel({ engineId }: { engineId: GameEngineId }): JSX.Elemen
                 placeholder={binaryPlaceholder}
                 value={binary}
                 onChange={(e) => setBinary(e.target.value)}
+                onBlur={() => void commit()}
+                onKeyDown={blurOnEnter}
                 style={{ width: '100%' }}
               />
             </div>
@@ -1602,6 +1616,8 @@ function EngineConfigPanel({ engineId }: { engineId: GameEngineId }): JSX.Elemen
                 placeholder="./run-editor.sh"
                 value={runPosix}
                 onChange={(e) => setRunPosix(e.target.value)}
+                onBlur={() => void commit()}
+                onKeyDown={blurOnEnter}
                 style={{ width: '100%' }}
               />
             </div>
@@ -1617,6 +1633,8 @@ function EngineConfigPanel({ engineId }: { engineId: GameEngineId }): JSX.Elemen
                 placeholder="run-editor.bat"
                 value={runWindows}
                 onChange={(e) => setRunWindows(e.target.value)}
+                onBlur={() => void commit()}
+                onKeyDown={blurOnEnter}
                 style={{ width: '100%' }}
               />
             </div>
@@ -1635,6 +1653,8 @@ function EngineConfigPanel({ engineId }: { engineId: GameEngineId }): JSX.Elemen
             placeholder={t('prefs.engine.subpath.placeholder')}
             value={subpath}
             onChange={(e) => setSubpath(e.target.value)}
+            onBlur={() => void commit()}
+            onKeyDown={blurOnEnter}
             style={{ width: 240 }}
           />
         </div>
@@ -1728,17 +1748,6 @@ function EngineConfigPanel({ engineId }: { engineId: GameEngineId }): JSX.Elemen
         </div>
       )}
 
-      <div className="pref-row">
-        <div className="pref-label" />
-        <div className="pref-control" style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-          <button className="btn primary sm" disabled={!dirty} onClick={() => void save()}>
-            {t('common.save')}
-          </button>
-          {savedAt && !dirty && (
-            <span style={{ color: 'var(--fg-3)', fontSize: 11 }}>{t('common.saved')}</span>
-          )}
-        </div>
-      </div>
     </div>
   );
 }
@@ -1895,7 +1904,6 @@ function TemplatesGroup({
     for (const f of fields) out[f.key] = initial[f.key] ?? f.fallback;
     return out;
   });
-  const [savedAt, setSavedAt] = useState<number | null>(null);
   // Accordion: collapsed by default so a long list of templates stays compact.
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
 
@@ -1917,11 +1925,29 @@ function TemplatesGroup({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loading]);
 
+  // A template writes when its editor is left; a reset writes at once.
+  const commit = useAutoCommit<Record<string, string>>({
+    draft: () => {
+      const out: Record<string, string> = {};
+      for (const f of fields) out[f.key] = values[f.key] ?? f.fallback;
+      return out;
+    },
+    saved: () => {
+      const out: Record<string, string> = {};
+      for (const f of fields) out[f.key] = initial[f.key] ?? f.fallback;
+      return out;
+    },
+    write: (next) => set('templates', { ...initial, ...next } satisfies TemplatesSettings),
+  });
+
   if (loading) return <div />;
 
-  const dirty = fields.some((f) => values[f.key] !== (initial[f.key] ?? f.fallback));
   const setField = (key: string, v: string): void =>
     setValues((prev) => ({ ...prev, [key]: v }));
+  const resetField = (key: string, v: string): void => {
+    setField(key, v);
+    void commit({ [key]: v });
+  };
   const toggle = (key: string): void =>
     setExpanded((prev) => {
       const next = new Set(prev);
@@ -1932,12 +1958,7 @@ function TemplatesGroup({
     const out: Record<string, string> = {};
     for (const f of fields) out[f.key] = f.fallback;
     setValues(out);
-  };
-  const save = async (): Promise<void> => {
-    const next: TemplatesSettings = { ...initial };
-    for (const f of fields) (next as Record<string, string>)[f.key] = values[f.key] ?? f.fallback;
-    await set('templates', next);
-    setSavedAt(Date.now());
+    void commit(out);
   };
 
   return (
@@ -1963,8 +1984,8 @@ function TemplatesGroup({
                   role="button"
                   tabIndex={0}
                   title={t('prefs.templates.resetThis')}
-                  onClick={(e) => { e.stopPropagation(); setField(f.key, f.fallback); }}
-                  onKeyDown={(e) => { if (e.key === 'Enter') { e.stopPropagation(); setField(f.key, f.fallback); } }}
+                  onClick={(e) => { e.stopPropagation(); resetField(f.key, f.fallback); }}
+                  onKeyDown={(e) => { if (e.key === 'Enter') { e.stopPropagation(); resetField(f.key, f.fallback); } }}
                 >
                   <i className="fa-solid fa-rotate-left" />
                 </span>
@@ -1983,6 +2004,7 @@ function TemplatesGroup({
                   className="pref-template mono"
                   value={values[f.key] ?? ''}
                   onChange={(e) => setField(f.key, e.target.value)}
+                  onBlur={() => void commit()}
                   spellCheck={false}
                   rows={f.rows}
                 />
@@ -1993,17 +2015,6 @@ function TemplatesGroup({
       })}
       <div className="pref-template-actions">
         <button className="btn ghost sm" onClick={resetAll}>{t('prefs.templates.resetDefaults')}</button>
-        <span style={{ flex: 1 }} />
-        <button
-          className="btn primary sm"
-          disabled={!dirty}
-          onClick={() => void save()}
-        >
-          {t('common.save')}
-        </button>
-        {savedAt && !dirty && (
-          <span style={{ color: 'var(--fg-3)', fontSize: 11 }}>{t('common.saved')}</span>
-        )}
       </div>
     </>
   );
@@ -2076,7 +2087,6 @@ function PrefsReviews(): JSX.Element {
   const [vetted, setVetted] = useState(() => listToLines(initial.vettedAuthors));
   const [includeOutside, setIncludeOutside] = useState(initial.includeOutside === true);
   const [searchDays, setSearchDays] = useState(initialSearch.recentDays ?? DEFAULT_SEARCH_DAYS);
-  const [savedAt, setSavedAt] = useState<number | null>(null);
   /** Pinned reviews the just-saved rules would now exclude, awaiting the
    *  user's yes/no. `kept` is the pin list to write on confirm. */
   const [pendingPrune, setPendingPrune] = useState<
@@ -2104,44 +2114,64 @@ function PrefsReviews(): JSX.Element {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loading]);
 
-  if (loading) return <div className="pref-section"><h3>{t('prefs.reviews.title')}</h3></div>;
-
-  const dirty =
-    listToLines(initial.ignoreTitlePatterns ?? DEFAULT_REVIEW_TITLE_PATTERNS) !== titles ||
-    listToLines(initial.ignoreAuthors) !== authors ||
-    (initial.scope ?? DEFAULT_REVIEW_SCOPE) !== scope ||
-    listToLines(initial.teamMembers) !== team ||
-    listToLines(initial.vettedAuthors) !== vetted ||
-    (initial.includeOutside === true) !== includeOutside ||
-    (initialSearch.recentDays ?? DEFAULT_SEARCH_DAYS) !== searchDays;
-
-  const save = async (): Promise<void> => {
-    const rules = {
-      ignoreTitlePatterns: linesToList(titles),
-      ignoreAuthors: linesToList(authors),
-    };
-    // Only the filtering rules can change what belongs in the list —
-    // saving an unrelated field (the search window) must not nag about
-    // pins that were already exempt before this save.
-    const rulesChanged =
-      listToLines(initial.ignoreTitlePatterns ?? DEFAULT_REVIEW_TITLE_PATTERNS) !== titles ||
-      listToLines(initial.ignoreAuthors) !== authors ||
-      (initial.scope ?? DEFAULT_REVIEW_SCOPE) !== scope;
-    await set('reviews', {
-      ...(initial as Record<string, unknown>),
-      ...rules,
+  // The lists write when their editor is left; the scope, the switch and
+  // a reset write at once. One draft covers both settings keys.
+  interface ReviewsDraft {
+    titles: string[];
+    authors: string[];
+    scope: ReviewScope;
+    team: string[];
+    vetted: string[];
+    includeOutside: boolean;
+    searchDays: number;
+  }
+  const commit = useAutoCommit<ReviewsDraft>({
+    draft: () => ({
+      titles: linesToList(titles),
+      authors: linesToList(authors),
       scope,
-      teamMembers: linesToList(team),
-      vettedAuthors: linesToList(vetted),
+      team: linesToList(team),
+      vetted: linesToList(vetted),
       includeOutside,
-    } satisfies ReviewsSettings);
-    await set('panela.search', {
-      ...(initialSearch as Record<string, unknown>),
-      recentDays: searchDays,
-    } satisfies PanelASearchSettings);
-    setSavedAt(Date.now());
-    if (rulesChanged) await offerToApplyToPinned(rules);
-  };
+      searchDays,
+    }),
+    saved: () => ({
+      titles: initial.ignoreTitlePatterns ?? DEFAULT_REVIEW_TITLE_PATTERNS,
+      authors: initial.ignoreAuthors ?? [],
+      scope: initial.scope ?? DEFAULT_REVIEW_SCOPE,
+      team: initial.teamMembers ?? [],
+      vetted: initial.vettedAuthors ?? [],
+      includeOutside: initial.includeOutside === true,
+      searchDays: initialSearch.recentDays ?? DEFAULT_SEARCH_DAYS,
+    }),
+    write: async (next) => {
+      const rules = { ignoreTitlePatterns: next.titles, ignoreAuthors: next.authors };
+      // Only the filtering rules can change what belongs in the list —
+      // writing an unrelated field (the search window) must not nag
+      // about pins that were already exempt before.
+      const rulesChanged =
+        JSON.stringify(rules.ignoreTitlePatterns) !== JSON.stringify(initial.ignoreTitlePatterns ?? DEFAULT_REVIEW_TITLE_PATTERNS) ||
+        JSON.stringify(rules.ignoreAuthors) !== JSON.stringify(initial.ignoreAuthors ?? []) ||
+        next.scope !== (initial.scope ?? DEFAULT_REVIEW_SCOPE);
+      await set('reviews', {
+        ...(initial as Record<string, unknown>),
+        ...rules,
+        scope: next.scope,
+        teamMembers: next.team,
+        vettedAuthors: next.vetted,
+        includeOutside: next.includeOutside,
+      } satisfies ReviewsSettings);
+      if (next.searchDays !== (initialSearch.recentDays ?? DEFAULT_SEARCH_DAYS)) {
+        await set('panela.search', {
+          ...(initialSearch as Record<string, unknown>),
+          recentDays: next.searchDays,
+        } satisfies PanelASearchSettings);
+      }
+      if (rulesChanged) await offerToApplyToPinned(rules, next.scope);
+    },
+  });
+
+  if (loading) return <div className="pref-section"><h3>{t('prefs.reviews.title')}</h3></div>;
 
   /**
    * The auto-list re-filters itself in main on the next poll, so new
@@ -2154,7 +2184,7 @@ function PrefsReviews(): JSX.Element {
   const offerToApplyToPinned = async (rules: {
     ignoreTitlePatterns: string[];
     ignoreAuthors: string[];
-  }): Promise<void> => {
+  }, scopeNow: ReviewScope): Promise<void> => {
     const raw = get<Array<number | PinnedReview>>('panela.pinned.prs', []) ?? [];
     if (!Array.isArray(raw) || raw.length === 0) return;
     const pins: PinnedReview[] = raw.map((e) =>
@@ -2171,7 +2201,7 @@ function PrefsReviews(): JSX.Element {
     const matched: Array<{ pin: PinnedReview; review: ReviewItem }> = [];
     for (const entry of fetched) {
       if (!entry) continue;
-      if (reviewIsIgnored(entry.review, rules) || !reviewInScope(entry.review, scope)) {
+      if (reviewIsIgnored(entry.review, rules) || !reviewInScope(entry.review, scopeNow)) {
         matched.push(entry);
       }
     }
@@ -2186,6 +2216,7 @@ function PrefsReviews(): JSX.Element {
   const reset = (): void => {
     setTitles(listToLines(DEFAULT_REVIEW_TITLE_PATTERNS));
     setAuthors('');
+    void commit({ titles: DEFAULT_REVIEW_TITLE_PATTERNS, authors: [] });
   };
 
   return (
@@ -2206,7 +2237,7 @@ function PrefsReviews(): JSX.Element {
               type="radio"
               name="reviews-scope"
               checked={scope === opt.value}
-              onChange={() => setScope(opt.value)}
+              onChange={() => { setScope(opt.value); void commit({ scope: opt.value }); }}
             />
             <span>
               <span className="pref-radio-label">{t(opt.label)}</span>
@@ -2230,6 +2261,8 @@ function PrefsReviews(): JSX.Element {
           onChange={(e) => setSearchDays(
             Math.max(MIN_SEARCH_DAYS, Math.min(MAX_SEARCH_DAYS, Number(e.target.value) || DEFAULT_SEARCH_DAYS)),
           )}
+          onBlur={() => void commit()}
+          onKeyDown={blurOnEnter}
           style={{ width: 80 }}
         />
         <span style={{ color: 'var(--fg-3)', fontSize: 12 }}>{t('common.days')}</span>
@@ -2243,6 +2276,7 @@ function PrefsReviews(): JSX.Element {
         className="pref-template mono"
         value={team}
         onChange={(e) => setTeam(e.target.value)}
+        onBlur={() => void commit()}
         spellCheck={false}
         rows={5}
         placeholder={t('prefs.reviews.team.placeholder')}
@@ -2256,6 +2290,7 @@ function PrefsReviews(): JSX.Element {
         className="pref-template mono"
         value={vetted}
         onChange={(e) => setVetted(e.target.value)}
+        onBlur={() => void commit()}
         spellCheck={false}
         rows={4}
         placeholder={t('prefs.reviews.vetted.placeholder')}
@@ -2264,7 +2299,7 @@ function PrefsReviews(): JSX.Element {
         <input
           type="checkbox"
           checked={includeOutside}
-          onChange={(e) => setIncludeOutside(e.target.checked)}
+          onChange={(e) => { setIncludeOutside(e.target.checked); void commit({ includeOutside: e.target.checked }); }}
         />
         <span>
           <span className="pref-radio-label">{t('prefs.reviews.includeOutside.label')}</span>
@@ -2277,6 +2312,7 @@ function PrefsReviews(): JSX.Element {
         className="pref-template mono"
         value={titles}
         onChange={(e) => setTitles(e.target.value)}
+        onBlur={() => void commit()}
         spellCheck={false}
         rows={6}
         placeholder={t('prefs.reviews.ignoreTitle.placeholder')}
@@ -2287,6 +2323,7 @@ function PrefsReviews(): JSX.Element {
         className="pref-template mono"
         value={authors}
         onChange={(e) => setAuthors(e.target.value)}
+        onBlur={() => void commit()}
         spellCheck={false}
         rows={6}
         placeholder={t('prefs.reviews.ignoreAuthor.placeholder')}
@@ -2294,11 +2331,6 @@ function PrefsReviews(): JSX.Element {
 
       <div className="pref-template-actions">
         <button className="btn ghost sm" onClick={reset}>{t('prefs.templates.resetDefaults')}</button>
-        <span style={{ flex: 1 }} />
-        <button className="btn primary sm" disabled={!dirty} onClick={() => void save()}>{t('common.save')}</button>
-        {savedAt && !dirty && (
-          <span style={{ color: 'var(--fg-3)', fontSize: 11 }}>{t('common.saved')}</span>
-        )}
       </div>
 
       {pendingPrune && (
@@ -2370,28 +2402,42 @@ function LinearForm({
     };
   }, [apiKey, teamKey]);
 
-  const save = async () => {
-    setSaving(true);
-    setError(null);
-    setSavedAs(null);
-    try {
-      const result = await window.popbot.linear.test(apiKey.trim());
-      if (!result.ok) {
-        setError(result.error === 'auth'
-          ? t('prefs.integ.linear.error.auth')
-          : t('prefs.integ.linear.error.generic', { error: result.error }));
-        return;
+  // Leaving a field writes the form. A changed key is verified first
+  // and the verdict shown in the status row; the form is saved either
+  // way, so a typo shows up as a red status rather than as nothing.
+  const commit = useAutoCommit<LinearSettings>({
+    draft: () => ({
+      apiKey: apiKey.trim(),
+      teamKey: teamKey.trim(),
+      projectId: projectId.trim() || undefined,
+    }),
+    saved: () => ({
+      apiKey: initial.apiKey ?? '',
+      teamKey: initial.teamKey ?? '',
+      projectId: initial.projectId || undefined,
+    }),
+    write: async (next) => {
+      if (!next.apiKey) return;
+      setSaving(true);
+      setError(null);
+      setSavedAs(null);
+      try {
+        if (next.apiKey !== (initial.apiKey ?? '')) {
+          const result = await window.popbot.linear.test(next.apiKey);
+          if (!result.ok) {
+            setError(result.error === 'auth'
+              ? t('prefs.integ.linear.error.auth')
+              : t('prefs.integ.linear.error.generic', { error: result.error }));
+          } else {
+            setSavedAs({ email: result.email, name: result.name });
+          }
+        }
+        await onSave(next);
+      } finally {
+        setSaving(false);
       }
-      await onSave({
-        apiKey: apiKey.trim(),
-        teamKey: teamKey.trim(),
-        projectId: projectId.trim() || undefined,
-      });
-      setSavedAs({ email: result.email, name: result.name });
-    } finally {
-      setSaving(false);
-    }
-  };
+    },
+  });
 
   return (
     <div className="pref-rows">
@@ -2416,6 +2462,8 @@ function LinearForm({
             placeholder="lin_api_…"
             value={apiKey}
             onChange={(e) => setApiKey(e.target.value)}
+            onBlur={() => void commit()}
+            onKeyDown={blurOnEnter}
             style={{ width: '100%' }}
           />
         </div>
@@ -2431,6 +2479,8 @@ function LinearForm({
             placeholder="ENG"
             value={teamKey}
             onChange={(e) => setTeamKey(e.target.value)}
+            onBlur={() => void commit()}
+            onKeyDown={blurOnEnter}
             style={{ width: 120 }}
           />
         </div>
@@ -2447,7 +2497,7 @@ function LinearForm({
           <select
             className="pref-input"
             value={projectId}
-            onChange={(e) => setProjectId(e.target.value)}
+            onChange={(e) => { setProjectId(e.target.value); void commit({ projectId: e.target.value || undefined }); }}
             disabled={!apiKey.trim() || projectsLoading}
             style={{ width: '100%' }}
           >
@@ -2464,7 +2514,9 @@ function LinearForm({
         <div className="pref-label">
           <div className="pref-label-title">{t('common.status')}</div>
           <div className="pref-label-desc">
-            {error ? (
+            {saving ? (
+              <span className="pill muted"><i className="fa-solid fa-spinner fa-spin" /> {t('prefs.integ.linear.verifying')}</span>
+            ) : error ? (
               <span className="pill err"><i className="fa-solid fa-circle-xmark" /> {error}</span>
             ) : savedAs ? (
               <span className="pill done">
@@ -2483,13 +2535,6 @@ function LinearForm({
               {t('common.disconnect')}
             </button>
           )}
-          <button
-            className="btn primary sm"
-            disabled={!apiKey.trim() || saving}
-            onClick={() => void save()}
-          >
-            {saving ? t('prefs.integ.linear.verifying') : t('common.save')}
-          </button>
         </div>
       </div>
     </div>
@@ -2559,34 +2604,50 @@ function JiraForm({
     };
   }, [baseUrl, email, apiToken]);
 
-  const save = async (): Promise<void> => {
-    setSaving(true);
-    setError(null);
-    setSavedAs(null);
-    try {
-      const result = await window.popbot.jira.test(draft());
-      if (!result.ok) {
-        setError(
-          result.error === 'auth'
-            ? t('prefs.integ.jira.error.auth')
-            : t('prefs.integ.jira.error.generic', { error: result.error }),
-        );
-        return;
-      }
-      await onSave(draft());
-      setSavedAs({ email: result.email, name: result.name });
-    } catch (err) {
-      setError(
-        t('prefs.integ.jira.error.generic', {
-          error: err instanceof Error ? err.message : String(err),
-        }),
-      );
-    } finally {
-      setSaving(false);
-    }
-  };
-
   const ready = Boolean(baseUrl.trim() && email.trim() && apiToken.trim());
+
+  // Leaving a field writes the form once all three credentials are
+  // there. Changed credentials are verified first and the verdict shown
+  // in the status row; the form is saved either way.
+  const credsOf = (d: JiraSettings): string => `${d.baseUrl}\n${d.email}\n${d.apiToken}`;
+  const commit = useAutoCommit<JiraSettings>({
+    draft,
+    saved: () => ({
+      baseUrl: initial.baseUrl ?? '',
+      email: initial.email ?? '',
+      apiToken: initial.apiToken ?? '',
+      projectKey: initial.projectKey || undefined,
+      jql: initial.jql || undefined,
+    }),
+    write: async (next) => {
+      if (!next.baseUrl || !next.email || !next.apiToken) return;
+      setSaving(true);
+      setError(null);
+      setSavedAs(null);
+      try {
+        const savedCreds = credsOf({ baseUrl: initial.baseUrl ?? '', email: initial.email ?? '', apiToken: initial.apiToken ?? '' });
+        if (credsOf(next) !== savedCreds) {
+          try {
+            const result = await window.popbot.jira.test(next);
+            if (!result.ok) {
+              setError(
+                result.error === 'auth'
+                  ? t('prefs.integ.jira.error.auth')
+                  : t('prefs.integ.jira.error.generic', { error: result.error }),
+              );
+            } else {
+              setSavedAs({ email: result.email, name: result.name });
+            }
+          } catch (err) {
+            setError(t('prefs.integ.jira.error.generic', { error: err instanceof Error ? err.message : String(err) }));
+          }
+        }
+        await onSave(next);
+      } finally {
+        setSaving(false);
+      }
+    },
+  });
 
   return (
     <div className="pref-rows">
@@ -2604,6 +2665,8 @@ function JiraForm({
             placeholder="https://your-domain.atlassian.net"
             value={baseUrl}
             onChange={(e) => setBaseUrl(e.target.value)}
+            onBlur={() => void commit()}
+            onKeyDown={blurOnEnter}
             style={{ width: '100%' }}
           />
         </div>
@@ -2619,6 +2682,8 @@ function JiraForm({
             placeholder="you@example.com"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
+            onBlur={() => void commit()}
+            onKeyDown={blurOnEnter}
             style={{ width: '100%' }}
           />
         </div>
@@ -2647,6 +2712,8 @@ function JiraForm({
             placeholder="••••••••"
             value={apiToken}
             onChange={(e) => setApiToken(e.target.value)}
+            onBlur={() => void commit()}
+            onKeyDown={blurOnEnter}
             style={{ width: '100%' }}
           />
         </div>
@@ -2663,7 +2730,7 @@ function JiraForm({
           <select
             className="pref-input"
             value={projectKey}
-            onChange={(e) => setProjectKey(e.target.value)}
+            onChange={(e) => { setProjectKey(e.target.value); void commit({ projectKey: e.target.value || undefined }); }}
             disabled={!ready || projectsLoading}
             style={{ width: '100%' }}
           >
@@ -2690,6 +2757,8 @@ function JiraForm({
             placeholder="labels = backend"
             value={jql}
             onChange={(e) => setJql(e.target.value)}
+            onBlur={() => void commit()}
+            onKeyDown={blurOnEnter}
             style={{ width: '100%' }}
           />
         </div>
@@ -2698,7 +2767,9 @@ function JiraForm({
         <div className="pref-label">
           <div className="pref-label-title">{t('common.status')}</div>
           <div className="pref-label-desc">
-            {error ? (
+            {saving ? (
+              <span className="pill muted"><i className="fa-solid fa-spinner fa-spin" /> {t('prefs.integ.jira.verifying')}</span>
+            ) : error ? (
               <span className="pill err"><i className="fa-solid fa-circle-xmark" /> {error}</span>
             ) : savedAs ? (
               <span className="pill done">
@@ -2717,13 +2788,6 @@ function JiraForm({
               {t('common.disconnect')}
             </button>
           )}
-          <button
-            className="btn primary sm"
-            disabled={!ready || saving}
-            onClick={() => void save()}
-          >
-            {saving ? t('prefs.integ.jira.verifying') : t('common.save')}
-          </button>
         </div>
       </div>
     </div>
@@ -2866,20 +2930,36 @@ function PrefsSentry(): JSX.Element {
     }
   };
 
-  const onSave = async (): Promise<void> => {
-    setBusy(true);
-    try {
-      await window.popbot.settings.set('sentry', {
-        enabled,
-        authToken: authToken.trim() || undefined,
-        orgSlug: orgSlug.trim() || undefined,
-        projectSlug: projectSlug.trim() || undefined,
-        pollIntervalMs: Math.max(1, Math.min(60, pollMins)) * 60_000,
-      } satisfies SentryUiSettings);
-    } finally {
-      setBusy(false);
-    }
-  };
+  // Written when a field is left; the switch writes at once. The saved
+  // twin is what was last written (this panel loads its own copy).
+  const written = useRef<SentryUiSettings | null>(null);
+  const commit = useAutoCommit<SentryUiSettings>({
+    draft: () => ({
+      enabled,
+      authToken: authToken.trim() || undefined,
+      orgSlug: orgSlug.trim() || undefined,
+      projectSlug: projectSlug.trim() || undefined,
+      pollIntervalMs: Math.max(1, Math.min(60, pollMins)) * 60_000,
+    }),
+    saved: () => written.current ?? { enabled: false, pollIntervalMs: 60_000 },
+    write: async (next) => {
+      await window.popbot.settings.set('sentry', next);
+      written.current = next;
+    },
+  });
+  useEffect(() => {
+    if (!loaded) return;
+    written.current = {
+      enabled,
+      authToken: authToken.trim() || undefined,
+      orgSlug: orgSlug.trim() || undefined,
+      projectSlug: projectSlug.trim() || undefined,
+      pollIntervalMs: Math.max(1, Math.min(60, pollMins)) * 60_000,
+    };
+    // Snapshot what the panel loaded, once, so the first blur compares
+    // against it rather than writing unchanged values.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loaded]);
 
   if (!loaded) return <div style={{ padding: 24, color: 'var(--fg-3)' }}>{t('common.loading')}</div>;
 
@@ -2904,7 +2984,7 @@ function PrefsSentry(): JSX.Element {
           <button
             type="button"
             className={`pref-toggle ${enabled ? 'on' : ''}`}
-            onClick={() => setEnabled((v) => !v)}
+            onClick={() => { setEnabled(!enabled); void commit({ enabled: !enabled }); }}
             aria-pressed={enabled}
           >
             <span className="pref-toggle-thumb" />
@@ -2924,6 +3004,8 @@ function PrefsSentry(): JSX.Element {
             placeholder="sntryu_..."
             value={authToken}
             onChange={(e) => setAuthToken(e.target.value)}
+            onBlur={() => void commit()}
+            onKeyDown={blurOnEnter}
             autoComplete="off"
           />
         </div>
@@ -2937,6 +3019,8 @@ function PrefsSentry(): JSX.Element {
             placeholder="my-org"
             value={orgSlug}
             onChange={(e) => setOrgSlug(e.target.value)}
+            onBlur={() => void commit()}
+            onKeyDown={blurOnEnter}
             autoComplete="off"
           />
         </div>
@@ -2950,6 +3034,8 @@ function PrefsSentry(): JSX.Element {
             placeholder={t('prefs.integ.sentry.projectSlug.placeholder')}
             value={projectSlug}
             onChange={(e) => setProjectSlug(e.target.value)}
+            onBlur={() => void commit()}
+            onKeyDown={blurOnEnter}
             autoComplete="off"
           />
         </div>
@@ -2965,6 +3051,8 @@ function PrefsSentry(): JSX.Element {
             max={60}
             value={pollMins}
             onChange={(e) => setPollMins(Number(e.target.value) || 5)}
+            onBlur={() => void commit()}
+            onKeyDown={blurOnEnter}
             style={{ width: 80 }}
           />
           <span style={{ color: 'var(--fg-3)' }}>{t('common.minutes')}</span>
@@ -2997,9 +3085,6 @@ function PrefsSentry(): JSX.Element {
             onClick={() => void onTest()}
           >
             {busy ? t('prefs.integ.testing') : t('prefs.integ.testConnection')}
-          </button>
-          <button className="btn primary sm" disabled={busy} onClick={() => void onSave()}>
-            {busy ? t('common.saving') : t('common.save')}
           </button>
         </div>
       </div>
@@ -3052,18 +3137,30 @@ function PrefsSlack(): JSX.Element {
     }
   };
 
-  const onSave = async (): Promise<void> => {
-    setBusy(true);
-    try {
-      await window.popbot.settings.set('slack', {
-        enabled,
-        token: token.trim() || undefined,
-        pollIntervalMs: Math.max(1, Math.min(10, pollMins)) * 60_000,
-      } satisfies SlackUiSettings);
-    } finally {
-      setBusy(false);
-    }
-  };
+  // Written when a field is left; the switch writes at once. The saved
+  // twin is what was last written (this panel loads its own copy).
+  const written = useRef<SlackUiSettings | null>(null);
+  const commit = useAutoCommit<SlackUiSettings>({
+    draft: () => ({
+      enabled,
+      token: token.trim() || undefined,
+      pollIntervalMs: Math.max(1, Math.min(10, pollMins)) * 60_000,
+    }),
+    saved: () => written.current ?? { enabled: false, pollIntervalMs: 60_000 },
+    write: async (next) => {
+      await window.popbot.settings.set('slack', next);
+      written.current = next;
+    },
+  });
+  useEffect(() => {
+    if (!loaded) return;
+    written.current = {
+      enabled,
+      token: token.trim() || undefined,
+      pollIntervalMs: Math.max(1, Math.min(10, pollMins)) * 60_000,
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loaded]);
 
   if (!loaded) return <div style={{ padding: 24, color: 'var(--fg-3)' }}>{t('common.loading')}</div>;
 
@@ -3090,7 +3187,7 @@ function PrefsSlack(): JSX.Element {
           <button
             type="button"
             className={`pref-toggle ${enabled ? 'on' : ''}`}
-            onClick={() => setEnabled((v) => !v)}
+            onClick={() => { setEnabled(!enabled); void commit({ enabled: !enabled }); }}
             aria-pressed={enabled}
           >
             <span className="pref-toggle-thumb" />
@@ -3110,6 +3207,8 @@ function PrefsSlack(): JSX.Element {
             placeholder="xoxp-..."
             value={token}
             onChange={(e) => setToken(e.target.value)}
+            onBlur={() => void commit()}
+            onKeyDown={blurOnEnter}
             autoComplete="off"
           />
         </div>
@@ -3125,6 +3224,8 @@ function PrefsSlack(): JSX.Element {
             max={10}
             value={pollMins}
             onChange={(e) => setPollMins(Number(e.target.value) || 1)}
+            onBlur={() => void commit()}
+            onKeyDown={blurOnEnter}
             style={{ width: 80 }}
           />
           <span style={{ color: 'var(--fg-3)' }}>{t('common.minutes')}</span>
@@ -3158,9 +3259,6 @@ function PrefsSlack(): JSX.Element {
           >
             {busy ? t('prefs.integ.testing') : t('prefs.integ.testConnection')}
           </button>
-          <button className="btn primary sm" disabled={busy} onClick={() => void onSave()}>
-            {busy ? t('common.saving') : t('common.save')}
-          </button>
         </div>
       </div>
     </div>
@@ -3185,8 +3283,6 @@ function PrefsNotifications(): JSX.Element {
   // state on first open even when no value was ever persisted.
   const [centerFly, setCenterFly] = useState(true);
   const [loaded, setLoaded] = useState(false);
-  const [busy, setBusy] = useState(false);
-  const [savedAt, setSavedAt] = useState<number | null>(null);
 
   useEffect(() => {
     void window.popbot.settings.get<NotificationsUiSettings>('notifications').then((s) => {
@@ -3196,23 +3292,25 @@ function PrefsNotifications(): JSX.Element {
     });
   }, []);
 
-  const onSave = async (): Promise<void> => {
-    setBusy(true);
-    try {
-      const vips = vipsText.split('\n').map((s) => s.trim()).filter(Boolean);
-      await window.popbot.settings.set('notifications', {
-        vips,
-        centerFly,
-      } satisfies NotificationsUiSettings);
-      setSavedAt(Date.now());
+  // The list writes when its editor is left; the switch writes at once.
+  const written = useRef<NotificationsUiSettings | null>(null);
+  const commit = useAutoCommit<NotificationsUiSettings>({
+    draft: () => ({ vips: vipsText.split('\n').map((s) => s.trim()).filter(Boolean), centerFly }),
+    saved: () => written.current ?? { vips: [], centerFly: true },
+    write: async (next) => {
+      await window.popbot.settings.set('notifications', next);
+      written.current = next;
       // Tell the live App to refetch the notifications prefs so the
       // toast placement / bell pulse reflect the new setting without
       // requiring a reload.
       globalThis.dispatchEvent(new CustomEvent('popbot:notifications-prefs-changed'));
-    } finally {
-      setBusy(false);
-    }
-  };
+    },
+  });
+  useEffect(() => {
+    if (!loaded) return;
+    written.current = { vips: vipsText.split('\n').map((s) => s.trim()).filter(Boolean), centerFly };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loaded]);
 
   if (!loaded) return <div style={{ padding: 24, color: 'var(--fg-3)' }}>{t('common.loading')}</div>;
 
@@ -3230,6 +3328,7 @@ function PrefsNotifications(): JSX.Element {
             placeholder={t('prefs.notify.vipPlaceholder')}
             value={vipsText}
             onChange={(e) => setVipsText(e.target.value)}
+            onBlur={() => void commit()}
             rows={6}
             style={{ width: '100%', fontFamily: 'var(--font-mono)', fontSize: 12, resize: 'vertical' }}
             spellCheck={false}
@@ -3244,18 +3343,8 @@ function PrefsNotifications(): JSX.Element {
               type="checkbox"
               checked={centerFly}
               onChange={(e) => {
-                const next = e.target.checked;
-                setCenterFly(next);
-                // Save + broadcast immediately so the toggle takes
-                // effect without requiring a separate Save click.
-                // The vips list comes along for the ride so we don't
-                // overwrite it with stale defaults.
-                const vips = vipsText.split('\n').map((s) => s.trim()).filter(Boolean);
-                void window.popbot.settings.set('notifications', {
-                  vips,
-                  centerFly: next,
-                } satisfies NotificationsUiSettings);
-                globalThis.dispatchEvent(new CustomEvent('popbot:notifications-prefs-changed'));
+                setCenterFly(e.target.checked);
+                void commit({ centerFly: e.target.checked });
               }}
             />
             <span>{t('prefs.notify.centerFly.label')}</span>
@@ -3263,20 +3352,6 @@ function PrefsNotifications(): JSX.Element {
           <p style={{ margin: 0, fontSize: 12, color: 'var(--fg-3)', maxWidth: 480 }}>
             {t('prefs.notify.centerFly.desc')}
           </p>
-        </div>
-      </div>
-
-      <div className="pref-row">
-        <div className="pref-label" />
-        <div className="pref-control" style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-          {savedAt && (
-            <span className="pill done">
-              <i className="fa-solid fa-circle-check" /> {t('prefs.notify.savedPill')}
-            </span>
-          )}
-          <button className="btn primary sm" disabled={busy} onClick={() => void onSave()}>
-            {busy ? t('common.saving') : t('common.save')}
-          </button>
         </div>
       </div>
 

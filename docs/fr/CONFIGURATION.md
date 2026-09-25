@@ -1,6 +1,6 @@
 # Configurer PopBot
 
-Tout dans PopBot est configuré dans l'application via les **Préférences** (l'icône d'engrenage dans la barre de titre, ou `⌘,`) — il n'y a aucun fichier de configuration à modifier à la main. Ce guide parcourt chaque panneau dans l'ordre où la navigation les liste, ce qui est à peu près l'ordre dans lequel vous les configureriez la première fois.
+Tout dans PopBot est configuré dans l'application via les **Préférences** (l'icône d'engrenage dans la barre de titre, ou `⌘,`) — il n'y a aucun fichier de configuration à modifier à la main. Ce guide parcourt chaque panneau dans l'ordre où la navigation les liste, ce qui est à peu près l'ordre dans lequel vous les configureriez la première fois. Il n'y a aucun bouton Enregistrer : un champ est enregistré dès que vous le quittez (ou appuyez sur Entrée), un interrupteur dès que vous le basculez, et fermer les Préférences enregistre ce qui reste en attente.
 
 > Les identifiants que vous saisissez (Linear, Jira, GitHub, Perforce, etc.) sont stockés **localement sur votre machine** dans la base de données propre à l'application — jamais dans ce dépôt.
 
@@ -22,7 +22,7 @@ Un seul tracker d'issues actif alimente la file d'attente Tickets. Choisissez-le
 - **Jira** — saisissez l'URL de votre site (`https://your-domain.atlassian.net`), l'email du compte, et un jeton API (depuis *id.atlassian.com → Security → API tokens*). Cadrez optionnellement à un **Projet** et ajoutez un filtre **JQL** (par ex. `labels = backend`). Sauvegarder vérifie les identifiants avant de les conserver.
 - **GitHub** — les GitHub Issues n'ont besoin d'aucun identifiant ici : le fournisseur délègue à la CLI `gh` que vous avez déjà authentifiée pour les revues et les actions git, et la file d'attente couvre les mêmes dépôts configurés sous [Dépôts](#dépôts). Le formulaire est une vérification de statut qui confirme que `gh` est installé et authentifié et rapporte combien de dépôts il couvre.
 
-Chaque tracker avec des identifiants les vérifie à la **Sauvegarde** avant de les conserver, et affiche une pastille de statut *Connecté / Non connecté*.
+Chaque tracker avec des identifiants les vérifie dès que vous quittez un champ d'identifiant, les enregistre dans tous les cas et affiche une pastille de statut *Connecté / Non connecté* avec le verdict.
 
 ### Moteurs de jeu
 

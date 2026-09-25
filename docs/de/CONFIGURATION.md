@@ -1,6 +1,6 @@
 # PopBot konfigurieren
 
-Alles in PopBot wird in-app über **Preferences** konfiguriert (das Zahnrad in der Titelleiste, oder `⌘,`) — es gibt keine Config-Dateien zum Hand-Editieren. Dieser Guide führt durch jedes Panel in der Reihenfolge, in der die Navigation sie auflistet, was ungefähr der Reihenfolge entspricht, in der ihr sie beim ersten Mal einrichten würdet.
+Alles in PopBot wird in-app über **Preferences** konfiguriert (das Zahnrad in der Titelleiste, oder `⌘,`) — es gibt keine Config-Dateien zum Hand-Editieren. Dieser Guide führt durch jedes Panel in der Reihenfolge, in der die Navigation sie auflistet, was ungefähr der Reihenfolge entspricht, in der ihr sie beim ersten Mal einrichten würdet. Nirgends gibt es einen Speichern-Knopf: Ein Feld wird gespeichert, sobald du es verlässt (oder Enter drückst), ein Schalter, sobald du ihn umlegst, und beim Schließen der Einstellungen wird gespeichert, was noch aussteht.
 
 > Credentials, die ihr eingebt (Linear, Jira, GitHub, Perforce usw.), werden **lokal auf eurer Maschine** in der eigenen Datenbank der App gespeichert — niemals in diesem Repository.
 
@@ -22,7 +22,7 @@ Ein einzelner aktiver Issue-Tracker speist die Tickets-Queue. Wählt ihn aus dem
 - **Jira** — gebt eure Site-URL ein (`https://your-domain.atlassian.net`), die Account-E-Mail und ein API-Token (von *id.atlassian.com → Security → API tokens*). Optional auf ein **Project** begrenzen und einen **JQL**-Filter hinzufügen (z. B. `labels = backend`). Speichern verifiziert die Credentials, bevor sie persistiert werden.
 - **GitHub** — GitHub Issues brauchen hier keine Credentials: der Provider ruft die bereits für Reviews und Git-Aktionen authentifizierte `gh`-CLI auf, und die Queue umspannt dieselben Repositories, die unter [Repositories](#repositories) konfiguriert sind. Das Formular ist ein Status-Check, der bestätigt, dass `gh` installiert und authentifiziert ist, und berichtet, wie viele Repos es abdeckt.
 
-Jeder Tracker mit Credentials verifiziert sie bei **Save**, bevor sie persistiert werden, und zeigt eine *Connected / Not connected*-Status-Pille.
+Jeder Tracker mit Credentials verifiziert sie, sobald du ein Credential-Feld verlässt, speichert sie in jedem Fall und zeigt eine *Connected / Not connected*-Status-Pille mit dem Ergebnis.
 
 ### Game-Engines
 

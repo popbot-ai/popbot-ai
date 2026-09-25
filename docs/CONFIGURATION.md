@@ -1,6 +1,6 @@
 # Configuring PopBot
 
-Everything in PopBot is configured in-app through **Preferences** (the gear in the title bar, or `⌘,`) — there are no config files to hand-edit. This guide walks through every panel in the order the nav lists them, which is roughly the order you'd set them up for the first time.
+Everything in PopBot is configured in-app through **Preferences** (the gear in the title bar, or `⌘,`) — there are no config files to hand-edit. This guide walks through every panel in the order the nav lists them, which is roughly the order you'd set them up for the first time. There is no Save button anywhere: a field is saved the moment you leave it (or press Enter), a switch the moment you flip it, and closing Preferences saves whatever is still pending.
 
 > Credentials you enter (Linear, Jira, GitHub, Perforce, etc.) are stored **locally on your machine** in the app's own database — never in this repository.
 
@@ -22,7 +22,7 @@ A single active issue tracker feeds the Tickets queue. Pick it from the selector
 - **Jira** — enter your site URL (`https://your-domain.atlassian.net`), the account email, and an API token (from *id.atlassian.com → Security → API tokens*). Optionally scope to a **Project** and add a **JQL** filter (e.g. `labels = backend`). Saving verifies the credentials before persisting them.
 - **GitHub** — GitHub Issues need no credentials here: the provider shells out to the `gh` CLI you've already authenticated for reviews and git actions, and the queue spans the same repositories configured under [Repositories](#repositories). The form is a status check that confirms `gh` is installed and authenticated and reports how many repos it covers.
 
-Each tracker with credentials verifies them on **Save** before persisting, and shows a *Connected / Not connected* status pill.
+Each tracker with credentials verifies them as soon as you leave a credential field, saves them either way, and shows a *Connected / Not connected* status pill with the verdict.
 
 ### Game engines
 

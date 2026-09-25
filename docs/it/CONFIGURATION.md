@@ -1,6 +1,6 @@
 # Configurare PopBot
 
-Tutto in PopBot viene configurato all'interno dell'app tramite **Preferenze** (l'icona a ingranaggio nella barra del titolo, o `⌘,`) — non ci sono file di configurazione da modificare manualmente. Questa guida percorre ogni pannello nell'ordine in cui compaiono nella nav, che corrisponde grosso modo all'ordine in cui li configureresti la prima volta.
+Tutto in PopBot viene configurato all'interno dell'app tramite **Preferenze** (l'icona a ingranaggio nella barra del titolo, o `⌘,`) — non ci sono file di configurazione da modificare manualmente. Questa guida percorre ogni pannello nell'ordine in cui compaiono nella nav, che corrisponde grosso modo all'ordine in cui li configureresti la prima volta. Non c'è nessun pulsante Salva: un campo viene salvato appena lo lasci (o premi Invio), un interruttore appena lo cambi, e chiudendo le Preferenze viene salvato ciò che è ancora in sospeso.
 
 > Le credenziali che inserisci (Linear, Jira, GitHub, Perforce, ecc.) sono memorizzate **localmente sulla tua macchina** nel database dell'app — mai in questo repository.
 
@@ -22,7 +22,7 @@ Un unico issue tracker attivo alimenta la coda Ticket. Selezionalo dal menu in c
 - **Jira** — inserisci l'URL del tuo sito (`https://your-domain.atlassian.net`), l'email dell'account e un token API (da *id.atlassian.com → Security → API tokens*). Facoltativamente limita a un **Project** e aggiungi un filtro **JQL** (es. `labels = backend`). Il salvataggio verifica le credenziali prima di renderle persistenti.
 - **GitHub** — GitHub Issues non richiede credenziali qui: il provider si appoggia alla CLI `gh` che hai già autenticato per le review e le azioni git, e la coda copre gli stessi repository configurati in [Repository](#repository). Il modulo è un controllo di stato che conferma che `gh` sia installato e autenticato e riporta quanti repository copre.
 
-Ogni tracker con credenziali le verifica al **Save** prima di renderle persistenti, e mostra un indicatore *Connected / Not connected*.
+Ogni tracker con credenziali le verifica appena lasci un campo delle credenziali, le salva in ogni caso e mostra un indicatore *Connected / Not connected* con l'esito.
 
 ### Motori di gioco
 

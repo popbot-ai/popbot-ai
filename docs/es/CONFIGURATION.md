@@ -1,6 +1,6 @@
 # Configurar PopBot
 
-Todo en PopBot se configura dentro de la aplicación a través de **Preferencias** (el engranaje en la barra de título, o `⌘,`) — no hay archivos de configuración para editar a mano. Esta guía recorre cada panel en el orden en que los lista la navegación, que es aproximadamente el orden en que los configurarías la primera vez.
+Todo en PopBot se configura dentro de la aplicación a través de **Preferencias** (el engranaje en la barra de título, o `⌘,`) — no hay archivos de configuración para editar a mano. Esta guía recorre cada panel en el orden en que los lista la navegación, que es aproximadamente el orden en que los configurarías la primera vez. No hay ningún botón Guardar: un campo se guarda en cuanto lo abandonas (o pulsas Intro), un interruptor en cuanto lo cambias, y al cerrar Preferencias se guarda lo que quede pendiente.
 
 > Las credenciales que ingreses (Linear, Jira, GitHub, Perforce, etc.) se almacenan **localmente en tu máquina** en la propia base de datos de la aplicación — nunca en este repositorio.
 
@@ -22,7 +22,7 @@ Un único rastreador de issues activo alimenta la cola de Tickets. Elígelo desd
 - **Jira** — ingresa la URL de tu sitio (`https://your-domain.atlassian.net`), el correo de la cuenta, y un token de API (desde *id.atlassian.com → Security → API tokens*). Opcionalmente delimita a un **Proyecto** y añade un filtro **JQL** (por ejemplo, `labels = backend`). Guardar verifica las credenciales antes de persistirlas.
 - **GitHub** — GitHub Issues no necesita credenciales aquí: el proveedor invoca el CLI `gh` que ya autenticaste para revisiones y acciones de git, y la cola abarca los mismos repositorios configurados en [Repositorios](#repositorios). El formulario es una verificación de estado que confirma que `gh` está instalado y autenticado y reporta cuántos repositorios cubre.
 
-Cada rastreador con credenciales las verifica al **Guardar** antes de persistirlas, y muestra una píldora de estado de *Conectado / No conectado*.
+Cada rastreador con credenciales las verifica en cuanto abandonas un campo de credenciales, las guarda en cualquier caso y muestra una píldora de estado *Conectado / No conectado* con el resultado.
 
 ### Motores de videojuegos
 
