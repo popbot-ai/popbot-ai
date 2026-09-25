@@ -1425,10 +1425,15 @@ export const ja = {
   'prefs.repos.wizard.agentCwd.desc': 'エージェントが起動するワークスペースルート配下のパス（/ はルート自体）。/depot/PopBotGame のようなサブパスにすると、リポジトリにコミットされた .claude/skills を Claude が検出できます。',
   // --- What's-new popup (WhatsNewDialog.tsx) — update each release ---
   'whatsNew.title': 'PopBot の新機能',
-  'whatsNew.f1.h': 'Claude Fable 5.1 と GPT-6 Astra',
-  'whatsNew.f1.p': 'Anthropic と OpenAI の最新フロンティアモデルがモデル選択に加わりました。どちらも提供が限定されているためオプトインです。既存のチャットは現在のモデルを維持し、既定は引き続き Opus 5 と GPT-5.6 Sol です。',
-  'whatsNew.f2.h': 'コンテキストゲージ、圧縮、そして整理しやすいワークスペース',
-  'whatsNew.f2.p': '入力エリアのリングでコンテキストウィンドウの使用量を確認でき、ワンクリックで圧縮できます。サムネイルをドラッグしてチャットを並べ替え、列のタイトルをクリックして名前を変更でき、RE-REVIEW は実際に再レビューするまで表示され続けます。',
+  'whatsNew.f1.h': '他のマシンでチャットを実行',
+  'whatsNew.f1.p':
+    '環境設定 ▸ ホストにホスト（popbot-host を動かしているマシン、または公開コンテナ）を追加し、チャット作成時に「実行場所」で選びます。エージェント、ツール、チェックアウトはそのホストのスロットプールで動き、トランスクリプト、検索、設定はここに残ります。ホストタブには各マシンのスロットとチャットが表示されます。',
+  'whatsNew.f2.h': 'Anthropic Managed Agents のクラウドチャット',
+  'whatsNew.f2.p':
+    'Cloud チップをオンにすると、チャットは API キーで課金される Anthropic のクラウドサンドボックスで実行されます。GitHub からブランチをクローンしてプッシュし返し、PopBot を終了しても動き続け、戻ってきたときに追いつきます。終了させるのは「クラウドチャットを終了」だけです。',
+  'whatsNew.f3.h': 'Claude Opus 5.5 など、多数',
+  'whatsNew.f3.p':
+    'Opus 5.5 がモデル選択にオプトインとして追加されました。既定は変わりません。エージェントは PopBot 自身のツールで PopBot を操作し、送信元を明示して互いにメッセージを送れます。全文検索がすべてのチャットを対象にし、ツール呼び出しはタイムラインを描き、チャットはフォークでき、アプリ内でサインインでき、設定は自動で保存されます（保存ボタンなし）。',
   'whatsNew.gotIt': 'OK',
   // --- Auto-update prompts (persisted via the notification system) ---
   'app.update.restartAction': '再起動してインストール',

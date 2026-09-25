@@ -12,7 +12,7 @@ interface WhatsNewDialogProps {
  * `whatsNew.lastSeenVersion` setting).
  *
  * The feature copy lives in i18n under stable keys (`whatsNew.f1.*`,
- * `whatsNew.f2.*`) — each release, update those strings in every locale
+ * `whatsNew.f2.*`, `whatsNew.f3.*`) — each release, update those strings in every locale
  * with the one or two headline features; the dialog itself stays put.
  */
 export function WhatsNewDialog({ version, onClose }: WhatsNewDialogProps): JSX.Element {
@@ -30,12 +30,16 @@ export function WhatsNewDialog({ version, onClose }: WhatsNewDialogProps): JSX.E
         </div>
         <div className="modal-body about-body">
           <div className="whatsnew-feature">
-            <h3><i className="fa-solid fa-wand-magic-sparkles" aria-hidden /> {t('whatsNew.f1.h')}</h3>
+            <h3><i className="fa-solid fa-server" aria-hidden /> {t('whatsNew.f1.h')}</h3>
             <p>{t('whatsNew.f1.p')}</p>
           </div>
           <div className="whatsnew-feature">
-            <h3><i className="fa-solid fa-bolt" aria-hidden /> {t('whatsNew.f2.h')}</h3>
+            <h3><i className="fa-solid fa-cloud" aria-hidden /> {t('whatsNew.f2.h')}</h3>
             <p>{t('whatsNew.f2.p')}</p>
+          </div>
+          <div className="whatsnew-feature">
+            <h3><i className="fa-solid fa-wand-magic-sparkles" aria-hidden /> {t('whatsNew.f3.h')}</h3>
+            <p>{t('whatsNew.f3.p')}</p>
           </div>
         </div>
         <div className="modal-foot">

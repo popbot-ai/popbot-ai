@@ -108,10 +108,15 @@ export const en = {
   // one or two headline features. Keys stay stable; only the copy changes.
   // ---------------------------------------------------------------------------
   'whatsNew.title': 'What’s new in PopBot',
-  'whatsNew.f1.h': 'Claude Fable 5.1 and GPT-6 Astra',
-  'whatsNew.f1.p': 'Anthropic’s and OpenAI’s newest frontier models are in the model picker. Both are limited-availability launches, so they’re opt-in: your chats keep their model, and Opus 5 and GPT-5.6 Sol stay the defaults.',
-  'whatsNew.f2.h': 'Context gauge, compaction, and a tidier workspace',
-  'whatsNew.f2.p': 'A ring in the composer shows how full the context window is, with one-click compaction. Drag thumbnails to re-arrange chats, click a column title to rename it, and RE-REVIEW now stays until you actually re-review.',
+  'whatsNew.f1.h': 'Run chats on other machines',
+  'whatsNew.f1.p':
+    'Add a host in Preferences ▸ Hosts — any box running popbot-host, or the published container — and pick it under Run on when you start a chat. The agent, its tools and the checkout live there, in the host’s own slot pool; the transcript, search and settings stay here. A Hosts tab shows every machine’s slots and chats.',
+  'whatsNew.f2.h': 'Cloud chats on Anthropic Managed Agents',
+  'whatsNew.f2.p':
+    'Switch on the Cloud chip and the chat runs in an Anthropic cloud sandbox billed to your API key: it clones your branch from GitHub, pushes back to it, keeps working after PopBot quits, and catches up when you return. Shut down cloud chat is the only thing that ends it.',
+  'whatsNew.f3.h': 'Claude Opus 5.5, and a lot more',
+  'whatsNew.f3.p':
+    'Opus 5.5 is in the model picker as an opt-in; your defaults do not change. Agents drive PopBot through its own tools and message each other with clear attribution, full-text search covers every chat, tool calls draw a timeline, chats can be forked, you sign in from inside the app, and settings save themselves — no Save buttons.',
   'whatsNew.gotIt': 'Got it',
 
   // ---------------------------------------------------------------------------

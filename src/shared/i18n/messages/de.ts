@@ -1426,10 +1426,15 @@ export const de = {
   'prefs.repos.wizard.agentCwd.desc': 'Pfad unter dem Arbeitsbereich-Stammverzeichnis, in dem der Agent startet (/ = das Stammverzeichnis selbst). Ein Unterpfad wie /depot/PopBotGame lässt Claude dort eingecheckte .claude/skills finden.',
   // --- What's-new popup (WhatsNewDialog.tsx) — update each release ---
   'whatsNew.title': 'Neu in PopBot',
-  'whatsNew.f1.h': 'Claude Fable 5.1 und GPT-6 Astra',
-  'whatsNew.f1.p': 'Die neuesten Spitzenmodelle von Anthropic und OpenAI stehen in der Modellauswahl. Beide sind nur eingeschränkt verfügbar und deshalb Opt-in: deine Chats behalten ihr Modell, und Opus 5 und GPT-5.6 Sol bleiben die Standards.',
-  'whatsNew.f2.h': 'Kontextanzeige, Komprimierung und ein aufgeräumterer Arbeitsbereich',
-  'whatsNew.f2.p': 'Ein Ring im Eingabebereich zeigt, wie voll das Kontextfenster ist — mit Komprimierung per Klick. Ziehe Vorschaubilder, um Chats neu anzuordnen, klicke auf einen Spaltentitel, um ihn umzubenennen, und RE-REVIEW bleibt jetzt, bis du wirklich erneut reviewst.',
+  'whatsNew.f1.h': 'Chats auf anderen Rechnern ausführen',
+  'whatsNew.f1.p':
+    'Füge unter Einstellungen ▸ Hosts einen Host hinzu – jede Maschine mit popbot-host oder den veröffentlichten Container – und wähle ihn beim Anlegen eines Chats unter Ausführen auf. Agent, Tools und Checkout laufen dort im eigenen Slot-Pool des Hosts; Transkript, Suche und Einstellungen bleiben hier. Ein Tab Hosts zeigt die Slots und Chats jeder Maschine.',
+  'whatsNew.f2.h': 'Cloud-Chats auf Anthropic Managed Agents',
+  'whatsNew.f2.p':
+    'Schalte den Cloud-Chip ein, und der Chat läuft in einer Anthropic-Cloud-Sandbox, abgerechnet über deinen API-Key: Er klont deinen Branch von GitHub, pusht dorthin zurück, arbeitet nach dem Beenden von PopBot weiter und holt bei deiner Rückkehr alles nach. Nur Cloud-Chat beenden beendet ihn.',
+  'whatsNew.f3.h': 'Claude Opus 5.5 und vieles mehr',
+  'whatsNew.f3.p':
+    'Opus 5.5 steht als Opt-in im Modell-Picker; deine Standards ändern sich nicht. Agents steuern PopBot über eigene Tools und schreiben einander mit klarer Absenderangabe, die Volltextsuche durchsucht jeden Chat, Tool-Aufrufe zeichnen eine Zeitleiste, Chats lassen sich abzweigen, du meldest dich in der App an, und Einstellungen speichern sich selbst – keine Speichern-Buttons.',
   'whatsNew.gotIt': 'Verstanden',
   // --- Auto-update prompts (persisted via the notification system) ---
   'app.update.restartAction': 'Neu starten und installieren',

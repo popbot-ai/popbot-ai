@@ -1411,10 +1411,15 @@ export const zhCN = {
   'prefs.repos.wizard.agentCwd.desc': '代理启动所在的工作区根目录下的路径（/ 表示根目录本身）。设为 /depot/PopBotGame 之类的子路径可让 Claude 找到仓库中提交的 .claude/skills。',
   // --- What's-new popup (WhatsNewDialog.tsx) — update each release ---
   'whatsNew.title': 'PopBot 新功能',
-  'whatsNew.f1.h': 'Claude Fable 5.1 与 GPT-6 Astra',
-  'whatsNew.f1.p': 'Anthropic 和 OpenAI 最新的前沿模型已加入模型选择器。两者目前都仅限量提供，因此需要手动选用：现有对话保留原模型，默认仍是 Opus 5 和 GPT-5.6 Sol。',
-  'whatsNew.f2.h': '上下文仪表、压缩，以及更整洁的工作区',
-  'whatsNew.f2.p': '输入区的环形仪表显示上下文窗口的占用情况，并支持一键压缩。拖动缩略图即可重新排列对话，点击列标题即可重命名，RE-REVIEW 现在会一直保留，直到你真正重新审查。',
+  'whatsNew.f1.h': '在其他机器上运行对话',
+  'whatsNew.f1.p':
+    '在偏好设置 ▸ 主机中添加主机（任何运行 popbot-host 的机器，或已发布的容器），新建对话时在“运行位置”中选择它。智能体、工具和检出在主机自己的卡槽池中运行；对话记录、搜索和设置留在这里。主机标签显示每台机器的卡槽和对话。',
+  'whatsNew.f2.h': 'Anthropic Managed Agents 云端对话',
+  'whatsNew.f2.p':
+    '打开 Cloud 标记，对话就在按你的 API 密钥计费的 Anthropic 云沙箱中运行：从 GitHub 克隆你的分支并推送回去，PopBot 退出后继续工作，回来时补上错过的内容。只有“关闭云端对话”才会结束它。',
+  'whatsNew.f3.h': 'Claude Opus 5.5，以及更多',
+  'whatsNew.f3.p':
+    'Opus 5.5 已加入模型选择器，按需选用；默认设置不变。智能体通过 PopBot 自己的工具驱动 PopBot，并带着清晰的来源互相发消息；全文搜索覆盖所有对话，工具调用绘制时间线，对话可以分叉，可在应用内登录，设置自动保存——没有保存按钮。',
   'whatsNew.gotIt': '知道了',
   // --- Auto-update prompts (persisted via the notification system) ---
   'app.update.restartAction': '重启并安装',

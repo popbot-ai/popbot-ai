@@ -1428,10 +1428,15 @@ export const pl = {
   'language.systemNote': 'Nowe okna i menu aplikacji również będą używać tego języka.',
   // --- What's-new popup (WhatsNewDialog.tsx) — update each release ---
   'whatsNew.title': 'Co nowego w PopBot',
-  'whatsNew.f1.h': 'Claude Fable 5.1 i GPT-6 Astra',
-  'whatsNew.f1.p': 'Najnowsze modele frontier od Anthropic i OpenAI są w wyborze modelu. Oba to premiery o ograniczonej dostępności, więc są opcjonalne: twoje czaty zachowują swój model, a Opus 5 i GPT-5.6 Sol pozostają domyślne.',
-  'whatsNew.f2.h': 'Wskaźnik kontekstu, kompaktowanie i porządek w obszarze roboczym',
-  'whatsNew.f2.p': 'Pierścień w polu wpisywania pokazuje, jak zapełnione jest okno kontekstu, z kompaktowaniem jednym kliknięciem. Przeciągaj miniatury, aby zmieniać kolejność czatów, kliknij tytuł kolumny, aby zmienić nazwę, a RE-REVIEW pozostaje teraz, dopóki naprawdę nie przejrzysz ponownie.',
+  'whatsNew.f1.h': 'Uruchamiaj czaty na innych maszynach',
+  'whatsNew.f1.p':
+    'Dodaj host w Ustawieniach ▸ Hosty – dowolną maszynę z popbot-host albo opublikowany kontener – i wybierz go w polu Uruchom na przy tworzeniu czatu. Agent, jego narzędzia i checkout działają tam, w puli slotów hosta; transkrypcja, wyszukiwanie i ustawienia zostają tutaj. Zakładka Hosty pokazuje sloty i czaty każdej maszyny.',
+  'whatsNew.f2.h': 'Czaty w chmurze na Anthropic Managed Agents',
+  'whatsNew.f2.p':
+    'Włącz chip Cloud, a czat działa w chmurowym sandboksie Anthropic rozliczanym z Twojego klucza API: klonuje Twoją gałąź z GitHuba, wypycha do niej zmiany, pracuje dalej po zamknięciu PopBota i nadrabia zaległości po Twoim powrocie. Kończy go tylko Zakończ czat w chmurze.',
+  'whatsNew.f3.h': 'Claude Opus 5.5 i dużo więcej',
+  'whatsNew.f3.p':
+    'Opus 5.5 jest w wyborze modeli jako opcja; Twoje domyślne ustawienia się nie zmieniają. Agenci sterują PopBotem własnymi narzędziami i piszą do siebie z czytelnym nadawcą, wyszukiwanie pełnotekstowe obejmuje każdy czat, wywołania narzędzi rysują oś czasu, czaty można rozgałęziać, logujesz się z aplikacji, a ustawienia zapisują się same – bez przycisków Zapisz.',
   'whatsNew.gotIt': 'Rozumiem',
   // --- Auto-update prompts (persisted via the notification system) ---
   'app.update.restartAction': 'Uruchom ponownie i zainstaluj',

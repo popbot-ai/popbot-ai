@@ -1412,10 +1412,15 @@ export const ko = {
   'prefs.repos.wizard.agentCwd.desc': '에이전트가 시작하는 작업 공간 루트 아래 경로입니다(/ = 루트 자체). /depot/PopBotGame 같은 하위 경로로 지정하면 저장소에 커밋된 .claude/skills를 Claude가 찾을 수 있습니다.',
   // --- What's-new popup (WhatsNewDialog.tsx) — update each release ---
   'whatsNew.title': 'PopBot의 새로운 기능',
-  'whatsNew.f1.h': 'Claude Fable 5.1 및 GPT-6 Astra',
-  'whatsNew.f1.p': 'Anthropic과 OpenAI의 최신 프런티어 모델이 모델 선택기에 추가되었습니다. 둘 다 제한적으로 제공되므로 직접 선택해야 합니다. 기존 채팅은 현재 모델을 유지하며, 기본값은 여전히 Opus 5와 GPT-5.6 Sol입니다.',
-  'whatsNew.f2.h': '컨텍스트 게이지, 압축, 더 정돈된 작업 공간',
-  'whatsNew.f2.p': '입력 영역의 링이 컨텍스트 창이 얼마나 찼는지 보여주고, 한 번의 클릭으로 압축할 수 있습니다. 썸네일을 드래그해 채팅 순서를 바꾸고, 열 제목을 클릭해 이름을 바꿀 수 있으며, RE-REVIEW는 실제로 다시 검토할 때까지 유지됩니다.',
+  'whatsNew.f1.h': '다른 컴퓨터에서 채팅 실행',
+  'whatsNew.f1.p':
+    '환경설정 ▸ 호스트에 호스트(popbot-host를 실행하는 컴퓨터 또는 공개된 컨테이너)를 추가하고, 채팅을 만들 때 실행 위치에서 고르세요. 에이전트, 도구, 체크아웃은 그 호스트의 슬롯 풀에서 실행되고 대화 기록, 검색, 설정은 여기에 남습니다. 호스트 탭은 각 컴퓨터의 슬롯과 채팅을 보여 줍니다.',
+  'whatsNew.f2.h': 'Anthropic Managed Agents 클라우드 채팅',
+  'whatsNew.f2.p':
+    'Cloud 칩을 켜면 채팅이 API 키로 과금되는 Anthropic 클라우드 샌드박스에서 실행됩니다. GitHub에서 브랜치를 클론해 다시 푸시하고, PopBot을 종료해도 계속 작동하며, 돌아오면 놓친 내용을 따라잡습니다. 클라우드 채팅 종료만이 이를 끝냅니다.',
+  'whatsNew.f3.h': 'Claude Opus 5.5, 그리고 더 많은 것',
+  'whatsNew.f3.p':
+    'Opus 5.5가 모델 선택기에 옵션으로 추가되었습니다. 기본값은 바뀌지 않습니다. 에이전트가 PopBot 자체 도구로 PopBot을 조작하고 출처를 명확히 밝히며 서로 메시지를 보내고, 전체 텍스트 검색이 모든 채팅을 다루며, 도구 호출이 타임라인을 그리고, 채팅을 포크할 수 있고, 앱 안에서 로그인하며, 설정은 저장 버튼 없이 저절로 저장됩니다.',
   'whatsNew.gotIt': '확인',
   // --- Auto-update prompts (persisted via the notification system) ---
   'app.update.restartAction': '다시 시작하고 설치',

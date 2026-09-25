@@ -1431,10 +1431,15 @@ export const it = {
   'language.systemNote': 'Anche le nuove finestre e il menu dell’app usano questa lingua.',
   // --- What's-new popup (WhatsNewDialog.tsx) — update each release ---
   'whatsNew.title': 'Novità di PopBot',
-  'whatsNew.f1.h': 'Claude Fable 5.1 e GPT-6 Astra',
-  'whatsNew.f1.p': 'I modelli di frontiera più recenti di Anthropic e OpenAI sono nel selettore dei modelli. Entrambi sono lanci a disponibilità limitata, quindi opzionali: le tue chat mantengono il loro modello, e Opus 5 e GPT-5.6 Sol restano i predefiniti.',
-  'whatsNew.f2.h': 'Indicatore di contesto, compattazione e uno spazio di lavoro più ordinato',
-  'whatsNew.f2.p': 'Un anello nell’area di composizione mostra quanto è piena la finestra di contesto, con compattazione in un clic. Trascina le miniature per riordinare le chat, fai clic sul titolo di una colonna per rinominarla, e RE-REVIEW ora resta finché non rivedi davvero.',
+  'whatsNew.f1.h': 'Esegui chat su altre macchine',
+  'whatsNew.f1.p':
+    'Aggiungi un host in Preferenze ▸ Host — qualsiasi macchina con popbot-host, o il container pubblicato — e sceglilo in Esegui su quando crei una chat. Agente, strumenti e checkout stanno lì, nel pool di slot dell’host; trascrizione, ricerca e impostazioni restano qui. Una scheda Host mostra slot e chat di ogni macchina.',
+  'whatsNew.f2.h': 'Chat cloud su Anthropic Managed Agents',
+  'whatsNew.f2.p':
+    'Attiva il chip Cloud e la chat gira in una sandbox cloud di Anthropic addebitata alla tua chiave API: clona il tuo branch da GitHub, vi fa push, continua a lavorare dopo la chiusura di PopBot e recupera tutto al tuo ritorno. Solo Arresta la chat cloud la termina.',
+  'whatsNew.f3.h': 'Claude Opus 5.5 e molto altro',
+  'whatsNew.f3.p':
+    'Opus 5.5 è nel selettore dei modelli come opzione; i tuoi predefiniti non cambiano. Gli agenti guidano PopBot con i suoi strumenti e si scrivono con attribuzione chiara, la ricerca full-text copre ogni chat, le chiamate agli strumenti disegnano una timeline, le chat si possono biforcare, accedi dall’app e le impostazioni si salvano da sole: niente pulsanti Salva.',
   'whatsNew.gotIt': 'Capito',
   // --- Auto-update prompts (persisted via the notification system) ---
   'app.update.restartAction': 'Riavvia e installa',

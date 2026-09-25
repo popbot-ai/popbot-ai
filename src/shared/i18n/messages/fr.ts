@@ -1435,10 +1435,15 @@ export const fr = {
   'prefs.repos.wizard.agentCwd.desc': 'Chemin sous la racine de l’espace de travail où l’agent démarre (/ = la racine elle-même). Un sous-chemin comme /depot/PopBotGame permet à Claude d’y découvrir les .claude/skills du dépôt.',
   // --- What's-new popup (WhatsNewDialog.tsx) — update each release ---
   'whatsNew.title': 'Nouveautés de PopBot',
-  'whatsNew.f1.h': 'Claude Fable 5.1 et GPT-6 Astra',
-  'whatsNew.f1.p': 'Les tout derniers modèles de pointe d’Anthropic et d’OpenAI sont dans le sélecteur de modèles. Tous deux sont des lancements à disponibilité limitée, donc facultatifs : vos conversations gardent leur modèle, et Opus 5 et GPT-5.6 Sol restent les modèles par défaut.',
-  'whatsNew.f2.h': 'Jauge de contexte, compactage et un espace de travail plus net',
-  'whatsNew.f2.p': 'Un anneau dans la zone de saisie indique le remplissage de la fenêtre de contexte, avec compactage en un clic. Glissez les vignettes pour réorganiser les conversations, cliquez sur le titre d’une colonne pour la renommer, et RE-REVIEW reste affiché tant que vous n’avez pas vraiment relu.',
+  'whatsNew.f1.h': 'Exécutez des conversations sur d’autres machines',
+  'whatsNew.f1.p':
+    'Ajoutez un hôte dans Préférences ▸ Hôtes — n’importe quelle machine qui fait tourner popbot-host, ou le conteneur publié — et choisissez-le sous Exécuter sur à la création d’une conversation. L’agent, ses outils et le checkout vivent là-bas, dans le pool de slots de l’hôte ; la transcription, la recherche et les réglages restent ici. Un onglet Hôtes montre les slots et conversations de chaque machine.',
+  'whatsNew.f2.h': 'Conversations cloud sur Anthropic Managed Agents',
+  'whatsNew.f2.p':
+    'Activez la puce Cloud et la conversation s’exécute dans un bac à sable cloud Anthropic facturé sur votre clé API : elle clone votre branche depuis GitHub, y pousse ses commits, continue après la fermeture de PopBot et rattrape le retard à votre retour. Seul Arrêter la conversation cloud y met fin.',
+  'whatsNew.f3.h': 'Claude Opus 5.5, et bien plus',
+  'whatsNew.f3.p':
+    'Opus 5.5 est dans le sélecteur de modèles en option ; vos réglages par défaut ne changent pas. Les agents pilotent PopBot avec ses propres outils et s’écrivent avec une attribution claire, la recherche plein texte couvre toutes les conversations, les appels d’outils dessinent une chronologie, les conversations se dupliquent, vous vous connectez depuis l’application, et les réglages s’enregistrent d’eux-mêmes — sans bouton Enregistrer.',
   'whatsNew.gotIt': 'Compris',
   // --- Auto-update prompts (persisted via the notification system) ---
   'app.update.restartAction': 'Redémarrer et installer',

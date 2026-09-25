@@ -1427,10 +1427,15 @@ export const ptBR = {
   'prefs.repos.wizard.agentCwd.desc': 'Caminho sob a raiz do espaço de trabalho onde o agente inicia (/ = a própria raiz). Um subcaminho como /depot/PopBotGame permite que o Claude descubra ali os .claude/skills do repositório.',
   // --- What's-new popup (WhatsNewDialog.tsx) — update each release ---
   'whatsNew.title': 'Novidades do PopBot',
-  'whatsNew.f1.h': 'Claude Fable 5.1 e GPT-6 Astra',
-  'whatsNew.f1.p': 'Os modelos de fronteira mais recentes da Anthropic e da OpenAI estão no seletor de modelos. Ambos são lançamentos de disponibilidade limitada, portanto opcionais: seus chats mantêm o modelo atual, e Opus 5 e GPT-5.6 Sol continuam como padrão.',
-  'whatsNew.f2.h': 'Medidor de contexto, compactação e um espaço de trabalho mais organizado',
-  'whatsNew.f2.p': 'Um anel na área de composição mostra o quanto a janela de contexto está cheia, com compactação em um clique. Arraste as miniaturas para reordenar os chats, clique no título de uma coluna para renomeá-la, e o RE-REVIEW agora permanece até que você realmente revise de novo.',
+  'whatsNew.f1.h': 'Rode chats em outras máquinas',
+  'whatsNew.f1.p':
+    'Adicione um host em Preferências ▸ Hosts — qualquer máquina rodando o popbot-host, ou o contêiner publicado — e escolha-o em Executar em ao criar um chat. O agente, suas ferramentas e o checkout ficam lá, no pool de slots do host; a transcrição, a busca e as configurações ficam aqui. Uma aba Hosts mostra os slots e chats de cada máquina.',
+  'whatsNew.f2.h': 'Chats na nuvem com Anthropic Managed Agents',
+  'whatsNew.f2.p':
+    'Ligue o chip Cloud e o chat roda num sandbox na nuvem da Anthropic cobrado na sua chave de API: clona seu branch do GitHub, faz push de volta, continua trabalhando depois que o PopBot fecha e se atualiza quando você volta. Só Encerrar chat na nuvem o termina.',
+  'whatsNew.f3.h': 'Claude Opus 5.5 e muito mais',
+  'whatsNew.f3.p':
+    'O Opus 5.5 está no seletor de modelos como opção; seus padrões não mudam. Agentes comandam o PopBot pelas próprias ferramentas e trocam mensagens com atribuição clara, a busca de texto completo cobre todos os chats, chamadas de ferramentas desenham uma linha do tempo, chats podem ser bifurcados, você faz login de dentro do app e as configurações se salvam sozinhas — sem botões Salvar.',
   'whatsNew.gotIt': 'Entendi',
   // --- Auto-update prompts (persisted via the notification system) ---
   'app.update.restartAction': 'Reiniciar e instalar',
