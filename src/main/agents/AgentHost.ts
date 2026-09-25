@@ -2311,12 +2311,21 @@ class AgentHostImpl {
     text: string,
     timeoutMs: number,
     origin?: CrossChatOrigin,
-  ): Promise<{ outcome: 'replied' | 'timeout' | 'needs-permission' | 'errored'; messages: MessageRecord[] }> {
+  ): Promise<{
+    outcome: 'replied' | 'timeout' | 'needs-permission' | 'errored';
+    messages: MessageRecord[];
+    /** What went wrong in the other chat when the outcome is `errored`
+     *  (its last error event), so the caller can tell a sign-in that
+     *  expired there from a failure of its own. */
+    reason: string | null;
+  }> {
     const since = Date.now();
     let settle: (outcome: 'replied' | 'timeout' | 'needs-permission' | 'errored') => void = () => undefined;
     const done = new Promise<'replied' | 'timeout' | 'needs-permission' | 'errored'>((resolve) => { settle = resolve; });
+    let reason: string | null = null;
     const off = this.onEvent((event) => {
       if (event.chatId !== chatId) return;
+      if (event.type === 'error') reason = event.message;
       if (event.type === 'permission-request') settle('needs-permission');
       else if (event.type === 'session-status' && event.status === 'errored') settle('errored');
       else if (
@@ -2333,6 +2342,7 @@ class AgentHostImpl {
       return {
         outcome,
         messages: listMessages(chatId).filter((m) => m.createdAt >= since && m.role !== 'user'),
+        reason: outcome === 'errored' ? reason : null,
       };
     } finally {
       clearTimeout(timer);

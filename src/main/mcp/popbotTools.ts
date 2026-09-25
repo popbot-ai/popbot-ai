@@ -248,12 +248,23 @@ export function createPopbotToolHandlers(): PopbotToolHandlers {
         sendInBackground(chatId, text, origin);
         return { outcome: 'sent', reply: '', entries: 0 };
       }
-      const { outcome, messages } = await AgentHost.sendAndWait(chatId, text, timeoutSeconds * 1000, origin);
+      const { outcome, messages, reason } = await AgentHost.sendAndWait(chatId, text, timeoutSeconds * 1000, origin);
       const entries = transcriptEntries(messages, { includeTools: false });
       const reply = entries.filter((e) => e.role === 'agent').map((e) => e.text).join('\n\n')
         || entries.map((e) => e.text).join('\n');
-      dlog('mcp.popbot.sendToChat', { by: caller, chatId, outcome, replyChars: reply.length });
-      return { outcome, reply, entries: messages.length };
+      dlog('mcp.popbot.sendToChat', { by: caller, chatId, outcome, replyChars: reply.length, reason });
+      // The message was delivered whatever the outcome; an error is the
+      // other chat's agent failing to run (its sign-in, its CLI), which
+      // its owner fixes there — say so, or the caller reads it as this
+      // tool failing.
+      return {
+        outcome,
+        reply,
+        entries: messages.length,
+        ...(outcome === 'errored'
+          ? { reason: `delivered, but the agent in chat ${chatId} failed to run its turn${reason ? `: ${reason}` : ''}. That chat's owner has to fix it there (its sign-in or CLI); resending will not help.` }
+          : {}),
+      };
     },
 
     async startCodeReview({ prNumber, scm }, caller) {
