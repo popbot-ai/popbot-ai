@@ -533,6 +533,8 @@ export const zhCN = {
   'chat.cloud.shutdownNone': '这个对话没有正在运行的云端会话。',
   'chat.cloud.shutdownConfirm': '现在关闭云端会话？若仍在工作会先中断。未推送的内容会丢失。你的下一条消息会开始一个带有本对话上下文的新会话。',
   'chat.cloud.shutdownConfirmBranch': '现在关闭云端会话？若仍在工作会先中断。未推送到 {branch} 的内容会丢失。你的下一条消息会开始一个带有本对话上下文的新会话。',
+  'chat.crossAgent.from': '来自对话“{name}”的智能体',
+  'chat.crossAgent.waiting': '正在等待你的回复',
   'chat.app.terminal': '终端',
   'chat.app.editor': '编辑器',
   'chat.app.unity': 'Unity',

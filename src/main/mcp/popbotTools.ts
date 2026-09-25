@@ -7,7 +7,7 @@
  */
 import { homedir } from 'node:os';
 import type { CreateChatInput, CreateChatResult } from '@shared/ipc';
-import {
+import { type CrossChatOrigin,
   CLAUDE_REASONING_EFFORTS,
   DEFAULT_CLAUDE_REASONING_EFFORT,
   DEFAULT_CODEX_REASONING_EFFORT,
@@ -37,7 +37,6 @@ import { activeTicketSource } from '../tickets/registry';
 import type { ChatSummary, PopbotToolHandlers, ToolFailure } from './server';
 import { searchTranscripts } from '../search/transcriptSearch';
 import { renderTranscript, transcriptEntries } from './transcript';
-import { attributeCrossChatMessage } from './crossChat';
 
 const CLOSED_LOOKBACK = 500;
 
@@ -149,8 +148,8 @@ function priorityLabel(p: number): string {
   return ({ 1: 'urgent', 2: 'high', 3: 'med', 4: 'low' } as Record<number, string>)[p] ?? '';
 }
 
-function sendInBackground(chatId: string, text: string): void {
-  void AgentHost.send(chatId, text).catch((err) => {
+function sendInBackground(chatId: string, text: string, origin?: CrossChatOrigin): void {
+  void AgentHost.send(chatId, text, undefined, origin).catch((err) => {
     dlog('mcp.popbot.send-failed', { chatId, error: err instanceof Error ? err.message : String(err) });
   });
 }
@@ -235,16 +234,20 @@ export function createPopbotToolHandlers(): PopbotToolHandlers {
       const chat = getChat(chatId);
       if (!chat) return fail(`no chat ${chatId}`);
       if (!isOpen(chatId)) return fail(`chat ${chatId} is closed; reopen it first`);
-      // The message lands as a user turn in the other chat: say who it is
-      // from and how to answer, or that agent takes it for its own user's.
+      // The message lands as a user turn in the other chat: the origin
+      // on the row shows it in a cross-agent box, and the agent gets an
+      // attribution saying who it is from and how to answer.
       const senderId = caller ?? '';
-      const senderName = (caller && getChat(caller)?.name) || senderId || 'another chat';
-      const attributed = attributeCrossChatMessage(text, { id: senderId, name: senderName }, waitForReply);
+      const origin: CrossChatOrigin = {
+        chatId: senderId,
+        chatName: (caller && getChat(caller)?.name) || senderId || 'another chat',
+        waiting: waitForReply,
+      };
       if (!waitForReply) {
-        sendInBackground(chatId, attributed);
+        sendInBackground(chatId, text, origin);
         return { outcome: 'sent', reply: '', entries: 0 };
       }
-      const { outcome, messages } = await AgentHost.sendAndWait(chatId, attributed, timeoutSeconds * 1000);
+      const { outcome, messages } = await AgentHost.sendAndWait(chatId, text, timeoutSeconds * 1000, origin);
       const entries = transcriptEntries(messages, { includeTools: false });
       const reply = entries.filter((e) => e.role === 'agent').map((e) => e.text).join('\n\n')
         || entries.map((e) => e.text).join('\n');

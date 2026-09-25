@@ -514,6 +514,8 @@ export const en = {
     'Shut down the cloud session now? It is interrupted first if it is still working. Anything not pushed is lost. Your next message starts a new session, primed with this conversation.',
   'chat.cloud.shutdownConfirmBranch':
     'Shut down the cloud session now? It is interrupted first if it is still working. Anything not pushed to {branch} is lost. Your next message starts a new session, primed with this conversation.',
+  'chat.crossAgent.from': 'From the agent in chat “{name}”',
+  'chat.crossAgent.waiting': 'waiting for your reply',
   'chat.app.terminal': 'Terminal',
   'chat.app.editor': 'Editor',
   'chat.app.unity': 'Unity',

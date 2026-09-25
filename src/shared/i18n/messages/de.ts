@@ -535,6 +535,8 @@ export const de = {
     'Die Cloud-Session jetzt herunterfahren? Läuft sie noch, wird sie zuerst unterbrochen. Alles nicht Gepushte geht verloren. Deine nächste Nachricht startet eine neue Session, vorbereitet mit diesem Gespräch.',
   'chat.cloud.shutdownConfirmBranch':
     'Die Cloud-Session jetzt herunterfahren? Läuft sie noch, wird sie zuerst unterbrochen. Alles, was nicht nach {branch} gepusht wurde, geht verloren. Deine nächste Nachricht startet eine neue Session, vorbereitet mit diesem Gespräch.',
+  'chat.crossAgent.from': 'Vom Agenten in Chat „{name}“',
+  'chat.crossAgent.waiting': 'wartet auf deine Antwort',
   'chat.app.terminal': 'Terminal',
   'chat.app.editor': 'Editor',
   'chat.app.unity': 'Unity',

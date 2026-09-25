@@ -19,6 +19,7 @@ import {
   type ClaudeReasoningEffort,
   type CloudChatInfo,
   type CodexModelId,
+  type CrossChatOrigin,
   type CodexReasoningEffort,
   type CodexSettings,
   type MessageBodyPermission,
@@ -49,6 +50,7 @@ import { getRepo } from '../persistence/repos';
 import { dlog } from '../diagLog';
 import { getClaudeBinaryPath } from './claudeProbe';
 import { popbotMcpUrlForChat } from '../mcp/registry';
+import { attributeCrossChatMessage } from '../mcp/crossChat';
 import { getSetting, setSetting } from '../persistence/settings';
 import { appendMessage, getMessage, listMessages, updateMessageBody } from '../persistence/messages';
 import { listSessions, type SDKSessionInfo } from '@anthropic-ai/claude-agent-sdk';
@@ -449,8 +451,11 @@ class AgentHostImpl {
     setSetting(AgentHostImpl.FORK_NOTES_KEY, rest);
   }
 
-  /** Send a user message to a chat. Spawns a session if none exists. */
-  async send(chatId: string, text: string, attachments?: PickedAttachment[]): Promise<void> {
+  /** Send a user message to a chat. Spawns a session if none exists.
+   *  `origin` marks a message relayed from another chat's agent: the
+   *  row keeps the origin (the chat shows a cross-agent box) and the
+   *  agent gets the text with an attribution in front of it. */
+  async send(chatId: string, text: string, attachments?: PickedAttachment[], origin?: CrossChatOrigin): Promise<void> {
     const chat = getChat(chatId);
     if (!chat) throw new Error(`send: chat ${chatId} not found`);
     // A new instruction ends the stopped state. Failures from this turn are
@@ -515,8 +520,12 @@ class AgentHostImpl {
       body: {
         text,
         ...(storedAttachments.length > 0 ? { attachments: storedAttachments } : {}),
+        ...(origin ? { from: origin } : {}),
       } satisfies MessageBodyText,
     });
+    const wireText = origin
+      ? attributeCrossChatMessage(text, { id: origin.chatId, name: origin.chatName }, origin.waiting)
+      : text;
     updateChatStatus(chatId, 'run', text.slice(0, 140));
 
     // Broadcast the user message so the renderer sees it immediately —
@@ -546,7 +555,7 @@ class AgentHostImpl {
         : '';
       // The preamble (if any) rides on the first message to the agent only; it
       // is intentionally absent from the persisted/broadcast user bubble above.
-      await session.sendUser(preamble + contextBridge + text, storedAttachments);
+      await session.sendUser(preamble + contextBridge + wireText, storedAttachments);
       // Advance only THIS provider's watermark. The other provider remains
       // behind until it is selected and receives its own transcript bridge.
       setChatProviderContextAt(chatId, provider, userMsg.updatedAt);
@@ -2222,6 +2231,7 @@ class AgentHostImpl {
     chatId: string,
     text: string,
     timeoutMs: number,
+    origin?: CrossChatOrigin,
   ): Promise<{ outcome: 'replied' | 'timeout' | 'needs-permission' | 'errored'; messages: MessageRecord[] }> {
     const since = Date.now();
     let settle: (outcome: 'replied' | 'timeout' | 'needs-permission' | 'errored') => void = () => undefined;
@@ -2239,7 +2249,7 @@ class AgentHostImpl {
     });
     const timer = setTimeout(() => settle('timeout'), timeoutMs);
     try {
-      await this.send(chatId, text);
+      await this.send(chatId, text, undefined, origin);
       const outcome = await done;
       return {
         outcome,

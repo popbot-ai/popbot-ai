@@ -535,6 +535,8 @@ export const fr = {
     'Arrêter la session cloud maintenant ? Si elle travaille encore, elle est d’abord interrompue. Tout ce qui n’a pas été poussé est perdu. Votre prochain message démarrera une nouvelle session, amorcée avec cette conversation.',
   'chat.cloud.shutdownConfirmBranch':
     'Arrêter la session cloud maintenant ? Si elle travaille encore, elle est d’abord interrompue. Tout ce qui n’a pas été poussé sur {branch} est perdu. Votre prochain message démarrera une nouvelle session, amorcée avec cette conversation.',
+  'chat.crossAgent.from': 'De l’agent de la conversation « {name} »',
+  'chat.crossAgent.waiting': 'attend votre réponse',
   'chat.app.terminal': 'Terminal',
   'chat.app.editor': 'Éditeur',
   'chat.app.unity': 'Unity',

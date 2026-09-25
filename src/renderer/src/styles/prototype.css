@@ -1710,6 +1710,31 @@ input, textarea { font: inherit; color: inherit; background: none; border: 0; ou
 }
 .msg .stamp { font-size: 10px; color: var(--fg-3); padding: 0 4px; }
 
+/* A message from another chat's agent (the popbot send_to_chat tool):
+   its own box, so it is never mistaken for this chat's user. A teal
+   tint and a header naming the sending chat set it apart from both
+   the user bubble (blue) and agent prose (bare). */
+.msg.cross-agent { align-items: flex-start; }
+.msg.cross-agent .body {
+  background: rgba(79, 193, 193, 0.08);
+  border: 1px solid rgba(79, 193, 193, 0.35);
+  border-left-width: 3px;
+  border-radius: 6px;
+  color: var(--fg-0);
+  padding: 6px 10px 8px;
+  max-width: 88%;
+  white-space: normal;
+}
+.cross-agent-head {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 11px; font-weight: 600; color: #4fc1c1;
+  margin-bottom: 4px;
+}
+.cross-agent-head i { font-size: 10px; }
+.cross-agent-waiting {
+  margin-left: auto; font-weight: 500; color: var(--fg-3);
+}
+
 /* Tool call block */
 /* Tool calls — lightweight inline status row, no boxy frame.
    Emulates Claude Code in VS Code: a single line with a dot, the tool

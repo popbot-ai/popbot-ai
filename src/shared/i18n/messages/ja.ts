@@ -535,6 +535,8 @@ export const ja = {
     'クラウドセッションを今すぐ停止しますか？作業中なら先に中断されます。プッシュしていないものは失われます。次のメッセージで、この会話を引き継いだ新しいセッションが始まります。',
   'chat.cloud.shutdownConfirmBranch':
     'クラウドセッションを今すぐ停止しますか？作業中なら先に中断されます。{branch} にプッシュしていないものは失われます。次のメッセージで、この会話を引き継いだ新しいセッションが始まります。',
+  'chat.crossAgent.from': 'チャット「{name}」のエージェントから',
+  'chat.crossAgent.waiting': '返答を待っています',
   'chat.app.terminal': 'ターミナル',
   'chat.app.editor': 'エディター',
   'chat.app.unity': 'Unity',

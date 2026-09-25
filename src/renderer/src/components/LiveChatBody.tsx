@@ -109,6 +109,7 @@ const MD_COMPONENTS: Components = {
   code: MarkdownCode,
 };
 import type {
+  CrossChatOrigin,
   ChatAttachment,
   MessageBodyPermission,
   MessageBodyText,
@@ -792,6 +793,11 @@ function MessageRowImpl({ message, renderAsQuestion, chain, isStale, consumed, q
         return <CompactFailedRow error={body.text.replace(/^compactfail:\s*/i, '').trim()} />;
       }
     }
+    // A message another chat's agent sent through the popbot tools: its
+    // own box, headed by the sending chat, never the user bubble.
+    if (message.role === 'user' && body.from) {
+      return <CrossAgentRow from={body.from} text={body.text} />;
+    }
     const cls = message.role === 'user' ? 'msg user' : 'msg agent';
     return (
       <div className={cls}>
@@ -941,6 +947,27 @@ function ChatForkRow({ text }: { text: string }): JSX.Element {
       <div className="body">
         <i className="fa-solid fa-code-fork" aria-hidden="true" />
         <span>{text}</span>
+      </div>
+    </div>
+  );
+}
+
+/** A message relayed from another chat's agent (send_to_chat). The
+ *  header names the chat it came from; the body is the agent's text,
+ *  rendered as markdown like any agent prose. */
+function CrossAgentRow({ from, text }: { from: CrossChatOrigin; text: string }): JSX.Element {
+  const { t } = useTranslation();
+  return (
+    <div className="msg cross-agent">
+      <div className="body">
+        <div className="cross-agent-head">
+          <i className="fa-solid fa-robot" aria-hidden="true" />
+          <span>{t('chat.crossAgent.from', { name: from.chatName })}</span>
+          {from.waiting && <span className="cross-agent-waiting">{t('chat.crossAgent.waiting')}</span>}
+        </div>
+        <div className="prose">
+          <ReactMarkdown remarkPlugins={[remarkGfm]} components={MD_COMPONENTS}>{text}</ReactMarkdown>
+        </div>
       </div>
     </div>
   );

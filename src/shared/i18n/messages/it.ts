@@ -487,6 +487,8 @@ export const it = {
     'Spegnere la sessione cloud adesso? Se sta ancora lavorando viene prima interrotta. Tutto ciò che non è stato pushato va perso. Il tuo prossimo messaggio avvierà una nuova sessione, preparata con questa conversazione.',
   'chat.cloud.shutdownConfirmBranch':
     'Spegnere la sessione cloud adesso? Se sta ancora lavorando viene prima interrotta. Tutto ciò che non è stato pushato su {branch} va perso. Il tuo prossimo messaggio avvierà una nuova sessione, preparata con questa conversazione.',
+  'chat.crossAgent.from': 'Dall’agente della chat “{name}”',
+  'chat.crossAgent.waiting': 'attende la tua risposta',
   'chat.app.terminal': 'Terminale',
   'chat.app.editor': 'Editor',
   'chat.app.unity': 'Unity',

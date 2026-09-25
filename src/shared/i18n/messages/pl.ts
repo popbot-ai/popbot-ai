@@ -488,6 +488,8 @@ export const pl = {
     'Wyłączyć sesję w chmurze teraz? Jeśli wciąż pracuje, najpierw zostanie przerwana. Wszystko, co nie zostało wypchnięte, przepadnie. Twoja następna wiadomość rozpocznie nową sesję przygotowaną na podstawie tej rozmowy.',
   'chat.cloud.shutdownConfirmBranch':
     'Wyłączyć sesję w chmurze teraz? Jeśli wciąż pracuje, najpierw zostanie przerwana. Wszystko, co nie zostało wypchnięte na {branch}, przepadnie. Twoja następna wiadomość rozpocznie nową sesję przygotowaną na podstawie tej rozmowy.',
+  'chat.crossAgent.from': 'Od agenta w czacie „{name}”',
+  'chat.crossAgent.waiting': 'czeka na Twoją odpowiedź',
   'chat.app.terminal': 'Terminal',
   'chat.app.editor': 'Edytor',
   'chat.app.unity': 'Unity',

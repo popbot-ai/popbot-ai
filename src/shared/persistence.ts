@@ -455,6 +455,17 @@ export interface MessageRecord {
 export interface MessageBodyText {
   text: string;
   attachments?: ChatAttachment[];
+  /** Set on a user-role row that another chat's agent sent through the
+   *  popbot MCP server (send_to_chat): the chat shows it in a
+   *  cross-agent box, not as this chat's user speaking. */
+  from?: CrossChatOrigin;
+}
+
+/** Who sent a relayed message and whether they wait for the reply. */
+export interface CrossChatOrigin {
+  chatId: string;
+  chatName: string;
+  waiting: boolean;
 }
 
 export interface ChatAttachment {

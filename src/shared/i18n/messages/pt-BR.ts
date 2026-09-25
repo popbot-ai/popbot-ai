@@ -535,6 +535,8 @@ export const ptBR = {
     'Desligar a sessão na nuvem agora? Se ainda estiver trabalhando, ela é interrompida antes. Tudo o que não foi enviado é perdido. Sua próxima mensagem inicia uma nova sessão, preparada com esta conversa.',
   'chat.cloud.shutdownConfirmBranch':
     'Desligar a sessão na nuvem agora? Se ainda estiver trabalhando, ela é interrompida antes. Tudo o que não foi enviado para {branch} é perdido. Sua próxima mensagem inicia uma nova sessão, preparada com esta conversa.',
+  'chat.crossAgent.from': 'Do agente do chat “{name}”',
+  'chat.crossAgent.waiting': 'aguardando sua resposta',
   'chat.app.terminal': 'Terminal',
   'chat.app.editor': 'Editor',
   'chat.app.unity': 'Unity',

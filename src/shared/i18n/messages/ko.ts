@@ -535,6 +535,8 @@ export const ko = {
     '클라우드 세션을 지금 종료할까요? 아직 작업 중이면 먼저 중단됩니다. 푸시하지 않은 것은 사라집니다. 다음 메시지가 이 대화를 이어받은 새 세션을 시작합니다.',
   'chat.cloud.shutdownConfirmBranch':
     '클라우드 세션을 지금 종료할까요? 아직 작업 중이면 먼저 중단됩니다. {branch}에 푸시하지 않은 것은 사라집니다. 다음 메시지가 이 대화를 이어받은 새 세션을 시작합니다.',
+  'chat.crossAgent.from': '채팅 “{name}”의 에이전트로부터',
+  'chat.crossAgent.waiting': '답장을 기다리는 중',
   'chat.app.terminal': '터미널',
   'chat.app.editor': '편집기',
   'chat.app.unity': 'Unity',

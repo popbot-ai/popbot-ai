@@ -535,6 +535,8 @@ export const es = {
     '¿Apagar la sesión en la nube ahora? Si aún está trabajando, primero se interrumpe. Todo lo que no se haya subido se pierde. Tu siguiente mensaje iniciará una sesión nueva preparada con esta conversación.',
   'chat.cloud.shutdownConfirmBranch':
     '¿Apagar la sesión en la nube ahora? Si aún está trabajando, primero se interrumpe. Todo lo que no se haya subido a {branch} se pierde. Tu siguiente mensaje iniciará una sesión nueva preparada con esta conversación.',
+  'chat.crossAgent.from': 'Del agente del chat «{name}»',
+  'chat.crossAgent.waiting': 'espera tu respuesta',
   'chat.app.terminal': 'Terminal',
   'chat.app.editor': 'Editor',
   'chat.app.unity': 'Unity',
