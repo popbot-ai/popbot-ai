@@ -320,6 +320,7 @@ export default function App(): JSX.Element {
       branch?: string;
       workspaceMode?: 'slot' | 'repo-root';
       cloud?: boolean;
+      host?: { hostId: string; repoId: string | null; branch: string | null; baseBranch: string | null };
       agentConfig?: AgentCreateConfig;
     }) => void | Promise<void>;
   } | null>(null);
@@ -736,6 +737,8 @@ export default function App(): JSX.Element {
         setNoSlotsOpen(true);
       } else if (result.reason === 'git-not-configured') {
         openPrefsAt('git');
+      } else if (result.reason === 'host-not-found') {
+        openPrefsAt('hosts');
       } else if (result.reason === 'worktree-failed') {
         // eslint-disable-next-line no-console
         console.error('worktree setup failed:', result.message);
@@ -1295,8 +1298,20 @@ export default function App(): JSX.Element {
       allowNoRepo: true,
       allowRepoRoot: type === 'lite',
       showAgentPicker: true,
-      run: async ({ repoId, baseBranch, subject, branch, workspaceMode, cloud, agentConfig }) => {
+      run: async ({ repoId, baseBranch, subject, branch, workspaceMode, cloud, host, agentConfig }) => {
         const name = (subject?.trim() || (type === 'lite' ? t('common.newChat') : t('app.create.newClientTestChat')));
+        // A host chat has no local workspace: the host makes its own
+        // (repo root, worktree or scratch) when the first message arrives.
+        if (host) {
+          await createWithSlot({
+            name,
+            type,
+            repoId: RAW_CHAT_REPO_ID,
+            host,
+            ...agentConfig,
+          });
+          return;
+        }
         // A cloud chat (Claude Code on the web drives the work) can have
         // any of the workspaces below; main pushes a slot's branch for the
         // cloud to clone. Claude only — the dialog enforces it.

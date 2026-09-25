@@ -230,6 +230,41 @@ export interface CloudCache {
  * whenever it is open and lists what it missed on reattach.
  * `sessionId` is null until the first message creates the session.
  */
+/**
+ * A PopBot host: another box running `popbot-host`, which runs the
+ * agent CLIs in its own checkouts for chats whose transcript, search
+ * and settings stay in this desktop's database. The list lives in the
+ * `hosts` table (Preferences ▸ Hosts).
+ */
+export interface HostRecord {
+  id: string;
+  /** Shown in the picker and on the chat's chip. */
+  name: string;
+  /** `http://127.0.0.1:7677` for the local daemon or an SSH tunnel. */
+  url: string;
+  /** Bearer token from the host's config. */
+  token: string;
+  createdAt: number;
+}
+
+/** Where a chat runs when it runs on a host — see {@link HostRecord}. */
+export interface HostChatInfo {
+  hostId: string;
+  /** The host's name when the chat was made, for a chip that outlives
+   *  the host record. */
+  hostName: string;
+  /** A repository id on the host, or null for a scratch folder there. */
+  repoId: string | null;
+  /** The chat's worktree branch on the host; null runs at the repo root. */
+  branch: string | null;
+  baseBranch: string | null;
+  /** The directory the agent runs in on the host, once it has spawned. */
+  cwd: string | null;
+  /** The last frame of the host's event log applied to the transcript;
+   *  a reconnect asks for what came after it. */
+  lastSeq: number;
+}
+
 export interface CloudChatInfo {
   provider: 'anthropic';
   /** `sesn_…` — the Managed Agents session. */
@@ -317,6 +352,8 @@ export interface ChatRecord {
   repoPath: string | null;
   /** Set when this chat is a cloud chat — see {@link CloudChatInfo}. */
   cloud: CloudChatInfo | null;
+  /** Set when this chat runs on a host — see {@link HostChatInfo}. */
+  host: HostChatInfo | null;
   /** Claude SDK session UUID, captured on first message. Passed back
    *  as `resume` so the agent keeps conversation history across opens. */
   sessionId: string | null;

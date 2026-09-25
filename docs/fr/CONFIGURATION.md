@@ -55,6 +55,20 @@ Un effort plus élevé signifie un raisonnement plus profond et un usage d'outil
 
 **Chats cloud** — la *clé API Anthropic* sur laquelle tournent les chats cloud (stockée localement ; à défaut, la variable d'environnement `ANTHROPIC_API_KEY`) et le *jeton GitHub* avec lequel le bac à sable clone les dépôts (portée `repo` ; à défaut, `gh auth token`). Un chat cloud avec dépôt a besoin des deux ; sans dépôt, seule la clé est nécessaire. Enregistrer avec une clé la vérifie d'abord auprès de l'API. Les sessions cloud sont facturées au jeton sur le compte Console de la clé, pas sur un abonnement Claude. À la première utilisation, PopBot crée dans ce compte un environnement et un agent par modèle et effort, puis les réutilise (voir [Exécuter dans le cloud](GUIDE.md#chats)). Une clé au niveau de l'organisation (non créée dans un workspace) a aussi besoin de l'*ID du workspace* (`wrkspc_…`, sur la page Workspaces de la Console) ; la vérification de la clé le signale s'il manque.
 
+## Hôtes
+
+D'autres machines qui exécutent des conversations pour ce PopBot. Chacune fait tourner `popbot-host`, un démon Node en un seul fichier construit depuis ce dépôt :
+
+```sh
+npm run build:host                       # écrit dist-host/popbot-host.cjs
+node dist-host/popbot-host.cjs --init --repo popbot=/chemin/du/checkout
+node dist-host/popbot-host.cjs           # écoute sur 127.0.0.1:7677
+```
+
+`--init` écrit `~/.popbot-host/config.json` (adresse d'écoute, port, un jeton bearer aléatoire, un dossier d'espaces de travail, les dépôts par id et chemin) et affiche le jeton ; modifiez le fichier ou passez `--port`, `--bind`, `--token`, `--name`, `--workspaces` et d'autres options `--repo id=/chemin`. L'hôte a besoin de Node 20 ou plus récent et de la CLI `claude` et/ou `codex` dans son PATH. Il ne copie rien de cette machine et ne garde aucune transcription — seulement les sessions en cours et leur journal d'événements, qu'un PopBot qui se reconnecte rejoue là où il s'était arrêté. Il écoute sur localhost ; joignez une machine distante par un tunnel SSH (`ssh -L 7677:127.0.0.1:7677 machine`) plutôt qu'en exposant le port.
+
+Dans PopBot, *Ajouter un hôte* crée une fiche avec l'adresse locale préremplie ; renseignez le nom, l'URL et le jeton (les champs s'enregistrent quand vous les quittez), et le panneau demande à l'hôte ce qu'il est : sa version, s'il a trouvé Claude et Codex, et ses dépôts. Les worktrees d'un hôte vivent sous son dossier d'espaces de travail (`~/.popbot-host/workspaces/<dépôt>/<branche>`) ; les pièces jointes envoyées y atterrissent sous `attachments/<id de conversation>`. Les règles de permission voyagent avec chaque requête, donc les décisions *Toujours autoriser* s'appliquent de la même façon sur l'hôte. Retirez un hôte et les conversations déjà dessus restent dans la liste mais ne peuvent plus le joindre. Voir [Exécuter sur une autre machine](GUIDE.md#chats).
+
 ## Runtime & slots
 
 Ce panneau contrôle la **rétention des pièces jointes**. (Le dimensionnement du pool de slots est maintenant par dépôt et se trouve sous [Dépôts](#dépôts) — voir la note à cet endroit.)

@@ -55,6 +55,20 @@ PopBot 中的一切都在应用内通过**偏好设置**（标题栏中的齿轮
 
 **云端对话** — 云端对话所用的 *Anthropic API 密钥*（保存在本地；未设置时使用环境变量 `ANTHROPIC_API_KEY`），以及沙盒克隆仓库所用的 *GitHub 令牌*（`repo` 权限；未设置时使用 `gh auth token`）。带仓库的云端对话两者都需要，不带仓库的只需要密钥。填入密钥保存时会先向 API 验证。云端会话按 token 计入该密钥的 Console 账户，而不是 Claude 订阅。首次使用时，PopBot 会在该账户中创建一个环境，并为每个模型和推理强度创建一个智能体，之后复用（见[在云端运行](GUIDE.md#chats)）。组织级密钥（不是在工作区内创建的）还需要*工作区 ID*（`wrkspc_…`，见 Console 的 Workspaces 页面）；缺少时密钥检查会提示。
 
+## 主机
+
+为这个 PopBot 运行对话的其他机器。每台机器运行 `popbot-host`，一个由本仓库构建的单文件 Node 守护进程：
+
+```sh
+npm run build:host                       # 生成 dist-host/popbot-host.cjs
+node dist-host/popbot-host.cjs --init --repo popbot=/path/to/checkout
+node dist-host/popbot-host.cjs           # 监听 127.0.0.1:7677
+```
+
+`--init` 会写入 `~/.popbot-host/config.json`（绑定地址、端口、随机的 bearer 令牌、工作区文件夹、按 id 和路径列出的仓库）并打印令牌；编辑该文件，或传入 `--port`、`--bind`、`--token`、`--name`、`--workspaces` 以及更多 `--repo id=/path` 参数。主机需要 Node 20 或更新版本，以及 PATH 中的 `claude` 和/或 `codex` CLI。它不会从这台机器复制任何东西，也不保存对话记录——只保留运行中的会话及其事件日志，重新连接的 PopBot 会从上次中断处回放。它绑定到 localhost；访问远程机器请使用 SSH 隧道（`ssh -L 7677:127.0.0.1:7677 machine`），而不是暴露端口。
+
+在 PopBot 中，*添加主机* 会创建一条已填入本地地址的记录；设置名称、URL 和令牌（离开字段时自动保存），面板随后会询问主机的信息：版本、是否找到 Claude 和 Codex、以及它的仓库。主机的工作树位于其工作区文件夹下（`~/.popbot-host/workspaces/<repo>/<branch>`）；你发送的附件存放在那边的 `attachments/<对话 id>`。权限规则随每个请求一起传送，因此 *始终允许* 的决定在主机上同样生效。移除主机后，已在其上的对话仍留在列表中，但无法再连接它。参见 [在另一台机器上运行](GUIDE.md#chats)。
+
 ## 运行时与卡槽
 
 此面板控制**附件保留期**。（卡槽池大小现在按仓库单独设置，位于[仓库](#仓库)之下——详见那里的说明。）

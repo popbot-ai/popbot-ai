@@ -6032,3 +6032,40 @@ input.input.mono, select.input.mono { font-family: var(--font-mono); font-size: 
   margin: 10px 0; display: flex; align-items: center; gap: 8px;
   font-size: var(--fs-xs); color: #5fb98a;
 }
+
+/* The host chip: a chat whose agent runs on a PopBot host. Filled once
+   the session has a directory there; outlined before the first
+   message. Same shape as the cloud chip, in the host colour. */
+.host-chip {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 2px 7px; border-radius: 4px; line-height: 1.4;
+  font-size: 10.5px; font-weight: 600; font-family: inherit; letter-spacing: 0.02em;
+  border: 1px solid #6fb1c9; background: #6fb1c9; color: #08161a;
+  cursor: pointer; transition: background 80ms, border-color 80ms, color 80ms, opacity 80ms;
+  max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.host-chip i { font-size: 10px; }
+.host-chip:hover { filter: brightness(1.08); }
+.host-chip.pending { background: transparent; color: #6fb1c9; }
+
+/* Preferences ▸ Hosts: one card per host, fields that save when left. */
+.host-howto {
+  margin: 10px 0 0; padding: 8px 10px; border-radius: 4px;
+  background: var(--bg-3); border: 1px solid var(--line-2);
+  font-family: var(--font-mono); font-size: 11px; line-height: 1.6; color: var(--fg-1);
+  white-space: pre; overflow-x: auto; max-width: 600px;
+}
+.host-card {
+  margin-top: 10px; padding: 10px 12px; border-radius: 6px;
+  border: 1px solid var(--line-2); background: var(--bg-2);
+}
+.host-card-fields {
+  display: grid; gap: 10px;
+  grid-template-columns: minmax(110px, 1fr) minmax(200px, 2fr) minmax(160px, 1.6fr);
+}
+.host-card-field { display: flex; flex-direction: column; gap: 4px; font-size: 11px; color: var(--fg-3); min-width: 0; }
+.host-card-field .pref-input { width: 100%; }
+.host-card-foot { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 8px; }
+.host-card-status { display: inline-flex; align-items: center; gap: 6px; min-width: 0; font-size: 11.5px; color: var(--fg-2); }
+.host-card-status.ok i { color: var(--st-done); }
+.host-card-status.error { color: #e89696; }

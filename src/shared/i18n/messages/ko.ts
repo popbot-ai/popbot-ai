@@ -538,6 +538,13 @@ export const ko = {
     '클라우드 세션을 지금 종료할까요? 아직 작업 중이면 먼저 중단됩니다. 푸시하지 않은 것은 사라집니다. 다음 메시지가 이 대화를 이어받은 새 세션을 시작합니다.',
   'chat.cloud.shutdownConfirmBranch':
     '클라우드 세션을 지금 종료할까요? 아직 작업 중이면 먼저 중단됩니다. {branch}에 푸시하지 않은 것은 사라집니다. 다음 메시지가 이 대화를 이어받은 새 세션을 시작합니다.',
+  'chat.host.chipTitle': '{host}에서 실행 중 · 채팅 설정 열기',
+  'chat.host.chipPendingTitle': '{host}에서 실행 — 세션은 첫 메시지와 함께 시작됩니다.',
+  'chat.host.shutdown': '호스트에서 종료',
+  'chat.host.shutdownConfirm':
+    '{host}의 이 채팅 세션을 지금 종료할까요? 에이전트가 그곳에서 하던 작업이 중단됩니다. 다음 메시지를 보내면 {host}에 새 세션이 시작되어 이 대화를 이어갑니다.',
+  'chat.host.withRepo': '{host} · {repo}',
+  'chat.host.noRepo': '{host} · 저장소 없음',
   'chat.crossAgent.from': '채팅 “{name}”의 에이전트로부터',
   'chat.crossAgent.waiting': '답장을 기다리는 중',
   'chat.app.terminal': '터미널',
@@ -721,6 +728,14 @@ export const ko = {
   'chatSettings.cloudPullDesc':
     '샌드박스는 origin의 채팅 브랜치에 커밋하고 푸시합니다. Pull은 그 커밋을 이 채팅의 체크아웃으로 가져옵니다(fast-forward만).',
   'chatSettings.cloudPull': 'origin에서 Pull',
+  'chatSettings.host': '호스트',
+  'chatSettings.hostDesc': '이 채팅의 에이전트는 다른 컴퓨터에서 실행됩니다. 대화 기록, 검색, 설정은 여기에 있습니다.',
+  'chatSettings.hostName': '호스트',
+  'chatSettings.hostWorkspace': '작업 공간',
+  'chatSettings.hostScratch': '임시 폴더',
+  'chatSettings.hostRoot': '{repo} · 저장소 루트',
+  'chatSettings.hostCwd': '작업 디렉터리',
+  'chatSettings.hostNoCwd': '아직 시작되지 않았습니다. 첫 메시지와 함께 시작됩니다.',
   'chatSettings.tryReconnect': '재연결 시도',
   'chatSettings.reconnectDesc':
     '이 채팅의 워크트리에 대해 저장된 Claude 세션을 선택하세요. 자동 재연결이 잘못된 세션을 선택했고 특정 대화 기록을 강제하려는 경우 유용합니다. 선택한 세션이 고정되고 에이전트가 해당 세션으로 다시 생성됩니다.',
@@ -752,6 +767,8 @@ export const ko = {
   'agent.cloudToggle': '클라우드',
   'agent.cloudToggleTitle':
     '이 채팅을 Anthropic 클라우드 샌드박스(Managed Agents, API 키 과금)에서 실행합니다. PopBot을 종료해도 계속 작업합니다. Claude 전용.',
+  'agent.runOn': '실행 위치',
+  'agent.runOnLocal': '이 컴퓨터',
   'agent.effort': '노력',
 
   // ---------------------------------------------------------------------------
@@ -859,6 +876,15 @@ export const ko = {
   'branch.dialog.cloudGithubNote':
     '샌드박스는 사용자의 GitHub 토큰으로 클론합니다. 환경설정 ▸ 에이전트 ▸ 클라우드 채팅에 저장한 토큰이나 gh가 로그인한 토큰을 사용합니다.',
   'branch.dialog.cloudNoKey': '클라우드 채팅에는 Anthropic API 키가 필요합니다. 환경설정 ▸ 에이전트 ▸ 클라우드 채팅에서 추가하세요.',
+  'branch.dialog.hostLoading': '{host}에 문의 중…',
+  'branch.dialog.hostUnreachable': '{host}에 연결할 수 없습니다: {error}',
+  'branch.dialog.hostRepoLabel': '{host}의 저장소',
+  'branch.dialog.tagHostScratch': '임시 폴더',
+  'branch.dialog.hostNoRepos': '{host}에 아직 저장소가 없습니다. --repo id=/path 옵션으로 시작하세요.',
+  'branch.dialog.hostDescScratch': '저장소 없이 {host}의 임시 폴더에서 실행됩니다. 대화 기록은 여기에 남습니다.',
+  'branch.dialog.hostDescRoot': '{host}의 {repo} 루트에서, 현재 있는 브랜치 그대로 실행됩니다. 대화 기록은 여기에 남습니다.',
+  'branch.dialog.hostDescSlot': '{host}에서 기준 브랜치로부터 만든 위 브랜치의 {repo} 워크트리에서 실행됩니다. 대화 기록은 여기에 남습니다.',
+  'branch.dialog.disabled.host': '{host}을(를) 기다리는 중',
   'branch.dialog.createChat': '채팅 만들기',
 
   // ---------------------------------------------------------------------------
@@ -888,6 +914,7 @@ export const ko = {
   'prefs.search': '환경설정 검색…',
   'prefs.section.integ': '통합',
   'prefs.section.agents': '에이전트',
+  'prefs.section.hosts': '호스트',
   'prefs.section.runtime': '런타임',
   'prefs.section.repos': '저장소',
   'prefs.section.git': '버전 관리',
@@ -936,6 +963,25 @@ export const ko = {
   'prefs.agents.cloud.noGh': 'GitHub: 토큰이 없습니다. 여기에 저장하거나 gh auth login을 실행하세요.',
   'prefs.agents.cloud.ok': '키가 정상 작동합니다.',
   'prefs.agents.cloud.error': '저장했지만 키가 작동하지 않았습니다: {error}',
+  'prefs.hosts.title': '호스트',
+  'prefs.hosts.desc':
+    '이 PopBot의 채팅을 실행하는 다른 컴퓨터입니다. 각 컴퓨터에서 popbot-host를 실행합니다. 빌드한 뒤 dist-host/popbot-host.cjs를 복사하고 --init 옵션으로 한 번 실행하면 설정이 기록되고 토큰이 출력됩니다. 채팅의 대화 기록, 검색, 설정은 여기에 남고 에이전트, 도구, 체크아웃은 그쪽에 있습니다. 원격 컴퓨터는 SSH 터널로 연결합니다: ssh -L 7677:127.0.0.1:7677 machine',
+  'prefs.hosts.none': '아직 호스트가 없습니다. 채팅은 이 컴퓨터에서 실행됩니다.',
+  'prefs.hosts.add': '호스트 추가',
+  'prefs.hosts.defaultName': '새 호스트',
+  'prefs.hosts.name': '이름',
+  'prefs.hosts.url': 'URL',
+  'prefs.hosts.token': '토큰',
+  'prefs.hosts.remove': '제거',
+  'prefs.hosts.removeTitle': '호스트 제거',
+  'prefs.hosts.removeConfirm': '{name}을(를) 제거할까요? 이미 그곳에 있는 채팅은 남지만 더 이상 연결할 수 없습니다.',
+  'prefs.hosts.checking': '확인 중…',
+  'prefs.hosts.ok': 'popbot-host {version} ({platform}) · Claude: {claude} · Codex: {codex} · 저장소: {repos}',
+  'prefs.hosts.okNoRepos': '아직 없음 (--repo id=/path 옵션으로 시작)',
+  'prefs.hosts.error': '연결할 수 없습니다: {error}',
+  'prefs.hosts.found': '있음',
+  'prefs.hosts.missing': '없음',
+  'prefs.hosts.noUrl': 'URL과 토큰을 입력하세요.',
 
   // Preferences — Runtime / attachment retention pane.
   'prefs.runtime.title': '첨부 파일 보존',

@@ -10,7 +10,7 @@ import { join } from 'node:path';
 import type { AgentEvent, PermissionDecision, PermissionRule } from '@shared/agent';
 import { resolvePermissionRules } from '@shared/agent';
 import type { PickedAttachment } from '@shared/ipc';
-import type { HostFrame, HostSendBody, HostSpawnBody } from '@shared/hostProtocol';
+import type { HostFrame, HostRules, HostSendBody, HostSpawnBody, HostSpawnResult } from '@shared/hostProtocol';
 import { ClaudeBackend } from '../main/agents/ClaudeBackend';
 import { CodexBackend } from '../main/agents/CodexBackend';
 import type { AgentSession } from '../main/agents/types';
@@ -29,7 +29,7 @@ type FrameBody = { [K in HostFrame['kind']]: Omit<Extract<HostFrame, { kind: K }
 interface LiveChat {
   session: AgentSession;
   cwd: string;
-  rules: PermissionRule[];
+  rules: HostRules;
   frames: HostFrame[];
   seq: number;
   listeners: Set<(frame: HostFrame) => void>;
@@ -52,7 +52,7 @@ export class HostSessions {
   }
 
   /** Start (or restart) the chat's session. A live one is disposed first. */
-  async spawn(chatId: string, body: HostSpawnBody): Promise<{ cwd: string }> {
+  async spawn(chatId: string, body: HostSpawnBody): Promise<HostSpawnResult> {
     const prior = this.chats.get(chatId);
     if (prior) {
       await prior.session.dispose().catch(() => undefined);
@@ -63,12 +63,14 @@ export class HostSessions {
       // spawn in some paths, so the record exists before it.
       session: null as unknown as AgentSession,
       cwd,
-      rules: body.rules ?? [],
+      rules: normalizeRules(body.rules),
       frames: prior?.frames ?? [],
       seq: prior?.seq ?? 0,
       listeners: prior?.listeners ?? new Set(),
     };
     this.chats.set(chatId, live);
+    // Frames of this session start after this seq.
+    const startSeq = live.seq;
     const backend = body.agent === 'codex' ? CodexBackend : ClaudeBackend;
     const isCodex = body.agent === 'codex';
     live.session = backend.spawn({
@@ -84,11 +86,11 @@ export class HostSessions {
       pathToCodexExecutable: this.cli.codex,
       onEvent: (event: AgentEvent) => this.push(chatId, { kind: 'event', event }),
       onSessionId: (sessionId) => this.push(chatId, { kind: 'session-id', sessionId }),
-      resolveRule: (tool) => resolvePermissionRules(this.chats.get(chatId)?.rules ?? [], tool),
+      resolveRule: (tool) => resolveHostRule(this.chats.get(chatId)?.rules, tool),
     });
     this.push(chatId, { kind: 'spawned', cwd });
-    dlog('host.spawn', { chatId, agent: body.agent, cwd, resume: body.sessionId ?? null });
-    return { cwd };
+    dlog('host.spawn', { chatId, agent: body.agent, cwd, resume: body.sessionId ?? null, startSeq });
+    return { cwd, seq: startSeq };
   }
 
   /** The repo root, a worktree on the chat's branch, or scratch. */
@@ -135,8 +137,8 @@ export class HostSessions {
     return true;
   }
 
-  setRules(chatId: string, rules: PermissionRule[]): void {
-    this.must(chatId).rules = rules;
+  setRules(chatId: string, rules: HostRules | undefined): void {
+    this.must(chatId).rules = normalizeRules(rules);
   }
 
   async dispose(chatId: string): Promise<void> {
@@ -199,6 +201,21 @@ export class HostSessions {
       return { id: `att_${Date.now()}_${i}`, path, name: att.name, sizeBytes: bytes.length, isImage: att.isImage };
     });
   }
+}
+
+/** The chat's rules answer first; the global ones only when they are silent. */
+function resolveHostRule(rules: HostRules | undefined, tool: string): 'allow' | 'deny' | null {
+  if (!rules) return null;
+  return resolvePermissionRules(rules.chat, tool) ?? resolvePermissionRules(rules.global, tool);
+}
+
+function normalizeRules(rules: Partial<HostRules> | PermissionRule[] | undefined): HostRules {
+  // An older desktop sends one flat list; treat it as the chat's.
+  if (Array.isArray(rules)) return { chat: rules, global: [] };
+  return {
+    chat: Array.isArray(rules?.chat) ? rules.chat : [],
+    global: Array.isArray(rules?.global) ? rules.global : [],
+  };
 }
 
 export class HostError extends Error {

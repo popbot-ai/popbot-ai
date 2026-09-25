@@ -9,7 +9,7 @@
  *
  *   GET  /v1/info                          → HostInfo
  *   GET  /v1/repos/:id/branches            → { branches }
- *   POST /v1/chats/:chatId/spawn           HostSpawnBody → { cwd }
+ *   POST /v1/chats/:chatId/spawn           HostSpawnBody → { cwd, seq }
  *   POST /v1/chats/:chatId/send            HostSendBody
  *   POST /v1/chats/:chatId/approve         { permissionId, decision }
  *   POST /v1/chats/:chatId/stop | compact | dispose
@@ -56,13 +56,27 @@ export interface HostSpawnBody {
   claudeReasoningEffort?: ClaudeReasoningEffort | null;
   codexModel?: CodexModelId | null;
   codexReasoningEffort?: CodexReasoningEffort | null;
-  /** The desktop's permission rules for this chat (chat rules first,
-   *  then global), resolved on the host at call time. */
-  rules: PermissionRule[];
+  /** The desktop's permission rules, resolved on the host at call time. */
+  rules: HostRules;
   /** Where the agent runs: a host repo, at its root or in a worktree on
    *  `branch` (created off `baseBranch` if new). Absent: the host's
    *  scratch directory. */
   workspace?: { repoId: string; branch?: string | null; baseBranch?: string | null } | null;
+}
+
+/** Permission rules as the desktop keeps them: the chat's own rules
+ *  answer first, the global ones only when they are silent. */
+export interface HostRules {
+  chat: PermissionRule[];
+  global: PermissionRule[];
+}
+
+/** What spawn answers: where the agent runs, and the event-log seq the
+ *  desktop should read from (`?after=seq`) to see this session's frames
+ *  and none of an earlier session's. */
+export interface HostSpawnResult {
+  cwd: string;
+  seq: number;
 }
 
 export interface HostAttachment {

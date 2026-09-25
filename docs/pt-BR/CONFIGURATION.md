@@ -55,6 +55,20 @@ Mais esforço significa raciocínio mais profundo e uso mais completo de ferrame
 
 **Chats na nuvem** — a *chave de API da Anthropic* com que os chats na nuvem rodam (armazenada localmente; na falta dela, usa-se a variável de ambiente `ANTHROPIC_API_KEY`) e o *token do GitHub* com que o sandbox clona repositórios (escopo `repo`; na falta dele, usa-se `gh auth token`). Um chat na nuvem com repositório precisa dos dois; um sem repositório precisa só da chave. Salvar com uma chave a verifica primeiro na API. As sessões na nuvem são cobradas por token na conta do Console da chave, não em uma assinatura do Claude. No primeiro uso, o PopBot cria nessa conta um ambiente e um agente por modelo e esforço, e depois os reutiliza (veja [Executar na nuvem](GUIDE.md#chats)). Uma chave no nível da organização (não criada dentro de um workspace) também precisa do *ID do workspace* (`wrkspc_…`, da página Workspaces do Console); a verificação da chave avisa quando ele falta.
 
+## Hosts
+
+Outras máquinas que executam chats para este PopBot. Cada uma roda o `popbot-host`, um daemon Node de arquivo único compilado a partir deste repositório:
+
+```sh
+npm run build:host                       # grava dist-host/popbot-host.cjs
+node dist-host/popbot-host.cjs --init --repo popbot=/caminho/do/checkout
+node dist-host/popbot-host.cjs           # escuta em 127.0.0.1:7677
+```
+
+`--init` grava `~/.popbot-host/config.json` (endereço de escuta, porta, um token bearer aleatório, uma pasta de espaços de trabalho, os repositórios por id e caminho) e imprime o token; edite o arquivo ou passe `--port`, `--bind`, `--token`, `--name`, `--workspaces` e mais opções `--repo id=/caminho`. O host precisa do Node 20 ou mais novo e da CLI `claude` e/ou `codex` no PATH. Ele não copia nada desta máquina nem guarda transcrições — apenas as sessões ativas e seu registro de eventos, que um PopBot reconectado reproduz de onde parou. Ele escuta em localhost; alcance uma máquina remota por um túnel SSH (`ssh -L 7677:127.0.0.1:7677 maquina`) em vez de expor a porta.
+
+No PopBot, *Adicionar host* cria um registro com o endereço local preenchido; defina o nome, a URL e o token (os campos salvam ao sair deles) e o painel pergunta ao host o que ele é: sua versão, se encontrou Claude e Codex e seus repositórios. Os worktrees de um host ficam na sua pasta de espaços de trabalho (`~/.popbot-host/workspaces/<repo>/<branch>`); anexos enviados vão para `attachments/<id do chat>` lá. As regras de permissão viajam com cada requisição, então decisões de *Sempre permitir* valem no host da mesma forma. Remova um host e os chats que já estão nele continuam na lista, mas não conseguem mais alcançá-lo. Veja [Executar em outra máquina](GUIDE.md#chats).
+
 ## Runtime e slots
 
 Este painel controla a **retenção de anexos**. (O dimensionamento de pool de slots agora é por repositório e vive em [Repositórios](#repositórios) — veja a nota lá.)

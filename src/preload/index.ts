@@ -23,6 +23,7 @@ import {
   type TranscriptSearchOptions,
   type CreateRepoInput,
   type PopBotApi,
+  type SaveHostInput,
   type SendMessageInput,
   type UpdateRepoInput,
 } from '@shared/ipc';
@@ -254,6 +255,14 @@ const api: PopBotApi = {
     testKey: (apiKey: string, workspaceId?: string) => ipcRenderer.invoke(IpcChannel.CloudTestKey, apiKey, workspaceId),
     pull: (chatId: string) => ipcRenderer.invoke(IpcChannel.CloudPull, chatId),
     shutdown: (chatId: string) => ipcRenderer.invoke(IpcChannel.CloudShutdown, chatId),
+  },
+  hosts: {
+    list: () => ipcRenderer.invoke(IpcChannel.HostsList),
+    save: (input: SaveHostInput) => ipcRenderer.invoke(IpcChannel.HostsSave, input),
+    remove: (id: string) => ipcRenderer.invoke(IpcChannel.HostsRemove, id),
+    probe: (url: string, token: string) => ipcRenderer.invoke(IpcChannel.HostsProbe, url, token),
+    branches: (hostId: string, repoId: string) => ipcRenderer.invoke(IpcChannel.HostsBranches, hostId, repoId),
+    shutdown: (chatId: string) => ipcRenderer.invoke(IpcChannel.HostsShutdown, chatId),
   },
   updates: {
     onAvailable: (handler: (info: UpdateInfo) => void) => {

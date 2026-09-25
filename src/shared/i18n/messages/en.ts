@@ -517,6 +517,13 @@ export const en = {
     'Shut down the cloud session now? It is interrupted first if it is still working. Anything not pushed is lost. Your next message starts a new session, primed with this conversation.',
   'chat.cloud.shutdownConfirmBranch':
     'Shut down the cloud session now? It is interrupted first if it is still working. Anything not pushed to {branch} is lost. Your next message starts a new session, primed with this conversation.',
+  'chat.host.chipTitle': 'Runs on {host} · open the chat settings',
+  'chat.host.chipPendingTitle': 'Runs on {host} — the session starts with your first message.',
+  'chat.host.shutdown': 'Shut down on host',
+  'chat.host.shutdownConfirm':
+    'End this chat’s session on {host} now? Anything the agent is doing there stops. Your next message starts a new session on {host}, resuming this conversation.',
+  'chat.host.withRepo': 'On {host} · {repo}',
+  'chat.host.noRepo': 'On {host} · no repo',
   'chat.crossAgent.from': 'From the agent in chat “{name}”',
   'chat.crossAgent.waiting': 'waiting for your reply',
   'chat.app.terminal': 'Terminal',
@@ -700,6 +707,15 @@ export const en = {
   'chatSettings.cloudPullDesc':
     'The sandbox commits and pushes to the chat’s branch on origin. Pull brings those commits into this chat’s checkout (fast-forward only).',
   'chatSettings.cloudPull': 'Pull from origin',
+  'chatSettings.host': 'Host',
+  'chatSettings.hostDesc':
+    'This chat’s agent runs on another box. The transcript, search and settings live here.',
+  'chatSettings.hostName': 'Host',
+  'chatSettings.hostWorkspace': 'Workspace',
+  'chatSettings.hostScratch': 'scratch folder',
+  'chatSettings.hostRoot': '{repo} · repo root',
+  'chatSettings.hostCwd': 'Working directory',
+  'chatSettings.hostNoCwd': 'Not started yet — it starts with your first message.',
   'chatSettings.tryReconnect': 'Try reconnect',
   'chatSettings.reconnectDesc':
     'Pick a saved Claude session for this chat’s worktree. Useful if auto-reconnect picked the wrong one and you want to force a specific transcript. The picked session will be pinned and the agent re-spawned into it.',
@@ -730,6 +746,8 @@ export const en = {
   'agent.model': 'Model',
   'agent.cloudToggle': 'Cloud',
   'agent.cloudToggleTitle': 'Run this chat in an Anthropic cloud sandbox (Managed Agents, API-key billing) — it keeps working after PopBot quits. Claude only.',
+  'agent.runOn': 'Run on',
+  'agent.runOnLocal': 'This computer',
   'agent.effort': 'Effort',
 
   // ---------------------------------------------------------------------------
@@ -887,6 +905,18 @@ export const en = {
     'The sandbox clones with your GitHub token: the one saved in Preferences ▸ Agents ▸ Cloud chats, or the one gh is signed in with.',
   'branch.dialog.cloudNoKey':
     'Cloud chats need an Anthropic API key. Add one in Preferences ▸ Agents ▸ Cloud chats.',
+  'branch.dialog.hostLoading': 'Asking {host}…',
+  'branch.dialog.hostUnreachable': 'Could not reach {host}: {error}',
+  'branch.dialog.hostRepoLabel': 'Repository on {host}',
+  'branch.dialog.tagHostScratch': 'scratch folder',
+  'branch.dialog.hostNoRepos': '{host} has no repositories yet — start it with --repo id=/path.',
+  'branch.dialog.hostDescScratch':
+    'Runs on {host} in a scratch folder with no repository. The transcript stays here.',
+  'branch.dialog.hostDescRoot':
+    'Runs on {host} from the root of {repo}, on whatever branch it is on. The transcript stays here.',
+  'branch.dialog.hostDescSlot':
+    'Runs on {host} in a worktree of {repo} on the branch above, forked from the base branch. The transcript stays here.',
+  'branch.dialog.disabled.host': 'Waiting for {host}',
   'branch.dialog.createChat': 'Create chat',
 
   // ---------------------------------------------------------------------------
@@ -916,6 +946,7 @@ export const en = {
   'prefs.search': 'Search preferences…',
   'prefs.section.integ': 'Integrations',
   'prefs.section.agents': 'Agents',
+  'prefs.section.hosts': 'Hosts',
   'prefs.section.runtime': 'Runtime',
   'prefs.section.repos': 'Repositories',
   'prefs.section.git': 'Source control',
@@ -965,6 +996,26 @@ export const en = {
   'prefs.agents.cloud.noGh': 'GitHub: no token — save one here, or run gh auth login.',
   'prefs.agents.cloud.ok': 'The key works.',
   'prefs.agents.cloud.error': 'Saved, but the key did not work: {error}',
+  'prefs.hosts.title': 'Hosts',
+  'prefs.hosts.desc':
+    'Other boxes that run chats for this PopBot. Each runs popbot-host: build it, copy dist-host/popbot-host.cjs over, and run it once with --init to write its config and print its token. The chat’s transcript, search and settings stay here; the agent, its tools and the checkout are there. A remote box is reached over an SSH tunnel: ssh -L 7677:127.0.0.1:7677 box.',
+  'prefs.hosts.none': 'No hosts yet — chats run on this computer.',
+  'prefs.hosts.add': 'Add host',
+  'prefs.hosts.defaultName': 'New host',
+  'prefs.hosts.name': 'Name',
+  'prefs.hosts.url': 'URL',
+  'prefs.hosts.token': 'Token',
+  'prefs.hosts.remove': 'Remove',
+  'prefs.hosts.removeTitle': 'Remove host',
+  'prefs.hosts.removeConfirm': 'Remove {name}? Chats already on it stay, but can no longer reach it.',
+  'prefs.hosts.checking': 'Checking…',
+  'prefs.hosts.ok':
+    'popbot-host {version} on {platform} · Claude: {claude} · Codex: {codex} · repositories: {repos}',
+  'prefs.hosts.okNoRepos': 'none yet (start it with --repo id=/path)',
+  'prefs.hosts.error': 'Could not reach it: {error}',
+  'prefs.hosts.found': 'found',
+  'prefs.hosts.missing': 'not found',
+  'prefs.hosts.noUrl': 'Enter its URL and token.',
 
   // Preferences — Runtime / attachment retention pane.
   'prefs.runtime.title': 'Attachment retention',

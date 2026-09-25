@@ -83,6 +83,7 @@ function describeCreateFailure(r: Exclude<CreateChatResult, { ok: true }>): stri
   switch (r.reason) {
     case 'slots-not-configured': return 'the repository has no slots configured (PopBot Preferences ▸ Repositories)';
     case 'git-not-configured': return 'no repository is configured';
+    case 'host-not-found': return 'that host is no longer configured (PopBot Preferences ▸ Hosts)';
     case 'slot-taken': return `slot ${r.slotId} is taken`;
     case 'no-free-slot': return 'no free slot — close a chat first, or use workspace "repo-root"';
     case 'worktree-failed': return `workspace setup failed: ${r.message}`;

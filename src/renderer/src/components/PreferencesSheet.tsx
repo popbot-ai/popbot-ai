@@ -57,6 +57,8 @@ import {
 } from '@shared/reviews';
 import { ConfirmDialog } from './ConfirmDialog';
 import type { BasePreflightInfo } from '@shared/ipc';
+import type { HostInfo } from '@shared/hostProtocol';
+import type { HostRecord } from '@shared/persistence';
 import { isMcpTool, mcpServerOfTool, permissionRuleMatches } from '@shared/agent';
 import { useSettings } from '../lib/useSettings';
 import { ConfigureSlotsPanel } from './ConfigureSlotsPanel';
@@ -119,6 +121,7 @@ interface NavSection {
 const SECTIONS: NavSection[] = [
   { id: 'integ', labelKey: 'prefs.section.integ', icon: 'fa-plug' },
   { id: 'agents', labelKey: 'prefs.section.agents', icon: 'fa-robot' },
+  { id: 'hosts', labelKey: 'prefs.section.hosts', icon: 'fa-server' },
   { id: 'runtime', labelKey: 'prefs.section.runtime', icon: 'fa-microchip' },
   { id: 'repos', labelKey: 'prefs.section.repos', icon: 'fa-code-fork' },
   { id: 'git', labelKey: 'prefs.section.git', icon: 'fa-code-branch' },
@@ -209,6 +212,7 @@ export function PreferencesSheet({
           <div className="prefs-content">
             {section === 'integ' && <PrefsIntegrations onLinearChanged={onLinearChanged} />}
             {section === 'agents' && <PrefsAgents />}
+            {section === 'hosts' && <PrefsHosts />}
             {section === 'runtime' && <PrefsAttachments />}
             {section === 'repos' && <PrefsRepos onReposChanged={onReposChanged} />}
             {section === 'git' && <PrefsGit />}
@@ -643,6 +647,169 @@ function CloudChatsRows({
         </div>
       </div>
     </>
+  );
+}
+
+/**
+ * Hosts: other boxes running popbot-host that chats can run on. A
+ * host's fields save themselves when left; each saved host is asked
+ * what it is, and its answer (version, CLIs, repositories) is shown
+ * under it. Adding a host makes its record at once, with the local
+ * daemon's address filled in.
+ */
+function PrefsHosts(): JSX.Element {
+  const { t } = useTranslation();
+  const [hosts, setHosts] = useState<HostRecord[] | null>(null);
+  const [removing, setRemoving] = useState<HostRecord | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    void window.popbot.hosts.list().then((list) => { if (!cancelled) setHosts(list); });
+    return () => { cancelled = true; };
+  }, []);
+  const add = async (): Promise<void> => {
+    const created = await window.popbot.hosts.save({
+      name: t('prefs.hosts.defaultName'),
+      url: 'http://127.0.0.1:7677',
+      token: '',
+    });
+    setHosts((prev) => [...(prev ?? []), created]);
+  };
+  const remove = async (host: HostRecord): Promise<void> => {
+    await window.popbot.hosts.remove(host.id);
+    setHosts((prev) => (prev ?? []).filter((h) => h.id !== host.id));
+    setRemoving(null);
+  };
+  return (
+    <div className="pref-section">
+      <h3>{t('prefs.hosts.title')}</h3>
+      <p className="pref-section-desc">{t('prefs.hosts.desc')}</p>
+      <pre className="host-howto">{[
+        'npm run build:host',
+        'node dist-host/popbot-host.cjs --init --repo popbot=/path/to/repo',
+        'node dist-host/popbot-host.cjs',
+      ].join('\n')}</pre>
+      {hosts && hosts.length === 0 && (
+        <p className="pref-section-desc" style={{ marginTop: 10 }}>{t('prefs.hosts.none')}</p>
+      )}
+      {hosts?.map((h) => (
+        <HostCard
+          key={h.id}
+          host={h}
+          onSaved={(saved) => setHosts((prev) => (prev ?? []).map((x) => (x.id === saved.id ? saved : x)))}
+          onRemove={() => setRemoving(h)}
+        />
+      ))}
+      <div style={{ marginTop: 12 }}>
+        <button className="btn sm" onClick={() => void add()}>
+          <i className="fa-solid fa-plus" aria-hidden /> {t('prefs.hosts.add')}
+        </button>
+      </div>
+      {removing && (
+        <ConfirmDialog
+          title={t('prefs.hosts.removeTitle')}
+          message={t('prefs.hosts.removeConfirm', { name: removing.name })}
+          confirmLabel={t('prefs.hosts.remove')}
+          destructive
+          onConfirm={() => void remove(removing)}
+          onCancel={() => setRemoving(null)}
+        />
+      )}
+    </div>
+  );
+}
+
+function HostCard({
+  host,
+  onSaved,
+  onRemove,
+}: {
+  host: HostRecord;
+  onSaved: (saved: HostRecord) => void;
+  onRemove: () => void;
+}): JSX.Element {
+  const { t } = useTranslation();
+  const [name, setName] = useState(host.name);
+  const [url, setUrl] = useState(host.url);
+  const [token, setToken] = useState(host.token);
+  const [probe, setProbe] = useState<{ state: 'idle' | 'checking' | 'ok' | 'error'; info?: HostInfo; error?: string }>({ state: 'idle' });
+  const commit = useAutoCommit({
+    draft: () => ({ name, url, token }),
+    saved: () => ({ name: host.name, url: host.url, token: host.token }),
+    write: async (next) => { onSaved(await window.popbot.hosts.save({ id: host.id, ...next })); },
+  });
+  // Ask the host what it is whenever its saved address changes.
+  useEffect(() => {
+    if (!host.url.trim() || !host.token.trim()) {
+      setProbe({ state: 'idle' });
+      return;
+    }
+    let cancelled = false;
+    setProbe({ state: 'checking' });
+    void window.popbot.hosts.probe(host.url, host.token).then((r) => {
+      if (cancelled) return;
+      setProbe(r.ok ? { state: 'ok', info: r.info } : { state: 'error', error: r.error });
+    });
+    return () => { cancelled = true; };
+  }, [host.url, host.token]);
+  const yesNo = (ok: boolean): string => (ok ? t('prefs.hosts.found') : t('prefs.hosts.missing'));
+  const status = probe.state === 'checking'
+    ? t('prefs.hosts.checking')
+    : probe.state === 'error'
+      ? t('prefs.hosts.error', { error: probe.error ?? '' })
+      : probe.state === 'ok' && probe.info
+        ? t('prefs.hosts.ok', {
+            version: probe.info.version,
+            platform: probe.info.platform,
+            claude: yesNo(probe.info.claude.ok),
+            codex: yesNo(probe.info.codex.ok),
+            repos: probe.info.repos.length > 0 ? probe.info.repos.map((r) => r.id).join(', ') : t('prefs.hosts.okNoRepos'),
+          })
+        : t('prefs.hosts.noUrl');
+  return (
+    <div className="host-card">
+      <div className="host-card-fields">
+        <label className="host-card-field">
+          <span>{t('prefs.hosts.name')}</span>
+          <input
+            className="pref-input narrow"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            onBlur={() => void commit()}
+            onKeyDown={blurOnEnter}
+          />
+        </label>
+        <label className="host-card-field">
+          <span>{t('prefs.hosts.url')}</span>
+          <input
+            className="pref-input mono narrow"
+            placeholder="http://127.0.0.1:7677"
+            value={url}
+            onChange={(e) => setUrl(e.target.value)}
+            onBlur={() => void commit()}
+            onKeyDown={blurOnEnter}
+          />
+        </label>
+        <label className="host-card-field">
+          <span>{t('prefs.hosts.token')}</span>
+          <input
+            className="pref-input mono narrow"
+            type="password"
+            value={token}
+            onChange={(e) => setToken(e.target.value)}
+            onBlur={() => void commit()}
+            onKeyDown={blurOnEnter}
+          />
+        </label>
+      </div>
+      <div className="host-card-foot">
+        <span className={`host-card-status${probe.state === 'error' ? ' error' : ''}${probe.state === 'ok' ? ' ok' : ''}`}>
+          {probe.state === 'ok' && <i className="fa-solid fa-circle-check" aria-hidden />}
+          {probe.state === 'error' && <i className="fa-solid fa-circle-exclamation" aria-hidden />}
+          {status}
+        </span>
+        <button className="btn sm danger" onClick={onRemove}>{t('prefs.hosts.remove')}</button>
+      </div>
+    </div>
   );
 }
 

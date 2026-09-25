@@ -382,6 +382,22 @@ const SCHEMA = [
   `
   ALTER TABLE chats ADD COLUMN pr_author TEXT;
   `,
+  // v26 — hosts: other boxes running popbot-host that chats can run on
+  // (Preferences ▸ Hosts), and which host a chat runs on: JSON
+  // {hostId, hostName, repoId, branch, baseBranch, cwd, lastSeq}, NULL
+  // for a chat that runs here. See HostRecord / HostChatInfo in
+  // shared/persistence.
+  `
+  CREATE TABLE IF NOT EXISTS hosts (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    url TEXT NOT NULL,
+    token TEXT NOT NULL,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL
+  );
+  ALTER TABLE chats ADD COLUMN host TEXT;
+  `,
 ];
 
 export function initDb(): Database.Database {

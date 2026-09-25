@@ -538,6 +538,13 @@ export const ja = {
     'クラウドセッションを今すぐ停止しますか？作業中なら先に中断されます。プッシュしていないものは失われます。次のメッセージで、この会話を引き継いだ新しいセッションが始まります。',
   'chat.cloud.shutdownConfirmBranch':
     'クラウドセッションを今すぐ停止しますか？作業中なら先に中断されます。{branch} にプッシュしていないものは失われます。次のメッセージで、この会話を引き継いだ新しいセッションが始まります。',
+  'chat.host.chipTitle': '{host} で実行中 · チャット設定を開く',
+  'chat.host.chipPendingTitle': '{host} で実行 — セッションは最初のメッセージで始まります。',
+  'chat.host.shutdown': 'ホスト上で終了',
+  'chat.host.shutdownConfirm':
+    '{host} 上のこのチャットのセッションを今すぐ終了しますか？ エージェントがそこで行っている作業は停止します。次のメッセージで {host} 上に新しいセッションが始まり、この会話を引き継ぎます。',
+  'chat.host.withRepo': '{host} 上 · {repo}',
+  'chat.host.noRepo': '{host} 上 · リポジトリなし',
   'chat.crossAgent.from': 'チャット「{name}」のエージェントから',
   'chat.crossAgent.waiting': '返答を待っています',
   'chat.app.terminal': 'ターミナル',
@@ -721,6 +728,14 @@ export const ja = {
   'chatSettings.cloudPullDesc':
     'サンドボックスは origin のチャットのブランチにコミットしてプッシュします。Pull でそのコミットをこのチャットのチェックアウトに取り込みます（fast-forward のみ）。',
   'chatSettings.cloudPull': 'origin から Pull',
+  'chatSettings.host': 'ホスト',
+  'chatSettings.hostDesc': 'このチャットのエージェントは別のマシンで動いています。トランスクリプト、検索、設定はここにあります。',
+  'chatSettings.hostName': 'ホスト',
+  'chatSettings.hostWorkspace': 'ワークスペース',
+  'chatSettings.hostScratch': '作業用フォルダ',
+  'chatSettings.hostRoot': '{repo} · リポジトリのルート',
+  'chatSettings.hostCwd': '作業ディレクトリ',
+  'chatSettings.hostNoCwd': 'まだ開始していません。最初のメッセージで始まります。',
   'chatSettings.tryReconnect': '再接続を試す',
   'chatSettings.reconnectDesc':
     'このチャットの worktree に対して保存された Claude セッションを選択します。自動再接続が誤ったものを選択し、特定のトランスクリプトを強制したい場合に便利です。選択したセッションがピン留めされ、エージェントがそこに再起動されます。',
@@ -752,6 +767,8 @@ export const ja = {
   'agent.cloudToggle': 'クラウド',
   'agent.cloudToggleTitle':
     'このチャットを Anthropic のクラウドサンドボックス（Managed Agents、API キー課金）で実行します。PopBot を終了しても動き続けます。Claude のみ。',
+  'agent.runOn': '実行場所',
+  'agent.runOnLocal': 'このコンピュータ',
   'agent.effort': 'エフォート',
 
   // ---------------------------------------------------------------------------
@@ -859,6 +876,15 @@ export const ja = {
   'branch.dialog.cloudGithubNote':
     'サンドボックスはあなたの GitHub トークンでクローンします。環境設定 ▸ エージェント ▸ クラウドチャットに保存したもの、または gh がサインインしているものです。',
   'branch.dialog.cloudNoKey': 'クラウドチャットには Anthropic API キーが必要です。環境設定 ▸ エージェント ▸ クラウドチャットで追加してください。',
+  'branch.dialog.hostLoading': '{host} に問い合わせ中…',
+  'branch.dialog.hostUnreachable': '{host} に接続できません: {error}',
+  'branch.dialog.hostRepoLabel': '{host} 上のリポジトリ',
+  'branch.dialog.tagHostScratch': '作業用フォルダ',
+  'branch.dialog.hostNoRepos': '{host} にはまだリポジトリがありません。--repo id=/path を付けて起動してください。',
+  'branch.dialog.hostDescScratch': 'リポジトリなしで {host} 上の作業用フォルダで実行します。トランスクリプトはここに残ります。',
+  'branch.dialog.hostDescRoot': '{host} 上の {repo} のルートで、現在のブランチのまま実行します。トランスクリプトはここに残ります。',
+  'branch.dialog.hostDescSlot': '{host} 上で、ベースブランチから作った上記ブランチの {repo} のワークツリーで実行します。トランスクリプトはここに残ります。',
+  'branch.dialog.disabled.host': '{host} を待っています',
   'branch.dialog.createChat': 'チャットを作成',
 
   // ---------------------------------------------------------------------------
@@ -888,6 +914,7 @@ export const ja = {
   'prefs.search': '環境設定を検索…',
   'prefs.section.integ': '連携',
   'prefs.section.agents': 'エージェント',
+  'prefs.section.hosts': 'ホスト',
   'prefs.section.runtime': 'ランタイム',
   'prefs.section.repos': 'リポジトリ',
   'prefs.section.git': 'バージョン管理',
@@ -937,6 +964,25 @@ export const ja = {
   'prefs.agents.cloud.noGh': 'GitHub: トークンがありません。ここに保存するか gh auth login を実行してください。',
   'prefs.agents.cloud.ok': 'キーは有効です。',
   'prefs.agents.cloud.error': '保存しましたが、キーが使えませんでした: {error}',
+  'prefs.hosts.title': 'ホスト',
+  'prefs.hosts.desc':
+    'この PopBot のチャットを実行する他のマシンです。各マシンで popbot-host を動かします。ビルドして dist-host/popbot-host.cjs をコピーし、--init を付けて一度実行すると設定が書き出され、トークンが表示されます。チャットのトランスクリプト、検索、設定はここに残り、エージェント、ツール、チェックアウトは向こうにあります。リモートのマシンには SSH トンネルで接続します: ssh -L 7677:127.0.0.1:7677 machine',
+  'prefs.hosts.none': 'ホストはまだありません。チャットはこのコンピュータで実行されます。',
+  'prefs.hosts.add': 'ホストを追加',
+  'prefs.hosts.defaultName': '新しいホスト',
+  'prefs.hosts.name': '名前',
+  'prefs.hosts.url': 'URL',
+  'prefs.hosts.token': 'トークン',
+  'prefs.hosts.remove': '削除',
+  'prefs.hosts.removeTitle': 'ホストを削除',
+  'prefs.hosts.removeConfirm': '{name} を削除しますか？ そのホスト上のチャットは残りますが、接続できなくなります。',
+  'prefs.hosts.checking': '確認中…',
+  'prefs.hosts.ok': 'popbot-host {version} ({platform}) · Claude: {claude} · Codex: {codex} · リポジトリ: {repos}',
+  'prefs.hosts.okNoRepos': 'まだありません（--repo id=/path を付けて起動）',
+  'prefs.hosts.error': '接続できません: {error}',
+  'prefs.hosts.found': 'あり',
+  'prefs.hosts.missing': 'なし',
+  'prefs.hosts.noUrl': 'URL とトークンを入力してください。',
 
   // Preferences — Runtime / attachment retention pane.
   'prefs.runtime.title': '添付ファイルの保持',

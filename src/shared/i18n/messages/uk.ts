@@ -490,6 +490,13 @@ export const uk = {
     'Завершити хмарну сесію зараз? Якщо вона ще працює, її спершу перервуть. Усе, що не запушено, буде втрачено. Наступне повідомлення почне нову сесію, підготовлену на основі цієї розмови.',
   'chat.cloud.shutdownConfirmBranch':
     'Завершити хмарну сесію зараз? Якщо вона ще працює, її спершу перервуть. Усе, що не запушено в {branch}, буде втрачено. Наступне повідомлення почне нову сесію, підготовлену на основі цієї розмови.',
+  'chat.host.chipTitle': 'Працює на {host} · відкрити налаштування чату',
+  'chat.host.chipPendingTitle': 'Працює на {host} — сесія почнеться з вашого першого повідомлення.',
+  'chat.host.shutdown': 'Завершити на хості',
+  'chat.host.shutdownConfirm':
+    'Завершити сесію цього чату на {host} зараз? Усе, що агент там робить, зупиниться. Наступне повідомлення почне нову сесію на {host}, що продовжить цю розмову.',
+  'chat.host.withRepo': 'На {host} · {repo}',
+  'chat.host.noRepo': 'На {host} · без репозиторію',
   'chat.crossAgent.from': 'Від агента чату «{name}»',
   'chat.crossAgent.waiting': 'чекає на вашу відповідь',
   'chat.app.terminal': 'Термінал',
@@ -673,6 +680,15 @@ export const uk = {
   'chatSettings.cloudPullDesc':
     'Пісочниця комітить і пушить у гілку чату на origin. Pull забирає ці коміти в локальну копію цього чату (лише fast-forward).',
   'chatSettings.cloudPull': 'Pull з origin',
+  'chatSettings.host': 'Хост',
+  'chatSettings.hostDesc':
+    'Агент цього чату працює на іншій машині. Транскрипт, пошук і налаштування знаходяться тут.',
+  'chatSettings.hostName': 'Хост',
+  'chatSettings.hostWorkspace': 'Робочий простір',
+  'chatSettings.hostScratch': 'тимчасова тека',
+  'chatSettings.hostRoot': '{repo} · корінь репозиторію',
+  'chatSettings.hostCwd': 'Робочий каталог',
+  'chatSettings.hostNoCwd': 'Ще не запущена — почнеться з вашого першого повідомлення.',
   'chatSettings.tryReconnect': 'Спробувати перепідключитися',
   'chatSettings.reconnectDesc':
     'Виберіть збережену сесію Claude для worktree цього чату. Корисно, якщо автоперепідключення вибрало не ту сесію і ви хочете примусово вказати конкретну стенограму. Вибрана сесія буде закріплена, і агент перезапуститься в ній.',
@@ -704,6 +720,8 @@ export const uk = {
   'agent.cloudToggle': 'Хмара',
   'agent.cloudToggleTitle':
     'Запустити цей чат у хмарній пісочниці Anthropic (Managed Agents, оплата за API-ключем) — він продовжить працювати після закриття PopBot. Лише Claude.',
+  'agent.runOn': 'Запускати на',
+  'agent.runOnLocal': 'Цьому комп’ютері',
   'agent.effort': 'Рівень зусиль',
 
   // ---------------------------------------------------------------------------
@@ -861,6 +879,18 @@ export const uk = {
     'Пісочниця клонує з вашим токеном GitHub: збереженим у Налаштування ▸ Агенти ▸ Хмарні чати або тим, під яким авторизовано gh.',
   'branch.dialog.cloudNoKey':
     'Хмарним чатам потрібен API-ключ Anthropic. Додайте його в Налаштування ▸ Агенти ▸ Хмарні чати.',
+  'branch.dialog.hostLoading': 'Запитую {host}…',
+  'branch.dialog.hostUnreachable': 'Не вдалося зв’язатися з {host}: {error}',
+  'branch.dialog.hostRepoLabel': 'Репозиторій на {host}',
+  'branch.dialog.tagHostScratch': 'тимчасова тека',
+  'branch.dialog.hostNoRepos': 'У {host} ще немає репозиторіїв — запустіть його з --repo id=/шлях.',
+  'branch.dialog.hostDescScratch':
+    'Працює на {host} у тимчасовій теці без репозиторію. Транскрипт лишається тут.',
+  'branch.dialog.hostDescRoot':
+    'Працює на {host} з кореня {repo}, на тій гілці, на якій він стоїть. Транскрипт лишається тут.',
+  'branch.dialog.hostDescSlot':
+    'Працює на {host} у worktree репозиторію {repo} на гілці вище, створеній від базової гілки. Транскрипт лишається тут.',
+  'branch.dialog.disabled.host': 'Очікування {host}',
   'branch.dialog.createChat': 'Створити чат',
 
   // ---------------------------------------------------------------------------
@@ -890,6 +920,7 @@ export const uk = {
   'prefs.search': 'Пошук налаштувань…',
   'prefs.section.integ': 'Інтеграції',
   'prefs.section.agents': 'Агенти',
+  'prefs.section.hosts': 'Хости',
   'prefs.section.runtime': 'Середовище виконання',
   'prefs.section.repos': 'Репозиторії',
   'prefs.section.git': 'Система контролю версій',
@@ -940,6 +971,27 @@ export const uk = {
   'prefs.agents.cloud.noGh': 'GitHub: токена немає — збережіть його тут або виконайте gh auth login.',
   'prefs.agents.cloud.ok': 'Ключ працює.',
   'prefs.agents.cloud.error': 'Збережено, але ключ не спрацював: {error}',
+  'prefs.hosts.title': 'Хости',
+  'prefs.hosts.desc':
+    'Інші машини, що виконують чати для цього PopBot. На кожній працює popbot-host: зберіть його, скопіюйте dist-host/popbot-host.cjs і запустіть один раз із --init, щоб записати конфігурацію та вивести токен. Транскрипт, пошук і налаштування чату лишаються тут; агент, його інструменти та checkout — там. Віддалена машина доступна через SSH-тунель: ssh -L 7677:127.0.0.1:7677 машина.',
+  'prefs.hosts.none': 'Хостів поки немає — чати працюють на цьому комп’ютері.',
+  'prefs.hosts.add': 'Додати хост',
+  'prefs.hosts.defaultName': 'Новий хост',
+  'prefs.hosts.name': 'Назва',
+  'prefs.hosts.url': 'URL',
+  'prefs.hosts.token': 'Токен',
+  'prefs.hosts.remove': 'Видалити',
+  'prefs.hosts.removeTitle': 'Видалити хост',
+  'prefs.hosts.removeConfirm':
+    'Видалити {name}? Чати на ньому залишаться, але більше не зможуть до нього звертатися.',
+  'prefs.hosts.checking': 'Перевірка…',
+  'prefs.hosts.ok':
+    'popbot-host {version} на {platform} · Claude: {claude} · Codex: {codex} · репозиторії: {repos}',
+  'prefs.hosts.okNoRepos': 'поки немає (запустіть із --repo id=/шлях)',
+  'prefs.hosts.error': 'Не вдалося зв’язатися: {error}',
+  'prefs.hosts.found': 'знайдено',
+  'prefs.hosts.missing': 'не знайдено',
+  'prefs.hosts.noUrl': 'Введіть URL і токен.',
 
   // Preferences — Runtime / attachment retention pane.
   'prefs.runtime.title': 'Зберігання вкладень',

@@ -4,6 +4,7 @@ import type {
   ChatRecord,
   ChatType,
   CloudChatInfo,
+  HostChatInfo,
   ClaudeModelId,
   ClaudeReasoningEffort,
   CodexModelId,
@@ -66,6 +67,7 @@ interface ChatRow {
   repo_slot_prefix: string | null;
   repo_path: string | null;
   cloud: string | null;
+  host: string | null;
 }
 
 /** Standard column list for the chat queries below. Centralized so
@@ -80,7 +82,7 @@ const CHAT_COLUMNS = `
   c.codex_model, c.codex_reasoning_effort,
   c.permission_rules, c.created_at, c.last_active_at, c.closed_at,
   c.repo_id, r.color AS repo_color, r.mode AS repo_mode, r.scm AS repo_scm, r.slot_prefix AS repo_slot_prefix,
-  r.repo_path AS repo_path, c.cloud
+  r.repo_path AS repo_path, c.cloud, c.host
 `;
 const CHAT_FROM = `FROM chats c LEFT JOIN repos r ON r.id = c.repo_id`;
 
@@ -165,7 +167,27 @@ function rowToRecord(r: ChatRow): ChatRecord {
     repoSlotPrefix: r.repo_slot_prefix,
     repoPath: r.repo_path,
     cloud: parseCloud(r.cloud),
+    host: parseHost(r.host),
   };
+}
+
+function parseHost(json: string | null): HostChatInfo | null {
+  if (!json) return null;
+  try {
+    const parsed = JSON.parse(json) as Partial<HostChatInfo> | null;
+    if (!parsed || typeof parsed !== 'object' || typeof parsed.hostId !== 'string') return null;
+    return {
+      hostId: parsed.hostId,
+      hostName: typeof parsed.hostName === 'string' ? parsed.hostName : parsed.hostId,
+      repoId: typeof parsed.repoId === 'string' ? parsed.repoId : null,
+      branch: typeof parsed.branch === 'string' ? parsed.branch : null,
+      baseBranch: typeof parsed.baseBranch === 'string' ? parsed.baseBranch : null,
+      cwd: typeof parsed.cwd === 'string' ? parsed.cwd : null,
+      lastSeq: typeof parsed.lastSeq === 'number' && parsed.lastSeq > 0 ? parsed.lastSeq : 0,
+    };
+  } catch {
+    return null;
+  }
 }
 
 function normalizeAgent(value: string | null | undefined): AgentBackendId {
@@ -315,6 +337,8 @@ export interface CreateChatArgs {
   codexReasoningEffort?: CodexReasoningEffort;
   /** A cloud chat — see {@link CloudChatInfo}. */
   cloud?: CloudChatInfo | null;
+  /** A chat that runs on a host — see {@link HostChatInfo}. */
+  host?: HostChatInfo | null;
 }
 
 export function createChat(args: CreateChatArgs): ChatRecord {
@@ -331,9 +355,9 @@ export function createChat(args: CreateChatArgs): ChatRecord {
          id, name, ticket, pr, pr_url, pr_author, branch, type, mode, agent, status, snippet,
          tokens_used, tokens_budget, slot_id, worktree_path, created_at, last_active_at,
          repo_id, claude_model, claude_reasoning_effort, codex_model, codex_reasoning_effort,
-         cloud, sort_order
+         cloud, host, sort_order
        )
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'interactive', ?, 'idle', '', 0, 1000000, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'interactive', ?, 'idle', '', 0, 1000000, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
                (SELECT COALESCE(MAX(o.sort_order), 0) + 1 FROM chats o))`,
     )
     .run(
@@ -356,6 +380,7 @@ export function createChat(args: CreateChatArgs): ChatRecord {
       codexModel,
       codexReasoningEffort,
       args.cloud ? JSON.stringify(args.cloud) : null,
+      args.host ? JSON.stringify(args.host) : null,
     );
   const created = getChat(id);
   if (!created) throw new Error('createChat: row missing immediately after insert');
@@ -506,6 +531,12 @@ export function setChatCloud(id: string, cloud: CloudChatInfo | null): void {
   db()
     .prepare('UPDATE chats SET cloud = ?, last_active_at = ? WHERE id = ?')
     .run(cloud ? JSON.stringify(cloud) : null, Date.now(), id);
+}
+
+export function setChatHost(id: string, host: HostChatInfo | null): void {
+  db()
+    .prepare('UPDATE chats SET host = ?, last_active_at = ? WHERE id = ?')
+    .run(host ? JSON.stringify(host) : null, Date.now(), id);
 }
 
 export function setChatWorktree(id: string, worktreePath: string): void {

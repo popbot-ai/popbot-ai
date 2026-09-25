@@ -538,6 +538,13 @@ export const de = {
     'Die Cloud-Session jetzt herunterfahren? Läuft sie noch, wird sie zuerst unterbrochen. Alles nicht Gepushte geht verloren. Deine nächste Nachricht startet eine neue Session, vorbereitet mit diesem Gespräch.',
   'chat.cloud.shutdownConfirmBranch':
     'Die Cloud-Session jetzt herunterfahren? Läuft sie noch, wird sie zuerst unterbrochen. Alles, was nicht nach {branch} gepusht wurde, geht verloren. Deine nächste Nachricht startet eine neue Session, vorbereitet mit diesem Gespräch.',
+  'chat.host.chipTitle': 'Läuft auf {host} · Chat-Einstellungen öffnen',
+  'chat.host.chipPendingTitle': 'Läuft auf {host} – die Sitzung beginnt mit deiner ersten Nachricht.',
+  'chat.host.shutdown': 'Auf dem Host beenden',
+  'chat.host.shutdownConfirm':
+    'Die Sitzung dieses Chats auf {host} jetzt beenden? Alles, was der Agent dort gerade tut, stoppt. Deine nächste Nachricht startet eine neue Sitzung auf {host}, die dieses Gespräch fortsetzt.',
+  'chat.host.withRepo': 'Auf {host} · {repo}',
+  'chat.host.noRepo': 'Auf {host} · kein Repo',
   'chat.crossAgent.from': 'Vom Agenten in Chat „{name}“',
   'chat.crossAgent.waiting': 'wartet auf deine Antwort',
   'chat.app.terminal': 'Terminal',
@@ -721,6 +728,15 @@ export const de = {
   'chatSettings.cloudPullDesc':
     'Die Sandbox committet und pusht auf den Branch des Chats bei origin. Pull holt diese Commits in den Checkout dieses Chats (nur Fast-Forward).',
   'chatSettings.cloudPull': 'Von origin pullen',
+  'chatSettings.host': 'Host',
+  'chatSettings.hostDesc':
+    'Der Agent dieses Chats läuft auf einem anderen Rechner. Transkript, Suche und Einstellungen liegen hier.',
+  'chatSettings.hostName': 'Host',
+  'chatSettings.hostWorkspace': 'Arbeitsbereich',
+  'chatSettings.hostScratch': 'Scratch-Ordner',
+  'chatSettings.hostRoot': '{repo} · Repo-Root',
+  'chatSettings.hostCwd': 'Arbeitsverzeichnis',
+  'chatSettings.hostNoCwd': 'Noch nicht gestartet – beginnt mit deiner ersten Nachricht.',
   'chatSettings.tryReconnect': 'Neuverbindung versuchen',
   'chatSettings.reconnectDesc':
     'Wählen Sie eine gespeicherte Claude-Sitzung für den Worktree dieses Chats. Nützlich, wenn die automatische Neuverbindung die falsche gewählt hat und Sie ein bestimmtes Transkript erzwingen möchten. Die gewählte Sitzung wird angeheftet und der Agent neu darin gestartet.',
@@ -752,6 +768,8 @@ export const de = {
   'agent.cloudToggle': 'Cloud',
   'agent.cloudToggleTitle':
     'Diesen Chat in einer Anthropic-Cloud-Sandbox laufen lassen (Managed Agents, Abrechnung über API-Key) – er arbeitet weiter, wenn PopBot beendet wird. Nur Claude.',
+  'agent.runOn': 'Ausführen auf',
+  'agent.runOnLocal': 'Diesem Computer',
   'agent.effort': 'Aufwand',
 
   // ---------------------------------------------------------------------------
@@ -861,6 +879,18 @@ export const de = {
     'Die Sandbox klont mit deinem GitHub-Token: dem in Einstellungen ▸ Agenten ▸ Cloud-Chats gespeicherten oder dem, mit dem gh angemeldet ist.',
   'branch.dialog.cloudNoKey':
     'Cloud-Chats brauchen einen Anthropic-API-Key. Trage ihn unter Einstellungen ▸ Agenten ▸ Cloud-Chats ein.',
+  'branch.dialog.hostLoading': 'Frage {host}…',
+  'branch.dialog.hostUnreachable': '{host} ist nicht erreichbar: {error}',
+  'branch.dialog.hostRepoLabel': 'Repository auf {host}',
+  'branch.dialog.tagHostScratch': 'Scratch-Ordner',
+  'branch.dialog.hostNoRepos': '{host} hat noch keine Repositories – starte ihn mit --repo id=/pfad.',
+  'branch.dialog.hostDescScratch':
+    'Läuft auf {host} in einem Scratch-Ordner ohne Repository. Das Transkript bleibt hier.',
+  'branch.dialog.hostDescRoot':
+    'Läuft auf {host} im Root von {repo}, auf dem Branch, auf dem es gerade steht. Das Transkript bleibt hier.',
+  'branch.dialog.hostDescSlot':
+    'Läuft auf {host} in einem Worktree von {repo} auf dem Branch oben, abgezweigt vom Basis-Branch. Das Transkript bleibt hier.',
+  'branch.dialog.disabled.host': 'Warte auf {host}',
   'branch.dialog.createChat': 'Chat erstellen',
 
   // ---------------------------------------------------------------------------
@@ -890,6 +920,7 @@ export const de = {
   'prefs.search': 'Einstellungen durchsuchen…',
   'prefs.section.integ': 'Integrationen',
   'prefs.section.agents': 'Agenten',
+  'prefs.section.hosts': 'Hosts',
   'prefs.section.runtime': 'Laufzeit',
   'prefs.section.repos': 'Repositorys',
   'prefs.section.git': 'Versionsverwaltung',
@@ -940,6 +971,27 @@ export const de = {
   'prefs.agents.cloud.noGh': 'GitHub: kein Token – hier speichern oder gh auth login ausführen.',
   'prefs.agents.cloud.ok': 'Der Key funktioniert.',
   'prefs.agents.cloud.error': 'Gespeichert, aber der Key funktioniert nicht: {error}',
+  'prefs.hosts.title': 'Hosts',
+  'prefs.hosts.desc':
+    'Andere Rechner, die Chats für dieses PopBot ausführen. Auf jedem läuft popbot-host: bauen, dist-host/popbot-host.cjs hinüberkopieren und einmal mit --init starten, um die Konfiguration zu schreiben und das Token auszugeben. Transkript, Suche und Einstellungen des Chats bleiben hier; Agent, Tools und Checkout sind dort. Ein entfernter Rechner wird über einen SSH-Tunnel erreicht: ssh -L 7677:127.0.0.1:7677 rechner.',
+  'prefs.hosts.none': 'Noch keine Hosts – Chats laufen auf diesem Computer.',
+  'prefs.hosts.add': 'Host hinzufügen',
+  'prefs.hosts.defaultName': 'Neuer Host',
+  'prefs.hosts.name': 'Name',
+  'prefs.hosts.url': 'URL',
+  'prefs.hosts.token': 'Token',
+  'prefs.hosts.remove': 'Entfernen',
+  'prefs.hosts.removeTitle': 'Host entfernen',
+  'prefs.hosts.removeConfirm':
+    '{name} entfernen? Chats darauf bleiben erhalten, erreichen ihn aber nicht mehr.',
+  'prefs.hosts.checking': 'Prüfe…',
+  'prefs.hosts.ok':
+    'popbot-host {version} auf {platform} · Claude: {claude} · Codex: {codex} · Repositories: {repos}',
+  'prefs.hosts.okNoRepos': 'noch keine (mit --repo id=/pfad starten)',
+  'prefs.hosts.error': 'Nicht erreichbar: {error}',
+  'prefs.hosts.found': 'gefunden',
+  'prefs.hosts.missing': 'nicht gefunden',
+  'prefs.hosts.noUrl': 'URL und Token eingeben.',
 
   // Preferences — Runtime / attachment retention pane.
   'prefs.runtime.title': 'Aufbewahrung von Anhängen',

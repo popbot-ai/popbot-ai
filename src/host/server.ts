@@ -5,12 +5,13 @@
  */
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
 import { timingSafeEqual } from 'node:crypto';
-import type { PermissionDecision, PermissionRule } from '@shared/agent';
+import type { PermissionDecision } from '@shared/agent';
 import {
   HOST_PROTOCOL_VERSION,
   type HostApproveBody,
   type HostFrame,
   type HostInfo,
+  type HostRules,
   type HostSendBody,
   type HostSpawnBody,
 } from '@shared/hostProtocol';
@@ -142,7 +143,7 @@ export function createHostServer(opts: {
         case 'compact':
           return json(res, 200, { ok: await sessions.compact(chatId) });
         case 'rules':
-          sessions.setRules(chatId, Array.isArray(body.rules) ? (body.rules as PermissionRule[]) : []);
+          sessions.setRules(chatId, body.rules as HostRules | undefined);
           return json(res, 200, { ok: true });
         case 'dispose':
           await sessions.dispose(chatId);

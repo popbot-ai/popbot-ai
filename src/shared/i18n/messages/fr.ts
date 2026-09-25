@@ -538,6 +538,13 @@ export const fr = {
     'Arrêter la session cloud maintenant ? Si elle travaille encore, elle est d’abord interrompue. Tout ce qui n’a pas été poussé est perdu. Votre prochain message démarrera une nouvelle session, amorcée avec cette conversation.',
   'chat.cloud.shutdownConfirmBranch':
     'Arrêter la session cloud maintenant ? Si elle travaille encore, elle est d’abord interrompue. Tout ce qui n’a pas été poussé sur {branch} est perdu. Votre prochain message démarrera une nouvelle session, amorcée avec cette conversation.',
+  'chat.host.chipTitle': 'S’exécute sur {host} · ouvrir les réglages de la conversation',
+  'chat.host.chipPendingTitle': 'S’exécute sur {host} — la session démarre avec votre premier message.',
+  'chat.host.shutdown': 'Arrêter sur l’hôte',
+  'chat.host.shutdownConfirm':
+    'Terminer maintenant la session de cette conversation sur {host} ? Tout ce que l’agent y fait s’arrête. Votre prochain message démarre une nouvelle session sur {host} qui reprend cette conversation.',
+  'chat.host.withRepo': 'Sur {host} · {repo}',
+  'chat.host.noRepo': 'Sur {host} · sans dépôt',
   'chat.crossAgent.from': 'De l’agent de la conversation « {name} »',
   'chat.crossAgent.waiting': 'attend votre réponse',
   'chat.app.terminal': 'Terminal',
@@ -721,6 +728,15 @@ export const fr = {
   'chatSettings.cloudPullDesc':
     'Le bac à sable commite et pousse sur la branche du chat sur origin. Pull ramène ces commits dans le checkout de ce chat (fast-forward uniquement).',
   'chatSettings.cloudPull': 'Pull depuis origin',
+  'chatSettings.host': 'Hôte',
+  'chatSettings.hostDesc':
+    'L’agent de cette conversation s’exécute sur une autre machine. La transcription, la recherche et les réglages sont ici.',
+  'chatSettings.hostName': 'Hôte',
+  'chatSettings.hostWorkspace': 'Espace de travail',
+  'chatSettings.hostScratch': 'dossier temporaire',
+  'chatSettings.hostRoot': '{repo} · racine du dépôt',
+  'chatSettings.hostCwd': 'Répertoire de travail',
+  'chatSettings.hostNoCwd': 'Pas encore démarrée — elle démarre avec votre premier message.',
   'chatSettings.tryReconnect': 'Tenter une reconnexion',
   'chatSettings.reconnectDesc':
     'Choisissez une session Claude enregistrée pour le worktree de ce chat. Utile si la reconnexion automatique a choisi la mauvaise et que vous voulez forcer une transcription spécifique. La session choisie sera épinglée et l’agent recréé dedans.',
@@ -752,6 +768,8 @@ export const fr = {
   'agent.cloudToggle': 'Cloud',
   'agent.cloudToggleTitle':
     'Exécuter ce chat dans un bac à sable cloud Anthropic (Managed Agents, facturation par clé API) : il continue de travailler après la fermeture de PopBot. Claude uniquement.',
+  'agent.runOn': 'Exécuter sur',
+  'agent.runOnLocal': 'Cet ordinateur',
   'agent.effort': 'Effort',
 
   // ---------------------------------------------------------------------------
@@ -861,6 +879,18 @@ export const fr = {
     'Le bac à sable clone avec votre jeton GitHub : celui enregistré dans Préférences ▸ Agents ▸ Chats cloud, ou celui avec lequel gh est connecté.',
   'branch.dialog.cloudNoKey':
     'Les chats cloud ont besoin d’une clé API Anthropic. Ajoutez-en une dans Préférences ▸ Agents ▸ Chats cloud.',
+  'branch.dialog.hostLoading': 'Interrogation de {host}…',
+  'branch.dialog.hostUnreachable': 'Impossible de joindre {host} : {error}',
+  'branch.dialog.hostRepoLabel': 'Dépôt sur {host}',
+  'branch.dialog.tagHostScratch': 'dossier temporaire',
+  'branch.dialog.hostNoRepos': '{host} n’a pas encore de dépôt : lancez-le avec --repo id=/chemin.',
+  'branch.dialog.hostDescScratch':
+    'S’exécute sur {host} dans un dossier temporaire sans dépôt. La transcription reste ici.',
+  'branch.dialog.hostDescRoot':
+    'S’exécute sur {host} depuis la racine de {repo}, sur la branche où il se trouve. La transcription reste ici.',
+  'branch.dialog.hostDescSlot':
+    'S’exécute sur {host} dans un worktree de {repo} sur la branche ci-dessus, créée à partir de la branche de base. La transcription reste ici.',
+  'branch.dialog.disabled.host': 'En attente de {host}',
   'branch.dialog.createChat': 'Créer le chat',
 
   // ---------------------------------------------------------------------------
@@ -890,6 +920,7 @@ export const fr = {
   'prefs.search': 'Rechercher dans les préférences…',
   'prefs.section.integ': 'Intégrations',
   'prefs.section.agents': 'Agents',
+  'prefs.section.hosts': 'Hôtes',
   'prefs.section.runtime': 'Exécution',
   'prefs.section.repos': 'Dépôts',
   'prefs.section.git': 'Gestion de versions',
@@ -940,6 +971,27 @@ export const fr = {
   'prefs.agents.cloud.noGh': 'GitHub : aucun jeton. Enregistrez-en un ici ou exécutez gh auth login.',
   'prefs.agents.cloud.ok': 'La clé fonctionne.',
   'prefs.agents.cloud.error': 'Enregistrée, mais la clé ne fonctionne pas : {error}',
+  'prefs.hosts.title': 'Hôtes',
+  'prefs.hosts.desc':
+    'D’autres machines qui exécutent des conversations pour ce PopBot. Chacune fait tourner popbot-host : compilez-le, copiez dist-host/popbot-host.cjs et lancez-le une fois avec --init pour écrire sa configuration et afficher son jeton. La transcription, la recherche et les réglages de la conversation restent ici ; l’agent, ses outils et le checkout sont là-bas. Une machine distante se joint par un tunnel SSH : ssh -L 7677:127.0.0.1:7677 machine.',
+  'prefs.hosts.none': 'Aucun hôte pour l’instant — les conversations s’exécutent sur cet ordinateur.',
+  'prefs.hosts.add': 'Ajouter un hôte',
+  'prefs.hosts.defaultName': 'Nouvel hôte',
+  'prefs.hosts.name': 'Nom',
+  'prefs.hosts.url': 'URL',
+  'prefs.hosts.token': 'Jeton',
+  'prefs.hosts.remove': 'Retirer',
+  'prefs.hosts.removeTitle': 'Retirer l’hôte',
+  'prefs.hosts.removeConfirm':
+    'Retirer {name} ? Les conversations déjà dessus restent, mais ne peuvent plus le joindre.',
+  'prefs.hosts.checking': 'Vérification…',
+  'prefs.hosts.ok':
+    'popbot-host {version} sur {platform} · Claude : {claude} · Codex : {codex} · dépôts : {repos}',
+  'prefs.hosts.okNoRepos': 'aucun pour l’instant (lancez-le avec --repo id=/chemin)',
+  'prefs.hosts.error': 'Impossible de le joindre : {error}',
+  'prefs.hosts.found': 'trouvé',
+  'prefs.hosts.missing': 'introuvable',
+  'prefs.hosts.noUrl': 'Saisissez son URL et son jeton.',
 
   // Preferences — Runtime / attachment retention pane.
   'prefs.runtime.title': 'Rétention des pièces jointes',

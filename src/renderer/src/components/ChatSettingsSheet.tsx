@@ -261,7 +261,35 @@ export function ChatSettingsSheet({ chat, onClose, onFork }: ChatSettingsSheetPr
             </div>
           )}
 
-          {onFork && !chat.cloud && (
+          {chat.host && (
+            <div className="section">
+              <h3>{t('chatSettings.host')}</h3>
+              <p className="pref-section-desc" style={{ marginBottom: 12 }}>
+                {t('chatSettings.hostDesc')}
+              </p>
+              <Field label={t('chatSettings.hostName')}>
+                <span className="mono" style={{ fontSize: 11 }}>{chat.host.hostName}</span>
+              </Field>
+              <Field label={t('chatSettings.hostWorkspace')}>
+                <span className="mono" style={{ fontSize: 11, overflowWrap: 'anywhere' }}>
+                  {chat.host.repoId
+                    ? (chat.host.branch
+                      ? `${chat.host.repoId} · ${chat.host.branch}`
+                      : t('chatSettings.hostRoot', { repo: chat.host.repoId }))
+                    : t('chatSettings.hostScratch')}
+                </span>
+              </Field>
+              <Field label={t('chatSettings.hostCwd')}>
+                {chat.host.cwd ? (
+                  <span className="mono" style={{ fontSize: 11, overflowWrap: 'anywhere' }}>{chat.host.cwd}</span>
+                ) : (
+                  <span style={{ color: 'var(--fg-3)' }}>{t('chatSettings.hostNoCwd')}</span>
+                )}
+              </Field>
+            </div>
+          )}
+
+          {onFork && !chat.cloud && !chat.host && (
             <div className="section">
               <h3>{t('chatSettings.fork')}</h3>
               <p className="pref-section-desc" style={{ marginBottom: 12 }}>

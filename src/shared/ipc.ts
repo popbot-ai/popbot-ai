@@ -50,6 +50,7 @@ import type {
   CodexModelId,
   CodexReasoningEffort,
   ChatAttachment,
+  HostRecord,
   MessageRecord,
   PerforceRepoConfig,
   RepoRecord,
@@ -58,6 +59,7 @@ import type {
   MessageRole,
 } from './persistence';
 import type { SourceControlProviderId } from './sourceControl';
+import type { HostInfo } from './hostProtocol';
 
 export const IpcChannel = {
   AppGetVersion: 'pb:app:get-version',
@@ -291,6 +293,17 @@ export const IpcChannel = {
   /** End the chat's cloud session on the server (interrupt, then archive). */
   CloudShutdown: 'pb:cloud:shutdown',
 
+  /** Hosts (Preferences ▸ Hosts): other boxes running popbot-host that
+   *  chats can run on. List / save / remove the records, probe one
+   *  (info + repos), list a host repo's branches, and end a chat's
+   *  session on its host. */
+  HostsList: 'pb:hosts:list',
+  HostsSave: 'pb:hosts:save',
+  HostsRemove: 'pb:hosts:remove',
+  HostsProbe: 'pb:hosts:probe',
+  HostsBranches: 'pb:hosts:branches',
+  HostsShutdown: 'pb:hosts:shutdown',
+
   /** Push channel — main → renderer. A newer release exists but can't be
    *  installed in-app (unsigned build / updater error) — surface a
    *  manual "Download" link to the release page. */
@@ -423,12 +436,18 @@ export interface CreateChatInput {
    *  of a local CLI, on top of whatever workspace is chosen. The agent
    *  is Claude. */
   cloud?: boolean;
+  /** Run this chat on a host (Preferences ▸ Hosts) instead of this
+   *  computer: in one of the host's repositories — at its root, or in a
+   *  worktree on `branch` forked from `baseBranch` — or, with no repo, in
+   *  a scratch folder there. No local workspace is made. */
+  host?: { hostId: string; repoId: string | null; branch?: string | null; baseBranch?: string | null };
 }
 
 export type CreateChatResult =
   | { ok: true; chat: ChatRecord }
   | { ok: false; reason: 'slots-not-configured' }
   | { ok: false; reason: 'git-not-configured' }
+  | { ok: false; reason: 'host-not-found' }
   | { ok: false; reason: 'slot-taken'; slotId: number }
   | { ok: false; reason: 'no-free-slot' }
   | { ok: false; reason: 'worktree-failed'; message: string };
@@ -671,6 +690,17 @@ export interface CloudStatus {
   githubToken: 'settings' | 'gh' | null;
   /** A key is saved in Preferences (as opposed to only the environment). */
   hasSettingsKey: boolean;
+}
+
+/** What a host answered to a probe: its info, or why it could not be reached. */
+export type HostProbeResult = { ok: true; info: HostInfo } | { ok: false; error: string };
+
+export interface SaveHostInput {
+  /** Omitted to add a host. */
+  id?: string;
+  name: string;
+  url: string;
+  token: string;
 }
 
 export interface AgentBackendsStatus {
@@ -1078,6 +1108,20 @@ export interface PopBotApi {
     pull(chatId: string): Promise<{ ok: true; summary: string } | { ok: false; error: string }>;
     /** Shut the chat's cloud session down on the server. The next
      *  message starts a new one, primed with the conversation. */
+    shutdown(chatId: string): Promise<void>;
+  };
+  hosts: {
+    list(): Promise<HostRecord[]>;
+    /** Add or update a host; fields apply as they are left. */
+    save(input: SaveHostInput): Promise<HostRecord>;
+    remove(id: string): Promise<void>;
+    /** Ask a host what it is and has: version, the CLIs it found, its
+     *  repositories, the chats it is running. */
+    probe(url: string, token: string): Promise<HostProbeResult>;
+    /** Branches of one of a host's repositories, for the new-chat dialog. */
+    branches(hostId: string, repoId: string): Promise<{ ok: true; branches: string[] } | { ok: false; error: string }>;
+    /** End the chat's session on its host. The next message starts a
+     *  new one there, resuming the same conversation. */
     shutdown(chatId: string): Promise<void>;
   };
   updates: {

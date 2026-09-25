@@ -39,6 +39,8 @@ import { appendMessage, copyMessages, listMessages } from '../persistence/messag
 import { getSetting, setSetting } from '../persistence/settings';
 import { AgentHost, sessionCwdForChat } from '../agents/AgentHost';
 import { cloudStatus, endCloudSession, pullCloudBranch, testCloudApiKey } from '../agents/cloudSessions';
+import { endHostSession } from '../agents/hostClient';
+import { getHost } from '../persistence/hosts';
 import { searchTranscripts } from '../search/transcriptSearch';
 import { getCodexBinaryPath } from '../agents/codexProbe';
 import { forkClaudeSession, forkCodexThread } from '../agents/forkAgentContext';
@@ -49,7 +51,7 @@ import type { SourceControlProvider } from '../scm';
 import { getRepo, listRepos } from '../persistence/repos';
 import { slotWorktreePathForRepo, worktreesDirForRepo } from '../git/chatPaths';
 import { remountSlots, remountReposElevated } from '../shado/base';
-import type { RepoRecord } from '@shared/persistence';
+import { RAW_CHAT_REPO_ID, type RepoRecord } from '@shared/persistence';
 
 /** After a reboot, Windows drops the VHDX slot mounts. A dropped mount leaves
  *  the slot folder either EMPTY or as a BROKEN mount point (reading it errors).
@@ -433,6 +435,11 @@ export function registerChatHandlers(): void {
   ipcMain.handle(IpcChannel.ChatsDelete, async (_e, chatId: string) => {
     const chat = getChat(chatId);
     await AgentHost.dispose(chatId);
+    // A deleted chat has no use for its session on the host.
+    if (chat?.host) {
+      const host = getHost(chat.host.hostId);
+      if (host) await endHostSession(host, chatId).catch(() => undefined);
+    }
     disposePty(chatId);
     // If the chat is ephemeral and still has a live worktree on disk
     // (i.e. delete-from-open, not delete-after-close), tear it down so
@@ -483,6 +490,43 @@ export async function createChatWithWorkspace(input: CreateChatInput): Promise<C
     agent: cloud ? ('claude' as const) : input.agent,
     cloud: cloud ? { provider: 'anthropic' as const, sessionId: null, url: null, startedAt: null } : null,
   };
+
+  // A host chat runs on another box: nothing is made here. The host
+  // makes its checkout (the repo root, or a worktree on the branch) when
+  // the first message spawns the session. See RemoteBackend.ts.
+  if (input.host) {
+    const host = getHost(input.host.hostId);
+    if (!host) return { ok: false, reason: 'host-not-found' };
+    const branch = input.host.branch?.trim() || null;
+    const chat = createChat({
+      name: input.name,
+      ticket: input.ticket ?? null,
+      pr: input.pr ?? null,
+      prUrl: input.prUrl ?? null,
+      prAuthor: input.prAuthor ?? null,
+      branch,
+      type: input.type ?? 'lite',
+      slotId: null,
+      worktreePath: null,
+      repoId: RAW_CHAT_REPO_ID,
+      agent: input.agent,
+      cloud: null,
+      host: {
+        hostId: host.id,
+        hostName: host.name,
+        repoId: input.host.repoId?.trim() || null,
+        branch,
+        baseBranch: input.host.baseBranch?.trim() || null,
+        cwd: null,
+        lastSeq: 0,
+      },
+      claudeModel: input.claudeModel,
+      claudeReasoningEffort: input.claudeReasoningEffort,
+      codexModel: input.codexModel,
+      codexReasoningEffort: input.codexReasoningEffort,
+    });
+    return { ok: true, chat };
+  }
 
   // No workspace requested → cheap path. Used by lite chats that run
   // against the repo root and never need a worktree (e.g. CR chats).

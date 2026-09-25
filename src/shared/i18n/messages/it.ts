@@ -490,6 +490,13 @@ export const it = {
     'Spegnere la sessione cloud adesso? Se sta ancora lavorando viene prima interrotta. Tutto ciò che non è stato pushato va perso. Il tuo prossimo messaggio avvierà una nuova sessione, preparata con questa conversazione.',
   'chat.cloud.shutdownConfirmBranch':
     'Spegnere la sessione cloud adesso? Se sta ancora lavorando viene prima interrotta. Tutto ciò che non è stato pushato su {branch} va perso. Il tuo prossimo messaggio avvierà una nuova sessione, preparata con questa conversazione.',
+  'chat.host.chipTitle': 'Gira su {host} · apri le impostazioni della chat',
+  'chat.host.chipPendingTitle': 'Gira su {host}: la sessione parte con il tuo primo messaggio.',
+  'chat.host.shutdown': 'Arresta sull’host',
+  'chat.host.shutdownConfirm':
+    'Terminare adesso la sessione di questa chat su {host}? Tutto ciò che l’agente sta facendo lì si ferma. Il tuo prossimo messaggio avvia una nuova sessione su {host} che riprende questa conversazione.',
+  'chat.host.withRepo': 'Su {host} · {repo}',
+  'chat.host.noRepo': 'Su {host} · nessun repo',
   'chat.crossAgent.from': 'Dall’agente della chat “{name}”',
   'chat.crossAgent.waiting': 'attende la tua risposta',
   'chat.app.terminal': 'Terminale',
@@ -673,6 +680,15 @@ export const it = {
   'chatSettings.cloudPullDesc':
     'La sandbox fa commit e push sul branch della chat su origin. Pull porta quei commit nel checkout di questa chat (solo fast-forward).',
   'chatSettings.cloudPull': 'Pull da origin',
+  'chatSettings.host': 'Host',
+  'chatSettings.hostDesc':
+    'L’agente di questa chat gira su un’altra macchina. Trascrizione, ricerca e impostazioni stanno qui.',
+  'chatSettings.hostName': 'Host',
+  'chatSettings.hostWorkspace': 'Spazio di lavoro',
+  'chatSettings.hostScratch': 'cartella temporanea',
+  'chatSettings.hostRoot': '{repo} · radice del repo',
+  'chatSettings.hostCwd': 'Directory di lavoro',
+  'chatSettings.hostNoCwd': 'Non ancora avviata: parte con il tuo primo messaggio.',
   'chatSettings.tryReconnect': 'Prova a riconnettere',
   'chatSettings.reconnectDesc':
     'Scegli una sessione Claude salvata per il worktree di questa chat. Utile se la riconnessione automatica ha scelto quella sbagliata e vuoi forzare una trascrizione specifica. La sessione scelta verrà appuntata e l’agente riavviato al suo interno.',
@@ -704,6 +720,8 @@ export const it = {
   'agent.cloudToggle': 'Cloud',
   'agent.cloudToggleTitle':
     'Esegui questa chat in una sandbox cloud di Anthropic (Managed Agents, fatturazione con chiave API): continua a lavorare quando PopBot viene chiuso. Solo Claude.',
+  'agent.runOn': 'Esegui su',
+  'agent.runOnLocal': 'Questo computer',
   'agent.effort': 'Impegno',
 
   // ---------------------------------------------------------------------------
@@ -861,6 +879,18 @@ export const it = {
     'La sandbox clona con il tuo token GitHub: quello salvato in Preferenze ▸ Agenti ▸ Chat cloud, oppure quello con cui gh ha effettuato l’accesso.',
   'branch.dialog.cloudNoKey':
     'Le chat cloud richiedono una chiave API Anthropic. Aggiungine una in Preferenze ▸ Agenti ▸ Chat cloud.',
+  'branch.dialog.hostLoading': 'Interrogo {host}…',
+  'branch.dialog.hostUnreachable': 'Impossibile raggiungere {host}: {error}',
+  'branch.dialog.hostRepoLabel': 'Repository su {host}',
+  'branch.dialog.tagHostScratch': 'cartella temporanea',
+  'branch.dialog.hostNoRepos': '{host} non ha ancora repository: avvialo con --repo id=/percorso.',
+  'branch.dialog.hostDescScratch':
+    'Gira su {host} in una cartella temporanea senza repository. La trascrizione resta qui.',
+  'branch.dialog.hostDescRoot':
+    'Gira su {host} dalla radice di {repo}, sul branch su cui si trova. La trascrizione resta qui.',
+  'branch.dialog.hostDescSlot':
+    'Gira su {host} in un worktree di {repo} sul branch qui sopra, creato dal branch base. La trascrizione resta qui.',
+  'branch.dialog.disabled.host': 'In attesa di {host}',
   'branch.dialog.createChat': 'Crea chat',
 
   // ---------------------------------------------------------------------------
@@ -890,6 +920,7 @@ export const it = {
   'prefs.search': 'Cerca nelle preferenze…',
   'prefs.section.integ': 'Integrazioni',
   'prefs.section.agents': 'Agenti',
+  'prefs.section.hosts': 'Host',
   'prefs.section.runtime': 'Runtime',
   'prefs.section.repos': 'Repository',
   'prefs.section.git': 'Controllo versione',
@@ -940,6 +971,27 @@ export const it = {
   'prefs.agents.cloud.noGh': 'GitHub: nessun token. Salvane uno qui o esegui gh auth login.',
   'prefs.agents.cloud.ok': 'La chiave funziona.',
   'prefs.agents.cloud.error': 'Salvata, ma la chiave non ha funzionato: {error}',
+  'prefs.hosts.title': 'Host',
+  'prefs.hosts.desc':
+    'Altre macchine che eseguono chat per questo PopBot. Su ciascuna gira popbot-host: compilalo, copia dist-host/popbot-host.cjs e avvialo una volta con --init per scrivere la configurazione e stampare il token. Trascrizione, ricerca e impostazioni della chat restano qui; l’agente, i suoi strumenti e il checkout stanno lì. Una macchina remota si raggiunge con un tunnel SSH: ssh -L 7677:127.0.0.1:7677 macchina.',
+  'prefs.hosts.none': 'Nessun host per ora: le chat girano su questo computer.',
+  'prefs.hosts.add': 'Aggiungi host',
+  'prefs.hosts.defaultName': 'Nuovo host',
+  'prefs.hosts.name': 'Nome',
+  'prefs.hosts.url': 'URL',
+  'prefs.hosts.token': 'Token',
+  'prefs.hosts.remove': 'Rimuovi',
+  'prefs.hosts.removeTitle': 'Rimuovi host',
+  'prefs.hosts.removeConfirm':
+    'Rimuovere {name}? Le chat già su di esso restano, ma non possono più raggiungerlo.',
+  'prefs.hosts.checking': 'Verifica…',
+  'prefs.hosts.ok':
+    'popbot-host {version} su {platform} · Claude: {claude} · Codex: {codex} · repository: {repos}',
+  'prefs.hosts.okNoRepos': 'nessuno per ora (avvialo con --repo id=/percorso)',
+  'prefs.hosts.error': 'Impossibile raggiungerlo: {error}',
+  'prefs.hosts.found': 'trovato',
+  'prefs.hosts.missing': 'non trovato',
+  'prefs.hosts.noUrl': 'Inserisci URL e token.',
 
   // Preferences — Runtime / attachment retention pane.
   'prefs.runtime.title': 'Conservazione allegati',

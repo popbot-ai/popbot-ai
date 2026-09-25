@@ -336,6 +336,12 @@ export function ChatColumn({
     if (!confirm(body)) return;
     await window.popbot.cloud.shutdown(chat.id);
   };
+  // Likewise a host session: closing the chat detaches, this ends it.
+  const shutdownHost = async (): Promise<void> => {
+    if (!chat.host) return;
+    if (!confirm(t('chat.host.shutdownConfirm', { host: chat.host.hostName }))) return;
+    await window.popbot.hosts.shutdown(chat.id);
+  };
   const openMenuAt = (el: Element): void => {
     const r = el.getBoundingClientRect();
     setMenu({ top: r.bottom + 4, right: Math.max(4, window.innerWidth - r.right) });
@@ -567,9 +573,13 @@ export function ChatColumn({
       console.error('agent.approve failed', err);
     }
   }, [chat.id]);
-  const repoTitle = chat.repoId === RAW_CHAT_REPO_ID
-    ? t('chat.repo.none')
-    : t('chat.repo.withName', { repoId: chat.repoId });
+  const repoTitle = chat.host
+    ? (chat.host.repoId
+      ? t('chat.host.withRepo', { host: chat.host.hostName, repo: chat.host.repoId })
+      : t('chat.host.noRepo', { host: chat.host.hostName }))
+    : chat.repoId === RAW_CHAT_REPO_ID
+      ? t('chat.repo.none')
+      : t('chat.repo.withName', { repoId: chat.repoId });
 
   return (
     <>
@@ -651,7 +661,7 @@ export function ChatColumn({
           style={{ top: menu.top, right: menu.right }}
           onMouseDown={(e) => e.stopPropagation()}
         >
-          {!chat.cloud && (
+          {!chat.cloud && !chat.host && (
             <>
               <button
                 type="button"
@@ -717,6 +727,17 @@ export function ChatColumn({
                 {t('chat.cloud.shutdown')}
               </button>
             </>
+          )}
+          {chat.host && (
+            <button
+              type="button"
+              className="chat-menu-item"
+              role="menuitem"
+              onClick={() => { setMenu(null); void shutdownHost(); }}
+            >
+              <i className="fa-solid fa-power-off" aria-hidden="true" />
+              {t('chat.host.shutdown')}
+            </button>
           )}
           <div className="chat-menu-sep" />
           <button
@@ -931,6 +952,21 @@ export function ChatColumn({
                 onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); openMenuAt(e.currentTarget); }}
               >
                 <i className="fa-solid fa-cloud" aria-hidden /> {t('chat.cloud.chip')}
+              </button>
+            )}
+            {/* Host chats: the chip names the host and opens the settings.
+                Outlined until the first message has started a session. */}
+            {chat.host && (
+              <button
+                type="button"
+                className={`host-chip${chat.host.cwd ? '' : ' pending'}`}
+                title={chat.host.cwd
+                  ? t('chat.host.chipTitle', { host: chat.host.hostName })
+                  : t('chat.host.chipPendingTitle', { host: chat.host.hostName })}
+                onClick={(e) => handleSettings(e)}
+                onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); openMenuAt(e.currentTarget); }}
+              >
+                <i className="fa-solid fa-server" aria-hidden /> {chat.host.hostName}
               </button>
             )}
             <span className="spacer" />
