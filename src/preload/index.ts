@@ -65,6 +65,9 @@ const api: PopBotApi = {
     listMessages: (chatId: string, tail?: number) =>
       ipcRenderer.invoke(IpcChannel.MessagesList, chatId, tail),
   },
+  diag: {
+    log: (tag: string, data?: Record<string, unknown>) => ipcRenderer.send(IpcChannel.DiagLog, tag, data),
+  },
   settings: {
     get: <T = unknown>(key: string) =>
       ipcRenderer.invoke(IpcChannel.SettingsGet, key) as Promise<T | null>,

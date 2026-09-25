@@ -425,6 +425,13 @@ function CloudChatsRows({
   }, [statusAt]);
 
   const dirty = apiKey.trim() !== (initial.apiKey ?? '') || githubToken.trim() !== (initial.githubToken ?? '');
+  // Traced while the save path is under investigation: a remount would
+  // wipe a typed key, and a save that never reaches main is invisible.
+  useEffect(() => {
+    window.popbot.diag.log('prefs.cloud.mount', { hasInitialKey: !!initial.apiKey });
+    return () => window.popbot.diag.log('prefs.cloud.unmount', {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // The key is saved whatever the check says: the check is a courtesy
   // (it tells you now rather than at the first cloud chat), and a
@@ -433,12 +440,14 @@ function CloudChatsRows({
   const save = async () => {
     setSaving(true);
     setResult(null);
+    window.popbot.diag.log('prefs.cloud.save', { keyLen: apiKey.trim().length, tokenLen: githubToken.trim().length, dirty });
     try {
       const key = apiKey.trim();
       let verdict: { ok: boolean; text: string } | null = null;
       if (key) {
         try {
           const check = await window.popbot.cloud.testKey(key);
+          window.popbot.diag.log('prefs.cloud.checked', { ok: check.ok, ...(check.ok ? {} : { error: check.error }) });
           verdict = check.ok
             ? { ok: true, text: t('prefs.agents.cloud.ok') }
             : { ok: false, text: t('prefs.agents.cloud.error', { error: check.error }) };
@@ -450,9 +459,11 @@ function CloudChatsRows({
         ...(key ? { apiKey: key } : {}),
         ...(githubToken.trim() ? { githubToken: githubToken.trim() } : {}),
       });
+      window.popbot.diag.log('prefs.cloud.saved', { keyLen: key.length });
       setResult(verdict ?? { ok: true, text: t('common.saved') });
       setStatusAt(Date.now());
     } catch (err) {
+      window.popbot.diag.log('prefs.cloud.save.failed', { error: err instanceof Error ? err.message : String(err) });
       setResult({ ok: false, text: err instanceof Error ? err.message : String(err) });
     } finally {
       setSaving(false);

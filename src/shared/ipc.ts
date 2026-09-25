@@ -85,6 +85,9 @@ export const IpcChannel = {
   ChatsFork: 'pb:chats:fork',
   MessagesList: 'pb:messages:list',
 
+  /** Renderer → diagnostic log (fire-and-forget): a line in the same
+   *  popbot-agent.log the main process writes, tagged `renderer.<tag>`. */
+  DiagLog: 'pb:diag:log',
   SettingsGet: 'pb:settings:get',
   SettingsSet: 'pb:settings:set',
   SettingsGetAll: 'pb:settings:get-all',
@@ -733,6 +736,10 @@ export interface PopBotApi {
     /** Full-text search over transcripts, best matches first. */
     searchTranscripts(query: string, opts?: TranscriptSearchOptions): Promise<TranscriptSearchResult>;
     listRefs(): Promise<ChatRefs>;
+  };
+  diag: {
+    /** Write a line to the diagnostic log (see IpcChannel.DiagLog). */
+    log(tag: string, data?: Record<string, unknown>): void;
   };
   settings: {
     get<T = unknown>(key: string): Promise<T | null>;
