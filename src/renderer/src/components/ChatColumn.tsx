@@ -966,7 +966,7 @@ export function ChatColumn({
                 onClick={(e) => handleSettings(e)}
                 onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); openMenuAt(e.currentTarget); }}
               >
-                <i className="fa-solid fa-server" aria-hidden /> {chat.host.hostName}
+                <i className="fa-solid fa-server" aria-hidden /> <span>{chat.host.hostName}</span>
               </button>
             )}
             <span className="spacer" />

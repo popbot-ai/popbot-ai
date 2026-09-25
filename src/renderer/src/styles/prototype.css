@@ -6042,9 +6042,10 @@ input.input.mono, select.input.mono { font-family: var(--font-mono); font-size: 
   font-size: 10.5px; font-weight: 600; font-family: inherit; letter-spacing: 0.02em;
   border: 1px solid #6fb1c9; background: #6fb1c9; color: #08161a;
   cursor: pointer; transition: background 80ms, border-color 80ms, color 80ms, opacity 80ms;
-  max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  flex: 0 0 auto; max-width: 160px; white-space: nowrap;
 }
-.host-chip i { font-size: 10px; }
+.host-chip i { font-size: 10px; flex: 0 0 auto; }
+.host-chip span { overflow: hidden; text-overflow: ellipsis; }
 .host-chip:hover { filter: brightness(1.08); }
 .host-chip.pending { background: transparent; color: #6fb1c9; }
 
