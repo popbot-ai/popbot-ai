@@ -44,6 +44,12 @@ export async function resolveGithubToken(): Promise<{ token: string; source: 'se
   return fromGh ? { token: fromGh, source: 'gh' } : null;
 }
 
+/** The workspace an organization-level key must name; a key made
+ *  inside a workspace needs none. */
+export function resolveCloudWorkspaceId(): string | null {
+  return cloudSettings().workspaceId?.trim() || process.env.ANTHROPIC_WORKSPACE_ID?.trim() || null;
+}
+
 export class CloudNotConfiguredError extends Error {
   constructor() {
     super('No Anthropic API key. Add one in Preferences ▸ Agents ▸ Cloud chats (or set ANTHROPIC_API_KEY).');
@@ -51,23 +57,32 @@ export class CloudNotConfiguredError extends Error {
   }
 }
 
-export function cloudClient(apiKey?: string): Anthropic {
+export function cloudClient(apiKey?: string, workspaceId?: string | null): Anthropic {
   const key = apiKey ?? resolveCloudApiKey()?.key;
   if (!key) throw new CloudNotConfiguredError();
-  return new Anthropic({ apiKey: key, maxRetries: 3 });
+  const workspace = workspaceId === undefined ? resolveCloudWorkspaceId() : workspaceId?.trim() || null;
+  return new Anthropic({
+    apiKey: key,
+    maxRetries: 3,
+    ...(workspace ? { defaultHeaders: { 'anthropic-workspace-id': workspace } } : {}),
+  });
 }
 
-/** Does the key work for Managed Agents? One cheap list call, bounded
- *  so a blocked network cannot hang the Preferences save. */
-export async function testCloudApiKey(apiKey: string): Promise<{ ok: true } | { ok: false; error: string }> {
+/** Does the key (and workspace, when given) work for Managed Agents?
+ *  One cheap list call, bounded so a blocked network cannot hang the
+ *  Preferences save. */
+export async function testCloudApiKey(
+  apiKey: string,
+  workspaceId?: string | null,
+): Promise<{ ok: true } | { ok: false; error: string }> {
   if (!apiKey) return { ok: false, error: 'no key given' };
   try {
-    await cloudClient(apiKey).beta.environments.list({ limit: 1 }, { timeout: 15_000, maxRetries: 1 });
-    dlog('cloud.key.ok', { prefix: apiKey.slice(0, 10) });
+    await cloudClient(apiKey, workspaceId ?? null).beta.environments.list({ limit: 1 }, { timeout: 15_000, maxRetries: 1 });
+    dlog('cloud.key.ok', { prefix: apiKey.slice(0, 10), workspace: !!workspaceId });
     return { ok: true };
   } catch (err) {
     const error = describeApiError(err);
-    dlog('cloud.key.failed', { prefix: apiKey.slice(0, 10), error });
+    dlog('cloud.key.failed', { prefix: apiKey.slice(0, 10), workspace: !!workspaceId, error });
     return { ok: false, error };
   }
 }

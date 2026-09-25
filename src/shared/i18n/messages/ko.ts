@@ -916,6 +916,9 @@ export const ko = {
   'prefs.agents.cloud.getKey': '키 받기',
   'prefs.agents.cloud.githubToken.title': 'GitHub 토큰',
   'prefs.agents.cloud.githubToken.desc': '샌드박스가 이 토큰으로 리포지토리를 클론합니다(repo 범위). 비워 두면 gh가 로그인한 토큰을 사용합니다.',
+  'prefs.agents.cloud.workspace.title': '워크스페이스 ID',
+  'prefs.agents.cloud.workspace.desc':
+    '워크스페이스에 속하지 않은 키에만 필요합니다(검사가 알려줍니다): Console의 Workspaces 페이지에 있는 wrkspc_… ID. 워크스페이스 안에서 만든 키에는 필요 없습니다.',
   'prefs.agents.cloud.envKey': '환경 변수 ANTHROPIC_API_KEY를 사용 중입니다.',
   'prefs.agents.cloud.noKey': '아직 키가 없습니다. 클라우드 채팅을 사용할 수 없습니다.',
   'prefs.agents.cloud.ghToken': 'GitHub: gh가 로그인한 토큰을 사용 중입니다.',

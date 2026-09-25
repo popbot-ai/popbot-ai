@@ -1069,8 +1069,9 @@ export interface PopBotApi {
   cloud: {
     /** Which key and GitHub token cloud chats would run with. */
     status(): Promise<CloudStatus>;
-    /** Does this Anthropic API key work for Managed Agents? */
-    testKey(apiKey: string): Promise<{ ok: true } | { ok: false; error: string }>;
+    /** Does this Anthropic API key work for Managed Agents? An
+     *  organization-level key needs the workspace it should use. */
+    testKey(apiKey: string, workspaceId?: string): Promise<{ ok: true } | { ok: false; error: string }>;
     /** Fast-forward the chat's checkout to what the cloud pushed. */
     pull(chatId: string): Promise<{ ok: true; summary: string } | { ok: false; error: string }>;
   };

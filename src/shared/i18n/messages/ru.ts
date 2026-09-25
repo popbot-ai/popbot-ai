@@ -920,6 +920,9 @@ export const ru = {
   'prefs.agents.cloud.githubToken.title': 'Токен GitHub',
   'prefs.agents.cloud.githubToken.desc':
     'Песочница клонирует ваши репозитории с ним (scope repo). Оставьте пустым, чтобы использовать токен, под которым авторизован gh.',
+  'prefs.agents.cloud.workspace.title': 'ID рабочего пространства',
+  'prefs.agents.cloud.workspace.desc':
+    'Только для ключа, не привязанного к рабочему пространству (проверка об этом скажет): id wrkspc_… со страницы Workspaces в Console. Ключу, созданному внутри рабочего пространства, он не нужен.',
   'prefs.agents.cloud.envKey': 'Используется переменная окружения ANTHROPIC_API_KEY.',
   'prefs.agents.cloud.noKey': 'Ключа пока нет — облачные чаты недоступны.',
   'prefs.agents.cloud.ghToken': 'GitHub: используется токен, под которым авторизован gh.',

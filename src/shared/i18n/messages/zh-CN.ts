@@ -912,6 +912,9 @@ export const zhCN = {
   'prefs.agents.cloud.getKey': '获取密钥',
   'prefs.agents.cloud.githubToken.title': 'GitHub 令牌',
   'prefs.agents.cloud.githubToken.desc': '沙盒用它克隆你的仓库（repo 权限）。留空则使用 gh 当前登录所用的令牌。',
+  'prefs.agents.cloud.workspace.title': '工作区 ID',
+  'prefs.agents.cloud.workspace.desc':
+    '仅当密钥未绑定到工作区时需要（检查会提示）：Console 的 Workspaces 页面中的 wrkspc_… ID。在工作区内创建的密钥不需要。',
   'prefs.agents.cloud.envKey': '正在使用环境变量 ANTHROPIC_API_KEY。',
   'prefs.agents.cloud.noKey': '还没有密钥，云端对话不可用。',
   'prefs.agents.cloud.ghToken': 'GitHub：正在使用 gh 当前登录所用的令牌。',

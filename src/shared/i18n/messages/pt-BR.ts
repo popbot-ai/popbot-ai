@@ -920,6 +920,9 @@ export const ptBR = {
   'prefs.agents.cloud.githubToken.title': 'Token do GitHub',
   'prefs.agents.cloud.githubToken.desc':
     'O sandbox clona seus repositórios com ele (escopo repo). Deixe em branco para usar o token com que o gh está autenticado.',
+  'prefs.agents.cloud.workspace.title': 'ID do workspace',
+  'prefs.agents.cloud.workspace.desc':
+    'Só para uma chave que não está vinculada a um workspace (a verificação avisa): o id wrkspc_… da página Workspaces do Console. Uma chave criada dentro de um workspace não precisa.',
   'prefs.agents.cloud.envKey': 'Usando a variável de ambiente ANTHROPIC_API_KEY.',
   'prefs.agents.cloud.noKey': 'Ainda sem chave: os chats na nuvem estão indisponíveis.',
   'prefs.agents.cloud.ghToken': 'GitHub: usando o token com que o gh está autenticado.',

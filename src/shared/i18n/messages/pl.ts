@@ -921,6 +921,9 @@ export const pl = {
   'prefs.agents.cloud.githubToken.title': 'Token GitHub',
   'prefs.agents.cloud.githubToken.desc':
     'Sandbox klonuje nim Twoje repozytoria (zakres repo). Zostaw puste, aby użyć tokenu, którym zalogowany jest gh.',
+  'prefs.agents.cloud.workspace.title': 'ID workspace’u',
+  'prefs.agents.cloud.workspace.desc':
+    'Tylko dla klucza niepowiązanego z workspace’em (sprawdzenie to zgłosi): id wrkspc_… ze strony Workspaces w Console. Klucz utworzony wewnątrz workspace’u go nie potrzebuje.',
   'prefs.agents.cloud.envKey': 'Używana jest zmienna środowiskowa ANTHROPIC_API_KEY.',
   'prefs.agents.cloud.noKey': 'Nie ma jeszcze klucza – czaty w chmurze są niedostępne.',
   'prefs.agents.cloud.ghToken': 'GitHub: używany jest token, którym zalogowany jest gh.',

@@ -209,6 +209,11 @@ export interface CloudSettings {
   /** GitHub token the sandbox clones with. Falls back to `gh auth token`
    *  when empty. */
   githubToken?: string;
+  /** The Console workspace (`wrkspc_…`) Managed Agents resources live
+   *  in. Needed only for a key that is not scoped to a workspace (an
+   *  organization key): the API then asks for it by name. Falls back
+   *  to ANTHROPIC_WORKSPACE_ID. */
+  workspaceId?: string;
 }
 
 export interface CloudCache {

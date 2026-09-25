@@ -920,6 +920,9 @@ export const uk = {
   'prefs.agents.cloud.githubToken.title': 'Токен GitHub',
   'prefs.agents.cloud.githubToken.desc':
     'Пісочниця клонує ваші репозиторії з ним (scope repo). Залиште порожнім, щоб використовувати токен, під яким авторизовано gh.',
+  'prefs.agents.cloud.workspace.title': 'ID робочого простору',
+  'prefs.agents.cloud.workspace.desc':
+    'Лише для ключа, не прив’язаного до робочого простору (перевірка про це скаже): id wrkspc_… зі сторінки Workspaces у Console. Ключу, створеному всередині робочого простору, він не потрібен.',
   'prefs.agents.cloud.envKey': 'Використовується змінна середовища ANTHROPIC_API_KEY.',
   'prefs.agents.cloud.noKey': 'Ключа ще немає — хмарні чати недоступні.',
   'prefs.agents.cloud.ghToken': 'GitHub: використовується токен, під яким авторизовано gh.',

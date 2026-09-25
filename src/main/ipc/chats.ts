@@ -407,8 +407,11 @@ export function registerChatHandlers(): void {
   // ---- Cloud chats: setup status, key check, and pulling the cloud's
   // commits into the local checkout.
   ipcMain.handle(IpcChannel.CloudStatus, () => cloudStatus());
-  ipcMain.handle(IpcChannel.CloudTestKey, (_e, apiKey: string) =>
-    testCloudApiKey(typeof apiKey === 'string' ? apiKey.trim() : ''));
+  ipcMain.handle(IpcChannel.CloudTestKey, (_e, apiKey: string, workspaceId?: string) =>
+    testCloudApiKey(
+      typeof apiKey === 'string' ? apiKey.trim() : '',
+      typeof workspaceId === 'string' && workspaceId.trim() ? workspaceId.trim() : null,
+    ));
   ipcMain.handle(IpcChannel.CloudPull, (_e, chatId: string) =>
     pullCloudBranch(chatId, (event) => AgentHost.emit(event)));
 

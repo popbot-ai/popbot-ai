@@ -917,6 +917,9 @@ export const ja = {
   'prefs.agents.cloud.githubToken.title': 'GitHub トークン',
   'prefs.agents.cloud.githubToken.desc':
     'サンドボックスはこのトークンでリポジトリをクローンします（repo スコープ）。空のままにすると gh がサインインしているトークンを使います。',
+  'prefs.agents.cloud.workspace.title': 'ワークスペース ID',
+  'prefs.agents.cloud.workspace.desc':
+    'ワークスペースに紐付いていないキーの場合のみ（検証がそう伝えます）: Console の Workspaces ページにある wrkspc_… の ID。ワークスペース内で作成したキーには不要です。',
   'prefs.agents.cloud.envKey': '環境変数 ANTHROPIC_API_KEY を使用中です。',
   'prefs.agents.cloud.noKey': 'キーがまだありません。クラウドチャットは利用できません。',
   'prefs.agents.cloud.ghToken': 'GitHub: gh がサインインしているトークンを使用中です。',

@@ -920,6 +920,9 @@ export const fr = {
   'prefs.agents.cloud.githubToken.title': 'Jeton GitHub',
   'prefs.agents.cloud.githubToken.desc':
     'Le bac à sable clone vos dépôts avec ce jeton (portée repo). Laissez vide pour utiliser celui avec lequel gh est connecté.',
+  'prefs.agents.cloud.workspace.title': 'ID du workspace',
+  'prefs.agents.cloud.workspace.desc':
+    'Uniquement pour une clé non rattachée à un workspace (la vérification le dit) : l’id wrkspc_… de la page Workspaces de la Console. Une clé créée dans un workspace n’en a pas besoin.',
   'prefs.agents.cloud.envKey': 'La variable d’environnement ANTHROPIC_API_KEY est utilisée.',
   'prefs.agents.cloud.noKey': 'Pas encore de clé : les chats cloud sont indisponibles.',
   'prefs.agents.cloud.ghToken': 'GitHub : jeton de la session gh utilisé.',

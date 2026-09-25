@@ -458,6 +458,7 @@ function CloudChatsRows({
   const { t } = useTranslation();
   const [apiKey, setApiKey] = useState(initial.apiKey ?? '');
   const [githubToken, setGithubToken] = useState(initial.githubToken ?? '');
+  const [workspaceId, setWorkspaceId] = useState(initial.workspaceId ?? '');
   const [saving, setSaving] = useState(false);
   const [result, setResult] = useState<{ ok: boolean; text: string } | null>(null);
   // What the cloud would run with right now: the saved key or the
@@ -471,8 +472,8 @@ function CloudChatsRows({
   }, [statusAt]);
   // The latest field values and saved values, for a commit that runs
   // from a blur, from Enter, or from the sheet closing under the field.
-  const latest = useRef({ apiKey, githubToken, initial });
-  latest.current = { apiKey, githubToken, initial };
+  const latest = useRef({ apiKey, githubToken, workspaceId, initial });
+  latest.current = { apiKey, githubToken, workspaceId, initial };
   // Values currently being written — a blur followed by a close must
   // not write the same thing twice.
   const inFlight = useRef<string | null>(null);
@@ -486,21 +487,23 @@ function CloudChatsRows({
   const commit = async () => {
     const key = latest.current.apiKey.trim();
     const token = latest.current.githubToken.trim();
+    const workspace = latest.current.workspaceId.trim();
     const saved = latest.current.initial;
-    const keyChanged = key !== (saved.apiKey ?? '');
+    // The workspace is part of what the key check exercises.
+    const keyChanged = key !== (saved.apiKey ?? '') || workspace !== (saved.workspaceId ?? '');
     const tokenChanged = token !== (saved.githubToken ?? '');
     if (!keyChanged && !tokenChanged) return;
-    const signature = `${key}\n${token}`;
+    const signature = `${key}\n${token}\n${workspace}`;
     if (inFlight.current === signature) return;
     inFlight.current = signature;
     setSaving(true);
     setResult(null);
-    window.popbot.diag.log('prefs.cloud.save', { keyLen: key.length, tokenLen: token.length, keyChanged, tokenChanged });
+    window.popbot.diag.log('prefs.cloud.save', { keyLen: key.length, tokenLen: token.length, workspace: !!workspace, keyChanged, tokenChanged });
     try {
       let verdict: { ok: boolean; text: string } | null = null;
       if (key && keyChanged) {
         try {
-          const check = await window.popbot.cloud.testKey(key);
+          const check = await window.popbot.cloud.testKey(key, workspace || undefined);
           window.popbot.diag.log('prefs.cloud.checked', { ok: check.ok, ...(check.ok ? {} : { error: check.error }) });
           verdict = check.ok
             ? { ok: true, text: t('prefs.agents.cloud.ok') }
@@ -512,6 +515,7 @@ function CloudChatsRows({
       await onSave({
         ...(key ? { apiKey: key } : {}),
         ...(token ? { githubToken: token } : {}),
+        ...(workspace ? { workspaceId: workspace } : {}),
       });
       window.popbot.diag.log('prefs.cloud.saved', { keyLen: key.length });
       setResult(verdict ?? { ok: true, text: t('common.saved') });
@@ -594,6 +598,23 @@ function CloudChatsRows({
             placeholder="sk-ant-…"
             value={apiKey}
             onChange={(e) => { setApiKey(e.target.value); setResult(null); }}
+            onBlur={() => void commit()}
+            onKeyDown={onEnter}
+            style={{ width: '100%' }}
+          />
+        </div>
+      </div>
+      <div className="pref-row">
+        <div className="pref-label">
+          <div className="pref-label-title">{t('prefs.agents.cloud.workspace.title')}</div>
+          <div className="pref-label-desc">{t('prefs.agents.cloud.workspace.desc')}</div>
+        </div>
+        <div className="pref-control" style={{ flex: 1, minWidth: 280 }}>
+          <input
+            className="pref-input mono"
+            placeholder="wrkspc_…"
+            value={workspaceId}
+            onChange={(e) => { setWorkspaceId(e.target.value); setResult(null); }}
             onBlur={() => void commit()}
             onKeyDown={onEnter}
             style={{ width: '100%' }}

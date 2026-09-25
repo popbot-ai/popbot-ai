@@ -920,6 +920,9 @@ export const it = {
   'prefs.agents.cloud.githubToken.title': 'Token GitHub',
   'prefs.agents.cloud.githubToken.desc':
     'La sandbox clona i tuoi repository con questo token (scope repo). Lascia vuoto per usare quello con cui gh ha effettuato l’accesso.',
+  'prefs.agents.cloud.workspace.title': 'ID del workspace',
+  'prefs.agents.cloud.workspace.desc':
+    'Solo per una chiave non associata a un workspace (la verifica lo dice): l’id wrkspc_… dalla pagina Workspaces della Console. Una chiave creata dentro un workspace non ne ha bisogno.',
   'prefs.agents.cloud.envKey': 'Viene usata la variabile d’ambiente ANTHROPIC_API_KEY.',
   'prefs.agents.cloud.noKey': 'Nessuna chiave ancora: le chat cloud non sono disponibili.',
   'prefs.agents.cloud.ghToken': 'GitHub: viene usato il token con cui gh ha effettuato l’accesso.',
