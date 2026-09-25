@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { GitBaseBranches } from '@shared/git';
 import type { HostRecord, RepoRecord } from '@shared/persistence';
-import type { HostInfo } from '@shared/hostProtocol';
+import type { HostInfo, HostSlotsInfo, HostWorkspaceKind } from '@shared/hostProtocol';
 import { useTranslation } from '../lib/i18n';
 import { P4Glyph } from './P4Glyph';
 import {
@@ -69,7 +69,7 @@ interface BaseBranchDialogProps {
      *  repositories — at the root, or in a worktree on `branch` forked
      *  from `baseBranch` — or in a scratch folder there. `repoId` is
      *  null then; nothing is made on this machine. */
-    host?: { hostId: string; repoId: string | null; branch: string | null; baseBranch: string | null };
+    host?: { hostId: string; repoId: string | null; kind: HostWorkspaceKind; branch: string | null; baseBranch: string | null };
     agentConfig?: AgentCreateConfig;
   }) => void;
 }
@@ -402,11 +402,29 @@ export function BaseBranchDialog({
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [host?.id, hostRepoId]);
+  // The picked host repo's pool, so a full one is known before Create.
+  const [hostPool, setHostPool] = useState<HostSlotsInfo | null>(null);
+  useEffect(() => {
+    if (!host || !hostRepoId) {
+      setHostPool(null);
+      return;
+    }
+    let cancelled = false;
+    setHostPool(null);
+    void window.popbot.hosts.slots(host.id, hostRepoId).then((res) => {
+      if (!cancelled && res.ok) setHostPool(res.slots);
+    });
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [host?.id, hostRepoId]);
+  const hostFreeSlots = hostPool ? hostPool.slots.filter((sl) => !sl.chatId).length : null;
   // What still blocks Create on a host: its answer, then its branches.
   const hostNotReady = isHost && hostInfo?.state !== 'ok';
   const hostBranchesLoading = isHost && hostRepoId !== null && hostBranches === null && !hostBranchError;
   const hostNoBranchPicked = isHost && hostRepoId !== null && hostBranches !== null && !hostPicked;
-  const hostBlocked = hostNotReady || hostBranchesLoading || hostNoBranchPicked || (isHost && !!hostBranchError);
+  const hostPoolFull = isHost && hostRepoId !== null && hostPicked !== FREE_CHAT_VALUE
+    && hostPool?.mode === 'slots' && hostFreeSlots === 0;
+  const hostBlocked = hostNotReady || hostBranchesLoading || hostNoBranchPicked || hostPoolFull || (isHost && !!hostBranchError);
 
   // On a host, "no repository" is its scratch folder.
   const isRawChat = isHost ? hostRepoId === null : (pickedRepoId === null && allowNoRepo === true);
@@ -522,6 +540,7 @@ export function BaseBranchDialog({
         host: {
           hostId: host.id,
           repoId: hostRepoId,
+          kind: hostRepoId === null ? 'scratch' : onBranch ? 'worktree' : 'root',
           branch: onBranch && effectiveBranch ? effectiveBranch : null,
           baseBranch: onBranch ? hostPicked : null,
         },
@@ -599,7 +618,8 @@ export function BaseBranchDialog({
       : (branchesLoading || hostBranchesLoading) ? t('branch.dialog.disabled.loadingBranches')
         : (noBranches || (isHost && !!hostBranchError)) ? t('branch.dialog.disabled.noBranches')
           : (noBranchPicked || hostNoBranchPicked) ? t('branch.dialog.disabled.pickBranch')
-            : '';
+            : hostPoolFull ? t('branch.dialog.disabled.hostNoSlot', { repo: hostRepoId ?? '', host: host?.name ?? '' })
+              : '';
 
   return createPortal(
     <div className="confirm-scrim" onMouseDown={onCancel}>
@@ -612,29 +632,39 @@ export function BaseBranchDialog({
         <div className="confirm-head">{t('branch.dialog.title')}</div>
         {subtitle && !askSubject && <div className="base-branch-subtitle">{subtitle}</div>}
         <div className="confirm-body">
+          {/* Where the chat runs comes first: it decides which agents,
+              repositories and branches the rest of the dialog offers.
+              Only shown once a host exists. */}
+          {hostAllowed && hosts.length > 0 && (
+            <div style={{ marginBottom: 12 }}>
+              <div style={{ fontSize: 11, color: 'var(--fg-3)', marginBottom: 4 }}>{t('agent.runOn')}</div>
+              <div className="base-branch-list">
+                <label className={`base-branch-row ${!host ? 'selected' : ''}`}>
+                  <input type="radio" name="run-on" value="" checked={!host} onChange={() => setHostId(null)} />
+                  <span className="base-branch-name" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                    <i className="fa-solid fa-laptop" style={{ color: 'var(--fg-3)' }} />
+                    {t('agent.runOnLocal')}
+                  </span>
+                </label>
+                {hosts.map((h) => (
+                  <label key={h.id} className={`base-branch-row ${host?.id === h.id ? 'selected' : ''}`}>
+                    <input type="radio" name="run-on" value={h.id} checked={host?.id === h.id} onChange={() => setHostId(h.id)} />
+                    <span className="base-branch-name" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                      <i className="fa-solid fa-server" style={{ color: '#6fb1c9' }} />
+                      {h.name}
+                    </span>
+                    <span className="base-branch-tag mono">{h.url.replace(/^https?:\/\//, '')}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+          )}
           {showAgentPicker && (
-            <>
-              {/* Where the agent runs. Only shown once a host exists. */}
-              {hostAllowed && hosts.length > 0 && (
-                <div style={{ marginBottom: 12 }}>
-                  <div style={{ fontSize: 11, color: 'var(--fg-3)', marginBottom: 4 }}>{t('agent.runOn')}</div>
-                  <select
-                    className="pref-select"
-                    aria-label={t('agent.runOn')}
-                    value={host?.id ?? ''}
-                    onChange={(e) => setHostId(e.currentTarget.value || null)}
-                  >
-                    <option value="">{t('agent.runOnLocal')}</option>
-                    {hosts.map((h) => <option key={h.id} value={h.id}>{h.name}</option>)}
-                  </select>
-                </div>
-              )}
-              <AgentCreateControls
-                value={agentConfig}
-                onChange={(next) => setAgentConfig(compactAgentCreateConfig(next))}
-                {...(cloudAllowed ? { cloud: { value: cloud, onChange: setCloud } } : {})}
-              />
-            </>
+            <AgentCreateControls
+              value={agentConfig}
+              onChange={(next) => setAgentConfig(compactAgentCreateConfig(next))}
+              {...(cloudAllowed ? { cloud: { value: cloud, onChange: setCloud } } : {})}
+            />
           )}
           {askSubject && (
             <div style={{ marginBottom: 12 }}>
@@ -702,7 +732,11 @@ export function BaseBranchDialog({
                             <i className="fa-solid fa-code-branch" style={{ color: 'var(--scm-git)' }} />
                             {r.id}
                           </span>
-                          <span className="base-branch-tag" title={r.path}>{r.path}</span>
+                          <span className="base-branch-tag" title={r.path}>
+                            {r.mode === 'ephemeral'
+                              ? t('branch.dialog.tagEphemeral')
+                              : t('branch.dialog.tagSlots', { count: r.slotCount })}
+                          </span>
                         </label>
                       ))}
                     </div>
@@ -734,6 +768,9 @@ export function BaseBranchDialog({
                         {isFreeChat
                           ? t('branch.dialog.hostDescRoot', { host: host.name, repo: hostRepoId ?? '' })
                           : t('branch.dialog.hostDescSlot', { host: host.name, repo: hostRepoId ?? '' })}
+                        {!isFreeChat && hostPool?.mode === 'slots' && hostFreeSlots !== null && (
+                          <> {t('branch.dialog.hostFree', { free: hostFreeSlots, count: hostPool.slotCount })}</>
+                        )}
                       </div>
                     </>
                   )}

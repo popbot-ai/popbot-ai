@@ -176,12 +176,21 @@ function parseHost(json: string | null): HostChatInfo | null {
   try {
     const parsed = JSON.parse(json) as Partial<HostChatInfo> | null;
     if (!parsed || typeof parsed !== 'object' || typeof parsed.hostId !== 'string') return null;
+    const repoId = typeof parsed.repoId === 'string' ? parsed.repoId : null;
+    const branch = typeof parsed.branch === 'string' ? parsed.branch : null;
+    // Rows from before `kind`: no repo is scratch, a branch is a worktree.
+    const kind = parsed.kind === 'scratch' || parsed.kind === 'root' || parsed.kind === 'worktree'
+      ? parsed.kind
+      : !repoId ? 'scratch' : branch ? 'worktree' : 'root';
     return {
       hostId: parsed.hostId,
       hostName: typeof parsed.hostName === 'string' ? parsed.hostName : parsed.hostId,
-      repoId: typeof parsed.repoId === 'string' ? parsed.repoId : null,
-      branch: typeof parsed.branch === 'string' ? parsed.branch : null,
+      repoId,
+      kind,
+      branch,
       baseBranch: typeof parsed.baseBranch === 'string' ? parsed.baseBranch : null,
+      slotId: typeof parsed.slotId === 'number' && parsed.slotId > 0 ? parsed.slotId : null,
+      slotPrefix: typeof parsed.slotPrefix === 'string' ? parsed.slotPrefix : null,
       cwd: typeof parsed.cwd === 'string' ? parsed.cwd : null,
       lastSeq: typeof parsed.lastSeq === 'number' && parsed.lastSeq > 0 ? parsed.lastSeq : 0,
     };

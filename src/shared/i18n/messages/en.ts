@@ -187,6 +187,7 @@ export const en = {
   'panelA.tab.tickets': 'Tickets',
   'panelA.tab.reviews': 'Reviews',
   'panelA.tab.slack': 'Slack',
+  'panelA.tab.hosts': 'Hosts',
   'panelA.tab.unseenTitle': '{count} new',
   'panelA.action.markAllTicketsSeen': 'Mark all {count} new tickets as seen',
   'panelA.action.markAllReviewsSeen': 'Mark all {count} new PRs as seen',
@@ -404,6 +405,16 @@ export const en = {
   'slots.strip.occupiedAria': '{repo} slot {slotId} · {chatName}',
   'slots.strip.freeAria': '{repo} slot {slotId} · free',
   'slots.strip.setupBtn': 'Setup worktree slots',
+  'hosts.tab.loading': 'Asking the hosts…',
+  'hosts.tab.local': 'This computer',
+  'hosts.tab.meta': 'popbot-host {version}',
+  'hosts.tab.unreachable': 'unreachable',
+  'hosts.tab.openChats': '{count} open',
+  'hosts.tab.noPools': 'No slot pools.',
+  'hosts.tab.noSlots': 'no slots',
+  'hosts.tab.ephemeral': 'ephemeral worktrees',
+  'hosts.tab.noChats': 'No chats on this host.',
+  'hosts.tab.noHosts': 'No hosts yet.',
 
   // ---------------------------------------------------------------------------
   // Titlebar (Titlebar.tsx).
@@ -524,6 +535,7 @@ export const en = {
     'End this chat’s session on {host} now? Anything the agent is doing there stops. Your next message starts a new session on {host}, resuming this conversation.',
   'chat.host.withRepo': 'On {host} · {repo}',
   'chat.host.noRepo': 'On {host} · no repo',
+  'chat.host.slotTitle': 'Slot {slot} of {repo} on {host}',
   'chat.crossAgent.from': 'From the agent in chat “{name}”',
   'chat.crossAgent.waiting': 'waiting for your reply',
   'chat.app.terminal': 'Terminal',
@@ -917,6 +929,8 @@ export const en = {
   'branch.dialog.hostDescSlot':
     'Runs on {host} in a worktree of {repo} on the branch above, forked from the base branch. The transcript stays here.',
   'branch.dialog.disabled.host': 'Waiting for {host}',
+  'branch.dialog.hostFree': '{free} of {count} slots free.',
+  'branch.dialog.disabled.hostNoSlot': 'No free slot in {repo} on {host}',
   'branch.dialog.createChat': 'Create chat',
 
   // ---------------------------------------------------------------------------
@@ -1016,6 +1030,23 @@ export const en = {
   'prefs.hosts.found': 'found',
   'prefs.hosts.missing': 'not found',
   'prefs.hosts.noUrl': 'Enter its URL and token.',
+  'prefs.hosts.repos.title': 'Repositories on this host',
+  'prefs.hosts.repos.none': 'None yet. Add one below; the path is on the host.',
+  'prefs.hosts.repos.id': 'Id',
+  'prefs.hosts.repos.path': 'Path on the host',
+  'prefs.hosts.repos.defaultBase': 'Default base',
+  'prefs.hosts.repos.slotPrefix': 'Slot prefix',
+  'prefs.hosts.repos.slotCount': 'Slots',
+  'prefs.hosts.repos.mode': 'Mode',
+  'prefs.hosts.repos.modeSlots': 'slot pool',
+  'prefs.hosts.repos.modeEphemeral': 'ephemeral',
+  'prefs.hosts.repos.add': 'Add repository',
+  'prefs.hosts.repos.remove': 'Remove',
+  'prefs.hosts.repos.removeConfirm': 'Remove {repo} from {host}? Its worktrees stay on disk.',
+  'prefs.hosts.repos.error': 'Could not save: {error}',
+  'prefs.hosts.local.desc': 'Always here; it cannot be removed.',
+  'prefs.hosts.local.noRepos': 'No repositories yet.',
+  'prefs.hosts.local.manage': 'Manage repositories and slots',
 
   // Preferences — Runtime / attachment retention pane.
   'prefs.runtime.title': 'Attachment retention',

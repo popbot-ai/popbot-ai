@@ -164,6 +164,20 @@ export const ClaudeBackend: AgentBackend = {
   },
 };
 
+/**
+ * The CLI's environment: this process's, without ANTHROPIC_API_KEY. The
+ * SDK replaces the subprocess environment with what is given here, so
+ * PATH and HOME come along. A key in the environment — one exported for
+ * the cloud, say — would make the CLI bill that key instead of the
+ * user's sign-in, and fail every turn once it is revoked; local chats
+ * are the sign-in's. Set POPBOT_CLAUDE_USE_API_KEY=1 to hand it through.
+ */
+function claudeCliEnv(): Record<string, string | undefined> {
+  const env: Record<string, string | undefined> = { ...process.env };
+  if (process.env.POPBOT_CLAUDE_USE_API_KEY !== '1') delete env.ANTHROPIC_API_KEY;
+  return env;
+}
+
 class ClaudeSession implements AgentSession {
   private readonly chatId: string;
   private readonly cwd: string | null;
@@ -293,6 +307,7 @@ class ClaudeSession implements AgentSession {
       ...(this.pathToClaudeCodeExecutable
         ? { pathToClaudeCodeExecutable: this.pathToClaudeCodeExecutable }
         : {}),
+      env: claudeCliEnv(),
       // SDK-side transcript persistence. With the desktop's store set,
       // the CLI's append-on-disk JSONL becomes a redundant local cache
       // and SQLite is the canonical context store. On resume, the SDK

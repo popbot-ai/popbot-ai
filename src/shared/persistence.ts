@@ -255,9 +255,19 @@ export interface HostChatInfo {
   hostName: string;
   /** A repository id on the host, or null for a scratch folder there. */
   repoId: string | null;
+  /** What the chat asked the host for: a scratch folder, the repo
+   *  root, or a worktree on its branch (a slot or an ephemeral one,
+   *  as the host's repo is configured). */
+  kind: 'scratch' | 'root' | 'worktree';
   /** The chat's worktree branch on the host; null runs at the repo root. */
   branch: string | null;
   baseBranch: string | null;
+  /** The slot the host gave the chat (slot-pool repos), once spawned or
+   *  made at creation; null before that, for ephemeral worktrees, and
+   *  after the host released it. */
+  slotId: number | null;
+  /** The host repo's slot prefix, for the `prefix-N` pill. */
+  slotPrefix: string | null;
   /** The directory the agent runs in on the host, once it has spawned. */
   cwd: string | null;
   /** The last frame of the host's event log applied to the transcript;

@@ -214,6 +214,7 @@ export const ptBR = {
   'panelA.tab.tickets': 'Tickets',
   'panelA.tab.reviews': 'Revisões',
   'panelA.tab.slack': 'Slack',
+  'panelA.tab.hosts': 'Hosts',
   'panelA.tab.unseenTitle': '{count} novo(s)',
   'panelA.action.markAllTicketsSeen': 'Marcar todos os {count} novos tickets como vistos',
   'panelA.action.markAllReviewsSeen': 'Marcar todos os {count} novos PRs como vistos',
@@ -429,6 +430,16 @@ export const ptBR = {
   'slots.strip.occupiedAria': '{repo} slot {slotId} · {chatName}',
   'slots.strip.freeAria': '{repo} slot {slotId} · livre',
   'slots.strip.setupBtn': 'Configurar slots de worktree',
+  'hosts.tab.loading': 'Consultando os hosts…',
+  'hosts.tab.local': 'Este computador',
+  'hosts.tab.meta': 'popbot-host {version}',
+  'hosts.tab.unreachable': 'inacessível',
+  'hosts.tab.openChats': '{count} abertos',
+  'hosts.tab.noPools': 'Sem pools de slots.',
+  'hosts.tab.noSlots': 'sem slots',
+  'hosts.tab.ephemeral': 'worktrees efêmeros',
+  'hosts.tab.noChats': 'Nenhum chat neste host.',
+  'hosts.tab.noHosts': 'Nenhum host ainda.',
 
   // ---------------------------------------------------------------------------
   // Titlebar (Titlebar.tsx).
@@ -545,6 +556,7 @@ export const ptBR = {
     'Encerrar agora a sessão deste chat em {host}? Tudo o que o agente estiver fazendo lá para. Sua próxima mensagem inicia uma nova sessão em {host}, retomando esta conversa.',
   'chat.host.withRepo': 'Em {host} · {repo}',
   'chat.host.noRepo': 'Em {host} · sem repo',
+  'chat.host.slotTitle': 'Slot {slot} de {repo} em {host}',
   'chat.crossAgent.from': 'Do agente do chat “{name}”',
   'chat.crossAgent.waiting': 'aguardando sua resposta',
   'chat.app.terminal': 'Terminal',
@@ -891,6 +903,8 @@ export const ptBR = {
   'branch.dialog.hostDescSlot':
     'Roda em {host} num worktree de {repo} no branch acima, criado a partir do branch base. A transcrição fica aqui.',
   'branch.dialog.disabled.host': 'Aguardando {host}',
+  'branch.dialog.hostFree': '{free} de {count} slots livres.',
+  'branch.dialog.disabled.hostNoSlot': 'Nenhum slot livre em {repo} no {host}',
   'branch.dialog.createChat': 'Criar chat',
 
   // ---------------------------------------------------------------------------
@@ -992,6 +1006,23 @@ export const ptBR = {
   'prefs.hosts.found': 'encontrado',
   'prefs.hosts.missing': 'não encontrado',
   'prefs.hosts.noUrl': 'Informe a URL e o token.',
+  'prefs.hosts.repos.title': 'Repositórios neste host',
+  'prefs.hosts.repos.none': 'Nenhum ainda. Adicione um abaixo; o caminho é no host.',
+  'prefs.hosts.repos.id': 'Id',
+  'prefs.hosts.repos.path': 'Caminho no host',
+  'prefs.hosts.repos.defaultBase': 'Branch base',
+  'prefs.hosts.repos.slotPrefix': 'Prefixo do slot',
+  'prefs.hosts.repos.slotCount': 'Slots',
+  'prefs.hosts.repos.mode': 'Modo',
+  'prefs.hosts.repos.modeSlots': 'pool de slots',
+  'prefs.hosts.repos.modeEphemeral': 'efêmero',
+  'prefs.hosts.repos.add': 'Adicionar repositório',
+  'prefs.hosts.repos.remove': 'Remover',
+  'prefs.hosts.repos.removeConfirm': 'Remover {repo} de {host}? Seus worktrees continuam no disco.',
+  'prefs.hosts.repos.error': 'Não foi possível salvar: {error}',
+  'prefs.hosts.local.desc': 'Sempre presente; não pode ser removido.',
+  'prefs.hosts.local.noRepos': 'Nenhum repositório ainda.',
+  'prefs.hosts.local.manage': 'Gerenciar repositórios e slots',
 
   // Preferences — Runtime / attachment retention pane.
   'prefs.runtime.title': 'Retenção de anexos',

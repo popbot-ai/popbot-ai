@@ -11,14 +11,17 @@ import {
   type HostApproveBody,
   type HostFrame,
   type HostInfo,
+  type HostRepo,
   type HostRules,
   type HostSendBody,
   type HostSpawnBody,
+  type HostWorkspaceRequest,
 } from '@shared/hostProtocol';
 import { dlog } from '../main/diagLog';
-import type { HostConfig } from './config';
+import { removeRepo, upsertRepo, type HostConfig } from './config';
 import { listBranches } from './git';
 import { HostError, HostSessions } from './sessions';
+import { HostWorkspaceError, type HostWorkspaces } from './workspaces';
 
 /** Attachments ride inline as base64, so requests can be sizeable. */
 const MAX_BODY_BYTES = 64 * 1024 * 1024;
@@ -27,10 +30,13 @@ const SSE_PING_MS = 15_000;
 export function createHostServer(opts: {
   config: HostConfig;
   version: string;
+  /** Where the config lives, for edits from the desktop. */
+  configPath: string;
   sessions: HostSessions;
+  workspaces: HostWorkspaces;
   cli: { claude: string | null; codex: string | null };
 }): Server {
-  const { config, sessions } = opts;
+  const { config, sessions, workspaces } = opts;
 
   const authorized = (req: IncomingMessage): boolean => {
     const header = req.headers.authorization ?? '';
@@ -116,6 +122,23 @@ export function createHostServer(opts: {
       return json(res, 200, { branches: await listBranches(repo.path) });
     }
 
+    if (req.method === 'GET' && parts[1] === 'repos' && parts[3] === 'slots' && parts.length === 4) {
+      return json(res, 200, workspaces.list(decodeURIComponent(parts[2])));
+    }
+
+    if (parts[1] === 'repos' && parts.length === 3 && (req.method === 'PUT' || req.method === 'DELETE')) {
+      const id = decodeURIComponent(parts[2]);
+      if (req.method === 'DELETE') {
+        return json(res, removeRepo(config, opts.configPath, id) ? 200 : 404, { ok: true });
+      }
+      const body = (await readJson(req)) as Partial<HostRepo>;
+      try {
+        return json(res, 200, upsertRepo(config, opts.configPath, { ...body, id }));
+      } catch (err) {
+        throw new HostError(400, err instanceof Error ? err.message : String(err));
+      }
+    }
+
     if (parts[1] === 'chats' && parts.length === 4) {
       const chatId = decodeURIComponent(parts[2]);
       const action = parts[3];
@@ -148,6 +171,12 @@ export function createHostServer(opts: {
         case 'dispose':
           await sessions.dispose(chatId);
           return json(res, 200, { ok: true });
+        case 'workspace':
+          return json(res, 200, await workspaces.ensure(chatId, body as unknown as HostWorkspaceRequest));
+        case 'release':
+          // A process still running in the worktree would fight the park.
+          await sessions.dispose(chatId);
+          return json(res, 200, await workspaces.release(chatId, body.stash === true));
         default:
           return json(res, 404, { error: 'not found' });
       }
@@ -157,10 +186,11 @@ export function createHostServer(opts: {
 
   return createServer((req, res) => {
     handle(req, res).catch((err: unknown) => {
-      const status = err instanceof HostError ? err.status : 500;
+      const status = err instanceof HostError ? err.status : err instanceof HostWorkspaceError ? 409 : 500;
       const message = err instanceof Error ? err.message : String(err);
-      dlog('host.request.failed', { url: req.url, status, message });
-      if (!res.headersSent) json(res, status, { error: message });
+      const code = err instanceof HostWorkspaceError ? err.code : undefined;
+      dlog('host.request.failed', { url: req.url, status, message, code });
+      if (!res.headersSent) json(res, status, { error: message, ...(code ? { code } : {}) });
       else res.end();
     });
   });

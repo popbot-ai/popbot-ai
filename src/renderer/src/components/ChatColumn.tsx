@@ -797,6 +797,16 @@ export function ChatColumn({
               glance which workspace this chat owns. Same repo color as
               the slot pip, but rendered as an outline to make the mode
               difference immediately readable. */}
+          {/* A host chat's slot: the host's pool, in the host colour. */}
+          {chat.host?.slotId != null && (
+            <span
+              className="slot-pip occupied slot-pip-wide"
+              style={{ background: '#6fb1c9', color: '#08161a' }}
+              title={t('chat.host.slotTitle', { slot: chat.host.slotId, repo: chat.host.repoId ?? '', host: chat.host.hostName })}
+            >
+              {`${chat.host.slotPrefix ?? chat.host.repoId ?? 'slot'}-${chat.host.slotId}`}
+            </span>
+          )}
           {chat.slotId == null && chat.worktreePath && chat.repoMode === 'ephemeral' && (
             <span
               className="slot-pip slot-pip-wide slot-pip-outline"

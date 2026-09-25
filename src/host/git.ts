@@ -1,8 +1,7 @@
 /** The git the host needs on its own: branch listings for the new-chat
- *  dialog, and the per-chat worktree layout under the workspaces dir. */
+ *  dialog. Worktrees are workspaces.ts. */
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
-import { join } from 'node:path';
 
 const execFileP = promisify(execFile);
 
@@ -28,10 +27,4 @@ export async function listBranches(repoPath: string): Promise<string[]> {
   }
   const front = ['main', 'master', 'develop'].filter((b) => seen.has(b));
   return [...front, ...out.filter((b) => !front.includes(b))];
-}
-
-/** A chat's worktree: `<workspaces>/<repoId>/<branch with / as ->`. */
-export function worktreePathFor(workspacesDir: string, repoId: string, branch: string): string {
-  const slug = branch.trim().toLowerCase().replace(/[^a-z0-9._-]+/g, '-').replace(/^-+|-+$/g, '') || 'chat';
-  return join(workspacesDir, repoId, slug);
 }

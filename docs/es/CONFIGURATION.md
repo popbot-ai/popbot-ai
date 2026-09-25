@@ -69,6 +69,8 @@ node dist-host/popbot-host.cjs           # escucha en 127.0.0.1:7677
 
 En PopBot, *Añadir host* crea un registro con la dirección local ya rellena; pon el nombre, la URL y el token (los campos se guardan al salir de ellos) y el panel le pregunta al host qué es: su versión, si encontró Claude y Codex y sus repositorios. Los worktrees de un host viven bajo su carpeta de espacios de trabajo (`~/.popbot-host/workspaces/<repo>/<rama>`); los adjuntos que envíes quedan allí bajo `attachments/<id del chat>`. Las reglas de permisos viajan con cada petición, así que las decisiones *Permitir siempre* se aplican igual en el host. Si quitas un host, los chats que ya están en él se conservan en la lista pero ya no pueden contactarlo. Consulta [Ejecutar en otro equipo](GUIDE.md#chats).
 
+Este equipo es siempre la primera entrada y no se puede quitar; sus repositorios y pools de slots son la sección Repositorios. Los repositorios de cada otro host se editan en su tarjeta —la ruta en el host, la rama base y el pool de slots: un prefijo, un número o *efímero* para un worktree por chat— y el host reescribe su configuración (`--slots id=N` o `--slots id=ephemeral` hace lo mismo desde su línea de comandos; un repo nuevo recibe cuatro slots con el nombre de su id). Los worktrees de slot viven en `<workspaces>/<repo>/<prefijo>-N`, aparcados en `<repo>/slotN` cuando están libres; quién tiene qué se guarda en `<workspaces>/state.json` entre reinicios del host.
+
 ## Runtime y slots
 
 Este panel controla la **retención de adjuntos**. (El dimensionamiento del pool de slots ahora es por repositorio y vive en [Repositorios](#repositorios) — ver la nota allí.)

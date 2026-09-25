@@ -5,7 +5,7 @@
  * disconnect). The host persists nothing else — the transcript is the
  * desktop's.
  */
-import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
+import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { AgentEvent, PermissionDecision, PermissionRule } from '@shared/agent';
 import { resolvePermissionRules } from '@shared/agent';
@@ -14,10 +14,9 @@ import type { HostFrame, HostRules, HostSendBody, HostSpawnBody, HostSpawnResult
 import { ClaudeBackend } from '../main/agents/ClaudeBackend';
 import { CodexBackend } from '../main/agents/CodexBackend';
 import type { AgentSession } from '../main/agents/types';
-import { ensureChatWorktree } from '../main/git/worktrees';
 import { dlog } from '../main/diagLog';
 import type { HostConfig } from './config';
-import { worktreePathFor } from './git';
+import type { HostWorkspaces } from './workspaces';
 
 /** Frames kept per chat. A long turn is a few thousand at most. */
 const LOG_CAP = 20_000;
@@ -41,6 +40,7 @@ export class HostSessions {
   constructor(
     private readonly config: HostConfig,
     private readonly cli: { claude: string | null; codex: string | null },
+    private readonly workspaces: HostWorkspaces,
   ) {}
 
   list(): Array<{ chatId: string; alive: boolean; lastSeq: number }> {
@@ -57,7 +57,8 @@ export class HostSessions {
     if (prior) {
       await prior.session.dispose().catch(() => undefined);
     }
-    const cwd = await this.workspaceFor(chatId, body);
+    const workspace = await this.workspaces.ensure(chatId, body.workspace);
+    const cwd = workspace.cwd;
     const live: LiveChat = {
       // Filled in below; the backend calls onEvent synchronously during
       // spawn in some paths, so the record exists before it.
@@ -89,30 +90,8 @@ export class HostSessions {
       resolveRule: (tool) => resolveHostRule(this.chats.get(chatId)?.rules, tool),
     });
     this.push(chatId, { kind: 'spawned', cwd });
-    dlog('host.spawn', { chatId, agent: body.agent, cwd, resume: body.sessionId ?? null, startSeq });
-    return { cwd, seq: startSeq };
-  }
-
-  /** The repo root, a worktree on the chat's branch, or scratch. */
-  private async workspaceFor(chatId: string, body: HostSpawnBody): Promise<string> {
-    const ws = body.workspace;
-    if (!ws) {
-      const scratch = join(this.config.workspacesDir, 'scratch', chatId);
-      mkdirSync(scratch, { recursive: true });
-      return scratch;
-    }
-    const repo = this.config.repos.find((r) => r.id === ws.repoId);
-    if (!repo) throw new Error(`no repo "${ws.repoId}" on this host`);
-    if (!existsSync(repo.path)) throw new Error(`repo "${ws.repoId}" is not at ${repo.path} on this host`);
-    if (!ws.branch) return repo.path;
-    const worktreePath = worktreePathFor(this.config.workspacesDir, repo.id, ws.branch);
-    await ensureChatWorktree({
-      repoPath: repo.path,
-      worktreePath,
-      branch: ws.branch,
-      baseBranch: ws.baseBranch || repo.defaultBase,
-    });
-    return worktreePath;
+    dlog('host.spawn', { chatId, agent: body.agent, cwd, kind: workspace.kind, slotId: workspace.slotId, resume: body.sessionId ?? null, startSeq });
+    return { cwd, seq: startSeq, workspace };
   }
 
   async send(chatId: string, body: HostSendBody): Promise<void> {

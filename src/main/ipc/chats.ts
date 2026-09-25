@@ -28,6 +28,7 @@ import {
   reopenChat,
   searchChats,
   setChatCodexThreadId,
+  setChatHost,
   setChatPermissionRules,
   setChatProviderContextAt,
   setChatSessionId,
@@ -39,7 +40,7 @@ import { appendMessage, copyMessages, listMessages } from '../persistence/messag
 import { getSetting, setSetting } from '../persistence/settings';
 import { AgentHost, sessionCwdForChat } from '../agents/AgentHost';
 import { cloudStatus, endCloudSession, pullCloudBranch, testCloudApiKey } from '../agents/cloudSessions';
-import { endHostSession } from '../agents/hostClient';
+import { HostRequestError, endHostSession, ensureHostWorkspace, hostSlots, releaseHostWorkspace } from '../agents/hostClient';
 import { getHost } from '../persistence/hosts';
 import { searchTranscripts } from '../search/transcriptSearch';
 import { getCodexBinaryPath } from '../agents/codexProbe';
@@ -435,10 +436,13 @@ export function registerChatHandlers(): void {
   ipcMain.handle(IpcChannel.ChatsDelete, async (_e, chatId: string) => {
     const chat = getChat(chatId);
     await AgentHost.dispose(chatId);
-    // A deleted chat has no use for its session on the host.
+    // A deleted chat has no use for its session or its slot on the host.
     if (chat?.host) {
       const host = getHost(chat.host.hostId);
-      if (host) await endHostSession(host, chatId).catch(() => undefined);
+      if (host) {
+        await endHostSession(host, chatId).catch(() => undefined);
+        await releaseHostWorkspace(host, chatId, false).catch(() => undefined);
+      }
     }
     disposePty(chatId);
     // If the chat is ephemeral and still has a live worktree on disk
@@ -497,7 +501,10 @@ export async function createChatWithWorkspace(input: CreateChatInput): Promise<C
   if (input.host) {
     const host = getHost(input.host.hostId);
     if (!host) return { ok: false, reason: 'host-not-found' };
-    const branch = input.host.branch?.trim() || null;
+    const repoId = input.host.repoId?.trim() || null;
+    const kind = !repoId ? 'scratch' : input.host.kind === 'root' ? 'root' : 'worktree';
+    const branch = kind === 'worktree' ? (input.host.branch?.trim() || `popbot/chat-${Date.now()}`) : null;
+    const baseBranch = input.host.baseBranch?.trim() || null;
     const chat = createChat({
       name: input.name,
       ticket: input.ticket ?? null,
@@ -514,9 +521,12 @@ export async function createChatWithWorkspace(input: CreateChatInput): Promise<C
       host: {
         hostId: host.id,
         hostName: host.name,
-        repoId: input.host.repoId?.trim() || null,
+        repoId,
+        kind,
         branch,
-        baseBranch: input.host.baseBranch?.trim() || null,
+        baseBranch,
+        slotId: null,
+        slotPrefix: null,
         cwd: null,
         lastSeq: 0,
       },
@@ -525,7 +535,25 @@ export async function createChatWithWorkspace(input: CreateChatInput): Promise<C
       codexModel: input.codexModel,
       codexReasoningEffort: input.codexReasoningEffort,
     });
-    return { ok: true, chat };
+    // The host makes the checkout now — like a local slot, so a full
+    // pool or a bad repo is an answer here, not at the first message.
+    if (kind !== 'scratch') {
+      try {
+        const ws = await ensureHostWorkspace(host, chat.id, { kind, repoId, branch, baseBranch });
+        const slotPrefix = ws.kind === 'slot'
+          ? await hostSlots(host, repoId!).then((info) => info.slotPrefix).catch(() => null)
+          : null;
+        setChatHost(chat.id, { ...chat.host!, cwd: ws.cwd, slotId: ws.slotId, slotPrefix, branch: ws.branch ?? branch });
+      } catch (err) {
+        deleteChat(chat.id);
+        const message = err instanceof Error ? err.message : String(err);
+        dlog('chat.create.hostWorkspaceFailed', { host: host.name, repoId, kind, branch, error: message });
+        if (err instanceof HostRequestError && err.code === 'no-free-slot') return { ok: false, reason: 'no-free-slot' };
+        return { ok: false, reason: 'worktree-failed', message };
+      }
+    }
+    const created = getChat(chat.id);
+    return created ? { ok: true, chat: created } : { ok: false, reason: 'worktree-failed', message: 'Lost chat after create' };
   }
 
   // No workspace requested → cheap path. Used by lite chats that run

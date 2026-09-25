@@ -59,7 +59,7 @@ import type {
   MessageRole,
 } from './persistence';
 import type { SourceControlProviderId } from './sourceControl';
-import type { HostInfo } from './hostProtocol';
+import type { HostInfo, HostRepo, HostSlotsInfo, HostWorkspaceKind } from './hostProtocol';
 
 export const IpcChannel = {
   AppGetVersion: 'pb:app:get-version',
@@ -302,6 +302,9 @@ export const IpcChannel = {
   HostsRemove: 'pb:hosts:remove',
   HostsProbe: 'pb:hosts:probe',
   HostsBranches: 'pb:hosts:branches',
+  HostsSlots: 'pb:hosts:slots',
+  HostsSaveRepo: 'pb:hosts:save-repo',
+  HostsRemoveRepo: 'pb:hosts:remove-repo',
   HostsShutdown: 'pb:hosts:shutdown',
 
   /** Push channel — main → renderer. A newer release exists but can't be
@@ -440,7 +443,7 @@ export interface CreateChatInput {
    *  computer: in one of the host's repositories — at its root, or in a
    *  worktree on `branch` forked from `baseBranch` — or, with no repo, in
    *  a scratch folder there. No local workspace is made. */
-  host?: { hostId: string; repoId: string | null; branch?: string | null; baseBranch?: string | null };
+  host?: { hostId: string; repoId: string | null; kind: HostWorkspaceKind; branch?: string | null; baseBranch?: string | null };
 }
 
 export type CreateChatResult =
@@ -1120,6 +1123,12 @@ export interface PopBotApi {
     probe(url: string, token: string): Promise<HostProbeResult>;
     /** Branches of one of a host's repositories, for the new-chat dialog. */
     branches(hostId: string, repoId: string): Promise<{ ok: true; branches: string[] } | { ok: false; error: string }>;
+    /** A host repository's slot pool and who holds each slot. */
+    slots(hostId: string, repoId: string): Promise<{ ok: true; slots: HostSlotsInfo } | { ok: false; error: string }>;
+    /** Add or change a repository on the host (path, base branch, slot
+     *  pool); the host rewrites its config. */
+    saveRepo(hostId: string, repo: Partial<HostRepo> & { id: string }): Promise<{ ok: true; repo: HostRepo } | { ok: false; error: string }>;
+    removeRepo(hostId: string, repoId: string): Promise<{ ok: true } | { ok: false; error: string }>;
     /** End the chat's session on its host. The next message starts a
      *  new one there, resuming the same conversation. */
     shutdown(chatId: string): Promise<void>;

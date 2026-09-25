@@ -273,8 +273,8 @@ export function ChatSettingsSheet({ chat, onClose, onFork }: ChatSettingsSheetPr
               <Field label={t('chatSettings.hostWorkspace')}>
                 <span className="mono" style={{ fontSize: 11, overflowWrap: 'anywhere' }}>
                   {chat.host.repoId
-                    ? (chat.host.branch
-                      ? `${chat.host.repoId} · ${chat.host.branch}`
+                    ? (chat.host.kind === 'worktree'
+                      ? `${chat.host.repoId} · ${chat.host.branch ?? ''}${chat.host.slotId != null ? ` · ${chat.host.slotPrefix ?? chat.host.repoId}-${chat.host.slotId}` : ''}`
                       : t('chatSettings.hostRoot', { repo: chat.host.repoId }))
                     : t('chatSettings.hostScratch')}
                 </span>

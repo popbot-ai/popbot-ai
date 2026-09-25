@@ -6070,3 +6070,52 @@ input.input.mono, select.input.mono { font-family: var(--font-mono); font-size: 
 .host-card-status { display: inline-flex; align-items: center; gap: 6px; min-width: 0; font-size: 11.5px; color: var(--fg-2); }
 .host-card-status.ok i { color: var(--st-done); }
 .host-card-status.error { color: #e89696; }
+
+/* Preferences ▸ Hosts: a host's repositories, editable in place. */
+.host-repos { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--line-1); }
+.host-repos-head { font-size: 11px; color: var(--fg-3); margin-bottom: 6px; }
+.host-repo { padding: 8px 10px; border: 1px solid var(--line-1); border-radius: 5px; background: var(--bg-1); margin-bottom: 8px; }
+.host-repo-head { display: flex; align-items: center; gap: 8px; }
+.host-repo-id { font-size: 12.5px; font-weight: 600; color: var(--fg-0); }
+.host-repo-fields {
+  display: grid; gap: 8px 10px; margin-top: 8px;
+  grid-template-columns: repeat(4, minmax(90px, 1fr));
+}
+.host-repo-fields .pref-select { width: 100%; min-width: 0; }
+.host-repo-add { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 4px; }
+
+/* The Hosts tab: this computer's slot pools, then each host's pools
+   and chats. Pips are the slot-strip pips; the accent colour comes
+   from the repo (local) or stays neutral (a host). */
+.hosts-panel { padding: 6px 0 12px; }
+.hosts-host { border-bottom: 1px solid var(--line-1); padding: 6px 10px 8px; }
+.hosts-host:last-of-type { border-bottom: 0; }
+.hosts-host-head { display: flex; align-items: center; gap: 7px; min-height: 22px; }
+.hosts-host-head > i { color: var(--fg-3); font-size: 11px; width: 14px; text-align: center; }
+.hosts-host-name { font-size: 12px; font-weight: 600; color: var(--fg-0); }
+.hosts-host-meta { font-size: 10.5px; color: var(--fg-3); white-space: nowrap; }
+.hosts-host-meta.error { color: #e89696; }
+.hosts-pool { display: flex; align-items: center; gap: 8px; padding: 3px 0 3px 21px; min-width: 0; }
+.hosts-pool-repo { font-size: 11px; color: var(--fg-2); flex: 0 0 auto; }
+.hosts-pool-tag { font-size: 10.5px; color: var(--fg-3); }
+.hosts-empty { font-size: 11px; color: var(--fg-3); padding: 3px 0 3px 21px; }
+.hosts-chats { list-style: none; margin: 4px 0 0; padding: 0 0 0 21px; display: flex; flex-direction: column; gap: 1px; }
+.hosts-chat {
+  display: flex; align-items: center; gap: 7px; width: 100%;
+  background: transparent; border: 0; padding: 3px 6px; border-radius: 4px;
+  font-family: inherit; font-size: 11.5px; color: var(--fg-1); text-align: left; cursor: pointer; min-width: 0;
+}
+.hosts-chat:hover { background: var(--bg-2); color: var(--fg-0); }
+.hosts-chat-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; flex: 1 1 auto; }
+.hosts-chat-slot { font-size: 10px; color: var(--fg-3); flex: 0 0 auto; }
+.hosts-chat-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--st-idle); flex: 0 0 auto; }
+.hosts-chat-dot.st-run { background: var(--st-run); }
+.hosts-chat-dot.st-done { background: var(--st-done); }
+.hosts-chat-dot.st-wait { background: var(--st-wait); }
+.hosts-chat-dot.st-err { background: var(--st-err); }
+.host-card.local { background: var(--bg-2); }
+.host-card-head { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; min-width: 0; }
+.host-card-head > i { color: var(--fg-3); font-size: 11px; }
+.host-card-title { font-size: 12.5px; font-weight: 600; color: var(--fg-0); white-space: nowrap; }
+.host-repo-line { display: flex; align-items: center; gap: 8px; padding: 4px 0; min-width: 0; font-size: 11.5px; }
+.host-repo-path { color: var(--fg-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }

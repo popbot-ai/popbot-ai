@@ -9,6 +9,11 @@
  *
  *   GET  /v1/info                          → HostInfo
  *   GET  /v1/repos/:id/branches            → { branches }
+ *   GET  /v1/repos/:id/slots               → HostSlotsInfo
+ *   PUT  /v1/repos/:id                     Partial<HostRepo> → HostRepo   (adds or changes; rewrites the config)
+ *   DELETE /v1/repos/:id                   → { ok }
+ *   POST /v1/chats/:chatId/workspace       HostWorkspaceRequest → HostWorkspaceResult
+ *   POST /v1/chats/:chatId/release         { stash } → { released }  (parks the slot / removes the worktree)
  *   POST /v1/chats/:chatId/spawn           HostSpawnBody → { cwd, seq }
  *   POST /v1/chats/:chatId/send            HostSendBody
  *   POST /v1/chats/:chatId/approve         { permissionId, decision }
@@ -27,13 +32,51 @@ import type {
 
 export const HOST_PROTOCOL_VERSION = 1;
 
-/** A repository the host has a checkout of. */
+/** A repository the host has a checkout of, and how it hands out
+ *  workspaces in it — the desktop's repo settings, on the host. */
 export interface HostRepo {
   id: string;
   /** Absolute path on the host. */
   path: string;
   /** Branch new chat branches fork from when none is given. */
   defaultBase: string;
+  /** Slot worktrees are `<workspaces>/<id>/<slotPrefix>-N`. */
+  slotPrefix: string;
+  /** Size of the slot pool; 0 with `slots` mode means no worktrees. */
+  slotCount: number;
+  /** A pool of warm slots, or a throwaway worktree per chat. */
+  mode: 'slots' | 'ephemeral';
+}
+
+/** What a chat asks the host for: nothing but a scratch folder, the
+ *  repo root, or a worktree on its branch (a slot or an ephemeral one,
+ *  as the repo is configured). */
+export type HostWorkspaceKind = 'scratch' | 'root' | 'worktree';
+
+export interface HostWorkspaceRequest {
+  kind: HostWorkspaceKind;
+  repoId?: string | null;
+  branch?: string | null;
+  baseBranch?: string | null;
+  /** A particular slot, when the desktop wants one; else the lowest free. */
+  slotId?: number | null;
+}
+
+export interface HostWorkspaceResult {
+  cwd: string;
+  kind: 'scratch' | 'root' | 'slot' | 'ephemeral';
+  slotId: number | null;
+  branch: string | null;
+}
+
+export type HostWorkspaceErrorCode = 'no-repo' | 'no-free-slot' | 'slot-taken' | 'worktree-failed';
+
+/** A repository's pool as the host sees it. */
+export interface HostSlotsInfo {
+  slotPrefix: string;
+  slotCount: number;
+  mode: 'slots' | 'ephemeral';
+  slots: Array<{ slotId: number; path: string; chatId: string | null; branch: string | null }>;
 }
 
 export interface HostInfo {
@@ -58,10 +101,9 @@ export interface HostSpawnBody {
   codexReasoningEffort?: CodexReasoningEffort | null;
   /** The desktop's permission rules, resolved on the host at call time. */
   rules: HostRules;
-  /** Where the agent runs: a host repo, at its root or in a worktree on
-   *  `branch` (created off `baseBranch` if new). Absent: the host's
-   *  scratch directory. */
-  workspace?: { repoId: string; branch?: string | null; baseBranch?: string | null } | null;
+  /** Where the agent runs. Absent: the host's scratch directory. A
+   *  workspace the chat already holds is reused. */
+  workspace?: HostWorkspaceRequest | null;
 }
 
 /** Permission rules as the desktop keeps them: the chat's own rules
@@ -77,6 +119,7 @@ export interface HostRules {
 export interface HostSpawnResult {
   cwd: string;
   seq: number;
+  workspace: HostWorkspaceResult;
 }
 
 export interface HostAttachment {

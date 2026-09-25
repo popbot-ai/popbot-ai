@@ -13,6 +13,7 @@ import { dlog } from '../main/diagLog';
 import { resolveConfig } from './config';
 import { createHostServer } from './server';
 import { HostSessions } from './sessions';
+import { HostWorkspaces } from './workspaces';
 
 declare const __POPBOT_HOST_VERSION__: string | undefined;
 const VERSION = typeof __POPBOT_HOST_VERSION__ === 'string' ? __POPBOT_HOST_VERSION__ : 'dev';
@@ -21,7 +22,7 @@ async function main(): Promise<void> {
   const argv = process.argv.slice(2);
   if (argv.includes('--help') || argv.includes('-h')) {
     process.stdout.write(
-      'popbot-host [--init] [--config path] [--port n] [--bind addr] [--token t] [--name n] [--workspaces dir] [--repo id=/path]...\n',
+      'popbot-host [--init] [--config path] [--port n] [--bind addr] [--token t] [--name n] [--workspaces dir] [--repo id=/path]... [--slots id=N|ephemeral]...\n',
     );
     return;
   }
@@ -35,13 +36,15 @@ async function main(): Promise<void> {
     claude: await resolveCliPath('claude').catch(() => null),
     codex: await resolveCliPath('codex').catch(() => null),
   };
-  const sessions = new HostSessions(config, cli);
-  const server = createHostServer({ config, version: VERSION, sessions, cli });
+  const workspaces = new HostWorkspaces(config);
+  workspaces.load();
+  const sessions = new HostSessions(config, cli, workspaces);
+  const server = createHostServer({ config, version: VERSION, configPath: path, sessions, workspaces, cli });
   server.listen(config.port, config.bind, () => {
     process.stdout.write(
       `popbot-host ${VERSION} listening on http://${config.bind}:${config.port} as "${config.name}"\n` +
       `  claude: ${cli.claude ?? 'not found'}\n  codex:  ${cli.codex ?? 'not found'}\n` +
-      `  repos:  ${config.repos.map((r) => `${r.id}=${r.path}`).join(', ') || '(none)'}\n` +
+      `  repos:  ${config.repos.map((r) => `${r.id}=${r.path} (${r.mode === 'ephemeral' ? 'ephemeral' : `${r.slotCount} slots as ${r.slotPrefix}-N`})`).join(', ') || '(none)'}\n` +
       `  config: ${path}\n`,
     );
     dlog('host.listening', { bind: config.bind, port: config.port, repos: config.repos.length });

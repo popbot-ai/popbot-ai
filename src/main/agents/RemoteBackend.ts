@@ -81,9 +81,16 @@ class RemoteSession implements AgentSession {
       claudeReasoningEffort: isCodex ? null : opts.claudeReasoningEffort ?? null,
       codexModel: isCodex ? opts.codexModel ?? null : null,
       codexReasoningEffort: isCodex ? opts.codexReasoningEffort ?? null : null,
-      workspace: remote.info.repoId
-        ? { repoId: remote.info.repoId, branch: remote.info.branch, baseBranch: remote.info.baseBranch }
-        : null,
+      workspace: remote.info.kind === 'scratch' || !remote.info.repoId
+        ? { kind: 'scratch' }
+        : {
+            kind: remote.info.kind,
+            repoId: remote.info.repoId,
+            branch: remote.info.branch,
+            baseBranch: remote.info.baseBranch,
+            // The slot it held before, when the host still has it free.
+            slotId: remote.info.slotId,
+          },
     };
   }
 
@@ -116,7 +123,11 @@ class RemoteSession implements AgentSession {
     this.cwd = spawned.cwd;
     this.lastSeq = spawned.seq;
     this.preambleDue = true;
-    this.remote.onHostUpdate({ cwd: spawned.cwd, lastSeq: spawned.seq });
+    this.remote.onHostUpdate({
+      cwd: spawned.cwd,
+      lastSeq: spawned.seq,
+      ...(spawned.workspace ? { slotId: spawned.workspace.slotId, branch: spawned.workspace.branch ?? this.remote.info.branch } : {}),
+    });
     dlog('remote.spawned', { chatId: this.chatId, host: this.host.name, cwd: spawned.cwd, seq: spawned.seq, resume: this.body.sessionId });
     this.openStream(spawned.seq);
     return { fresh: true };

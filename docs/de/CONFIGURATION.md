@@ -69,6 +69,8 @@ node dist-host/popbot-host.cjs           # lauscht auf 127.0.0.1:7677
 
 In PopBot legt *Host hinzufügen* einen Eintrag mit vorausgefüllter lokaler Adresse an; setze Name, URL und Token (die Felder speichern beim Verlassen), und das Panel fragt den Host, was er ist: seine Version, ob er Claude und Codex gefunden hat und seine Repositories. Die Worktrees eines Hosts liegen unter seinem Workspaces-Ordner (`~/.popbot-host/workspaces/<repo>/<branch>`); gesendete Anhänge landen dort unter `attachments/<chat-id>`. Berechtigungsregeln reisen mit jeder Anfrage mit, sodass *Immer erlauben*-Entscheidungen auf dem Host genauso gelten. Entfernst du einen Host, bleiben Chats darauf in der Liste, erreichen ihn aber nicht mehr. Siehe [Auf einem anderen Rechner ausführen](GUIDE.md#chats).
 
+Dieser Computer ist immer der erste Eintrag und kann nicht entfernt werden; seine Repositories und Slot-Pools sind der Abschnitt Repositories. Die Repositories jedes anderen Hosts werden auf seiner Karte bearbeitet – der Pfad auf dem Host, der Basis-Branch und der Slot-Pool: ein Präfix, eine Anzahl oder *ephemer* für ein Worktree pro Chat – und der Host schreibt seine Konfiguration neu (`--slots id=N` oder `--slots id=ephemeral` tut dasselbe auf seiner Kommandozeile; ein neues Repo bekommt vier Slots, benannt nach seiner Id). Slot-Worktrees liegen unter `<workspaces>/<repo>/<präfix>-N` und stehen frei auf `<repo>/slotN`; wer was hält, steht in `<workspaces>/state.json` und überlebt Neustarts des Hosts.
+
 ## Runtime & Slots
 
 Dieses Panel steuert die **Attachment-Aufbewahrung**. (Slot-Pool-Größe ist jetzt pro Repository und lebt unter [Repositories](#repositories) — siehe die Anmerkung dort.)

@@ -320,7 +320,7 @@ export default function App(): JSX.Element {
       branch?: string;
       workspaceMode?: 'slot' | 'repo-root';
       cloud?: boolean;
-      host?: { hostId: string; repoId: string | null; branch: string | null; baseBranch: string | null };
+      host?: { hostId: string; repoId: string | null; kind: import('@shared/hostProtocol').HostWorkspaceKind; branch: string | null; baseBranch: string | null };
       agentConfig?: AgentCreateConfig;
     }) => void | Promise<void>;
   } | null>(null);
@@ -1489,6 +1489,11 @@ export default function App(): JSX.Element {
             onNewReviews={onNewReviews}
             reviewChats={reviewChats}
             ticketChats={ticketChats}
+            slotVersion={
+              chats.length +
+              chats.filter((c) => c.slotId != null || c.host?.slotId != null).length +
+              slotConfigVersion
+            }
           />
           <div className="resize-v" onMouseDown={startResizePanelA} title={t('common.dragToResize')} />
           <PanelB
@@ -1496,12 +1501,6 @@ export default function App(): JSX.Element {
             inactive={inactiveFixtures}
             focusedId={focusedId ?? ''}
             setFocusedId={scrollToChat}
-            slotVersion={
-              chats.length +
-              chats.filter((c) => c.slotId != null).length +
-              slotConfigVersion
-            }
-            onSetupSlots={() => openPrefsAt('runtime')}
             onOpenInactive={async (id) => {
               const result = await reopen(id);
               if (result.ok) {

@@ -10,6 +10,7 @@ import type {
 } from '@shared/git';
 import type { SourceControlProviderId } from '@shared/sourceControl';
 import type { GameEngineId } from '@shared/gameEngine';
+import type { HostRepo } from '@shared/hostProtocol';
 import {
   IpcChannel,
   type ApprovePermissionInput,
@@ -262,6 +263,9 @@ const api: PopBotApi = {
     remove: (id: string) => ipcRenderer.invoke(IpcChannel.HostsRemove, id),
     probe: (url: string, token: string) => ipcRenderer.invoke(IpcChannel.HostsProbe, url, token),
     branches: (hostId: string, repoId: string) => ipcRenderer.invoke(IpcChannel.HostsBranches, hostId, repoId),
+    slots: (hostId: string, repoId: string) => ipcRenderer.invoke(IpcChannel.HostsSlots, hostId, repoId),
+    saveRepo: (hostId: string, repo: Partial<HostRepo> & { id: string }) => ipcRenderer.invoke(IpcChannel.HostsSaveRepo, hostId, repo),
+    removeRepo: (hostId: string, repoId: string) => ipcRenderer.invoke(IpcChannel.HostsRemoveRepo, hostId, repoId),
     shutdown: (chatId: string) => ipcRenderer.invoke(IpcChannel.HostsShutdown, chatId),
   },
   updates: {

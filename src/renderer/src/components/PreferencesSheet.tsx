@@ -57,7 +57,7 @@ import {
 } from '@shared/reviews';
 import { ConfirmDialog } from './ConfirmDialog';
 import type { BasePreflightInfo } from '@shared/ipc';
-import type { HostInfo } from '@shared/hostProtocol';
+import type { HostInfo, HostRepo } from '@shared/hostProtocol';
 import type { HostRecord } from '@shared/persistence';
 import { isMcpTool, mcpServerOfTool, permissionRuleMatches } from '@shared/agent';
 import { useSettings } from '../lib/useSettings';
@@ -212,7 +212,7 @@ export function PreferencesSheet({
           <div className="prefs-content">
             {section === 'integ' && <PrefsIntegrations onLinearChanged={onLinearChanged} />}
             {section === 'agents' && <PrefsAgents />}
-            {section === 'hosts' && <PrefsHosts />}
+            {section === 'hosts' && <PrefsHosts onGoTo={setSection} />}
             {section === 'runtime' && <PrefsAttachments />}
             {section === 'repos' && <PrefsRepos onReposChanged={onReposChanged} />}
             {section === 'git' && <PrefsGit />}
@@ -657,7 +657,7 @@ function CloudChatsRows({
  * under it. Adding a host makes its record at once, with the local
  * daemon's address filled in.
  */
-function PrefsHosts(): JSX.Element {
+function PrefsHosts({ onGoTo }: { onGoTo: (section: string) => void }): JSX.Element {
   const { t } = useTranslation();
   const [hosts, setHosts] = useState<HostRecord[] | null>(null);
   const [removing, setRemoving] = useState<HostRecord | null>(null);
@@ -688,6 +688,9 @@ function PrefsHosts(): JSX.Element {
         'node dist-host/popbot-host.cjs --init --repo popbot=/path/to/repo',
         'node dist-host/popbot-host.cjs',
       ].join('\n')}</pre>
+      {/* This computer is always a host and cannot be removed; its
+          repositories and slot pools are the Repositories section. */}
+      <LocalHostCard onGoTo={onGoTo} />
       {hosts && hosts.length === 0 && (
         <p className="pref-section-desc" style={{ marginTop: 10 }}>{t('prefs.hosts.none')}</p>
       )}
@@ -718,6 +721,42 @@ function PrefsHosts(): JSX.Element {
   );
 }
 
+function LocalHostCard({ onGoTo }: { onGoTo: (section: string) => void }): JSX.Element {
+  const { t } = useTranslation();
+  const [repos, setRepos] = useState<RepoRecord[] | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    void window.popbot.repos.list().then((list) => { if (!cancelled) setRepos(list); });
+    return () => { cancelled = true; };
+  }, []);
+  return (
+    <div className="host-card local">
+      <div className="host-card-head">
+        <i className="fa-solid fa-laptop" aria-hidden />
+        <span className="host-card-title">{t('hosts.tab.local')}</span>
+        <span className="host-card-status">{t('prefs.hosts.local.desc')}</span>
+      </div>
+      <div className="host-repos" style={{ borderTop: 0, paddingTop: 0 }}>
+        {repos && repos.length === 0 && <div className="pref-label-desc">{t('prefs.hosts.local.noRepos')}</div>}
+        {repos?.map((r) => (
+          <div key={r.id} className="host-repo-line">
+            <span className="host-repo-id mono" style={{ borderLeft: `3px solid ${r.color}`, paddingLeft: 6 }}>{r.id}</span>
+            <span className={`repo-card-mode mode-${r.mode}`}>
+              {r.mode === 'ephemeral' ? t('prefs.repos.mode.ephemeral') : t('prefs.repos.mode.slots', { count: r.slotCount })}
+            </span>
+            <span className="mono host-repo-path" title={r.repoPath}>{r.repoPath}</span>
+          </div>
+        ))}
+        <div style={{ marginTop: 8 }}>
+          <button className="btn sm" onClick={() => onGoTo('repos')}>
+            <i className="fa-solid fa-code-fork" aria-hidden /> {t('prefs.hosts.local.manage')}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function HostCard({
   host,
   onSaved,
@@ -732,6 +771,8 @@ function HostCard({
   const [url, setUrl] = useState(host.url);
   const [token, setToken] = useState(host.token);
   const [probe, setProbe] = useState<{ state: 'idle' | 'checking' | 'ok' | 'error'; info?: HostInfo; error?: string }>({ state: 'idle' });
+  // Bumped after a repository edit so the card re-reads the host.
+  const [probeAt, setProbeAt] = useState(0);
   const commit = useAutoCommit({
     draft: () => ({ name, url, token }),
     saved: () => ({ name: host.name, url: host.url, token: host.token }),
@@ -744,13 +785,13 @@ function HostCard({
       return;
     }
     let cancelled = false;
-    setProbe({ state: 'checking' });
+    setProbe((prev) => (prev.state === 'ok' ? prev : { state: 'checking' }));
     void window.popbot.hosts.probe(host.url, host.token).then((r) => {
       if (cancelled) return;
       setProbe(r.ok ? { state: 'ok', info: r.info } : { state: 'error', error: r.error });
     });
     return () => { cancelled = true; };
-  }, [host.url, host.token]);
+  }, [host.url, host.token, probeAt]);
   const yesNo = (ok: boolean): string => (ok ? t('prefs.hosts.found') : t('prefs.hosts.missing'));
   const status = probe.state === 'checking'
     ? t('prefs.hosts.checking')
@@ -809,6 +850,148 @@ function HostCard({
         </span>
         <button className="btn sm danger" onClick={onRemove}>{t('prefs.hosts.remove')}</button>
       </div>
+      {/* The host's repositories and their slot pools live in its config;
+          these rows edit it in place. */}
+      {probe.state === 'ok' && probe.info && (
+        <div className="host-repos">
+          <div className="host-repos-head">{t('prefs.hosts.repos.title')}</div>
+          {probe.info.repos.length === 0 && (
+            <div className="pref-label-desc">{t('prefs.hosts.repos.none')}</div>
+          )}
+          {probe.info.repos.map((r) => (
+            <HostRepoRow
+              key={r.id}
+              hostId={host.id}
+              hostName={host.name}
+              repo={r}
+              onChanged={() => setProbeAt(Date.now())}
+            />
+          ))}
+          <AddHostRepo hostId={host.id} onAdded={() => setProbeAt(Date.now())} />
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** One repository on a host. Fields save when left; the host rewrites
+ *  its config and the card re-reads it. */
+function HostRepoRow({
+  hostId,
+  hostName,
+  repo,
+  onChanged,
+}: {
+  hostId: string;
+  hostName: string;
+  repo: HostRepo;
+  onChanged: () => void;
+}): JSX.Element {
+  const { t } = useTranslation();
+  const [path, setPath] = useState(repo.path);
+  const [defaultBase, setDefaultBase] = useState(repo.defaultBase);
+  const [slotPrefix, setSlotPrefix] = useState(repo.slotPrefix);
+  const [slotCount, setSlotCount] = useState(String(repo.slotCount));
+  const [mode, setMode] = useState<'slots' | 'ephemeral'>(repo.mode);
+  const [error, setError] = useState<string | null>(null);
+  const commit = useAutoCommit({
+    draft: () => ({ path, defaultBase, slotPrefix, slotCount: Math.max(0, Number(slotCount) || 0), mode }),
+    saved: () => ({ path: repo.path, defaultBase: repo.defaultBase, slotPrefix: repo.slotPrefix, slotCount: repo.slotCount, mode: repo.mode }),
+    write: async (next) => {
+      const res = await window.popbot.hosts.saveRepo(hostId, { id: repo.id, ...next });
+      if (!res.ok) {
+        setError(res.error);
+        return;
+      }
+      setError(null);
+      onChanged();
+    },
+  });
+  const remove = async (): Promise<void> => {
+    if (!confirm(t('prefs.hosts.repos.removeConfirm', { repo: repo.id, host: hostName }))) return;
+    const res = await window.popbot.hosts.removeRepo(hostId, repo.id);
+    if (!res.ok) setError(res.error);
+    else onChanged();
+  };
+  return (
+    <div className="host-repo">
+      <div className="host-repo-head">
+        <span className="host-repo-id mono">{repo.id}</span>
+        <span className={`repo-card-mode mode-${mode}`}>
+          {mode === 'ephemeral' ? t('prefs.repos.mode.ephemeral') : t('prefs.repos.mode.slots', { count: Number(slotCount) || 0 })}
+        </span>
+        <span style={{ flex: 1 }} />
+        <button className="btn sm danger" onClick={() => void remove()}>{t('prefs.hosts.repos.remove')}</button>
+      </div>
+      <div className="host-repo-fields">
+        <label className="host-card-field" style={{ gridColumn: '1 / -1' }}>
+          <span>{t('prefs.hosts.repos.path')}</span>
+          <input className="pref-input mono narrow" value={path} onChange={(e) => setPath(e.target.value)} onBlur={() => void commit()} onKeyDown={blurOnEnter} />
+        </label>
+        <label className="host-card-field">
+          <span>{t('prefs.hosts.repos.defaultBase')}</span>
+          <input className="pref-input mono narrow" value={defaultBase} onChange={(e) => setDefaultBase(e.target.value)} onBlur={() => void commit()} onKeyDown={blurOnEnter} />
+        </label>
+        <label className="host-card-field">
+          <span>{t('prefs.hosts.repos.mode')}</span>
+          <select
+            className="pref-select"
+            value={mode}
+            onChange={(e) => {
+              const next = e.currentTarget.value === 'ephemeral' ? 'ephemeral' : 'slots';
+              setMode(next);
+              void commit({ mode: next });
+            }}
+          >
+            <option value="slots">{t('prefs.hosts.repos.modeSlots')}</option>
+            <option value="ephemeral">{t('prefs.hosts.repos.modeEphemeral')}</option>
+          </select>
+        </label>
+        {mode === 'slots' && (
+          <>
+            <label className="host-card-field">
+              <span>{t('prefs.hosts.repos.slotPrefix')}</span>
+              <input className="pref-input mono narrow" value={slotPrefix} onChange={(e) => setSlotPrefix(e.target.value)} onBlur={() => void commit()} onKeyDown={blurOnEnter} />
+            </label>
+            <label className="host-card-field">
+              <span>{t('prefs.hosts.repos.slotCount')}</span>
+              <input className="pref-input mono narrow" type="number" min={0} max={64} value={slotCount} onChange={(e) => setSlotCount(e.target.value)} onBlur={() => void commit()} onKeyDown={blurOnEnter} />
+            </label>
+          </>
+        )}
+      </div>
+      {error && <div className="host-card-status error" style={{ marginTop: 6 }}>{t('prefs.hosts.repos.error', { error })}</div>}
+    </div>
+  );
+}
+
+/** Adding a repository needs an id and a path at once, so this one row
+ *  has a button; the fields above it save on their own. */
+function AddHostRepo({ hostId, onAdded }: { hostId: string; onAdded: () => void }): JSX.Element {
+  const { t } = useTranslation();
+  const [id, setId] = useState('');
+  const [path, setPath] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const add = async (): Promise<void> => {
+    if (!id.trim() || !path.trim()) return;
+    const res = await window.popbot.hosts.saveRepo(hostId, { id: id.trim(), path: path.trim() });
+    if (!res.ok) {
+      setError(res.error);
+      return;
+    }
+    setError(null);
+    setId('');
+    setPath('');
+    onAdded();
+  };
+  return (
+    <div className="host-repo-add">
+      <input className="pref-input mono narrow" placeholder={t('prefs.hosts.repos.id')} value={id} onChange={(e) => setId(e.target.value)} style={{ width: 120 }} />
+      <input className="pref-input mono narrow" placeholder={t('prefs.hosts.repos.path')} value={path} onChange={(e) => setPath(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') void add(); }} style={{ flex: 1 }} />
+      <button className="btn sm" disabled={!id.trim() || !path.trim()} onClick={() => void add()}>
+        <i className="fa-solid fa-plus" aria-hidden /> {t('prefs.hosts.repos.add')}
+      </button>
+      {error && <div className="host-card-status error" style={{ flexBasis: '100%' }}>{t('prefs.hosts.repos.error', { error })}</div>}
     </div>
   );
 }

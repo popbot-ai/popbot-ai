@@ -13,13 +13,23 @@ import {
   type HostAttachment,
   type HostFrame,
   type HostInfo,
+  type HostRepo,
+  type HostSlotsInfo,
+  type HostWorkspaceErrorCode,
+  type HostWorkspaceRequest,
+  type HostWorkspaceResult,
 } from '@shared/hostProtocol';
 import { dlog } from '../diagLog';
 
 /** A request the host refused (`status` is its HTTP status) or that
  *  never reached it (`status` 0). The message names the host. */
 export class HostRequestError extends Error {
-  constructor(public readonly status: number, message: string) {
+  constructor(
+    public readonly status: number,
+    message: string,
+    /** A workspace refusal's reason (`no-free-slot`, …), when the host gave one. */
+    public readonly code: HostWorkspaceErrorCode | null = null,
+  ) {
     super(message);
     this.name = 'HostRequestError';
   }
@@ -53,7 +63,7 @@ function describeFetchError(err: unknown): string {
 
 export async function hostRequest<T>(
   host: HostAddress,
-  method: 'GET' | 'POST',
+  method: 'GET' | 'POST' | 'PUT' | 'DELETE',
   path: string,
   body?: unknown,
   timeoutMs = REQUEST_TIMEOUT_MS,
@@ -84,7 +94,10 @@ export async function hostRequest<T>(
       const message = res.status === 401
         ? 'the token was refused'
         : fromBody ?? `${res.status} ${res.statusText}`;
-      throw new HostRequestError(res.status, `${host.name}: ${message}`);
+      const code = parsed && typeof parsed === 'object' && typeof (parsed as { code?: unknown }).code === 'string'
+        ? (parsed as { code: HostWorkspaceErrorCode }).code
+        : null;
+      throw new HostRequestError(res.status, `${host.name}: ${message}`, code);
     }
     return parsed as T;
   } catch (err) {
@@ -113,6 +126,32 @@ export async function probeHost(host: HostAddress): Promise<HostInfo> {
 export async function hostBranches(host: HostAddress, repoId: string): Promise<string[]> {
   const res = await hostRequest<{ branches: string[] }>(host, 'GET', `/v1/repos/${encodeURIComponent(repoId)}/branches`);
   return Array.isArray(res?.branches) ? res.branches : [];
+}
+
+export async function hostSlots(host: HostAddress, repoId: string): Promise<HostSlotsInfo> {
+  return hostRequest<HostSlotsInfo>(host, 'GET', `/v1/repos/${encodeURIComponent(repoId)}/slots`);
+}
+
+export async function saveHostRepo(host: HostAddress, repo: Partial<HostRepo> & { id: string }): Promise<HostRepo> {
+  return hostRequest<HostRepo>(host, 'PUT', `/v1/repos/${encodeURIComponent(repo.id)}`, repo);
+}
+
+export async function removeHostRepo(host: HostAddress, repoId: string): Promise<void> {
+  await hostRequest(host, 'DELETE', `/v1/repos/${encodeURIComponent(repoId)}`);
+}
+
+/** Give the chat its workspace on the host now (a slot, an ephemeral
+ *  worktree, the root), so a full pool is known at creation, not at
+ *  the first message. Making worktrees can take a while. */
+export async function ensureHostWorkspace(host: HostAddress, chatId: string, req: HostWorkspaceRequest): Promise<HostWorkspaceResult> {
+  return hostRequest<HostWorkspaceResult>(host, 'POST', `/v1/chats/${encodeURIComponent(chatId)}/workspace`, req, 180_000);
+}
+
+/** Park the chat's slot or remove its ephemeral worktree (the host
+ *  ends the session first). Dirty work is stashed under the chat's
+ *  name when `stash`, else discarded. */
+export async function releaseHostWorkspace(host: HostAddress, chatId: string, stash: boolean): Promise<void> {
+  await hostRequest(host, 'POST', `/v1/chats/${encodeURIComponent(chatId)}/release`, { stash }, 120_000);
 }
 
 /** End a chat's session on its host. A host that has no session for

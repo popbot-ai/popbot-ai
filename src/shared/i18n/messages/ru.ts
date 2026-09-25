@@ -161,6 +161,7 @@ export const ru = {
   'panelA.tab.tickets': 'Тикеты',
   'panelA.tab.reviews': 'Ревью',
   'panelA.tab.slack': 'Slack',
+  'panelA.tab.hosts': 'Хосты',
   'panelA.tab.unseenTitle': '{count} новых',
   'panelA.action.markAllTicketsSeen': 'Отметить все {count} новых тикета как просмотренные',
   'panelA.action.markAllReviewsSeen': 'Отметить все {count} новых PR как просмотренные',
@@ -378,6 +379,16 @@ export const ru = {
   'slots.strip.occupiedAria': '{repo} слот {slotId} · {chatName}',
   'slots.strip.freeAria': '{repo} слот {slotId} · свободен',
   'slots.strip.setupBtn': 'Настроить слоты worktree',
+  'hosts.tab.loading': 'Запрашиваю хосты…',
+  'hosts.tab.local': 'Этот компьютер',
+  'hosts.tab.meta': 'popbot-host {version}',
+  'hosts.tab.unreachable': 'недоступен',
+  'hosts.tab.openChats': 'открыто: {count}',
+  'hosts.tab.noPools': 'Нет пулов слотов.',
+  'hosts.tab.noSlots': 'нет слотов',
+  'hosts.tab.ephemeral': 'временные worktree',
+  'hosts.tab.noChats': 'На этом хосте нет чатов.',
+  'hosts.tab.noHosts': 'Хостов пока нет.',
 
   // ---------------------------------------------------------------------------
   // Titlebar (Titlebar.tsx).
@@ -497,6 +508,7 @@ export const ru = {
     'Завершить сессию этого чата на {host} сейчас? Всё, что агент там делает, остановится. Следующее сообщение начнёт новую сессию на {host}, продолжающую этот разговор.',
   'chat.host.withRepo': 'На {host} · {repo}',
   'chat.host.noRepo': 'На {host} · без репозитория',
+  'chat.host.slotTitle': 'Слот {slot} репозитория {repo} на {host}',
   'chat.crossAgent.from': 'От агента чата «{name}»',
   'chat.crossAgent.waiting': 'ждёт вашего ответа',
   'chat.app.terminal': 'Терминал',
@@ -891,6 +903,8 @@ export const ru = {
   'branch.dialog.hostDescSlot':
     'Работает на {host} в worktree репозитория {repo} на ветке выше, созданной от базовой ветки. Транскрипт остаётся здесь.',
   'branch.dialog.disabled.host': 'Ожидание {host}',
+  'branch.dialog.hostFree': 'Свободно слотов: {free} из {count}.',
+  'branch.dialog.disabled.hostNoSlot': 'Нет свободного слота в {repo} на {host}',
   'branch.dialog.createChat': 'Создать чат',
 
   // ---------------------------------------------------------------------------
@@ -992,6 +1006,23 @@ export const ru = {
   'prefs.hosts.found': 'найден',
   'prefs.hosts.missing': 'не найден',
   'prefs.hosts.noUrl': 'Введите URL и токен.',
+  'prefs.hosts.repos.title': 'Репозитории на этом хосте',
+  'prefs.hosts.repos.none': 'Пока нет. Добавьте ниже; путь указывается на хосте.',
+  'prefs.hosts.repos.id': 'Id',
+  'prefs.hosts.repos.path': 'Путь на хосте',
+  'prefs.hosts.repos.defaultBase': 'Базовая ветка',
+  'prefs.hosts.repos.slotPrefix': 'Префикс слота',
+  'prefs.hosts.repos.slotCount': 'Слоты',
+  'prefs.hosts.repos.mode': 'Режим',
+  'prefs.hosts.repos.modeSlots': 'пул слотов',
+  'prefs.hosts.repos.modeEphemeral': 'временный',
+  'prefs.hosts.repos.add': 'Добавить репозиторий',
+  'prefs.hosts.repos.remove': 'Удалить',
+  'prefs.hosts.repos.removeConfirm': 'Удалить {repo} с {host}? Его worktree останутся на диске.',
+  'prefs.hosts.repos.error': 'Не удалось сохранить: {error}',
+  'prefs.hosts.local.desc': 'Всегда здесь; удалить нельзя.',
+  'prefs.hosts.local.noRepos': 'Репозиториев пока нет.',
+  'prefs.hosts.local.manage': 'Управлять репозиториями и слотами',
 
   // Preferences — Runtime / attachment retention pane.
   'prefs.runtime.title': 'Хранение вложений',

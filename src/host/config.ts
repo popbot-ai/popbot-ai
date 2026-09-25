@@ -40,7 +40,7 @@ export function loadConfig(path: string): HostConfig {
   const repos = Array.isArray(raw.repos)
     ? raw.repos
         .filter((r): r is HostRepo => !!r && typeof r.id === 'string' && typeof r.path === 'string')
-        .map((r) => ({ id: r.id, path: resolve(r.path), defaultBase: r.defaultBase || 'main' }))
+        .map((r) => normalizeRepo(r as Partial<HostRepo> & { id: string; path: string }))
     : [];
   return {
     bind: typeof raw.bind === 'string' && raw.bind ? raw.bind : base.bind,
@@ -50,6 +50,52 @@ export function loadConfig(path: string): HostConfig {
     workspacesDir: typeof raw.workspacesDir === 'string' && raw.workspacesDir ? resolve(raw.workspacesDir) : base.workspacesDir,
     repos,
   };
+}
+
+/** Slot pool defaults match a fresh desktop repository. */
+export const DEFAULT_SLOT_COUNT = 4;
+
+export function normalizeRepo(r: Partial<HostRepo> & { id: string; path: string }): HostRepo {
+  const slotCount = typeof r.slotCount === 'number' && r.slotCount >= 0 ? Math.floor(r.slotCount) : DEFAULT_SLOT_COUNT;
+  return {
+    id: r.id,
+    path: resolve(r.path),
+    defaultBase: r.defaultBase || 'main',
+    slotPrefix: (r.slotPrefix || '').trim() || r.id,
+    slotCount,
+    mode: r.mode === 'ephemeral' ? 'ephemeral' : 'slots',
+  };
+}
+
+/** Add or change a repository in the running config and rewrite the
+ *  file. `id` is the key; other fields keep their current value when
+ *  absent. Returns the normalized record. */
+export function upsertRepo(config: HostConfig, configPath: string, patch: Partial<HostRepo> & { id: string }): HostRepo {
+  const id = patch.id.trim();
+  if (!id || /[\\/\s]/.test(id)) throw new Error('a repo id is a short name without spaces or slashes');
+  const existing = config.repos.find((r) => r.id === id);
+  const path = (patch.path ?? existing?.path ?? '').trim();
+  if (!path) throw new Error('a repo needs a path on this host');
+  const next = normalizeRepo({
+    id,
+    path,
+    defaultBase: patch.defaultBase ?? existing?.defaultBase,
+    slotPrefix: patch.slotPrefix ?? existing?.slotPrefix,
+    slotCount: patch.slotCount ?? existing?.slotCount,
+    mode: patch.mode ?? existing?.mode,
+  });
+  if (existing) Object.assign(existing, next);
+  else config.repos.push(next);
+  writeConfig(configPath, config);
+  return next;
+}
+
+export function removeRepo(config: HostConfig, configPath: string, id: string): boolean {
+  const at = config.repos.findIndex((r) => r.id === id);
+  if (at < 0) return false;
+  config.repos.splice(at, 1);
+  writeConfig(configPath, config);
+  return true;
 }
 
 export function writeConfig(path: string, config: HostConfig): void {
@@ -66,10 +112,10 @@ export function parseArgs(argv: string[]): Record<string, string | string[] | tr
     const key = a.slice(2);
     const next = argv[i + 1];
     const value = next !== undefined && !next.startsWith('--') ? (i += 1, next) : true;
-    if (key === 'repo') {
-      const list = Array.isArray(out.repo) ? out.repo : [];
+    if (key === 'repo' || key === 'slots') {
+      const list = Array.isArray(out[key]) ? (out[key] as string[]) : [];
       if (typeof value === 'string') list.push(value);
-      out.repo = list;
+      out[key] = list;
     } else {
       out[key] = value;
     }
@@ -101,9 +147,25 @@ export function resolveConfig(argv: string[]): { config: HostConfig; path: strin
       const p = resolve(eq > 0 ? spec.slice(eq + 1) : spec);
       const existing = config.repos.find((r) => r.id === id);
       if (existing) existing.path = p;
-      else config.repos.push({ id, path: p, defaultBase: 'main' });
+      else config.repos.push(normalizeRepo({ id, path: p }));
     }
   }
-  if (created || args.init === true || Array.isArray(args.repo)) writeConfig(path, config);
+  // `--slots id=N` sizes a repo's pool; `--slots id=ephemeral` switches
+  // it to a worktree per chat.
+  if (Array.isArray(args.slots) || typeof args.slots === 'string') {
+    for (const spec of Array.isArray(args.slots) ? args.slots : [args.slots]) {
+      const eq = spec.indexOf('=');
+      if (eq <= 0) continue;
+      const repo = config.repos.find((r) => r.id === spec.slice(0, eq));
+      if (!repo) continue;
+      const value = spec.slice(eq + 1).trim();
+      if (value === 'ephemeral') repo.mode = 'ephemeral';
+      else {
+        repo.mode = 'slots';
+        repo.slotCount = Math.max(0, Number(value) || 0);
+      }
+    }
+  }
+  if (created || args.init === true || Array.isArray(args.repo) || Array.isArray(args.slots)) writeConfig(path, config);
   return { config, path, created };
 }

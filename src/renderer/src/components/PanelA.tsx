@@ -77,6 +77,7 @@ import { useSettings } from '../lib/useSettings';
 import { LinearStateIcon } from '../lib/linearIcons';
 import { WorkItemSearch } from './WorkItemSearch';
 import { PrReviewActionDialog } from './PrReviewActionDialog';
+import { HostsPanel } from './HostsPanel';
 import type { AgentCreateConfig } from './AgentCreateControls';
 
 interface PanelAProps {
@@ -109,6 +110,9 @@ interface PanelAProps {
   /** Linear identifier (ENG-1234) → chat-state map. Drives the
    *  "this ticket is being worked on" treatment on Linear rows. */
   ticketChats?: Map<string, { open: boolean; focused: boolean; slotId: number | null; pr: number | null }>;
+  /** Bumps when chats open, close or take a slot, so the Hosts tab
+   *  re-reads slot pools and the chats on each host. */
+  slotVersion?: number;
 }
 
 const PRIORITY_LABEL: Record<number, Ticket['priority']> = {
@@ -164,9 +168,10 @@ export function PanelA({
   onNewReviews,
   reviewChats,
   ticketChats,
+  slotVersion = 0,
 }: PanelAProps): JSX.Element {
   const { t } = useTranslation();
-  const [tab, setTab] = useState<'tickets' | 'reviews' | 'slack'>('tickets');
+  const [tab, setTab] = useState<'tickets' | 'reviews' | 'slack' | 'hosts'>('tickets');
   // Which tracker feeds the queue, so the UI can feature-detect provider
   // capabilities (e.g. hide the inline status picker for GitHub Issues,
   // which have no workflow states). Re-read whenever the issue list changes
@@ -790,6 +795,11 @@ export function PanelA({
               {t('panelA.tab.slack')}
             </button>
           )}
+          {/* Where chats run: this computer's slot pools, and every
+              host's pools and chats. */}
+          <button className="panel-tab" aria-selected={tab === 'hosts'} onClick={() => setTab('hosts')}>
+            {t('panelA.tab.hosts')}
+          </button>
         </div>
         <div className="panel-actions">
           {tab === 'reviews' && (
@@ -915,6 +925,13 @@ export function PanelA({
                 : () => void ignorePr(review.number),
               isUnpin: pinnedPrNumbers.some((p) => p.scm === review.scm && p.number === review.number),
             })}
+          />
+        )}
+        {tab === 'hosts' && (
+          <HostsPanel
+            version={slotVersion}
+            onFocusChat={(id) => onFocusChat?.(id)}
+            onOpenPrefs={onOpenPrefs}
           />
         )}
         {tab === 'slack' && (
