@@ -1405,6 +1405,7 @@ class AgentHostImpl {
         : null,
       pathToClaudeCodeExecutable: getClaudeBinaryPath(),
       pathToCodexExecutable: getCodexBinaryPath(),
+      sessionStore: sqliteSessionStore,
       onEvent: (event) => this.handleEvent(event),
       onCodexEvent: (event) => {
         if (!isDbOpen()) return;

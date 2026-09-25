@@ -25,8 +25,8 @@ import {
 } from '@shared/persistence';
 import { DEFAULT_CONTEXT_BUDGET } from '@shared/contextUsage';
 import type { AgentBackend, AgentSession, SpawnOpts } from './types';
+import type { SessionStore } from '@anthropic-ai/claude-agent-sdk';
 import { dlog } from '../diagLog';
-import { sqliteSessionStore } from './sqliteSessionStore';
 
 /** Anthropic image API only accepts these media types. The picker
  *  permits a wider set of extensions (heic/svg/avif) for UX, but if
@@ -174,6 +174,7 @@ class ClaudeSession implements AgentSession {
   private readonly resolveRule?: (toolName: string) => 'allow' | 'deny' | null;
   /** Per-slot HTTP MCP servers (e.g. this chat's Unity/Unreal editor). */
   private readonly mcpServers?: Record<string, { type: 'http'; url: string }>;
+  private readonly sessionStore: SessionStore | null;
   private readonly model: string;
   private readonly reasoningEffort: SdkOptions['effort'];
   private query: SdkQuery | null = null;
@@ -239,6 +240,7 @@ class ClaudeSession implements AgentSession {
     this.initialSessionId = opts.sessionId ?? null;
     this.onSessionId = opts.onSessionId;
     this.pathToClaudeCodeExecutable = opts.pathToClaudeCodeExecutable ?? null;
+    this.sessionStore = opts.sessionStore ?? null;
     this.resolveRule = opts.resolveRule;
     this.mcpServers = opts.mcpServers;
     this.model = opts.claudeModel ?? DEFAULT_CLAUDE_MODEL;
@@ -291,13 +293,14 @@ class ClaudeSession implements AgentSession {
       ...(this.pathToClaudeCodeExecutable
         ? { pathToClaudeCodeExecutable: this.pathToClaudeCodeExecutable }
         : {}),
-      // SDK-side transcript persistence. With this set, the CLI's
-      // append-on-disk JSONL becomes a redundant local cache and our
-      // SQLite is the canonical context store. On resume, the SDK
-      // reads from us via `load(key)` and materializes the transcript
+      // SDK-side transcript persistence. With the desktop's store set,
+      // the CLI's append-on-disk JSONL becomes a redundant local cache
+      // and SQLite is the canonical context store. On resume, the SDK
+      // reads from it via `load(key)` and materializes the transcript
       // for the subprocess — no need for the file at
       // `~/.claude/projects/<encoded-cwd>/<sessionId>.jsonl` to exist.
-      sessionStore: sqliteSessionStore,
+      // The host daemon passes none and the CLI keeps its own JSONL.
+      ...(this.sessionStore ? { sessionStore: this.sessionStore } : {}),
       // Per-slot editor MCP (Unity/Unreal on a slot-specific port), passed
       // in-memory so nothing is written to ~/.claude.json or the repo's
       // .mcp.json — each chat's agent connects to its own slot's editor.

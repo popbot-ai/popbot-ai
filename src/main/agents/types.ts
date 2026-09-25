@@ -1,3 +1,4 @@
+import type { SessionStore } from '@anthropic-ai/claude-agent-sdk';
 import type { AgentEvent, PermissionDecision } from '@shared/agent';
 import type { PickedAttachment } from '@shared/ipc';
 import type {
@@ -101,6 +102,13 @@ export interface SpawnOpts {
    * backend (Claude) consumes this today. Keyed by server name.
    */
   mcpServers?: Record<string, { type: 'http'; url: string }>;
+  /**
+   * Claude only: where the SDK keeps the session transcript. The desktop
+   * passes its SQLite store (the canonical context store); the host
+   * daemon, which has no database, leaves it out and the CLI keeps its
+   * own JSONL under ~/.claude.
+   */
+  sessionStore?: SessionStore | null;
   /**
    * Cloud chats only (the Managed Agents backend): the session to
    * reattach to, what to mount, and how to record what the backend

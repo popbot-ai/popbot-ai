@@ -11,9 +11,32 @@
  * any user prompt text the caller chooses to include; nothing extra
  * is captured.
  */
-import { app } from 'electron';
 import { appendFileSync, mkdirSync, statSync, renameSync } from 'node:fs';
+import { homedir } from 'node:os';
 import { join } from 'node:path';
+
+/** Electron's `app`, when this runs inside the desktop app. The host
+ *  daemon runs under plain Node, where the `electron` module is absent
+ *  or a bare path string; either way there is no `app`. */
+function electronApp(): { getPath(name: 'logs'): string } | null {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const mod = require('electron') as { app?: { getPath(name: 'logs'): string } } | string;
+    return typeof mod === 'object' && mod.app && typeof mod.app.getPath === 'function' ? mod.app : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Where the log lives: the app's log folder in the desktop app, else
+ *  `POPBOT_LOG_DIR`, else `~/.popbot-host/logs` for the host daemon. */
+function logDir(): string {
+  const override = process.env.POPBOT_LOG_DIR?.trim();
+  if (override) return override;
+  const app = electronApp();
+  if (app) return app.getPath('logs');
+  return join(homedir(), '.popbot-host', 'logs');
+}
 
 let logPath: string | null = null;
 let initFailed = false;
@@ -22,7 +45,7 @@ function ensurePath(): string | null {
   if (logPath) return logPath;
   if (initFailed) return null;
   try {
-    const dir = app.getPath('logs');
+    const dir = logDir();
     mkdirSync(dir, { recursive: true });
     logPath = join(dir, 'popbot-agent.log');
     rotateIfHuge(logPath);

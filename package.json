@@ -25,7 +25,9 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "clean": "rimraf out dist release node_modules/.vite",
-    "postinstall": "node scripts/install-app-deps.mjs"
+    "postinstall": "node scripts/install-app-deps.mjs",
+    "build:host": "node scripts/build-host.mjs",
+    "host": "node dist-host/popbot-host.cjs"
   },
   "dependencies": {
     "@anthropic-ai/claude-agent-sdk": "^0.3.261",
