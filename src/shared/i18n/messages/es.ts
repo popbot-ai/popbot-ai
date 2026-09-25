@@ -529,6 +529,12 @@ export const es = {
   'chat.cloud.chipTitle': 'Se ejecuta en un sandbox en la nube de Anthropic · abrir los ajustes del chat',
   'chat.cloud.chipPendingTitle': 'Aún no hay sesión en la nube: empieza con tu primer mensaje.',
   'chat.cloud.pull': 'Traer el trabajo de la nube al checkout',
+  'chat.cloud.shutdown': 'Apagar el chat en la nube',
+  'chat.cloud.shutdownNone': 'No hay ninguna sesión en la nube en marcha para este chat.',
+  'chat.cloud.shutdownConfirm':
+    '¿Apagar la sesión en la nube ahora? Si aún está trabajando, primero se interrumpe. Todo lo que no se haya subido se pierde. Tu siguiente mensaje iniciará una sesión nueva preparada con esta conversación.',
+  'chat.cloud.shutdownConfirmBranch':
+    '¿Apagar la sesión en la nube ahora? Si aún está trabajando, primero se interrumpe. Todo lo que no se haya subido a {branch} se pierde. Tu siguiente mensaje iniciará una sesión nueva preparada con esta conversación.',
   'chat.app.terminal': 'Terminal',
   'chat.app.editor': 'Editor',
   'chat.app.unity': 'Unity',

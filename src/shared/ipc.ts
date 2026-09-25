@@ -288,6 +288,8 @@ export const IpcChannel = {
   CloudStatus: 'pb:cloud:status',
   CloudTestKey: 'pb:cloud:test-key',
   CloudPull: 'pb:cloud:pull',
+  /** End the chat's cloud session on the server (interrupt, then archive). */
+  CloudShutdown: 'pb:cloud:shutdown',
 
   /** Push channel — main → renderer. A newer release exists but can't be
    *  installed in-app (unsigned build / updater error) — surface a
@@ -1074,6 +1076,9 @@ export interface PopBotApi {
     testKey(apiKey: string, workspaceId?: string): Promise<{ ok: true } | { ok: false; error: string }>;
     /** Fast-forward the chat's checkout to what the cloud pushed. */
     pull(chatId: string): Promise<{ ok: true; summary: string } | { ok: false; error: string }>;
+    /** Shut the chat's cloud session down on the server. The next
+     *  message starts a new one, primed with the conversation. */
+    shutdown(chatId: string): Promise<void>;
   };
   updates: {
     /** Subscribe to "newer release available, download manually" pushes

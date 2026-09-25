@@ -529,6 +529,12 @@ export const fr = {
   'chat.cloud.chipTitle': 'S’exécute dans un bac à sable cloud Anthropic · ouvrir les réglages du chat',
   'chat.cloud.chipPendingTitle': 'Pas encore de session cloud : elle démarre avec votre premier message.',
   'chat.cloud.pull': 'Rapatrier le travail du cloud dans le checkout',
+  'chat.cloud.shutdown': 'Arrêter le chat cloud',
+  'chat.cloud.shutdownNone': 'Aucune session cloud ne tourne pour cette conversation.',
+  'chat.cloud.shutdownConfirm':
+    'Arrêter la session cloud maintenant ? Si elle travaille encore, elle est d’abord interrompue. Tout ce qui n’a pas été poussé est perdu. Votre prochain message démarrera une nouvelle session, amorcée avec cette conversation.',
+  'chat.cloud.shutdownConfirmBranch':
+    'Arrêter la session cloud maintenant ? Si elle travaille encore, elle est d’abord interrompue. Tout ce qui n’a pas été poussé sur {branch} est perdu. Votre prochain message démarrera une nouvelle session, amorcée avec cette conversation.',
   'chat.app.terminal': 'Terminal',
   'chat.app.editor': 'Éditeur',
   'chat.app.unity': 'Unity',

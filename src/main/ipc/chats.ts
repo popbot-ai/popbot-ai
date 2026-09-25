@@ -38,7 +38,7 @@ import {
 import { appendMessage, copyMessages, listMessages } from '../persistence/messages';
 import { getSetting, setSetting } from '../persistence/settings';
 import { AgentHost, sessionCwdForChat } from '../agents/AgentHost';
-import { cloudStatus, pullCloudBranch, testCloudApiKey } from '../agents/cloudSessions';
+import { cloudStatus, endCloudSession, pullCloudBranch, testCloudApiKey } from '../agents/cloudSessions';
 import { searchTranscripts } from '../search/transcriptSearch';
 import { getCodexBinaryPath } from '../agents/codexProbe';
 import { forkClaudeSession, forkCodexThread } from '../agents/forkAgentContext';
@@ -414,6 +414,12 @@ export function registerChatHandlers(): void {
     ));
   ipcMain.handle(IpcChannel.CloudPull, (_e, chatId: string) =>
     pullCloudBranch(chatId, (event) => AgentHost.emit(event)));
+  // "Shut down cloud chat" — the one thing that ends a session on the
+  // server. Closing, deleting or quitting never do.
+  ipcMain.handle(IpcChannel.CloudShutdown, async (_e, chatId: string) => {
+    await AgentHost.dispose(chatId);
+    await endCloudSession(chatId, (event) => AgentHost.emit(event));
+  });
 
   ipcMain.handle(IpcChannel.ChatsReorder, (_e, ids: string[]) => {
     if (!Array.isArray(ids)) return;

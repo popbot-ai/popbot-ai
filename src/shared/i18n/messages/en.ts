@@ -508,6 +508,12 @@ export const en = {
   'chat.cloud.chipTitle': 'Runs in an Anthropic cloud sandbox · open the chat settings',
   'chat.cloud.chipPendingTitle': 'No cloud session yet — it starts with your first message.',
   'chat.cloud.pull': 'Pull cloud work into the checkout',
+  'chat.cloud.shutdown': 'Shut down cloud chat',
+  'chat.cloud.shutdownNone': 'No cloud session is running for this chat.',
+  'chat.cloud.shutdownConfirm':
+    'Shut down the cloud session now? It is interrupted first if it is still working. Anything not pushed is lost. Your next message starts a new session, primed with this conversation.',
+  'chat.cloud.shutdownConfirmBranch':
+    'Shut down the cloud session now? It is interrupted first if it is still working. Anything not pushed to {branch} is lost. Your next message starts a new session, primed with this conversation.',
   'chat.app.terminal': 'Terminal',
   'chat.app.editor': 'Editor',
   'chat.app.unity': 'Unity',

@@ -482,6 +482,12 @@ export const pl = {
   'chat.cloud.chipPendingTitle':
     'Nie ma jeszcze sesji w chmurze – zacznie się od Twojej pierwszej wiadomości.',
   'chat.cloud.pull': 'Pobierz pracę z chmury do checkoutu',
+  'chat.cloud.shutdown': 'Wyłącz czat w chmurze',
+  'chat.cloud.shutdownNone': 'Dla tego czatu nie działa żadna sesja w chmurze.',
+  'chat.cloud.shutdownConfirm':
+    'Wyłączyć sesję w chmurze teraz? Jeśli wciąż pracuje, najpierw zostanie przerwana. Wszystko, co nie zostało wypchnięte, przepadnie. Twoja następna wiadomość rozpocznie nową sesję przygotowaną na podstawie tej rozmowy.',
+  'chat.cloud.shutdownConfirmBranch':
+    'Wyłączyć sesję w chmurze teraz? Jeśli wciąż pracuje, najpierw zostanie przerwana. Wszystko, co nie zostało wypchnięte na {branch}, przepadnie. Twoja następna wiadomość rozpocznie nową sesję przygotowaną na podstawie tej rozmowy.',
   'chat.app.terminal': 'Terminal',
   'chat.app.editor': 'Edytor',
   'chat.app.unity': 'Unity',

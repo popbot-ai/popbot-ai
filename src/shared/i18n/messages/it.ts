@@ -481,6 +481,12 @@ export const it = {
   'chat.cloud.chipTitle': 'Gira in una sandbox cloud di Anthropic · apri le impostazioni della chat',
   'chat.cloud.chipPendingTitle': 'Nessuna sessione cloud ancora: parte con il tuo primo messaggio.',
   'chat.cloud.pull': 'Porta il lavoro del cloud nel checkout',
+  'chat.cloud.shutdown': 'Spegni la chat cloud',
+  'chat.cloud.shutdownNone': 'Nessuna sessione cloud è in esecuzione per questa chat.',
+  'chat.cloud.shutdownConfirm':
+    'Spegnere la sessione cloud adesso? Se sta ancora lavorando viene prima interrotta. Tutto ciò che non è stato pushato va perso. Il tuo prossimo messaggio avvierà una nuova sessione, preparata con questa conversazione.',
+  'chat.cloud.shutdownConfirmBranch':
+    'Spegnere la sessione cloud adesso? Se sta ancora lavorando viene prima interrotta. Tutto ciò che non è stato pushato su {branch} va perso. Il tuo prossimo messaggio avvierà una nuova sessione, preparata con questa conversazione.',
   'chat.app.terminal': 'Terminale',
   'chat.app.editor': 'Editor',
   'chat.app.unity': 'Unity',

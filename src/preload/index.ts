@@ -253,6 +253,7 @@ const api: PopBotApi = {
     status: () => ipcRenderer.invoke(IpcChannel.CloudStatus),
     testKey: (apiKey: string, workspaceId?: string) => ipcRenderer.invoke(IpcChannel.CloudTestKey, apiKey, workspaceId),
     pull: (chatId: string) => ipcRenderer.invoke(IpcChannel.CloudPull, chatId),
+    shutdown: (chatId: string) => ipcRenderer.invoke(IpcChannel.CloudShutdown, chatId),
   },
   updates: {
     onAvailable: (handler: (info: UpdateInfo) => void) => {

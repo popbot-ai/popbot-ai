@@ -7,11 +7,22 @@
 import type { AgentEvent } from '@shared/agent';
 import type { CloudStatus } from '@shared/ipc';
 import { dlog } from '../diagLog';
-import { getChat } from '../persistence/chats';
+import { getChat, setChatCloud } from '../persistence/chats';
 import { appendMessage } from '../persistence/messages';
 import { getRepo } from '../persistence/repos';
 import { pullBranch } from './cloudGit';
-import { cloudSettings, resolveCloudApiKey, resolveGithubToken, testCloudApiKey } from './managedAgentsClient';
+import {
+  cloudClient,
+  cloudSettings,
+  describeApiError,
+  resolveCloudApiKey,
+  resolveGithubToken,
+  testCloudApiKey,
+} from './managedAgentsClient';
+
+/** How long to wait for an interrupted session to go idle before
+ *  archiving it — a tool call in flight can take a while to stop. */
+const END_IDLE_WAIT_MS = 30_000;
 
 export type Emit = (event: AgentEvent) => void;
 
@@ -31,6 +42,43 @@ export { testCloudApiKey };
 function note(chatId: string, emit: Emit, text: string): void {
   const row = appendMessage({ chatId, role: 'system', kind: 'system', body: { text } });
   emit({ type: 'message-added', chatId, message: row, ts: Date.now() });
+}
+
+/**
+ * "Shut down cloud chat" (the chat menu, or a right-click on the Cloud
+ * chip) ends the chat's session on the server. Nothing else does:
+ * closing or deleting the chat only detaches from the session, and
+ * quitting PopBot is when a session is meant to carry on. A running
+ * session cannot be archived, so it is interrupted first and given a
+ * moment to go idle. Best effort: a failure is logged and the chat is
+ * still marked ended.
+ */
+export async function endCloudSession(chatId: string, emit: Emit | null): Promise<void> {
+  const chat = getChat(chatId);
+  const info = chat?.cloud;
+  if (!info?.sessionId || info.ended) return;
+  const sessionId = info.sessionId;
+  try {
+    const client = cloudClient();
+    let status = (await client.beta.sessions.retrieve(sessionId)).status;
+    if (status === 'running' || status === 'rescheduling') {
+      await client.beta.sessions.events.send(sessionId, { events: [{ type: 'user.interrupt' }] });
+      const until = Date.now() + END_IDLE_WAIT_MS;
+      while (Date.now() < until && (status === 'running' || status === 'rescheduling')) {
+        await new Promise((r) => setTimeout(r, 1500));
+        status = (await client.beta.sessions.retrieve(sessionId)).status;
+      }
+    }
+    if (status === 'idle') await client.beta.sessions.archive(sessionId);
+    dlog('cloud.session.ended', { chatId, sessionId, status, archived: status === 'idle' });
+  } catch (err) {
+    dlog('cloud.session.end.failed', { chatId, sessionId, error: describeApiError(err) });
+  }
+  // Ended for the chat either way: reopening starts a new session
+  // primed with the conversation, rather than reattaching to one that
+  // is archived or on its way out.
+  setChatCloud(chatId, { ...info, ended: true });
+  if (emit) note(chatId, emit, 'cloud: The cloud session was shut down. Your next message starts a new one, primed with this conversation.');
 }
 
 /**

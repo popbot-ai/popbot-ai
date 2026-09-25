@@ -324,6 +324,22 @@ export function ChatColumn({
     const r = e.currentTarget.getBoundingClientRect();
     setMenu({ top: r.bottom + 4, right: Math.max(4, window.innerWidth - r.right) });
   };
+  // The cloud session ends only on request: closing the chat detaches,
+  // quitting PopBot leaves it working. Reached from the ☰ menu and by
+  // right-clicking the Cloud chip.
+  const cloudLive = !!chat.cloud?.sessionId && !chat.cloud.ended;
+  const shutdownCloud = async (): Promise<void> => {
+    const branch = chat.cloud?.branch ?? chat.branch;
+    const body = branch
+      ? t('chat.cloud.shutdownConfirmBranch', { branch })
+      : t('chat.cloud.shutdownConfirm');
+    if (!confirm(body)) return;
+    await window.popbot.cloud.shutdown(chat.id);
+  };
+  const openMenuAt = (el: Element): void => {
+    const r = el.getBoundingClientRect();
+    setMenu({ top: r.bottom + 4, right: Math.max(4, window.innerWidth - r.right) });
+  };
   const restartWithContext = async (): Promise<void> => {
     if (!confirm(t('chatSettings.restartConfirm'))) return;
     try {
@@ -676,18 +692,31 @@ export function ChatColumn({
             </>
           )}
           {chat.cloud && (
-            // The sandbox pushes to the chat's branch; this brings those
-            // commits into the local checkout. Only once there is a branch.
-            <button
-              type="button"
-              className="chat-menu-item"
-              role="menuitem"
-              disabled={!(chat.cloud.branch ?? chat.branch)}
-              onClick={() => { setMenu(null); void window.popbot.cloud.pull(chat.id); }}
-            >
-              <i className="fa-solid fa-cloud-arrow-down" aria-hidden="true" />
-              {t('chat.cloud.pull')}
-            </button>
+            <>
+              {/* The sandbox pushes to the chat's branch; this brings those
+                  commits into the local checkout. Only once there is a branch. */}
+              <button
+                type="button"
+                className="chat-menu-item"
+                role="menuitem"
+                disabled={!(chat.cloud.branch ?? chat.branch)}
+                onClick={() => { setMenu(null); void window.popbot.cloud.pull(chat.id); }}
+              >
+                <i className="fa-solid fa-cloud-arrow-down" aria-hidden="true" />
+                {t('chat.cloud.pull')}
+              </button>
+              <button
+                type="button"
+                className="chat-menu-item"
+                role="menuitem"
+                disabled={!cloudLive}
+                title={cloudLive ? undefined : t('chat.cloud.shutdownNone')}
+                onClick={() => { setMenu(null); void shutdownCloud(); }}
+              >
+                <i className="fa-solid fa-power-off" aria-hidden="true" />
+                {t('chat.cloud.shutdown')}
+              </button>
+            </>
           )}
           <div className="chat-menu-sep" />
           <button
@@ -895,9 +924,11 @@ export function ChatColumn({
             {chat.cloud && (
               <button
                 type="button"
-                className={`cloud-chip${chat.cloud.sessionId && !chat.cloud.ended ? '' : ' pending'}`}
+                className={`cloud-chip${cloudLive ? '' : ' pending'}`}
                 title={chat.cloud.sessionId ? t('chat.cloud.chipTitle') : t('chat.cloud.chipPendingTitle')}
                 onClick={(e) => handleSettings(e)}
+                // Right-click: the chat menu, with its cloud actions, at the chip.
+                onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); openMenuAt(e.currentTarget); }}
               >
                 <i className="fa-solid fa-cloud" aria-hidden /> {t('chat.cloud.chip')}
               </button>

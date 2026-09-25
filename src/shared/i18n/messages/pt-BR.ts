@@ -529,6 +529,12 @@ export const ptBR = {
   'chat.cloud.chipTitle': 'Roda em um sandbox na nuvem da Anthropic · abrir as configurações do chat',
   'chat.cloud.chipPendingTitle': 'Ainda não há sessão na nuvem: ela começa com a sua primeira mensagem.',
   'chat.cloud.pull': 'Trazer o trabalho da nuvem para o checkout',
+  'chat.cloud.shutdown': 'Desligar o chat na nuvem',
+  'chat.cloud.shutdownNone': 'Nenhuma sessão na nuvem está em execução para este chat.',
+  'chat.cloud.shutdownConfirm':
+    'Desligar a sessão na nuvem agora? Se ainda estiver trabalhando, ela é interrompida antes. Tudo o que não foi enviado é perdido. Sua próxima mensagem inicia uma nova sessão, preparada com esta conversa.',
+  'chat.cloud.shutdownConfirmBranch':
+    'Desligar a sessão na nuvem agora? Se ainda estiver trabalhando, ela é interrompida antes. Tudo o que não foi enviado para {branch} é perdido. Sua próxima mensagem inicia uma nova sessão, preparada com esta conversa.',
   'chat.app.terminal': 'Terminal',
   'chat.app.editor': 'Editor',
   'chat.app.unity': 'Unity',

@@ -529,6 +529,12 @@ export const ko = {
   'chat.cloud.chipTitle': 'Anthropic 클라우드 샌드박스에서 실행 중 · 채팅 설정 열기',
   'chat.cloud.chipPendingTitle': '아직 클라우드 세션이 없습니다. 첫 메시지와 함께 시작됩니다.',
   'chat.cloud.pull': '클라우드 작업을 체크아웃으로 가져오기',
+  'chat.cloud.shutdown': '클라우드 채팅 종료',
+  'chat.cloud.shutdownNone': '이 채팅에 실행 중인 클라우드 세션이 없습니다.',
+  'chat.cloud.shutdownConfirm':
+    '클라우드 세션을 지금 종료할까요? 아직 작업 중이면 먼저 중단됩니다. 푸시하지 않은 것은 사라집니다. 다음 메시지가 이 대화를 이어받은 새 세션을 시작합니다.',
+  'chat.cloud.shutdownConfirmBranch':
+    '클라우드 세션을 지금 종료할까요? 아직 작업 중이면 먼저 중단됩니다. {branch}에 푸시하지 않은 것은 사라집니다. 다음 메시지가 이 대화를 이어받은 새 세션을 시작합니다.',
   'chat.app.terminal': '터미널',
   'chat.app.editor': '편집기',
   'chat.app.unity': 'Unity',

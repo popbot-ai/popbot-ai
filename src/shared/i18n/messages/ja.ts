@@ -529,6 +529,12 @@ export const ja = {
   'chat.cloud.chipTitle': 'Anthropic のクラウドサンドボックスで実行中 · チャット設定を開く',
   'chat.cloud.chipPendingTitle': 'クラウドセッションはまだありません。最初のメッセージで開始します。',
   'chat.cloud.pull': 'クラウドの作業をチェックアウトに取り込む',
+  'chat.cloud.shutdown': 'クラウドチャットを停止',
+  'chat.cloud.shutdownNone': 'このチャットで実行中のクラウドセッションはありません。',
+  'chat.cloud.shutdownConfirm':
+    'クラウドセッションを今すぐ停止しますか？作業中なら先に中断されます。プッシュしていないものは失われます。次のメッセージで、この会話を引き継いだ新しいセッションが始まります。',
+  'chat.cloud.shutdownConfirmBranch':
+    'クラウドセッションを今すぐ停止しますか？作業中なら先に中断されます。{branch} にプッシュしていないものは失われます。次のメッセージで、この会話を引き継いだ新しいセッションが始まります。',
   'chat.app.terminal': 'ターミナル',
   'chat.app.editor': 'エディター',
   'chat.app.unity': 'Unity',

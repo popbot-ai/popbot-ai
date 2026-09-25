@@ -529,6 +529,12 @@ export const de = {
   'chat.cloud.chipTitle': 'Läuft in einer Anthropic-Cloud-Sandbox · Chat-Einstellungen öffnen',
   'chat.cloud.chipPendingTitle': 'Noch keine Cloud-Session – sie beginnt mit deiner ersten Nachricht.',
   'chat.cloud.pull': 'Cloud-Arbeit in den Checkout holen',
+  'chat.cloud.shutdown': 'Cloud-Chat herunterfahren',
+  'chat.cloud.shutdownNone': 'Für diesen Chat läuft keine Cloud-Session.',
+  'chat.cloud.shutdownConfirm':
+    'Die Cloud-Session jetzt herunterfahren? Läuft sie noch, wird sie zuerst unterbrochen. Alles nicht Gepushte geht verloren. Deine nächste Nachricht startet eine neue Session, vorbereitet mit diesem Gespräch.',
+  'chat.cloud.shutdownConfirmBranch':
+    'Die Cloud-Session jetzt herunterfahren? Läuft sie noch, wird sie zuerst unterbrochen. Alles, was nicht nach {branch} gepusht wurde, geht verloren. Deine nächste Nachricht startet eine neue Session, vorbereitet mit diesem Gespräch.',
   'chat.app.terminal': 'Terminal',
   'chat.app.editor': 'Editor',
   'chat.app.unity': 'Unity',
