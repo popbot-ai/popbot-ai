@@ -6,9 +6,11 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { WIP_COMMIT_MSG, forkBranchInto } from './worktrees';
 
 // Trailing whitespace only: porcelain status lines START with a
-// significant space (' M' = unstaged, 'M ' = staged).
+// significant space (' M' = unstaged, 'M ' = staged). Line endings are
+// pinned to LF: a Windows git with core.autocrlf=true would check the
+// files out as CRLF and the byte-for-byte assertions below would fail.
 const git = (cwd: string, ...args: string[]): string =>
-  execFileSync('git', ['-c', 'safe.directory=*', ...args], { cwd, encoding: 'utf8' }).replace(/\s+$/, '');
+  execFileSync('git', ['-c', 'safe.directory=*', '-c', 'core.autocrlf=false', ...args], { cwd, encoding: 'utf8' }).replace(/\s+$/, '');
 
 const AUTHOR = ['-c', 'user.name=t', '-c', 'user.email=t@t'];
 const commitAll = (cwd: string, msg: string): void => {
@@ -39,9 +41,12 @@ describe('forkBranchInto', () => {
     commitAll(root, 'base');
     git(dir, 'clone', '-q', root, orig);
     git(dir, 'clone', '-q', root, fork);
-    for (const wt of [orig, fork]) {
+    // The code under test runs its own git in these clones; the repo
+    // config keeps its checkouts on LF too.
+    for (const wt of [root, orig, fork]) {
       git(wt, 'config', 'user.name', 't');
       git(wt, 'config', 'user.email', 't@t');
+      git(wt, 'config', 'core.autocrlf', 'false');
     }
     // The original chat: its branch, one local commit, then dirty work.
     git(orig, 'checkout', '-q', '-b', 'you/feature', 'main');
