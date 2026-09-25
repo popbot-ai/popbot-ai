@@ -1,6 +1,6 @@
 # Configurare PopBot
 
-Tutto in PopBot viene configurato all'interno dell'app tramite **Preferenze** (l'icona a ingranaggio nella barra del titolo, o `⌘,`) — non ci sono file di configurazione da modificare manualmente. Questa guida percorre ogni pannello nell'ordine in cui compaiono nella nav, che corrisponde grosso modo all'ordine in cui li configureresti la prima volta.
+Tutto in PopBot viene configurato all'interno dell'app tramite **Preferenze** (l'icona a ingranaggio nella barra del titolo, o `⌘,`) — non ci sono file di configurazione da modificare manualmente. Questa guida percorre ogni pannello nell'ordine in cui compaiono nella nav, che corrisponde grosso modo all'ordine in cui li configureresti la prima volta. Non c'è nessun pulsante Salva: un campo viene salvato appena lo lasci (o premi Invio), un interruttore appena lo cambi, e chiudendo le Preferenze viene salvato ciò che è ancora in sospeso.
 
 > Le credenziali che inserisci (Linear, Jira, GitHub, Perforce, ecc.) sono memorizzate **localmente sulla tua macchina** nel database dell'app — mai in questo repository.
 
@@ -22,7 +22,7 @@ Un unico issue tracker attivo alimenta la coda Ticket. Selezionalo dal menu in c
 - **Jira** — inserisci l'URL del tuo sito (`https://your-domain.atlassian.net`), l'email dell'account e un token API (da *id.atlassian.com → Security → API tokens*). Facoltativamente limita a un **Project** e aggiungi un filtro **JQL** (es. `labels = backend`). Il salvataggio verifica le credenziali prima di renderle persistenti.
 - **GitHub** — GitHub Issues non richiede credenziali qui: il provider si appoggia alla CLI `gh` che hai già autenticato per le review e le azioni git, e la coda copre gli stessi repository configurati in [Repository](#repository). Il modulo è un controllo di stato che conferma che `gh` sia installato e autenticato e riporta quanti repository copre.
 
-Ogni tracker con credenziali le verifica al **Save** prima di renderle persistenti, e mostra un indicatore *Connected / Not connected*.
+Ogni tracker con credenziali le verifica appena lasci un campo delle credenziali, le salva in ogni caso e mostra un indicatore *Connected / Not connected* con l'esito.
 
 ### Motori di gioco
 
@@ -48,6 +48,30 @@ A differenza della fonte dei ticket a selezione singola, i motori sono **indipen
   - **Code reviews** — chat di revisione PR, chat di fallback per le re-review, e notifiche di revisione.
 
 Uno sforzo maggiore significa ragionamento più approfondito e uso più accurato degli strumenti, a fronte di costo e latenza maggiori. Le revisioni spesso richiedono una profondità diversa rispetto allo sviluppo di funzionalità — da qui la separazione.
+
+**Guida Codex mentre lavora** *(disattivato per impostazione predefinita)* — si collega a Codex tramite il suo `app-server` invece dell'SDK exec. Con l'opzione attiva, un messaggio inviato mentre Codex è occupato viene inserito nel turno in corso e raggiunge il modello al passo successivo — di solito appena termina il comando in esecuzione — invece di attendere la fine del turno. Alimenta anche l'indicatore di contesto per le chat Codex, vi abilita **Compatta contesto** e fa sì che **Stop** interrompa il turno in modo pulito. Codex definisce `app-server` sperimentale e serve `codex` 0.153 o successivo, per questo è opzionale; una CLI più vecchia torna semplicemente all'accodamento. L'interruttore vale dal prossimo messaggio di ogni chat, e una chat passa da una connessione all'altra senza perdere il proprio thread.
+
+**Strumenti PopBot per gli agenti** *(attivo per impostazione predefinita)* — dà all'agente di ogni chat un server MCP `popbot` con strumenti per elencare, creare, chiudere e riaprire chat, inviare un messaggio a un'altra chat e attenderne la risposta, avviare code review e chat per ticket, leggere e cercare nelle trascrizioni (vedi [Strumenti PopBot per gli agenti](GUIDE.md#strumenti-popbot-per-gli-agenti)). Il server ascolta solo su localhost, su una porta casuale con un segreto per avvio nell'URL. Disattivarlo vale dalla prossima sessione dell'agente di ogni chat.
+
+**Chat cloud** — la *chiave API Anthropic* su cui girano le chat cloud (salvata localmente; in mancanza si usa la variabile d'ambiente `ANTHROPIC_API_KEY`) e il *token GitHub* con cui la sandbox clona i repository (scope `repo`; in mancanza si usa `gh auth token`). Una chat cloud con repository richiede entrambi; una senza richiede solo la chiave. Salvando con una chiave, questa viene prima verificata con l'API. Le sessioni cloud sono fatturate a token sull'account Console della chiave, non su un abbonamento Claude. Al primo uso PopBot crea in quell'account un ambiente e un agente per modello ed effort, e poi li riutilizza (vedi [Esegui nel cloud](GUIDE.md#chats)). Una chiave a livello di organizzazione (non creata dentro un workspace) richiede anche l'*ID del workspace* (`wrkspc_…`, dalla pagina Workspaces della Console); la verifica della chiave lo segnala quando manca.
+
+## Host
+
+Altre macchine che eseguono chat per questo PopBot. Su ciascuna gira `popbot-host`, un demone Node in un solo file compilato da questo repository:
+
+```sh
+npm run build:host                       # scrive dist-host/popbot-host.cjs
+node dist-host/popbot-host.cjs --init --repo popbot=/percorso/del/checkout
+node dist-host/popbot-host.cjs           # ascolta su 127.0.0.1:7677
+```
+
+`--init` scrive `~/.popbot-host/config.json` (indirizzo di ascolto, porta, un token bearer casuale, una cartella degli spazi di lavoro, i repository per id e percorso) e stampa il token; modifica il file oppure passa `--port`, `--bind`, `--token`, `--name`, `--workspaces` e altri flag `--repo id=/percorso`. L'host ha bisogno di Node 20 o successivo e della CLI `claude` e/o `codex` nel suo PATH. Non copia nulla da questa macchina e non conserva trascrizioni: solo le sessioni attive e il loro registro di eventi, che un PopBot che si riconnette riproduce da dove era rimasto. Ascolta su localhost; raggiungi una macchina remota con un tunnel SSH (`ssh -L 7677:127.0.0.1:7677 macchina`) invece di esporre la porta.
+
+Oppure esegui l'immagine pubblicata senza installare nulla: `ghcr.io/popbot-ai/popbot-host` (costruita dal workflow *Host image* a ogni tag di versione) contiene Node, git ed entrambe le CLI attorno al demone. `docker/host/docker-compose.yml` è un esempio pronto: monta i tuoi checkout in `/repos`, un volume in `/data` per configurazione, spazi di lavoro e log, e gli accessi di un utente che ha eseguito `claude` e `codex login` una volta in `/home/popbot/.claude` e `/home/popbot/.codex` (su un Mac esporta l'accesso Claude dal Portachiavi con `security find-generic-password -s "Claude Code-credentials" -w` in `.claude/.credentials.json`). Passa `--repo id=/repos/x` e `--slots x=4` come comando del container, pubblica la porta 7677 su localhost o su un indirizzo della tailnet e leggi il token dalle prime righe di log del container (oppure imposta `POPBOT_HOST_TOKEN`).
+
+In PopBot, *Aggiungi host* crea una voce con l'indirizzo locale già compilato; imposta nome, URL e token (i campi si salvano quando li lasci) e il pannello chiede all'host cos'è: la versione, se ha trovato Claude e Codex e i suoi repository. I worktree di un host vivono nella sua cartella degli spazi di lavoro (`~/.popbot-host/workspaces/<repo>/<branch>`); gli allegati inviati finiscono lì sotto `attachments/<id chat>`. Le regole dei permessi viaggiano con ogni richiesta, quindi le decisioni *Consenti sempre* valgono allo stesso modo sull'host. Rimuovi un host e le chat già su di esso restano in elenco ma non possono più raggiungerlo. Vedi [Esegui su un'altra macchina](GUIDE.md#chats).
+
+Questo computer è sempre la prima voce e non si può rimuovere; i suoi repository e pool di slot sono la sezione Repository. I repository di ogni altro host si modificano sulla sua scheda — il percorso sull'host, il branch base e il pool di slot: un prefisso, un numero, oppure *effimero* per un worktree per chat — e l'host riscrive la sua configurazione (`--slots id=N` o `--slots id=ephemeral` fa lo stesso dalla sua riga di comando; un repo nuovo riceve quattro slot con il nome del suo id). I worktree degli slot stanno in `<workspaces>/<repo>/<prefisso>-N`, parcheggiati su `<repo>/slotN` quando liberi; chi tiene cosa è conservato in `<workspaces>/state.json` tra un riavvio dell'host e l'altro.
 
 ## Runtime e slot
 

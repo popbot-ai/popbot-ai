@@ -34,9 +34,10 @@ describe('model registry', () => {
     expect(CLAUDE_MODELS).toContain('claude-sonnet-5');
   });
 
-  it('adds Claude Fable 5.1 and GPT-6 Astra without dropping the models already offered', () => {
+  it('adds Claude Opus 5.5, Fable 5.1 and GPT-6 Astra without dropping the models already offered', () => {
     expect(CLAUDE_MODELS).toEqual([
       'claude-opus-5',
+      'claude-opus-5-5',
       'claude-sonnet-5',
       'claude-fable-5',
       'claude-fable-5-1',
@@ -45,18 +46,21 @@ describe('model registry', () => {
   });
 
   it('keeps Opus 5 and Sol as the defaults — the newest tiers are opt-in only', () => {
-    // Fable 5.1 and Astra are limited-availability launches at top-tier
-    // pricing. A chat lands on them only because the user picked them.
+    // Opus 5.5, Fable 5.1 and Astra are new launches at top-tier pricing.
+    // A chat lands on them only because the user picked them.
+    expect(DEFAULT_CLAUDE_MODEL).not.toBe('claude-opus-5-5');
     expect(DEFAULT_CLAUDE_MODEL).not.toBe('claude-fable-5-1');
     expect(DEFAULT_CODEX_MODEL).not.toBe('gpt-6-astra');
     expect(normalizeClaudeModel(undefined)).toBe('claude-opus-5');
     expect(normalizeCodexModel(undefined)).toBe('gpt-5.6-sol');
   });
 
-  it('never rolls an existing chat forward onto Fable 5.1 or Astra', () => {
+  it('never rolls an existing chat forward onto Opus 5.5, Fable 5.1 or Astra', () => {
     expect(normalizeClaudeModel('claude-fable-5')).toBe('claude-fable-5');
     expect(normalizeClaudeModel('claude-opus-5')).toBe('claude-opus-5');
+    // A retired Opus lands on the default Opus 5, not the newer 5.5.
     expect(normalizeClaudeModel('claude-opus-4-8')).toBe('claude-opus-5');
+    expect(normalizeClaudeModel('claude-opus-4-8')).not.toBe('claude-opus-5-5');
     for (const current of ['gpt-5.6-sol', 'gpt-5.6-terra', 'gpt-5.6-luna'] as const) {
       expect(normalizeCodexModel(current)).toBe(current);
     }
@@ -64,6 +68,7 @@ describe('model registry', () => {
   });
 
   it('pins a chat that explicitly chose the newest tier', () => {
+    expect(normalizeClaudeModel('claude-opus-5-5')).toBe('claude-opus-5-5');
     expect(normalizeClaudeModel('claude-fable-5-1')).toBe('claude-fable-5-1');
     expect(normalizeCodexModel('gpt-6-astra')).toBe('gpt-6-astra');
   });

@@ -11,16 +11,23 @@ import {
   DEFAULT_CLAUDE_REASONING_EFFORT,
   DEFAULT_CODEX_MODEL,
   DEFAULT_CODEX_REASONING_EFFORT,
+  CODEX_SETTINGS_KEY,
   RAW_CHAT_REPO_ID,
+  codexUsesAppServer,
   type ClaudeModelId,
   type ChatRecord,
   type ClaudeReasoningEffort,
+  type CloudChatInfo,
   type CodexModelId,
+  type HostChatInfo,
+  type CrossChatOrigin,
   type CodexReasoningEffort,
+  type CodexSettings,
   type MessageBodyPermission,
   type MessageBodyText,
   type MessageBodyTool,
   type PermissionRule,
+  type MessageRecord,
 } from '@shared/persistence';
 // MessageBodyPermission imported above; re-tag it here for clarity in approve().
 import { IpcChannel } from '@shared/ipc';
@@ -31,6 +38,8 @@ import {
   clearChatCodexThreadId,
   getChat,
   getChatPermissionRules,
+  setChatCloud,
+  setChatHost,
   setChatCodexThreadId,
   setChatProviderContextAt,
   setChatSessionId,
@@ -40,8 +49,14 @@ import {
 } from '../persistence/chats';
 import { isDbOpen } from '../persistence/db';
 import { getRepo } from '../persistence/repos';
+import { getHost } from '../persistence/hosts';
+import { RemoteBackend } from './RemoteBackend';
+import { endHostSession } from './hostClient';
+import type { RemoteSpawnOpts } from './types';
 import { dlog } from '../diagLog';
 import { getClaudeBinaryPath } from './claudeProbe';
+import { popbotMcpUrlForChat } from '../mcp/registry';
+import { attributeCrossChatMessage } from '../mcp/crossChat';
 import { getSetting, setSetting } from '../persistence/settings';
 import { appendMessage, getMessage, listMessages, updateMessageBody } from '../persistence/messages';
 import { listSessions, type SDKSessionInfo } from '@anthropic-ai/claude-agent-sdk';
@@ -54,6 +69,8 @@ import type { AgentBackend, AgentSession } from './types';
 import { StubBackend } from './StubBackend';
 import { ClaudeBackend } from './ClaudeBackend';
 import { CodexBackend } from './CodexBackend';
+import { CodexAppServerBackend } from './CodexAppServerBackend';
+import { CloudSetupError, ManagedAgentsBackend } from './ManagedAgentsBackend';
 import { getCodexBinaryPath } from './codexProbe';
 import { persistChatAttachments } from '../attachments/store';
 
@@ -187,7 +204,9 @@ export function firstMessageCwdPreamble(
   chat: Pick<ChatRecord, 'slotId' | 'repoId' | 'worktreePath'> | null | undefined,
   isFresh: boolean,
   resumed: boolean,
+  forkNote?: ForkNote | null,
 ): string {
+  if (forkNote) return forkPreamble(sessionCwdForChat(chat), forkNote);
   if (!isFresh && !resumed) return '';
   const cwd = sessionCwdForChat(chat);
   if (!cwd) return '';
@@ -202,6 +221,47 @@ export function firstMessageCwdPreamble(
     : `[System] This chat resumed at ${now}. Its working directory is now: ${cwd} — this may ` +
         `differ from before (a resumed chat can move to a new slot), so use this path for all ` +
         `file reads, edits, and commands from here on; any path you recall from earlier may be stale.\n\n`;
+}
+
+/**
+ * What a forked chat's agent is told on its first message. The agent's
+ * memory is the ORIGINAL chat's (its session was forked), so it has to
+ * learn three things: it is now a separate chat; where its workspace is
+ * now, versus where the work it remembers happened; and that anything
+ * chat-specific it set up for the original — worktrees, branches,
+ * scratch folders — belongs to the original and must be re-created for
+ * this chat from the original's home, not modified in place.
+ */
+export interface ForkNote {
+  /** The original chat's name. */
+  fromName: string;
+  /** The original chat's working directory, when it had one. */
+  fromCwd: string | null;
+  /** When the fork was made (epoch ms). */
+  at: number;
+}
+
+function forkPreamble(cwd: string | null, note: ForkNote): string {
+  const when = new Date(note.at).toLocaleString('sv-SE', { dateStyle: 'short', timeStyle: 'short' });
+  const moved = !!cwd && !!note.fromCwd && cwd !== note.fromCwd;
+  const where = !cwd
+    ? ''
+    : moved
+      ? `Its working directory is now: ${cwd} — a fresh copy of the work, forked from the original ` +
+        `chat's home folder at ${note.fromCwd}. Use the new path for every file read, edit, and ` +
+        `command from here on; any path you recall from earlier belongs to the original chat. `
+      : `Its working directory is unchanged: ${cwd}, which it shares with the original chat. `;
+  const home = note.fromCwd ?? cwd;
+  return (
+    `[System] This chat was branched (forked) at ${when} from the chat “${note.fromName}”. ` +
+    `The conversation above is that chat's, carried over; from here on this is a separate chat ` +
+    `and the original continues independently. ${where}` +
+    `Any worktrees, branches, scratch folders, or other chat-specific workspaces you set up ` +
+    `earlier belong to the original chat: do not modify them from here — re-create (re-branch) ` +
+    `your own for this chat` + (home ? `, from the original home folder at ${home}` : '') + `.
+
+`
+  );
 }
 
 /** A sentence telling the agent to respond in the user's chosen UI language,
@@ -244,6 +304,11 @@ function rawChatCwd(): string {
 class AgentHostImpl {
   private webContents: WebContents | null = null;
   private readonly sessions = new Map<string, AgentSession>();
+  /** Which backend spawned each live session. Lets a settings change
+   *  (Codex exec SDK ⇄ app-server) take effect on a chat's next message
+   *  instead of only after the chat is reopened. Weak: a disposed
+   *  session takes its entry with it, no cleanup to forget. */
+  private readonly sessionBackends = new WeakMap<AgentSession, AgentBackend>();
   /** Latest failure text per chat, kept until a real reply lands. Lets a
    *  manual Retry tell "the native session is gone" from a passing API
    *  error, and keep the conversation handle in the latter case. */
@@ -252,6 +317,10 @@ class AgentHostImpl {
   // preamble re-states the current working directory (it may have moved slots),
   // then the flag is cleared. Set by the reopen handler.
   private readonly resumedChats = new Set<string>();
+  /** Settings key for fork notes awaiting delivery, keyed by chat id.
+   *  Persisted (unlike the resume flag) because a fork may well sit
+   *  unopened across an app restart, and its agent must still be told. */
+  private static readonly FORK_NOTES_KEY = 'agent.pendingForkNotes';
   private readonly textBuffers = new Map<
     string,
     { chatId: string; messageId: string; buffer: string; flushTimer: NodeJS.Timeout | null }
@@ -339,6 +408,13 @@ class AgentHostImpl {
   /** Chats between a backend-native turn-start and terminal status. Used as a
    * hard guard against heuristic settle timers overriding real activity. */
   private readonly activeTurns = new Set<string>();
+  private readonly listeners = new Set<(event: AgentEvent) => void>();
+  /** Active turns that have shown a sign of life (text, a tool call, usage…).
+   *  A message steered into one of these must not leave the stall clock
+   *  running: from here on the turn's silences are tool execution, which
+   *  is never timed. A steer into a turn that has produced NOTHING keeps
+   *  the clock — that is still the hang the watchdog exists for. */
+  private readonly turnsWithOutput = new Set<string>();
   /** Chats explicitly stopped by the user. Providers may report their
    * cancellation as an error after stop() returns; those errors are an
    * implementation detail, not a failed chat turn. The marker remains until
@@ -362,8 +438,30 @@ class AgentHostImpl {
     this.resumedChats.add(chatId);
   }
 
-  /** Send a user message to a chat. Spawns a session if none exists. */
-  async send(chatId: string, text: string, attachments?: PickedAttachment[]): Promise<void> {
+  /** A chat was just forked: on its first message, tell the agent (see
+   *  forkPreamble). Persisted until delivered. */
+  markForked(chatId: string, note: ForkNote): void {
+    const notes = getSetting<Record<string, ForkNote>>(AgentHostImpl.FORK_NOTES_KEY) ?? {};
+    setSetting(AgentHostImpl.FORK_NOTES_KEY, { ...notes, [chatId]: note });
+  }
+
+  private pendingForkNote(chatId: string): ForkNote | null {
+    const notes = getSetting<Record<string, ForkNote>>(AgentHostImpl.FORK_NOTES_KEY) ?? {};
+    return notes[chatId] ?? null;
+  }
+
+  private clearForkNote(chatId: string): void {
+    const notes = getSetting<Record<string, ForkNote>>(AgentHostImpl.FORK_NOTES_KEY) ?? {};
+    if (!(chatId in notes)) return;
+    const { [chatId]: _gone, ...rest } = notes;
+    setSetting(AgentHostImpl.FORK_NOTES_KEY, rest);
+  }
+
+  /** Send a user message to a chat. Spawns a session if none exists.
+   *  `origin` marks a message relayed from another chat's agent: the
+   *  row keeps the origin (the chat shows a cross-agent box) and the
+   *  agent gets the text with an attribution in front of it. */
+  async send(chatId: string, text: string, attachments?: PickedAttachment[], origin?: CrossChatOrigin): Promise<void> {
     const chat = getChat(chatId);
     if (!chat) throw new Error(`send: chat ${chatId} not found`);
     // A new instruction ends the stopped state. Failures from this turn are
@@ -372,8 +470,12 @@ class AgentHostImpl {
     // A fresh user action gets a fresh self-heal budget. Recovery attempts are
     // bounded per unanswered request, not forever across the life of a chat.
     this.autoRetries.delete(chatId);
-    const provider: ProviderAgent = chat.agent === 'codex' ? 'codex' : 'claude';
-    const nativeHandle = provider === 'codex' ? chat.codexThreadId : chat.sessionId;
+    const provider: ProviderAgent = chat.agent === 'codex' && !chat.cloud ? 'codex' : 'claude';
+    // A cloud chat's native conversation is its Managed Agents session;
+    // once that has ended, the next one starts from the transcript bridge.
+    const nativeHandle = chat.cloud
+      ? (chat.cloud.ended ? null : chat.cloud.sessionId)
+      : provider === 'codex' ? chat.codexThreadId : chat.sessionId;
     const providerContextAt = nativeHandle
       ? (provider === 'codex' ? chat.codexContextAt : chat.claudeContextAt)
       : 0;
@@ -408,8 +510,13 @@ class AgentHostImpl {
     // bridge) would turn it into an ordinary message. Send it bare — the
     // same thing the context gauge does.
     const isCompactCommand = provider === 'claude' && /^\/compact(\s|$)/.test(text.trim());
-    const preamble = firstOfSession && !isCompactCommand
-      ? firstMessageCwdPreamble(chat, isFresh, resumed)
+    // Read (don't consume) for the same reason as the resume flag.
+    const forkNote = firstOfSession ? this.pendingForkNote(chatId) : null;
+    // A cloud chat's working directory is in the sandbox, not here; its
+    // backend writes its own first-message preamble.
+    // A host chat's backend does the same for its own working directory.
+    const preamble = firstOfSession && !isCompactCommand && !chat.cloud && !chat.host
+      ? firstMessageCwdPreamble(chat, isFresh, resumed, forkNote)
       : '';
 
     const storedAttachments = await persistChatAttachments(chatId, attachments);
@@ -420,8 +527,12 @@ class AgentHostImpl {
       body: {
         text,
         ...(storedAttachments.length > 0 ? { attachments: storedAttachments } : {}),
+        ...(origin ? { from: origin } : {}),
       } satisfies MessageBodyText,
     });
+    const wireText = origin
+      ? attributeCrossChatMessage(text, { id: origin.chatId, name: origin.chatName }, origin.waiting)
+      : text;
     updateChatStatus(chatId, 'run', text.slice(0, 140));
 
     // Broadcast the user message so the renderer sees it immediately —
@@ -451,7 +562,7 @@ class AgentHostImpl {
         : '';
       // The preamble (if any) rides on the first message to the agent only; it
       // is intentionally absent from the persisted/broadcast user bubble above.
-      await session.sendUser(preamble + contextBridge + text, storedAttachments);
+      await session.sendUser(preamble + contextBridge + wireText, storedAttachments);
       // Advance only THIS provider's watermark. The other provider remains
       // behind until it is selected and receives its own transcript bridge.
       setChatProviderContextAt(chatId, provider, userMsg.updatedAt);
@@ -460,13 +571,37 @@ class AgentHostImpl {
       this.noteTurnSent(chatId);
       // Delivered — now consume the resume flag so it doesn't re-fire next turn.
       if (resumed) this.resumedChats.delete(chatId);
+      if (forkNote) this.clearForkNote(chatId);
     } catch (err) {
       // Spawn-time failure: surface immediately as a chat error so the
       // user sees something instead of a silent stuck 'run' status.
       dlog('agent.send.spawn-failed', { chatId, error: (err as Error).message });
-      this.surfaceSpawnError(chatId, (err as Error).message);
+      if (chat.cloud) this.surfaceCloudError(chatId, err);
+      else if (chat.host) this.surfaceHostError(chatId, err);
+      else this.surfaceSpawnError(chatId, (err as Error).message);
       throw err;
     }
+  }
+
+  /** A cloud chat could not be set up or reached — a missing key or
+   *  token, a repo without a GitHub origin, a push that failed, an API
+   *  refusal. The message names what to fix; nothing is respawned. */
+  private surfaceCloudError(chatId: string, err: unknown): void {
+    if (!isDbOpen()) return;
+    const message = err instanceof CloudSetupError || err instanceof Error ? err.message : String(err);
+    this.surfaceDiagnostic(chatId, 'error', `cloud: ${message}`);
+    updateChatStatus(chatId, 'err', message.slice(0, 140));
+    this.broadcast({ type: 'session-status', chatId, status: 'errored', ts: Date.now() });
+  }
+
+  /** A host chat could not reach its host, or the host refused: the
+   *  message names the host and the reason. Nothing is respawned. */
+  private surfaceHostError(chatId: string, err: unknown): void {
+    if (!isDbOpen()) return;
+    const message = err instanceof Error ? err.message : String(err);
+    this.surfaceDiagnostic(chatId, 'error', `host: ${message}`);
+    updateChatStatus(chatId, 'err', message.slice(0, 140));
+    this.broadcast({ type: 'session-status', chatId, status: 'errored', ts: Date.now() });
   }
 
   /** Spawn-failure surface: synchronously when getOrSpawnSession or
@@ -666,6 +801,7 @@ class AgentHostImpl {
       case 'message-end':
       case 'usage':
       case 'compaction':
+      case 'note':
       case 'error':
         return true;
       case 'session-status':
@@ -695,6 +831,21 @@ class AgentHostImpl {
     // Deliberately NOT gated on status === 'run': the point of this
     // path is that the status can be wrong.
     if (!chat || chat.status === 'err') return;
+    // A cloud session is not a local process that can wedge: a long
+    // silence is a sandbox being provisioned or a long tool run, and
+    // respawning would only send the instruction into it again.
+    if (chat.cloud) {
+      dlog('agent.turn-stalled.cloud-ignored', { chatId, sessionId: chat.cloud.sessionId });
+      this.queuedTurns.delete(chatId);
+      return;
+    }
+    // A host session is on another box: respawning here would only
+    // reattach to it. A silence is its turn, or a stream reconnecting.
+    if (chat.host) {
+      dlog('agent.turn-stalled.host-ignored', { chatId, host: chat.host.hostName });
+      this.queuedTurns.delete(chatId);
+      return;
+    }
     dlog('agent.turn-stalled', {
       chatId,
       afterMs: AgentHostImpl.TURN_STALL_MS,
@@ -830,20 +981,18 @@ class AgentHostImpl {
   async compact(chatId: string): Promise<void> {
     const chat = getChat(chatId);
     if (!chat) throw new Error(`compact: chat ${chatId} not found`);
-    if (chat.agent === 'codex') {
-      // Codex compacts on its own as its window fills; its SDK has no
-      // manual compaction call to make.
-      this.surfaceDiagnostic(
-        chatId,
-        'warning',
-        'Codex manages its own context and compacts it automatically — there is no manual compaction for Codex chats.',
-      );
-      return;
-    }
     this.stoppedChats.delete(chatId);
     const session = await this.getOrSpawnSession(chatId);
     if (!session.compact) {
-      this.surfaceDiagnostic(chatId, 'warning', 'This agent does not support manual compaction.');
+      // The Codex exec SDK has no compaction call; Codex still compacts on
+      // its own as the window fills. The app-server backend does have one.
+      this.surfaceDiagnostic(
+        chatId,
+        'warning',
+        chat.agent === 'codex'
+          ? 'Codex compacts its context automatically. Manual compaction needs the app-server connection (Preferences ▸ Agents).'
+          : 'This agent does not support manual compaction.',
+      );
       return;
     }
     dlog('agent.compact', { chatId, agent: chat.agent, sessionId: chat.sessionId ?? null });
@@ -903,6 +1052,17 @@ class AgentHostImpl {
       this.sessions.delete(input.chatId);
       this.flushAllBuffersForChat(input.chatId);
     }
+    // A host runs one agent, model and effort per session: end the one
+    // there so the next message spawns with the new choice, resuming
+    // the same conversation. (Detaching alone would reattach as before.)
+    if (previous?.host) {
+      const host = getHost(previous.host.hostId);
+      if (host) {
+        await endHostSession(host, input.chatId).catch((err: unknown) => {
+          dlog('agent.configure.host-end-failed', { chatId: input.chatId, error: err instanceof Error ? err.message : String(err) });
+        });
+      }
+    }
     const updated = updateChatAgentConfig(input.chatId, {
       agent: input.agent,
       claudeModel: input.claudeModel,
@@ -911,6 +1071,23 @@ class AgentHostImpl {
       codexReasoningEffort: input.codexReasoningEffort,
     });
     if (!updated) throw new Error(`configureAgent: chat ${input.chatId} not found`);
+    // A cloud session runs one model at one effort for its whole life:
+    // a change ends it, and the next message starts a new session
+    // primed with the conversation so far (the provider bridge).
+    if (previous?.cloud?.sessionId && !previous.cloud.ended
+      && (previous.claudeModel !== updated.claudeModel
+        || previous.claudeReasoningEffort !== updated.claudeReasoningEffort)) {
+      setChatCloud(input.chatId, { ...previous.cloud, ended: true });
+      const fresh = getChat(input.chatId);
+      if (fresh) this.broadcast({ type: 'chat-updated', chatId: input.chatId, chat: fresh, ts: Date.now() });
+      const note = appendMessage({
+        chatId: input.chatId,
+        role: 'system',
+        kind: 'system',
+        body: { text: 'cloud: Model changed · your next message starts a new cloud session, primed with this conversation.' },
+      });
+      this.broadcast({ type: 'message-added', chatId: input.chatId, message: note, ts: Date.now() });
+    }
     if (updated.status === 'run') {
       updateChatStatus(input.chatId, 'idle');
     }
@@ -1095,26 +1272,40 @@ class AgentHostImpl {
   // ---- internals ----
 
   private async getOrSpawnSession(chatId: string): Promise<AgentSession> {
+    const backend = this.pickBackend(chatId);
     const existing = this.sessions.get(chatId);
-    if (existing && existing.isAlive()) return existing;
+    if (existing && existing.isAlive()) {
+      // Still the backend this chat should be on? The Codex transport is a
+      // preference, and it can change under a live session. Swap between
+      // turns only — a running turn is never pulled out from under itself;
+      // it moves over on the first message after it ends.
+      const spawnedBy = this.sessionBackends.get(existing);
+      if (!spawnedBy || spawnedBy === backend || this.activeTurns.has(chatId)) return existing;
+      dlog('agent.backend-changed', { chatId, backend: backend.id });
+    }
     if (existing) {
       // Zombie session — its SDK query has finished iterating, so any
       // sendUser would push into a queue nobody's reading. Drop it
       // and spawn a fresh one (which will resume into the pinned
-      // session_id, so context is preserved).
+      // session_id, so context is preserved). Same path for a session
+      // on a backend the chat has moved off.
       void existing.dispose().catch(() => undefined);
       this.sessions.delete(chatId);
       this.flushAllBuffersForChat(chatId);
     }
 
-    const backend = this.pickBackend(chatId);
     const chat = getChat(chatId);
     // Resolve the backend-native session this chat should resume into.
     // Claude uses chats.session_id + our SQLite SessionStore; Codex
     // uses chats.codex_thread_id + ~/.codex/sessions. Keep them
     // separate so switching backends doesn't overwrite either handle.
-    const isCodex = backend.id === 'codex';
-    let sessionId = isCodex ? chat?.codexThreadId ?? null : chat?.sessionId ?? null;
+    const isRemote = backend.id === 'remote';
+    // On a host the chat's agent column says which CLI runs there.
+    const isCodex = backend.id === 'codex' || (isRemote && chat?.agent === 'codex');
+    const isCloud = backend.id === 'cloud';
+    let sessionId = isCloud
+      ? (chat?.cloud?.ended ? null : chat?.cloud?.sessionId ?? null)
+      : isCodex ? chat?.codexThreadId ?? null : chat?.sessionId ?? null;
     let discoverySource: 'pinned' | 'jsonl-discovery' | 'fresh' = sessionId ? 'pinned' : 'fresh';
     // Only run JSONL discovery for chats that already have an AGENT
     // message in them — that's the marker of a real legacy chat from
@@ -1142,12 +1333,16 @@ class AgentHostImpl {
     // of the mount root (so repo-committed `.claude/skills` are discoverable).
     // Applied here — and at every other session-cwd site — so the SDK's per-cwd
     // session store stays consistent across spawn/resume/recover.
-    const cwd = applyPerforceAgentCwd(
-      liveWorktree ?? repoFallback ?? (isRawChat ? rawChatCwd() : null),
-      chat,
-    );
+    // A host chat's directory is on the host; what is known of it is
+    // for the log — the backend gets the real one from the host.
+    const cwd = isRemote
+      ? chat?.host?.cwd ?? `host:${chat?.host?.hostName ?? '?'}`
+      : applyPerforceAgentCwd(
+          liveWorktree ?? repoFallback ?? (isRawChat ? rawChatCwd() : null),
+          chat,
+        );
     // Session discovery must use the SAME cwd we'll spawn in.
-    if (!isCodex && !sessionId && liveWorktree && cwd) {
+    if (!isCodex && !isCloud && !isRemote && !sessionId && liveWorktree && cwd) {
       const hasPriorAgent = listMessages(chatId).some((m) => m.role === 'agent');
       if (hasPriorAgent) {
         sessionId = await this.discoverSessionId(cwd, chatId, chat?.branch ?? null);
@@ -1173,7 +1368,7 @@ class AgentHostImpl {
     // reads from `sqliteSessionStore.load()` — claude's local JSONL
     // is just a redundant cache. We log for diagnostics but no
     // longer treat its absence as a context-loss event.
-    if (!isCodex && sessionId && cwd) {
+    if (!isCodex && !isCloud && !isRemote && sessionId && cwd) {
       const jsonlPath = sdkSessionJsonlPath(cwd, sessionId);
       const present = jsonlPath ? existsSync(jsonlPath) : false;
       dlog('agent.spawn.jsonl-check', {
@@ -1190,15 +1385,52 @@ class AgentHostImpl {
     // engine markers (a .uproject / ProjectSettings) live at the root.
     const editorMcp =
       backend.capabilities.mcpHttp ? mcpEndpointForChat(chatId, liveWorktree ?? cwd) : null;
-    const mcpServers = editorMcp
-      ? { [editorMcp.name]: { type: 'http' as const, url: editorMcp.url } }
-      : undefined;
+    // PopBot's own tools (list / create / message chats, search
+    // transcripts…) — every chat gets them unless switched off in Preferences.
+    const popbotMcp = backend.capabilities.mcpHttp ? popbotMcpUrlForChat(chatId) : null;
+    const mcpEntries = {
+      ...(editorMcp ? { [editorMcp.name]: { type: 'http' as const, url: editorMcp.url } } : {}),
+      ...(popbotMcp ? { popbot: { type: 'http' as const, url: popbotMcp } } : {}),
+    };
+    const mcpServers = Object.keys(mcpEntries).length > 0 ? mcpEntries : undefined;
 
     dlog('agent.spawn', {
       chatId, cwd, sessionId, source: discoverySource,
       backend: backend.id,
       editorMcp: editorMcp?.url ?? null,
+      popbotMcp: popbotMcp ? 'on' : 'off',
     });
+
+    // The cloud session mirrors the chat's checkout: a slot / worktree
+    // on its own branch (pushed for the sandbox to clone), or the repo
+    // root on whatever branch it is on. A raw chat mounts nothing.
+    const cloud = isCloud && chat?.cloud
+      ? {
+          info: chat.cloud,
+          title: chat.name,
+          workspace: liveWorktree
+            ? { localPath: liveWorktree, branch: chat.branch, ownBranch: !!chat.branch }
+            : repoFallback && !isRawChat
+              ? { localPath: repoFallback, branch: null, ownBranch: false }
+              : null,
+          languageDirective: languageDirective(),
+          onCloudUpdate: (patch: Partial<CloudChatInfo>) => {
+            if (!isDbOpen()) return;
+            const current = getChat(chatId);
+            if (!current?.cloud) return;
+            const next = { ...current.cloud, ...patch };
+            setChatCloud(chatId, next);
+            // The session id and its end change what the chat shows
+            // (the chip, the settings); the watermark is bookkeeping.
+            if (patch.sessionId !== undefined || patch.ended !== undefined) {
+              const fresh = getChat(chatId);
+              if (fresh) this.broadcast({ type: 'chat-updated', chatId, chat: fresh, ts: Date.now() });
+            }
+          },
+        }
+      : undefined;
+
+    const remote = isRemote && chat?.host ? this.remoteSpawnOpts(chatId, chat.host) : undefined;
 
     const session = backend.spawn({
       chatId,
@@ -1206,6 +1438,8 @@ class AgentHostImpl {
       cwd,
       sessionId,
       mcpServers,
+      cloud,
+      remote,
       claudeModel: !isCodex ? chat?.claudeModel ?? DEFAULT_CLAUDE_MODEL : null,
       claudeReasoningEffort: !isCodex
         ? chat?.claudeReasoningEffort ?? DEFAULT_CLAUDE_REASONING_EFFORT
@@ -1216,13 +1450,14 @@ class AgentHostImpl {
         : null,
       pathToClaudeCodeExecutable: getClaudeBinaryPath(),
       pathToCodexExecutable: getCodexBinaryPath(),
+      sessionStore: sqliteSessionStore,
       onEvent: (event) => this.handleEvent(event),
       onCodexEvent: (event) => {
         if (!isDbOpen()) return;
         appendCodexThreadEvent(event);
       },
       onSessionId: (sid) => {
-        if (!isDbOpen()) return;
+        if (!isDbOpen() || isCloud) return;
         const current = getChat(chatId);
         const prior = isCodex ? current?.codexThreadId ?? null : current?.sessionId ?? null;
         if (prior !== sid) {
@@ -1246,6 +1481,7 @@ class AgentHostImpl {
       },
     });
     this.sessions.set(chatId, session);
+    this.sessionBackends.set(session, backend);
     return session;
   }
 
@@ -1566,14 +1802,56 @@ class AgentHostImpl {
     return picked.sessionId;
   }
 
+  /** What the remote backend needs: the host record, and a way to
+   *  record what it learns on the chat row (this class owns the DB). */
+  private remoteSpawnOpts(chatId: string, info: HostChatInfo): RemoteSpawnOpts {
+    const host = getHost(info.hostId);
+    if (!host) {
+      throw new Error(`the host "${info.hostName}" this chat runs on is no longer in Preferences ▸ Hosts`);
+    }
+    const chat = getChat(chatId);
+    return {
+      host,
+      info,
+      agent: chat?.agent ?? 'claude',
+      rules: () => ({
+        chat: getChatPermissionRules(chatId),
+        global: getSetting<PermissionRule[]>('permissions.rules') ?? [],
+      }),
+      languageDirective: languageDirective(),
+      onHostUpdate: (patch: Partial<HostChatInfo>) => {
+        if (!isDbOpen()) return;
+        const current = getChat(chatId);
+        if (!current?.host) return;
+        setChatHost(chatId, { ...current.host, ...patch });
+        // The directory changes what the chat shows; the seq is bookkeeping.
+        if (patch.cwd !== undefined && patch.cwd !== current.host.cwd) {
+          const fresh = getChat(chatId);
+          if (fresh) this.broadcast({ type: 'chat-updated', chatId, chat: fresh, ts: Date.now() });
+        }
+      },
+    };
+  }
+
   private pickBackend(chatId: string): AgentBackend {
     const chat = getChat(chatId);
     if (!chat) throw new Error(`pickBackend: chat ${chatId} not found`);
     // Set POPBOT_USE_STUB=1 to force the echo backend (useful for UI work
     // when you don't want to burn API credits).
     if (process.env.POPBOT_USE_STUB === '1') return StubBackend;
+    // A cloud chat runs on Managed Agents whatever its agent column says
+    // (it is always Claude; the column is what the composer shows).
+    // A host chat's agent runs on that host, whichever CLI it is.
+    if (chat.host) return RemoteBackend;
+    if (chat.cloud) return ManagedAgentsBackend;
     if (chat.agent === 'claude') return ClaudeBackend;
-    if (chat.agent === 'codex') return CodexBackend;
+    if (chat.agent === 'codex') {
+      // Opt-in (Preferences ▸ Agents): the app-server protocol, which can
+      // steer a running turn. Default is the exec SDK, unchanged.
+      return codexUsesAppServer(getSetting<CodexSettings>(CODEX_SETTINGS_KEY))
+        ? CodexAppServerBackend
+        : CodexBackend;
+    }
     return ClaudeBackend;
   }
 
@@ -1614,9 +1892,24 @@ class AgentHostImpl {
     // A turn has actually started, so everything the user had queued is
     // now being worked on. Purely internal bookkeeping — nothing to
     // persist, and the renderer already shows 'run'.
+    // A message went INTO the running turn rather than behind it. It will
+    // never get a turn — or a turn-start — of its own, so take it off the
+    // queued count now; otherwise the chat is held in 'run' after the turn
+    // ends, waiting for a turn that isn't coming. And put the stall clock
+    // back the way the send found it (see turnsWithOutput).
+    if (event.type === 'turn-steered') {
+      const left = (this.queuedTurns.get(event.chatId) ?? 0) - 1;
+      if (left > 0) this.queuedTurns.set(event.chatId, left);
+      else this.queuedTurns.delete(event.chatId);
+      if (this.turnsWithOutput.has(event.chatId)) this.disarmStallWatchdog(event.chatId);
+      dlog('agent.turn-steered', { chatId: event.chatId, queuedTurns: Math.max(left, 0) });
+      return;
+    }
+
     if (event.type === 'turn-start') {
       this.turnAwareChats.add(event.chatId);
       this.activeTurns.add(event.chatId);
+      this.turnsWithOutput.delete(event.chatId);
       this.queuedTurns.delete(event.chatId);
       this.disarmSettleTimer(event.chatId);
       // RE-arm, never disarm. A turn STARTING is not a turn producing
@@ -1635,6 +1928,7 @@ class AgentHostImpl {
       && (event.status === 'idle' || event.status === 'complete' || event.status === 'errored')
     ) {
       this.activeTurns.delete(event.chatId);
+      this.turnsWithOutput.delete(event.chatId);
     }
 
     // 'idle' from the backend means "the turn I was working on is
@@ -1709,6 +2003,7 @@ class AgentHostImpl {
     if (AgentHostImpl.respondedToTurn(live)) {
       this.disarmStallWatchdog(live.chatId);
       this.disarmSettleTimer(live.chatId);
+      if (this.activeTurns.has(live.chatId)) this.turnsWithOutput.add(live.chatId);
     }
     try {
       this.persist(live);
@@ -1920,6 +2215,17 @@ class AgentHostImpl {
         return;
       }
 
+      case 'note': {
+        const row = appendMessage({
+          chatId: event.chatId,
+          role: 'system',
+          kind: 'system',
+          body: { text: `${event.prefix}: ${event.text}` },
+        });
+        this.broadcast({ type: 'message-added', chatId: event.chatId, message: row, ts: event.ts });
+        return;
+      }
+
       case 'error': {
         // Self-heal: when the SDK reports a stale resume session, clear
         // the pinned id and replay the most recent user message on a
@@ -1979,7 +2285,75 @@ class AgentHostImpl {
     }
   }
 
+  /** For main-side code outside this class that changes a chat and has to
+   *  tell the renderer (cloud sessions, the MCP tools). Same channel as
+   *  everything else. */
+  emit(event: AgentEvent): void {
+    this.broadcast(event);
+  }
+
+  /** Main-side readers of the event stream (the MCP tools waiting for a
+   *  chat's reply). Same events the renderer gets. */
+  onEvent(listener: (event: AgentEvent) => void): () => void {
+    this.listeners.add(listener);
+    return () => { this.listeners.delete(listener); };
+  }
+
+  /**
+   * Send a message and wait for the chat's turn to end, for a caller
+   * that wants the answer (another chat's agent, through the popbot
+   * tools). Resolves when the chat settles to idle with nothing queued,
+   * when the agent stops to ask the user for a permission, on an error,
+   * or at the timeout — with the rows the chat gained meanwhile.
+   */
+  async sendAndWait(
+    chatId: string,
+    text: string,
+    timeoutMs: number,
+    origin?: CrossChatOrigin,
+  ): Promise<{
+    outcome: 'replied' | 'timeout' | 'needs-permission' | 'errored';
+    messages: MessageRecord[];
+    /** What went wrong in the other chat when the outcome is `errored`
+     *  (its last error event), so the caller can tell a sign-in that
+     *  expired there from a failure of its own. */
+    reason: string | null;
+  }> {
+    const since = Date.now();
+    let settle: (outcome: 'replied' | 'timeout' | 'needs-permission' | 'errored') => void = () => undefined;
+    const done = new Promise<'replied' | 'timeout' | 'needs-permission' | 'errored'>((resolve) => { settle = resolve; });
+    let reason: string | null = null;
+    const off = this.onEvent((event) => {
+      if (event.chatId !== chatId) return;
+      if (event.type === 'error') reason = event.message;
+      if (event.type === 'permission-request') settle('needs-permission');
+      else if (event.type === 'session-status' && event.status === 'errored') settle('errored');
+      else if (
+        event.type === 'session-status'
+        && (event.status === 'idle' || event.status === 'complete')
+        && !this.activeTurns.has(chatId)
+        && !this.queuedTurns.has(chatId)
+      ) settle('replied');
+    });
+    const timer = setTimeout(() => settle('timeout'), timeoutMs);
+    try {
+      await this.send(chatId, text, undefined, origin);
+      const outcome = await done;
+      return {
+        outcome,
+        messages: listMessages(chatId).filter((m) => m.createdAt >= since && m.role !== 'user'),
+        reason: outcome === 'errored' ? reason : null,
+      };
+    } finally {
+      clearTimeout(timer);
+      off();
+    }
+  }
+
   private broadcast(event: AgentEvent): void {
+    for (const listener of this.listeners) {
+      try { listener(event); } catch { /* a listener's bug must not break the host */ }
+    }
     if (!this.webContents) return;
     if (this.webContents.isDestroyed()) return;
     this.webContents.send(IpcChannel.AgentEvent, event);

@@ -67,6 +67,7 @@ export const uk = {
   'menu.paste': 'Вставити',
   'menu.selectAll': 'Виділити все',
   'menu.gitPanel': 'Панель Git',
+  'menu.searchChats': 'Пошук у чатах…',
   'menu.resetZoom': 'Скинути масштаб',
   'menu.zoomIn': 'Збільшити',
   'menu.zoomOut': 'Зменшити',
@@ -93,6 +94,7 @@ export const uk = {
   // App shell (App.tsx).
   // ---------------------------------------------------------------------------
   'app.busy.worktreeFailed': 'Не вдалося налаштувати робочий простір',
+  'app.busy.forking': 'Відгалуження чату…',
   'app.reconnect.title': 'Диски робочого простору відключено',
   'app.reconnect.message': 'Диски робочого простору для {repos} було відключено через перезапуск. Перепідключіть їх, щоб використовувати слоти й чати.',
   'app.reconnect.button': 'Перепідключити',
@@ -159,6 +161,7 @@ export const uk = {
   'panelA.tab.tickets': 'Тикети',
   'panelA.tab.reviews': 'Ревʼю',
   'panelA.tab.slack': 'Slack',
+  'panelA.tab.hosts': 'Хости',
   'panelA.tab.unseenTitle': '{count} нових',
   'panelA.action.markAllTicketsSeen': 'Позначити всі {count} нові тикети як переглянуті',
   'panelA.action.markAllReviewsSeen': 'Позначити всі {count} нові PR як переглянуті',
@@ -268,6 +271,7 @@ export const uk = {
   // ---------------------------------------------------------------------------
   'panelD.terminalTab': 'Термінал',
   'panelD.slotSuffix': ' · Слот {slotId}',
+  'panelD.cloudSuffix': ' · Хмара',
   'panelD.focusedLabel': 'активний: {name}',
   'panelD.newTerminal': 'Новий термінал',
   'panelD.noWorktree': 'У цього чату ще немає worktree слота.',
@@ -291,9 +295,35 @@ export const uk = {
   'work.reviewNumber': 'Swarm-ревʼю #{number}',
   'work.lookingUp': 'Пошук…',
   'work.pinKind': 'Закріпити {kind}',
+  'work.found': 'Знайдено',
+  'work.merged': 'ЗЛИТО',
+  'work.closed': 'ЗАКРИТО',
   'work.tickets': 'Тикети',
   'work.prs': 'PR',
   'work.chats': 'Чати',
+  'search.title': 'Пошук у чатах',
+  'search.placeholder': 'Шукає в усіх розшифровках — досить фрагмента імені, ідентифікатора чи помилки',
+  'search.tooShort': 'Введіть щонайменше 3 символи.',
+  'search.noResults': 'Збігів немає.',
+  'search.goTo': 'Перейти',
+  'search.archived': 'в архіві',
+  'search.more': 'ще {count} у цьому чаті',
+  'search.hint': 'Enter відкриває найкращий збіг · Esc закриває',
+  'search.hintSuggest': 'Tab приймає підказку · Enter відкриває найкращий збіг · Esc закриває',
+  'search.buttonTitle': 'Пошук у чатах ({shortcut})',
+  'search.tagsLabel': 'Фільтри',
+  'search.tagsOnly': 'Найновіші записи за цими фільтрами — додайте слова, щоб шукати в їхньому тексті.',
+  'search.tag.ticket': 'Лише чати тікетів; додайте ключ для одного тікета (ticket:ENG-123)',
+  'search.tag.cr': 'Лише чати код-рев’ю; додайте номер для одного PR (cr:123)',
+  'search.tag.lastWeek': 'Останні 7 днів',
+  'search.tag.lastMonth': 'Останні 30 днів',
+  'search.tag.fromUser': 'Що написали ви',
+  'search.tag.fromAgent': 'Що написав агент',
+  'search.tag.fromTool': 'Виклики інструментів та їхній вивід',
+  'search.tag.tool': 'Конкретний інструмент (tool:Bash)',
+  'search.tag.agent': 'Чати Codex (або agent:claude)',
+  'search.tag.inArchive': 'Лише архівні чати',
+  'search.tag.chat': 'Чати, у назві яких є… (chat:login)',
   'work.emptyHint':
     'Немає збігів. Закріпіть новий: id Linear на кшталт {id}, номер PR на кшталт {pr}, або Swarm-ревʼю на кшталт {swarm}.',
 
@@ -349,6 +379,16 @@ export const uk = {
   'slots.strip.occupiedAria': '{repo} слот {slotId} · {chatName}',
   'slots.strip.freeAria': '{repo} слот {slotId} · вільний',
   'slots.strip.setupBtn': 'Налаштувати слоти worktree',
+  'hosts.tab.loading': 'Запитую хости…',
+  'hosts.tab.local': 'Цей комп’ютер',
+  'hosts.tab.meta': 'popbot-host {version}',
+  'hosts.tab.unreachable': 'недоступний',
+  'hosts.tab.openChats': 'відкрито: {count}',
+  'hosts.tab.noPools': 'Немає пулів слотів.',
+  'hosts.tab.noSlots': 'немає слотів',
+  'hosts.tab.ephemeral': 'тимчасові worktree',
+  'hosts.tab.noChats': 'На цьому хості немає чатів.',
+  'hosts.tab.noHosts': 'Хостів поки немає.',
 
   // ---------------------------------------------------------------------------
   // Titlebar (Titlebar.tsx).
@@ -412,6 +452,7 @@ export const uk = {
   'chat.status.error': 'помилка',
   'chat.status.idle': 'бездіяльний',
   'chat.col.settingsTitle': 'Налаштування чату',
+  'chat.col.menuTitle': 'Меню чату',
   'chat.col.renameTitle': 'Натисніть, щоб перейменувати',
   'chat.slot.workspaceTitle': 'Слот робочого простору {slotId} · {repoId}',
   'chat.slot.fallback': 'Слот {slotId}',
@@ -426,6 +467,8 @@ export const uk = {
     'Агент працює… введіть текст, щоб додати повідомлення в чергу  ·  Shift+Enter для нового рядка',
   'chat.input.placeholderIdle': 'Надішліть повідомлення…  ·  Shift+Enter для нового рядка',
   'chat.input.placeholderInactive': 'Натисніть, щоб зробити цей чат активним',
+  'chat.input.placeholderCloudFirst': 'Опишіть завдання для хмарного агента…',
+  'chat.input.placeholderCloud': 'Надіслати повідомлення хмарному агенту…',
   'chat.input.attachImage': 'Прикріпити зображення',
   'chat.input.attachFile': 'Прикріпити файл',
   'chat.input.model': 'Модель',
@@ -438,7 +481,8 @@ export const uk = {
   'chat.context.unreported': 'Codex не повідомляє про використання контексту · останній хід: {used} токенів',
   'chat.context.menu.compact': 'Стиснути контекст',
   'chat.context.menu.compacting': 'Стиснення…',
-  'chat.context.menu.codexHint': 'Codex стискає контекст автоматично',
+  'chat.context.menu.codexHint':
+    'Codex стискає контекст сам. Увімкніть «Спрямовувати Codex під час роботи» в Налаштування ▸ Агенти, щоб бачити використання і стискати на вимогу.',
   'chat.context.menu.runningHint': 'Дочекайтеся завершення роботи агента',
   'chat.context.compactingNote': 'Стиснення контексту…',
   'chat.context.failedNote': 'Не вдалося стиснути контекст: {error}',
@@ -446,6 +490,27 @@ export const uk = {
   'chat.agentSwitch.message':
     'Id поточної сесії агента буде збережено, тож ви зможете пізніше повернутися. Новий агент використовує власну сесію і буде перезапущений зі стенограмою цього чату як контекстом. Частину приватного стану агента може бути втрачено.',
   'chat.agentSwitch.confirm': 'Перезапустити',
+  'chat.fork.name': '{name} (відгалуження)',
+  'chat.cloud.chip': 'Хмара',
+  'chat.cloud.chipTitle': 'Працює в хмарній пісочниці Anthropic · відкрити налаштування чату',
+  'chat.cloud.chipPendingTitle': 'Хмарної сесії ще немає — вона почнеться з вашого першого повідомлення.',
+  'chat.cloud.pull': 'Забрати роботу з хмари в локальну копію',
+  'chat.cloud.shutdown': 'Завершити хмарний чат',
+  'chat.cloud.shutdownNone': 'Для цього чату немає запущеної хмарної сесії.',
+  'chat.cloud.shutdownConfirm':
+    'Завершити хмарну сесію зараз? Якщо вона ще працює, її спершу перервуть. Усе, що не запушено, буде втрачено. Наступне повідомлення почне нову сесію, підготовлену на основі цієї розмови.',
+  'chat.cloud.shutdownConfirmBranch':
+    'Завершити хмарну сесію зараз? Якщо вона ще працює, її спершу перервуть. Усе, що не запушено в {branch}, буде втрачено. Наступне повідомлення почне нову сесію, підготовлену на основі цієї розмови.',
+  'chat.host.chipTitle': 'Працює на {host} · відкрити налаштування чату',
+  'chat.host.chipPendingTitle': 'Працює на {host} — сесія почнеться з вашого першого повідомлення.',
+  'chat.host.shutdown': 'Завершити на хості',
+  'chat.host.shutdownConfirm':
+    'Завершити сесію цього чату на {host} зараз? Усе, що агент там робить, зупиниться. Наступне повідомлення почне нову сесію на {host}, що продовжить цю розмову.',
+  'chat.host.withRepo': 'На {host} · {repo}',
+  'chat.host.noRepo': 'На {host} · без репозиторію',
+  'chat.host.slotTitle': 'Слот {slot} репозиторію {repo} на {host}',
+  'chat.crossAgent.from': 'Від агента чату «{name}»',
+  'chat.crossAgent.waiting': 'чекає на вашу відповідь',
   'chat.app.terminal': 'Термінал',
   'chat.app.editor': 'Редактор',
   'chat.app.unity': 'Unity',
@@ -464,6 +529,16 @@ export const uk = {
   'chat.install.stepInstallDesc': 'Дотримуйтеся офіційного посібника з встановлення {vendor} для вашої операційної системи.',
   'chat.install.openGuide': 'Відкрити посібник з встановлення {vendor}',
   'chat.install.stepSignin': 'Увійти',
+  'auth.signIn.button': 'Увійти',
+  'auth.signIn.title': 'Увійти до {vendor}',
+  'auth.signIn.opening': 'Відкриваємо браузер для входу…',
+  'auth.signIn.fallback': 'Якщо браузер не відкрився:',
+  'auth.signIn.openLink': 'Відкрити сторінку входу',
+  'auth.signIn.pasteCode': 'Якщо браузер показує код, вставте його сюди:',
+  'auth.signIn.continue': 'Продовжити',
+  'auth.signIn.done': 'Вхід виконано.',
+  'auth.signIn.failed': 'Вхід не завершено (код виходу {code}).',
+  'auth.signIn.retry': 'Спробувати ще раз',
   'chat.install.stepRestart': 'Перезапустити PopBot',
   'chat.install.stepRestartDesc':
     'PopBot перевіряє повторно під час запуску і вмикає агента автоматично.',
@@ -475,6 +550,7 @@ export const uk = {
   'chat.ready.online': 'У мережі',
   'chat.ready.notFound': 'не знайдено',
   'chat.ready.howToInstall': 'Як встановити',
+  'chat.ready.signedOut': 'Встановлено, але вхід не виконано',
   'chat.ready.codexLabel': 'Codex',
   'chat.ready.optional': 'необовʼязково',
   'chat.ready.repoLabel': 'Репозиторій',
@@ -601,6 +677,30 @@ export const uk = {
   'chatSettings.restartTooltip': 'Запустити нову сесію агента, ініціалізовану стенограмою цього чату',
   'chatSettings.restarting': 'Перезапуск…',
   'chatSettings.restartWithContext': 'Перезапустити з контекстом',
+  'chatSettings.fork': 'Відгалузити цей чат',
+  'chatSettings.forkDesc':
+    'Почати новий чат з цієї точки: розмову дотепер, пам’ять агента про неї та — для чату з робочим простором — новий слот на новій гілці з незакомміченими змінами цього чату. Оригінал триває без змін.',
+  'chatSettings.forkButton': 'Відгалузити чат',
+  'chatSettings.forkRunningHint': 'Дочекайтеся завершення роботи агента, потім відгалузьте.',
+  'chatSettings.cloud': 'Хмарна сесія',
+  'chatSettings.cloudDesc':
+    'Цей чат працює на Anthropic Managed Agents у хмарній пісочниці. Він продовжує працювати після закриття PopBot; усе, що він зробив за вашої відсутності, відтворюється тут, коли ви повертаєтесь.',
+  'chatSettings.cloudSession': 'Сесія',
+  'chatSettings.cloudNone': 'Ще не запущена — почнеться з вашого першого повідомлення.',
+  'chatSettings.cloudEnded': 'завершена · наступне повідомлення почне нову сесію',
+  'chatSettings.cloudRepo': 'Репозиторій',
+  'chatSettings.cloudPullDesc':
+    'Пісочниця комітить і пушить у гілку чату на origin. Pull забирає ці коміти в локальну копію цього чату (лише fast-forward).',
+  'chatSettings.cloudPull': 'Pull з origin',
+  'chatSettings.host': 'Хост',
+  'chatSettings.hostDesc':
+    'Агент цього чату працює на іншій машині. Транскрипт, пошук і налаштування знаходяться тут.',
+  'chatSettings.hostName': 'Хост',
+  'chatSettings.hostWorkspace': 'Робочий простір',
+  'chatSettings.hostScratch': 'тимчасова тека',
+  'chatSettings.hostRoot': '{repo} · корінь репозиторію',
+  'chatSettings.hostCwd': 'Робочий каталог',
+  'chatSettings.hostNoCwd': 'Ще не запущена — почнеться з вашого першого повідомлення.',
   'chatSettings.tryReconnect': 'Спробувати перепідключитися',
   'chatSettings.reconnectDesc':
     'Виберіть збережену сесію Claude для worktree цього чату. Корисно, якщо автоперепідключення вибрало не ту сесію і ви хочете примусово вказати конкретну стенограму. Вибрана сесія буде закріплена, і агент перезапуститься в ній.',
@@ -629,6 +729,11 @@ export const uk = {
   'agent.effort.ultra': 'Ультра',
   'agent.label': 'Агент',
   'agent.model': 'Модель',
+  'agent.cloudToggle': 'Хмара',
+  'agent.cloudToggleTitle':
+    'Запустити цей чат у хмарній пісочниці Anthropic (Managed Agents, оплата за API-ключем) — він продовжить працювати після закриття PopBot. Лише Claude.',
+  'agent.runOn': 'Запускати на',
+  'agent.runOnLocal': 'Цьому комп’ютері',
   'agent.effort': 'Рівень зусиль',
 
   // ---------------------------------------------------------------------------
@@ -776,6 +881,30 @@ export const uk = {
   'branch.dialog.loadBranchesError': 'Не вдалося завантажити гілки: {error}',
   'branch.dialog.freeChatDesc':
     'Працює в {repo} з кореня репозиторію — без слота, worktree чи гілки.',
+  'branch.dialog.cloudDescNoRepo':
+    'Працює в хмарній пісочниці Anthropic без репозиторію і продовжує після закриття PopBot.',
+  'branch.dialog.cloudDescRoot':
+    'Працює в хмарній пісочниці Anthropic, яка клонує GitHub-remote {repo} на гілці, на якій перебуває корінь репозиторію (спочатку її буде запушено, якщо на origin її ще немає). Продовжує після закриття PopBot.',
+  'branch.dialog.cloudDescSlot':
+    'Працює в хмарній пісочниці Anthropic: чат як завжди отримує слот і гілку, гілка пушиться на origin, і пісочниця її клонує. Слот лишається локальним; коміти з хмари забираються через меню чату. Продовжує після закриття PopBot.',
+  'branch.dialog.cloudGithubNote':
+    'Пісочниця клонує з вашим токеном GitHub: збереженим у Налаштування ▸ Агенти ▸ Хмарні чати або тим, під яким авторизовано gh.',
+  'branch.dialog.cloudNoKey':
+    'Хмарним чатам потрібен API-ключ Anthropic. Додайте його в Налаштування ▸ Агенти ▸ Хмарні чати.',
+  'branch.dialog.hostLoading': 'Запитую {host}…',
+  'branch.dialog.hostUnreachable': 'Не вдалося зв’язатися з {host}: {error}',
+  'branch.dialog.hostRepoLabel': 'Репозиторій на {host}',
+  'branch.dialog.tagHostScratch': 'тимчасова тека',
+  'branch.dialog.hostNoRepos': 'У {host} ще немає репозиторіїв — запустіть його з --repo id=/шлях.',
+  'branch.dialog.hostDescScratch':
+    'Працює на {host} у тимчасовій теці без репозиторію. Транскрипт лишається тут.',
+  'branch.dialog.hostDescRoot':
+    'Працює на {host} з кореня {repo}, на тій гілці, на якій він стоїть. Транскрипт лишається тут.',
+  'branch.dialog.hostDescSlot':
+    'Працює на {host} у worktree репозиторію {repo} на гілці вище, створеній від базової гілки. Транскрипт лишається тут.',
+  'branch.dialog.disabled.host': 'Очікування {host}',
+  'branch.dialog.hostFree': 'Вільних слотів: {free} з {count}.',
+  'branch.dialog.disabled.hostNoSlot': 'Немає вільного слота в {repo} на {host}',
   'branch.dialog.createChat': 'Створити чат',
 
   // ---------------------------------------------------------------------------
@@ -805,6 +934,7 @@ export const uk = {
   'prefs.search': 'Пошук налаштувань…',
   'prefs.section.integ': 'Інтеграції',
   'prefs.section.agents': 'Агенти',
+  'prefs.section.hosts': 'Хости',
   'prefs.section.runtime': 'Середовище виконання',
   'prefs.section.repos': 'Репозиторії',
   'prefs.section.git': 'Система контролю версій',
@@ -826,6 +956,73 @@ export const uk = {
   'prefs.agents.codeReviews.title': 'Код-ревʼю',
   'prefs.agents.codeReviews.desc':
     'Використовується чатами ревʼю PR, резервними чатами повторного ревʼю та сповіщеннями про ревʼю.',
+  'prefs.agents.codexSteering.title': 'Спрямовувати Codex під час роботи',
+  'prefs.agents.codexSteering.desc':
+    'Підключається до Codex через його app-server замість exec SDK: повідомлення, надіслане, поки Codex зайнятий, доходить до нього на наступному кроці, а не чекає кінця ходу. Також наповнює індикатор контексту в чатах Codex і вмикає «Стиснути контекст». У Codex CLI функція експериментальна; потрібен codex 0.153 або новіший. Діє з наступного повідомлення в кожному чаті.',
+  'prefs.agents.codexSteering.on': 'Увімк. — повідомлення доходять до Codex посеред ходу',
+  'prefs.agents.codexSteering.off': 'Вимк. — повідомлення чекають кінця ходу',
+  'prefs.agents.mcp.title': 'Інструменти PopBot для агентів',
+  'prefs.agents.mcp.desc':
+    'Дає агенту кожного чату MCP-сервер «popbot»: перелічувати, створювати, закривати й знову відкривати чати, писати іншим чатам і чекати на їхню відповідь, запускати код-рев’ю та чати за тікетами, читати й шукати в розшифровках. Діє з наступної сесії агента в кожному чаті.',
+  'prefs.agents.mcp.on': 'Увімк — агенти можуть керувати PopBot',
+  'prefs.agents.mcp.off': 'Вимк — без інструментів popbot',
+  'prefs.agents.cloud.title': 'Хмарні чати',
+  'prefs.agents.cloud.desc':
+    'Чат, створений із чипом Cloud, працює на Anthropic Managed Agents: сесія в хмарній пісочниці Anthropic, яка оплачується за токени з вашого облікового запису Console і продовжує працювати після закриття PopBot.',
+  'prefs.agents.cloud.apiKey.title': 'API-ключ Anthropic',
+  'prefs.agents.cloud.apiKey.desc':
+    'Зберігається локально в базі даних застосунку. Залиште порожнім, щоб використовувати змінну середовища ANTHROPIC_API_KEY.',
+  'prefs.agents.cloud.getKey': 'Отримати ключ',
+  'prefs.agents.cloud.githubToken.title': 'Токен GitHub',
+  'prefs.agents.cloud.githubToken.desc':
+    'Пісочниця клонує ваші репозиторії з ним (scope repo). Залиште порожнім, щоб використовувати токен, під яким авторизовано gh.',
+  'prefs.agents.cloud.workspace.title': 'ID робочого простору',
+  'prefs.agents.cloud.workspace.desc':
+    'Лише для ключа, не прив’язаного до робочого простору (перевірка про це скаже): id wrkspc_… зі сторінки Workspaces у Console. Ключу, створеному всередині робочого простору, він не потрібен.',
+  'prefs.agents.cloud.envKey': 'Використовується змінна середовища ANTHROPIC_API_KEY.',
+  'prefs.agents.cloud.noKey': 'Ключа ще немає — хмарні чати недоступні.',
+  'prefs.agents.cloud.ghToken': 'GitHub: використовується токен, під яким авторизовано gh.',
+  'prefs.agents.cloud.noGh': 'GitHub: токена немає — збережіть його тут або виконайте gh auth login.',
+  'prefs.agents.cloud.ok': 'Ключ працює.',
+  'prefs.agents.cloud.error': 'Збережено, але ключ не спрацював: {error}',
+  'prefs.hosts.title': 'Хости',
+  'prefs.hosts.desc':
+    'Інші машини, що виконують чати для цього PopBot. На кожній працює popbot-host: зберіть його, скопіюйте dist-host/popbot-host.cjs і запустіть один раз із --init, щоб записати конфігурацію та вивести токен. Транскрипт, пошук і налаштування чату лишаються тут; агент, його інструменти та checkout — там. Віддалена машина доступна через SSH-тунель: ssh -L 7677:127.0.0.1:7677 машина.',
+  'prefs.hosts.none': 'Хостів поки немає — чати працюють на цьому комп’ютері.',
+  'prefs.hosts.add': 'Додати хост',
+  'prefs.hosts.defaultName': 'Новий хост',
+  'prefs.hosts.name': 'Назва',
+  'prefs.hosts.url': 'URL',
+  'prefs.hosts.token': 'Токен',
+  'prefs.hosts.remove': 'Видалити',
+  'prefs.hosts.removeTitle': 'Видалити хост',
+  'prefs.hosts.removeConfirm':
+    'Видалити {name}? Чати на ньому залишаться, але більше не зможуть до нього звертатися.',
+  'prefs.hosts.checking': 'Перевірка…',
+  'prefs.hosts.ok':
+    'popbot-host {version} на {platform} · Claude: {claude} · Codex: {codex} · репозиторії: {repos}',
+  'prefs.hosts.okNoRepos': 'поки немає (запустіть із --repo id=/шлях)',
+  'prefs.hosts.error': 'Не вдалося зв’язатися: {error}',
+  'prefs.hosts.found': 'знайдено',
+  'prefs.hosts.missing': 'не знайдено',
+  'prefs.hosts.noUrl': 'Введіть URL і токен.',
+  'prefs.hosts.repos.title': 'Репозиторії на цьому хості',
+  'prefs.hosts.repos.none': 'Поки немає. Додайте нижче; шлях вказується на хості.',
+  'prefs.hosts.repos.id': 'Id',
+  'prefs.hosts.repos.path': 'Шлях на хості',
+  'prefs.hosts.repos.defaultBase': 'Базова гілка',
+  'prefs.hosts.repos.slotPrefix': 'Префікс слота',
+  'prefs.hosts.repos.slotCount': 'Слоти',
+  'prefs.hosts.repos.mode': 'Режим',
+  'prefs.hosts.repos.modeSlots': 'пул слотів',
+  'prefs.hosts.repos.modeEphemeral': 'тимчасовий',
+  'prefs.hosts.repos.add': 'Додати репозиторій',
+  'prefs.hosts.repos.remove': 'Видалити',
+  'prefs.hosts.repos.removeConfirm': 'Видалити {repo} з {host}? Його worktree залишаться на диску.',
+  'prefs.hosts.repos.error': 'Не вдалося зберегти: {error}',
+  'prefs.hosts.local.desc': 'Завжди тут; видалити не можна.',
+  'prefs.hosts.local.noRepos': 'Репозиторіїв поки немає.',
+  'prefs.hosts.local.manage': 'Керувати репозиторіями та слотами',
 
   // Preferences — Runtime / attachment retention pane.
   'prefs.runtime.title': 'Зберігання вкладень',
@@ -1230,10 +1427,15 @@ export const uk = {
   'language.systemNote': 'Нові вікна й меню застосунку також використовують цю мову.',
   // --- What's-new popup (WhatsNewDialog.tsx) — update each release ---
   'whatsNew.title': 'Що нового в PopBot',
-  'whatsNew.f1.h': 'Claude Fable 5.1 та GPT-6 Astra',
-  'whatsNew.f1.p': 'Найновіші передові моделі Anthropic та OpenAI з’явилися у виборі моделі. Обидві випущено з обмеженою доступністю, тому їх вмикають вручну: ваші чати зберігають свою модель, а Opus 5 і GPT-5.6 Sol залишаються типовими.',
-  'whatsNew.f2.h': 'Індикатор контексту, стиснення та порядок у робочому просторі',
-  'whatsNew.f2.p': 'Кільце в полі вводу показує, наскільки заповнене контекстне вікно, зі стисненням в один клік. Перетягуйте мініатюри, щоб змінювати порядок чатів, натискайте на заголовок колонки, щоб перейменувати її, а RE-REVIEW тепер залишається, доки ви справді не перевірите знову.',
+  'whatsNew.f1.h': 'Запускайте чати на інших машинах',
+  'whatsNew.f1.p':
+    'Додайте хост у Налаштуваннях ▸ Хости — будь-яку машину з popbot-host або опублікований контейнер — і виберіть його в полі Запускати на під час створення чату. Агент, його інструменти та checkout живуть там, у пулі слотів хоста; транскрипт, пошук і налаштування лишаються тут. Вкладка Хости показує слоти та чати кожної машини.',
+  'whatsNew.f2.h': 'Хмарні чати на Anthropic Managed Agents',
+  'whatsNew.f2.p':
+    'Увімкніть чип Cloud — і чат працює в хмарній пісочниці Anthropic за вашим API-ключем: клонує вашу гілку з GitHub, пушить у неї, продовжує працювати після закриття PopBot і надолужує пропущене, коли ви повертаєтесь. Завершує його лише Завершити хмарний чат.',
+  'whatsNew.f3.h': 'Claude Opus 5.5 і багато іншого',
+  'whatsNew.f3.p':
+    'Opus 5.5 доступний у виборі моделей як опція; налаштування за замовчуванням не змінюються. Агенти керують PopBot через його інструменти й пишуть один одному з чітким підписом, повнотекстовий пошук охоплює всі чати, виклики інструментів малюють стрічку часу, чати можна розгалужувати, вхід виконується з застосунку, а налаштування зберігаються самі — без кнопок Зберегти.',
   'whatsNew.gotIt': 'Зрозуміло',
   // --- Auto-update prompts (persisted via the notification system) ---
   'app.update.restartAction': 'Перезапустити та встановити',

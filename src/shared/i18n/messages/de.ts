@@ -129,6 +129,7 @@ export const de = {
   'menu.paste': 'Einfügen',
   'menu.selectAll': 'Alles auswählen',
   'menu.gitPanel': 'Git-Panel',
+  'menu.searchChats': 'Chats durchsuchen…',
   'menu.resetZoom': 'Zoom zurücksetzen',
   'menu.zoomIn': 'Vergrößern',
   'menu.zoomOut': 'Verkleinern',
@@ -155,6 +156,7 @@ export const de = {
   // App shell (App.tsx).
   // ---------------------------------------------------------------------------
   'app.busy.worktreeFailed': 'Arbeitsbereich-Einrichtung fehlgeschlagen',
+  'app.busy.forking': 'Chat wird abgezweigt…',
   'app.busy.settingUpWorkspace': 'Arbeitsbereich wird eingerichtet…',
   'app.busy.checkingOutBranch': '{branch} wird ausgecheckt',
   'app.busy.branchingFrom': '{branch} wird von {baseBranch} abgezweigt',
@@ -212,6 +214,7 @@ export const de = {
   'panelA.tab.tickets': 'Tickets',
   'panelA.tab.reviews': 'Reviews',
   'panelA.tab.slack': 'Slack',
+  'panelA.tab.hosts': 'Hosts',
   'panelA.tab.unseenTitle': '{count} neu',
   'panelA.action.markAllTicketsSeen': 'Alle {count} neuen Tickets als gesehen markieren',
   'panelA.action.markAllReviewsSeen': 'Alle {count} neuen PRs als gesehen markieren',
@@ -321,6 +324,7 @@ export const de = {
   // ---------------------------------------------------------------------------
   'panelD.terminalTab': 'Terminal',
   'panelD.slotSuffix': ' · Slot {slotId}',
+  'panelD.cloudSuffix': ' · Cloud',
   'panelD.focusedLabel': 'fokussiert: {name}',
   'panelD.newTerminal': 'Neues Terminal',
   'panelD.noWorktree': 'Dieser Chat hat noch keinen Slot-Worktree.',
@@ -343,9 +347,35 @@ export const de = {
   'work.prNumber': 'PR #{number}',
   'work.lookingUp': 'Wird nachgeschlagen…',
   'work.pinKind': '{kind} anheften',
+  'work.found': 'Gefunden',
+  'work.merged': 'GEMERGT',
+  'work.closed': 'GESCHLOSSEN',
   'work.tickets': 'Tickets',
   'work.prs': 'PRs',
   'work.chats': 'Chats',
+  'search.title': 'Chats durchsuchen',
+  'search.placeholder': 'Durchsucht alle Transkripte – ein Fragment eines Namens, Bezeichners oder Fehlers genügt',
+  'search.tooShort': 'Mindestens 3 Zeichen eingeben.',
+  'search.noResults': 'Keine Treffer.',
+  'search.goTo': 'Gehe zu',
+  'search.archived': 'archiviert',
+  'search.more': '{count} weitere in diesem Chat',
+  'search.hint': 'Enter öffnet den besten Treffer · Esc schließt',
+  'search.hintSuggest': 'Tab übernimmt den Vorschlag · Enter öffnet den besten Treffer · Esc schließt',
+  'search.buttonTitle': 'Chats durchsuchen ({shortcut})',
+  'search.tagsLabel': 'Filter',
+  'search.tagsOnly': 'Neueste Einträge zu diesen Filtern – Wörter hinzufügen, um in ihrem Text zu suchen.',
+  'search.tag.ticket': 'Nur Ticket-Chats; für ein bestimmtes Ticket den Schlüssel anhängen (ticket:ENG-123)',
+  'search.tag.cr': 'Nur Code-Review-Chats; für einen bestimmten PR die Nummer anhängen (cr:123)',
+  'search.tag.lastWeek': 'Letzte 7 Tage',
+  'search.tag.lastMonth': 'Letzte 30 Tage',
+  'search.tag.fromUser': 'Was du geschrieben hast',
+  'search.tag.fromAgent': 'Was der Agent geschrieben hat',
+  'search.tag.fromTool': 'Tool-Aufrufe und ihre Ausgabe',
+  'search.tag.tool': 'Ein bestimmtes Tool (tool:Bash)',
+  'search.tag.agent': 'Codex-Chats (oder agent:claude)',
+  'search.tag.inArchive': 'Nur archivierte Chats',
+  'search.tag.chat': 'Chats, deren Name … enthält (chat:login)',
   'work.emptyHint':
     'Keine Treffer. Versuchen Sie eine Linear-ID wie {id} oder eine PR-Nummer wie {pr}, um eine neue anzuheften.',
 
@@ -400,6 +430,16 @@ export const de = {
   'slots.strip.occupiedAria': '{repo} Slot {slotId} · {chatName}',
   'slots.strip.freeAria': '{repo} Slot {slotId} · frei',
   'slots.strip.setupBtn': 'Worktree-Slots einrichten',
+  'hosts.tab.loading': 'Frage die Hosts…',
+  'hosts.tab.local': 'Dieser Computer',
+  'hosts.tab.meta': 'popbot-host {version}',
+  'hosts.tab.unreachable': 'nicht erreichbar',
+  'hosts.tab.openChats': '{count} offen',
+  'hosts.tab.noPools': 'Keine Slot-Pools.',
+  'hosts.tab.noSlots': 'keine Slots',
+  'hosts.tab.ephemeral': 'ephemere Worktrees',
+  'hosts.tab.noChats': 'Keine Chats auf diesem Host.',
+  'hosts.tab.noHosts': 'Noch keine Hosts.',
 
   // ---------------------------------------------------------------------------
   // Titlebar (Titlebar.tsx).
@@ -460,6 +500,7 @@ export const de = {
   'chat.status.error': 'Fehler',
   'chat.status.idle': 'inaktiv',
   'chat.col.settingsTitle': 'Chat-spezifische Einstellungen',
+  'chat.col.menuTitle': 'Chat-Menü',
   'chat.col.renameTitle': 'Zum Umbenennen klicken',
   'chat.slot.workspaceTitle': 'Arbeitsbereich-Slot {slotId} · {repoId}',
   'chat.slot.fallback': 'Slot {slotId}',
@@ -474,6 +515,8 @@ export const de = {
     'Agent läuft… tippen, um eine Nachricht in die Warteschlange zu stellen  ·  Umschalt+Eingabe für Zeilenumbruch',
   'chat.input.placeholderIdle': 'Nachricht senden…  ·  Umschalt+Eingabe für Zeilenumbruch',
   'chat.input.placeholderInactive': 'Klicken, um diesen Chat zum aktiven zu machen',
+  'chat.input.placeholderCloudFirst': 'Beschreibe die Aufgabe für den Cloud-Agenten…',
+  'chat.input.placeholderCloud': 'Nachricht an den Cloud-Agenten senden…',
   'chat.input.attachImage': 'Bild anhängen',
   'chat.input.attachFile': 'Datei anhängen',
   'chat.input.model': 'Modell',
@@ -486,7 +529,8 @@ export const de = {
   'chat.context.unreported': 'Codex meldet keine Kontextauslastung · letzter Zug: {used} Tokens',
   'chat.context.menu.compact': 'Kontext komprimieren',
   'chat.context.menu.compacting': 'Wird komprimiert…',
-  'chat.context.menu.codexHint': 'Codex komprimiert seinen Kontext automatisch',
+  'chat.context.menu.codexHint':
+    'Codex komprimiert seinen Kontext selbst. Aktiviere „Codex während der Arbeit steuern“ unter Einstellungen ▸ Agenten, um die Auslastung zu sehen und bei Bedarf zu komprimieren.',
   'chat.context.menu.runningHint': 'Warten, bis der Agent fertig ist',
   'chat.context.compactingNote': 'Kontext wird komprimiert…',
   'chat.context.failedNote': 'Komprimierung fehlgeschlagen: {error}',
@@ -494,6 +538,27 @@ export const de = {
   'chat.agentSwitch.message':
     'Die aktuelle Agent-Sitzungs-ID wird beibehalten, sodass Sie später zurückwechseln können. Der neue Agent verwendet seine eigene Sitzung und wird mit diesem Chat-Transkript als Kontext neu gestartet. Ein Teil des privaten Agent-Status kann verloren gehen.',
   'chat.agentSwitch.confirm': 'Neu starten',
+  'chat.fork.name': '{name} (Abzweigung)',
+  'chat.cloud.chip': 'Cloud',
+  'chat.cloud.chipTitle': 'Läuft in einer Anthropic-Cloud-Sandbox · Chat-Einstellungen öffnen',
+  'chat.cloud.chipPendingTitle': 'Noch keine Cloud-Session – sie beginnt mit deiner ersten Nachricht.',
+  'chat.cloud.pull': 'Cloud-Arbeit in den Checkout holen',
+  'chat.cloud.shutdown': 'Cloud-Chat herunterfahren',
+  'chat.cloud.shutdownNone': 'Für diesen Chat läuft keine Cloud-Session.',
+  'chat.cloud.shutdownConfirm':
+    'Die Cloud-Session jetzt herunterfahren? Läuft sie noch, wird sie zuerst unterbrochen. Alles nicht Gepushte geht verloren. Deine nächste Nachricht startet eine neue Session, vorbereitet mit diesem Gespräch.',
+  'chat.cloud.shutdownConfirmBranch':
+    'Die Cloud-Session jetzt herunterfahren? Läuft sie noch, wird sie zuerst unterbrochen. Alles, was nicht nach {branch} gepusht wurde, geht verloren. Deine nächste Nachricht startet eine neue Session, vorbereitet mit diesem Gespräch.',
+  'chat.host.chipTitle': 'Läuft auf {host} · Chat-Einstellungen öffnen',
+  'chat.host.chipPendingTitle': 'Läuft auf {host} – die Sitzung beginnt mit deiner ersten Nachricht.',
+  'chat.host.shutdown': 'Auf dem Host beenden',
+  'chat.host.shutdownConfirm':
+    'Die Sitzung dieses Chats auf {host} jetzt beenden? Alles, was der Agent dort gerade tut, stoppt. Deine nächste Nachricht startet eine neue Sitzung auf {host}, die dieses Gespräch fortsetzt.',
+  'chat.host.withRepo': 'Auf {host} · {repo}',
+  'chat.host.noRepo': 'Auf {host} · kein Repo',
+  'chat.host.slotTitle': 'Slot {slot} von {repo} auf {host}',
+  'chat.crossAgent.from': 'Vom Agenten in Chat „{name}“',
+  'chat.crossAgent.waiting': 'wartet auf deine Antwort',
   'chat.app.terminal': 'Terminal',
   'chat.app.editor': 'Editor',
   'chat.app.unity': 'Unity',
@@ -512,6 +577,16 @@ export const de = {
   'chat.install.stepInstallDesc': 'Folgen Sie der offiziellen Installationsanleitung von {vendor} für Ihr Betriebssystem.',
   'chat.install.openGuide': 'Installationsanleitung von {vendor} öffnen',
   'chat.install.stepSignin': 'Anmelden',
+  'auth.signIn.button': 'Anmelden',
+  'auth.signIn.title': 'Bei {vendor} anmelden',
+  'auth.signIn.opening': 'Browser wird zum Anmelden geöffnet…',
+  'auth.signIn.fallback': 'Falls der Browser nicht geöffnet wurde:',
+  'auth.signIn.openLink': 'Anmeldeseite öffnen',
+  'auth.signIn.pasteCode': 'Zeigt der Browser einen Code an, hier einfügen:',
+  'auth.signIn.continue': 'Weiter',
+  'auth.signIn.done': 'Angemeldet.',
+  'auth.signIn.failed': 'Die Anmeldung wurde nicht abgeschlossen (Exit-Code {code}).',
+  'auth.signIn.retry': 'Erneut versuchen',
   'chat.install.stepRestart': 'PopBot neu starten',
   'chat.install.stepRestartDesc':
     'PopBot prüft beim Start erneut und aktiviert den Agenten automatisch.',
@@ -523,6 +598,7 @@ export const de = {
   'chat.ready.online': 'Online',
   'chat.ready.notFound': 'nicht gefunden',
   'chat.ready.howToInstall': 'So installieren Sie',
+  'chat.ready.signedOut': 'Installiert, aber nicht angemeldet',
   'chat.ready.codexLabel': 'Codex',
   'chat.ready.optional': 'optional',
   'chat.ready.repoLabel': 'Repository',
@@ -649,6 +725,30 @@ export const de = {
   'chatSettings.restartTooltip': 'Eine neue Agent-Sitzung starten, vorbereitet mit dem Transkript dieses Chats',
   'chatSettings.restarting': 'Wird neu gestartet…',
   'chatSettings.restartWithContext': 'Mit Kontext neu starten',
+  'chatSettings.fork': 'Diesen Chat abzweigen',
+  'chatSettings.forkDesc':
+    'Startet einen neuen Chat ab diesem Punkt: das bisherige Gespräch, die Erinnerung des Agenten daran und — bei einem Chat mit Arbeitsbereich — ein frischer Slot auf einem neuen Branch mit den nicht committeten Änderungen dieses Chats. Das Original läuft unverändert weiter.',
+  'chatSettings.forkButton': 'Chat abzweigen',
+  'chatSettings.forkRunningHint': 'Warte, bis der Agent fertig ist, und zweige dann ab.',
+  'chatSettings.cloud': 'Cloud-Session',
+  'chatSettings.cloudDesc':
+    'Dieser Chat läuft auf Anthropic Managed Agents in einer Cloud-Sandbox. Er arbeitet weiter, wenn PopBot beendet wird; was er in deiner Abwesenheit getan hat, wird hier nachgespielt, sobald du zurück bist.',
+  'chatSettings.cloudSession': 'Session',
+  'chatSettings.cloudNone': 'Noch nicht gestartet – die Session beginnt mit deiner ersten Nachricht.',
+  'chatSettings.cloudEnded': 'beendet · die nächste Nachricht startet eine neue Session',
+  'chatSettings.cloudRepo': 'Repository',
+  'chatSettings.cloudPullDesc':
+    'Die Sandbox committet und pusht auf den Branch des Chats bei origin. Pull holt diese Commits in den Checkout dieses Chats (nur Fast-Forward).',
+  'chatSettings.cloudPull': 'Von origin pullen',
+  'chatSettings.host': 'Host',
+  'chatSettings.hostDesc':
+    'Der Agent dieses Chats läuft auf einem anderen Rechner. Transkript, Suche und Einstellungen liegen hier.',
+  'chatSettings.hostName': 'Host',
+  'chatSettings.hostWorkspace': 'Arbeitsbereich',
+  'chatSettings.hostScratch': 'Scratch-Ordner',
+  'chatSettings.hostRoot': '{repo} · Repo-Root',
+  'chatSettings.hostCwd': 'Arbeitsverzeichnis',
+  'chatSettings.hostNoCwd': 'Noch nicht gestartet – beginnt mit deiner ersten Nachricht.',
   'chatSettings.tryReconnect': 'Neuverbindung versuchen',
   'chatSettings.reconnectDesc':
     'Wählen Sie eine gespeicherte Claude-Sitzung für den Worktree dieses Chats. Nützlich, wenn die automatische Neuverbindung die falsche gewählt hat und Sie ein bestimmtes Transkript erzwingen möchten. Die gewählte Sitzung wird angeheftet und der Agent neu darin gestartet.',
@@ -677,6 +777,11 @@ export const de = {
   'agent.effort.ultra': 'Ultra',
   'agent.label': 'Agent',
   'agent.model': 'Modell',
+  'agent.cloudToggle': 'Cloud',
+  'agent.cloudToggleTitle':
+    'Diesen Chat in einer Anthropic-Cloud-Sandbox laufen lassen (Managed Agents, Abrechnung über API-Key) – er arbeitet weiter, wenn PopBot beendet wird. Nur Claude.',
+  'agent.runOn': 'Ausführen auf',
+  'agent.runOnLocal': 'Diesem Computer',
   'agent.effort': 'Aufwand',
 
   // ---------------------------------------------------------------------------
@@ -776,6 +881,30 @@ export const de = {
   'branch.dialog.loadBranchesError': 'Branches konnten nicht geladen werden: {error}',
   'branch.dialog.freeChatDesc':
     'Läuft in {repo} von der Repo-Wurzel — kein Slot, Worktree oder Branch.',
+  'branch.dialog.cloudDescNoRepo':
+    'Läuft ohne Repository in einer Anthropic-Cloud-Sandbox und arbeitet weiter, wenn PopBot beendet wird.',
+  'branch.dialog.cloudDescRoot':
+    'Läuft in einer Anthropic-Cloud-Sandbox, die das GitHub-Remote von {repo} auf dem Branch des Repo-Roots klont (wird vorher gepusht, falls origin ihn noch nicht hat). Arbeitet weiter, wenn PopBot beendet wird.',
+  'branch.dialog.cloudDescSlot':
+    'Läuft in einer Anthropic-Cloud-Sandbox: Der Chat bekommt wie üblich Slot und Branch, der Branch wird nach origin gepusht und die Sandbox klont ihn. Der Slot bleibt lokal; die Commits der Cloud holst du über das Chat-Menü hinein. Arbeitet weiter, wenn PopBot beendet wird.',
+  'branch.dialog.cloudGithubNote':
+    'Die Sandbox klont mit deinem GitHub-Token: dem in Einstellungen ▸ Agenten ▸ Cloud-Chats gespeicherten oder dem, mit dem gh angemeldet ist.',
+  'branch.dialog.cloudNoKey':
+    'Cloud-Chats brauchen einen Anthropic-API-Key. Trage ihn unter Einstellungen ▸ Agenten ▸ Cloud-Chats ein.',
+  'branch.dialog.hostLoading': 'Frage {host}…',
+  'branch.dialog.hostUnreachable': '{host} ist nicht erreichbar: {error}',
+  'branch.dialog.hostRepoLabel': 'Repository auf {host}',
+  'branch.dialog.tagHostScratch': 'Scratch-Ordner',
+  'branch.dialog.hostNoRepos': '{host} hat noch keine Repositories – starte ihn mit --repo id=/pfad.',
+  'branch.dialog.hostDescScratch':
+    'Läuft auf {host} in einem Scratch-Ordner ohne Repository. Das Transkript bleibt hier.',
+  'branch.dialog.hostDescRoot':
+    'Läuft auf {host} im Root von {repo}, auf dem Branch, auf dem es gerade steht. Das Transkript bleibt hier.',
+  'branch.dialog.hostDescSlot':
+    'Läuft auf {host} in einem Worktree von {repo} auf dem Branch oben, abgezweigt vom Basis-Branch. Das Transkript bleibt hier.',
+  'branch.dialog.disabled.host': 'Warte auf {host}',
+  'branch.dialog.hostFree': '{free} von {count} Slots frei.',
+  'branch.dialog.disabled.hostNoSlot': 'Kein freier Slot in {repo} auf {host}',
   'branch.dialog.createChat': 'Chat erstellen',
 
   // ---------------------------------------------------------------------------
@@ -805,6 +934,7 @@ export const de = {
   'prefs.search': 'Einstellungen durchsuchen…',
   'prefs.section.integ': 'Integrationen',
   'prefs.section.agents': 'Agenten',
+  'prefs.section.hosts': 'Hosts',
   'prefs.section.runtime': 'Laufzeit',
   'prefs.section.repos': 'Repositorys',
   'prefs.section.git': 'Versionsverwaltung',
@@ -826,6 +956,73 @@ export const de = {
   'prefs.agents.codeReviews.title': 'Code-Reviews',
   'prefs.agents.codeReviews.desc':
     'Wird von PR-Review-Chats, Re-Review-Fallback-Chats und Review-Benachrichtigungen verwendet.',
+  'prefs.agents.codexSteering.title': 'Codex während der Arbeit steuern',
+  'prefs.agents.codexSteering.desc':
+    'Verbindet sich über den app-server mit Codex statt über das exec-SDK: Eine Nachricht, die du sendest, während Codex beschäftigt ist, erreicht es beim nächsten Schritt, statt auf das Ende des Zugs zu warten. Füllt außerdem die Kontextanzeige für Codex-Chats und aktiviert „Kontext komprimieren“. In der Codex-CLI experimentell; benötigt codex 0.153 oder neuer. Gilt ab der nächsten Nachricht jedes Chats.',
+  'prefs.agents.codexSteering.on': 'An — Nachrichten erreichen Codex mitten im Zug',
+  'prefs.agents.codexSteering.off': 'Aus — Nachrichten warten auf das Ende des Zugs',
+  'prefs.agents.mcp.title': 'PopBot-Tools für Agenten',
+  'prefs.agents.mcp.desc':
+    'Gibt dem Agenten jedes Chats einen „popbot“-MCP-Server: Chats auflisten, anlegen, schließen und wieder öffnen, anderen Chats Nachrichten schicken und auf ihre Antwort warten, Code-Reviews und Ticket-Chats starten sowie Transkripte lesen und durchsuchen. Gilt ab der nächsten Agent-Session jedes Chats.',
+  'prefs.agents.mcp.on': 'An — Agenten können PopBot steuern',
+  'prefs.agents.mcp.off': 'Aus — keine popbot-Tools',
+  'prefs.agents.cloud.title': 'Cloud-Chats',
+  'prefs.agents.cloud.desc':
+    'Ein mit dem Cloud-Chip erstellter Chat läuft auf Anthropic Managed Agents: eine Session in einer Anthropic-Cloud-Sandbox, pro Token über dein Console-Konto abgerechnet, die weiterarbeitet, wenn PopBot beendet wird.',
+  'prefs.agents.cloud.apiKey.title': 'Anthropic-API-Key',
+  'prefs.agents.cloud.apiKey.desc':
+    'Wird lokal in der Datenbank dieser App gespeichert. Leer lassen, um die Umgebungsvariable ANTHROPIC_API_KEY zu verwenden.',
+  'prefs.agents.cloud.getKey': 'Key holen',
+  'prefs.agents.cloud.githubToken.title': 'GitHub-Token',
+  'prefs.agents.cloud.githubToken.desc':
+    'Damit klont die Sandbox deine Repositories (Scope repo). Leer lassen, um das Token zu verwenden, mit dem gh angemeldet ist.',
+  'prefs.agents.cloud.workspace.title': 'Workspace-ID',
+  'prefs.agents.cloud.workspace.desc':
+    'Nur für einen Key, der keinem Workspace zugeordnet ist (die Prüfung sagt es): die wrkspc_…-ID von der Workspaces-Seite der Console. Ein in einem Workspace erstellter Key braucht keine.',
+  'prefs.agents.cloud.envKey': 'Die Umgebungsvariable ANTHROPIC_API_KEY wird verwendet.',
+  'prefs.agents.cloud.noKey': 'Noch kein Key – Cloud-Chats sind nicht verfügbar.',
+  'prefs.agents.cloud.ghToken': 'GitHub: das Token verwendet, mit dem gh angemeldet ist.',
+  'prefs.agents.cloud.noGh': 'GitHub: kein Token – hier speichern oder gh auth login ausführen.',
+  'prefs.agents.cloud.ok': 'Der Key funktioniert.',
+  'prefs.agents.cloud.error': 'Gespeichert, aber der Key funktioniert nicht: {error}',
+  'prefs.hosts.title': 'Hosts',
+  'prefs.hosts.desc':
+    'Andere Rechner, die Chats für dieses PopBot ausführen. Auf jedem läuft popbot-host: bauen, dist-host/popbot-host.cjs hinüberkopieren und einmal mit --init starten, um die Konfiguration zu schreiben und das Token auszugeben. Transkript, Suche und Einstellungen des Chats bleiben hier; Agent, Tools und Checkout sind dort. Ein entfernter Rechner wird über einen SSH-Tunnel erreicht: ssh -L 7677:127.0.0.1:7677 rechner.',
+  'prefs.hosts.none': 'Noch keine Hosts – Chats laufen auf diesem Computer.',
+  'prefs.hosts.add': 'Host hinzufügen',
+  'prefs.hosts.defaultName': 'Neuer Host',
+  'prefs.hosts.name': 'Name',
+  'prefs.hosts.url': 'URL',
+  'prefs.hosts.token': 'Token',
+  'prefs.hosts.remove': 'Entfernen',
+  'prefs.hosts.removeTitle': 'Host entfernen',
+  'prefs.hosts.removeConfirm':
+    '{name} entfernen? Chats darauf bleiben erhalten, erreichen ihn aber nicht mehr.',
+  'prefs.hosts.checking': 'Prüfe…',
+  'prefs.hosts.ok':
+    'popbot-host {version} auf {platform} · Claude: {claude} · Codex: {codex} · Repositories: {repos}',
+  'prefs.hosts.okNoRepos': 'noch keine (mit --repo id=/pfad starten)',
+  'prefs.hosts.error': 'Nicht erreichbar: {error}',
+  'prefs.hosts.found': 'gefunden',
+  'prefs.hosts.missing': 'nicht gefunden',
+  'prefs.hosts.noUrl': 'URL und Token eingeben.',
+  'prefs.hosts.repos.title': 'Repositories auf diesem Host',
+  'prefs.hosts.repos.none': 'Noch keine. Füge unten eines hinzu; der Pfad gilt auf dem Host.',
+  'prefs.hosts.repos.id': 'Id',
+  'prefs.hosts.repos.path': 'Pfad auf dem Host',
+  'prefs.hosts.repos.defaultBase': 'Basis-Branch',
+  'prefs.hosts.repos.slotPrefix': 'Slot-Präfix',
+  'prefs.hosts.repos.slotCount': 'Slots',
+  'prefs.hosts.repos.mode': 'Modus',
+  'prefs.hosts.repos.modeSlots': 'Slot-Pool',
+  'prefs.hosts.repos.modeEphemeral': 'ephemer',
+  'prefs.hosts.repos.add': 'Repository hinzufügen',
+  'prefs.hosts.repos.remove': 'Entfernen',
+  'prefs.hosts.repos.removeConfirm': '{repo} von {host} entfernen? Seine Worktrees bleiben auf der Platte.',
+  'prefs.hosts.repos.error': 'Konnte nicht speichern: {error}',
+  'prefs.hosts.local.desc': 'Immer da; kann nicht entfernt werden.',
+  'prefs.hosts.local.noRepos': 'Noch keine Repositories.',
+  'prefs.hosts.local.manage': 'Repositories und Slots verwalten',
 
   // Preferences — Runtime / attachment retention pane.
   'prefs.runtime.title': 'Aufbewahrung von Anhängen',
@@ -1229,10 +1426,15 @@ export const de = {
   'prefs.repos.wizard.agentCwd.desc': 'Pfad unter dem Arbeitsbereich-Stammverzeichnis, in dem der Agent startet (/ = das Stammverzeichnis selbst). Ein Unterpfad wie /depot/PopBotGame lässt Claude dort eingecheckte .claude/skills finden.',
   // --- What's-new popup (WhatsNewDialog.tsx) — update each release ---
   'whatsNew.title': 'Neu in PopBot',
-  'whatsNew.f1.h': 'Claude Fable 5.1 und GPT-6 Astra',
-  'whatsNew.f1.p': 'Die neuesten Spitzenmodelle von Anthropic und OpenAI stehen in der Modellauswahl. Beide sind nur eingeschränkt verfügbar und deshalb Opt-in: deine Chats behalten ihr Modell, und Opus 5 und GPT-5.6 Sol bleiben die Standards.',
-  'whatsNew.f2.h': 'Kontextanzeige, Komprimierung und ein aufgeräumterer Arbeitsbereich',
-  'whatsNew.f2.p': 'Ein Ring im Eingabebereich zeigt, wie voll das Kontextfenster ist — mit Komprimierung per Klick. Ziehe Vorschaubilder, um Chats neu anzuordnen, klicke auf einen Spaltentitel, um ihn umzubenennen, und RE-REVIEW bleibt jetzt, bis du wirklich erneut reviewst.',
+  'whatsNew.f1.h': 'Chats auf anderen Rechnern ausführen',
+  'whatsNew.f1.p':
+    'Füge unter Einstellungen ▸ Hosts einen Host hinzu – jede Maschine mit popbot-host oder den veröffentlichten Container – und wähle ihn beim Anlegen eines Chats unter Ausführen auf. Agent, Tools und Checkout laufen dort im eigenen Slot-Pool des Hosts; Transkript, Suche und Einstellungen bleiben hier. Ein Tab Hosts zeigt die Slots und Chats jeder Maschine.',
+  'whatsNew.f2.h': 'Cloud-Chats auf Anthropic Managed Agents',
+  'whatsNew.f2.p':
+    'Schalte den Cloud-Chip ein, und der Chat läuft in einer Anthropic-Cloud-Sandbox, abgerechnet über deinen API-Key: Er klont deinen Branch von GitHub, pusht dorthin zurück, arbeitet nach dem Beenden von PopBot weiter und holt bei deiner Rückkehr alles nach. Nur Cloud-Chat beenden beendet ihn.',
+  'whatsNew.f3.h': 'Claude Opus 5.5 und vieles mehr',
+  'whatsNew.f3.p':
+    'Opus 5.5 steht als Opt-in im Modell-Picker; deine Standards ändern sich nicht. Agents steuern PopBot über eigene Tools und schreiben einander mit klarer Absenderangabe, die Volltextsuche durchsucht jeden Chat, Tool-Aufrufe zeichnen eine Zeitleiste, Chats lassen sich abzweigen, du meldest dich in der App an, und Einstellungen speichern sich selbst – keine Speichern-Buttons.',
   'whatsNew.gotIt': 'Verstanden',
   // --- Auto-update prompts (persisted via the notification system) ---
   'app.update.restartAction': 'Neu starten und installieren',

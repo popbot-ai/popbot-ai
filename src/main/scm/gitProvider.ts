@@ -57,9 +57,10 @@ import {
   ensureChatWorktree,
   ephemeralWorktreeSlug,
   findLatestStashRef,
+  forkBranchInto,
   newChatStashName,
-  parkSlot,
   parkingBranch,
+  parkSlot,
   persistBranchToRoot,
   popStash,
   refreshParkBranchInBackground,
@@ -232,6 +233,16 @@ export class GitProvider extends SourceControlProvider {
     // unless discarded) to the local root so any slot can restore it.
     await persistBranchToRoot(opts);
     return {};
+  }
+
+  async forkChatWorkspace(opts: {
+    repoPath: string;
+    sourceWorktreePath: string | null;
+    sourceBranch: string;
+    worktreePath: string;
+    branch: string;
+  }): Promise<void> {
+    await forkBranchInto(opts);
   }
 
   async restoreChatOnReopen(opts: {

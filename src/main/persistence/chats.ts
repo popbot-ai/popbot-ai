@@ -3,6 +3,8 @@ import type {
   AgentBackendId,
   ChatRecord,
   ChatType,
+  CloudChatInfo,
+  HostChatInfo,
   ClaudeModelId,
   ClaudeReasoningEffort,
   CodexModelId,
@@ -19,7 +21,9 @@ import {
   normalizeCodexModel,
 } from '@shared/persistence';
 import type { ChatStatus } from '@shared/domain';
+import type { ChatRefs } from '@shared/ipc';
 import { db } from './db';
+import { CHATS_WITH_MATCH_SQL, ftsQueryFor } from './fts';
 
 /** Joined chat + repo row. The `repo_*` columns come from a LEFT JOIN
  *  on `repos`, so they're nullable for chats whose repo_id no longer
@@ -32,6 +36,7 @@ interface ChatRow {
   ticket: string | null;
   pr: number | null;
   pr_url: string | null;
+  pr_author: string | null;
   branch: string | null;
   type: string;
   mode: string;
@@ -60,6 +65,9 @@ interface ChatRow {
   repo_mode: string | null;
   repo_scm: string | null;
   repo_slot_prefix: string | null;
+  repo_path: string | null;
+  cloud: string | null;
+  host: string | null;
 }
 
 /** Standard column list for the chat queries below. Centralized so
@@ -67,13 +75,14 @@ interface ChatRow {
  *  mode + slot prefix appear on every ChatRecord without a per-call
  *  repos lookup. */
 const CHAT_COLUMNS = `
-  c.id, c.name, c.ticket, c.pr, c.pr_url, c.branch, c.type, c.mode, c.agent, c.status,
+  c.id, c.name, c.ticket, c.pr, c.pr_url, c.pr_author, c.branch, c.type, c.mode, c.agent, c.status,
   c.snippet, c.tokens_used, c.tokens_budget, c.slot_id, c.worktree_path, c.p4_shelf_cl,
   c.session_id, c.codex_thread_id, c.claude_context_at, c.codex_context_at,
   c.claude_model, c.claude_reasoning_effort,
   c.codex_model, c.codex_reasoning_effort,
   c.permission_rules, c.created_at, c.last_active_at, c.closed_at,
-  c.repo_id, r.color AS repo_color, r.mode AS repo_mode, r.scm AS repo_scm, r.slot_prefix AS repo_slot_prefix
+  c.repo_id, r.color AS repo_color, r.mode AS repo_mode, r.scm AS repo_scm, r.slot_prefix AS repo_slot_prefix,
+  r.repo_path AS repo_path, c.cloud, c.host
 `;
 const CHAT_FROM = `FROM chats c LEFT JOIN repos r ON r.id = c.repo_id`;
 
@@ -93,6 +102,30 @@ function parseRules(json: string): PermissionRule[] {
   }
 }
 
+function parseCloud(json: string | null): CloudChatInfo | null {
+  if (!json) return null;
+  try {
+    const parsed = JSON.parse(json) as Partial<CloudChatInfo> | null;
+    if (!parsed || typeof parsed !== 'object') return null;
+    // Rows from the claude.ai-backed prototype carry `session_…` ids the
+    // Managed Agents backend cannot resume: read them as ended.
+    const sessionId = typeof parsed.sessionId === 'string' ? parsed.sessionId : null;
+    const legacy = !!sessionId && !sessionId.startsWith('sesn_');
+    return {
+      provider: 'anthropic',
+      sessionId,
+      url: typeof parsed.url === 'string' ? parsed.url : null,
+      startedAt: typeof parsed.startedAt === 'number' ? parsed.startedAt : null,
+      lastEventId: typeof parsed.lastEventId === 'string' ? parsed.lastEventId : null,
+      mountPath: typeof parsed.mountPath === 'string' ? parsed.mountPath : null,
+      branch: typeof parsed.branch === 'string' ? parsed.branch : null,
+      ended: parsed.ended === true || legacy,
+    };
+  } catch {
+    return null;
+  }
+}
+
 function rowToRecord(r: ChatRow): ChatRecord {
   return {
     id: r.id,
@@ -100,6 +133,7 @@ function rowToRecord(r: ChatRow): ChatRecord {
     ticket: r.ticket,
     pr: r.pr,
     prUrl: r.pr_url,
+    prAuthor: r.pr_author,
     branch: r.branch,
     type: r.type as ChatType,
     mode: r.mode as 'interactive' | 'autonomous',
@@ -131,7 +165,38 @@ function rowToRecord(r: ChatRow): ChatRecord {
       ? r.repo_scm
       : null,
     repoSlotPrefix: r.repo_slot_prefix,
+    repoPath: r.repo_path,
+    cloud: parseCloud(r.cloud),
+    host: parseHost(r.host),
   };
+}
+
+function parseHost(json: string | null): HostChatInfo | null {
+  if (!json) return null;
+  try {
+    const parsed = JSON.parse(json) as Partial<HostChatInfo> | null;
+    if (!parsed || typeof parsed !== 'object' || typeof parsed.hostId !== 'string') return null;
+    const repoId = typeof parsed.repoId === 'string' ? parsed.repoId : null;
+    const branch = typeof parsed.branch === 'string' ? parsed.branch : null;
+    // Rows from before `kind`: no repo is scratch, a branch is a worktree.
+    const kind = parsed.kind === 'scratch' || parsed.kind === 'root' || parsed.kind === 'worktree'
+      ? parsed.kind
+      : !repoId ? 'scratch' : branch ? 'worktree' : 'root';
+    return {
+      hostId: parsed.hostId,
+      hostName: typeof parsed.hostName === 'string' ? parsed.hostName : parsed.hostId,
+      repoId,
+      kind,
+      branch,
+      baseBranch: typeof parsed.baseBranch === 'string' ? parsed.baseBranch : null,
+      slotId: typeof parsed.slotId === 'number' && parsed.slotId > 0 ? parsed.slotId : null,
+      slotPrefix: typeof parsed.slotPrefix === 'string' ? parsed.slotPrefix : null,
+      cwd: typeof parsed.cwd === 'string' ? parsed.cwd : null,
+      lastSeq: typeof parsed.lastSeq === 'number' && parsed.lastSeq > 0 ? parsed.lastSeq : 0,
+    };
+  } catch {
+    return null;
+  }
 }
 
 function normalizeAgent(value: string | null | undefined): AgentBackendId {
@@ -236,15 +301,20 @@ export function searchChats(query: string, limit = 50): ChatRecord[] {
   const q = query.trim();
   if (!q) return [];
   const like = `%${q}%`;
+  // Name / ticket / branch / snippet as before, plus any chat whose
+  // transcript contains the text (the FTS index; see fts.ts) — so the
+  // archive search finds the chat you remember a line of.
+  const match = ftsQueryFor(q);
   const rows = db()
-    .prepare<[string, string, string, string, number], ChatRow>(
+    .prepare<unknown[], ChatRow>(
       `SELECT ${CHAT_COLUMNS} ${CHAT_FROM}
         WHERE c.deleted_at IS NULL
-          AND (c.name LIKE ? OR c.ticket LIKE ? OR c.branch LIKE ? OR c.snippet LIKE ?)
+          AND (c.name LIKE ? OR c.ticket LIKE ? OR c.branch LIKE ? OR c.snippet LIKE ?
+               ${match ? `OR c.id IN (${CHATS_WITH_MATCH_SQL})` : ''})
         ORDER BY (c.closed_at IS NULL) DESC, c.last_active_at DESC
         LIMIT ?`,
     )
-    .all(like, like, like, like, limit);
+    .all(like, like, like, like, ...(match ? [match] : []), limit);
   return rows.map(rowToRecord);
 }
 
@@ -260,6 +330,7 @@ export interface CreateChatArgs {
   ticket?: string | null;
   pr?: number | null;
   prUrl?: string | null;
+  prAuthor?: string | null;
   branch?: string | null;
   type?: ChatType;
   slotId?: number | null;
@@ -273,6 +344,10 @@ export interface CreateChatArgs {
   claudeReasoningEffort?: ClaudeReasoningEffort;
   codexModel?: CodexModelId;
   codexReasoningEffort?: CodexReasoningEffort;
+  /** A cloud chat — see {@link CloudChatInfo}. */
+  cloud?: CloudChatInfo | null;
+  /** A chat that runs on a host — see {@link HostChatInfo}. */
+  host?: HostChatInfo | null;
 }
 
 export function createChat(args: CreateChatArgs): ChatRecord {
@@ -286,12 +361,12 @@ export function createChat(args: CreateChatArgs): ChatRecord {
   db()
     .prepare(
       `INSERT INTO chats (
-         id, name, ticket, pr, pr_url, branch, type, mode, agent, status, snippet,
+         id, name, ticket, pr, pr_url, pr_author, branch, type, mode, agent, status, snippet,
          tokens_used, tokens_budget, slot_id, worktree_path, created_at, last_active_at,
          repo_id, claude_model, claude_reasoning_effort, codex_model, codex_reasoning_effort,
-         sort_order
+         cloud, host, sort_order
        )
-       VALUES (?, ?, ?, ?, ?, ?, ?, 'interactive', ?, 'idle', '', 0, 1000000, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'interactive', ?, 'idle', '', 0, 1000000, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
                (SELECT COALESCE(MAX(o.sort_order), 0) + 1 FROM chats o))`,
     )
     .run(
@@ -300,6 +375,7 @@ export function createChat(args: CreateChatArgs): ChatRecord {
       args.ticket ?? null,
       args.pr ?? null,
       args.prUrl ?? null,
+      args.prAuthor?.trim() || null,
       args.branch ?? null,
       args.type ?? 'lite',
       agent,
@@ -312,6 +388,8 @@ export function createChat(args: CreateChatArgs): ChatRecord {
       claudeReasoningEffort,
       codexModel,
       codexReasoningEffort,
+      args.cloud ? JSON.stringify(args.cloud) : null,
+      args.host ? JSON.stringify(args.host) : null,
     );
   const created = getChat(id);
   if (!created) throw new Error('createChat: row missing immediately after insert');
@@ -434,6 +512,42 @@ export function setChatSlot(id: string, slotId: number, worktreePath: string): v
 
 /** Bind an ephemeral chat to its just-created worktree. Same shape as
  *  `setChatSlot` minus the slot id — ephemeral chats never hold one. */
+/** The ticket keys, PR numbers and names on every non-deleted chat,
+ *  most recently active first and de-duplicated — what the Search panel
+ *  completes `ticket:` / `cr:` / `chat:` with. */
+export function listChatRefs(): ChatRefs {
+  const rows = db()
+    .prepare<[], { id: string; ticket: string | null; pr: number | null; name: string; closed_at: number | null }>(
+      `SELECT id, ticket, pr, name, closed_at FROM chats
+        WHERE deleted_at IS NULL
+        ORDER BY last_active_at DESC`,
+    )
+    .all();
+  const tickets = new Map<string, ChatRefs['tickets'][number]>();
+  const prs = new Map<number, ChatRefs['prs'][number]>();
+  const chats = new Map<string, ChatRefs['chats'][number]>();
+  for (const r of rows) {
+    const closed = r.closed_at != null;
+    if (r.ticket && !tickets.has(r.ticket)) tickets.set(r.ticket, { key: r.ticket, chatName: r.name, closed });
+    if (r.pr != null && !prs.has(r.pr)) prs.set(r.pr, { number: r.pr, chatName: r.name, closed });
+    chats.set(r.id, { id: r.id, name: r.name, closed });
+  }
+  return { tickets: [...tickets.values()], prs: [...prs.values()], chats: [...chats.values()] };
+}
+
+/** Cloud chats: record the session the chat drives (or clear it). */
+export function setChatCloud(id: string, cloud: CloudChatInfo | null): void {
+  db()
+    .prepare('UPDATE chats SET cloud = ?, last_active_at = ? WHERE id = ?')
+    .run(cloud ? JSON.stringify(cloud) : null, Date.now(), id);
+}
+
+export function setChatHost(id: string, host: HostChatInfo | null): void {
+  db()
+    .prepare('UPDATE chats SET host = ?, last_active_at = ? WHERE id = ?')
+    .run(host ? JSON.stringify(host) : null, Date.now(), id);
+}
+
 export function setChatWorktree(id: string, worktreePath: string): void {
   db()
     .prepare('UPDATE chats SET slot_id = NULL, worktree_path = ?, last_active_at = ? WHERE id = ?')
@@ -540,6 +654,10 @@ export function setChatPrUrl(id: string, url: string): void {
   db().prepare('UPDATE chats SET pr_url = ? WHERE id = ?').run(url, id);
 }
 
+export function setChatPrAuthor(id: string, author: string): void {
+  db().prepare('UPDATE chats SET pr_author = ? WHERE id = ?').run(author.trim() || null, id);
+}
+
 /** Mark a provider's native conversation as having absorbed the shared
  * transcript through `contextAt`. The two columns are intentionally separate:
  * switching providers must never make one provider claim the other's context. */
@@ -638,6 +756,13 @@ export function getChatPermissionRules(id: string): PermissionRule[] {
 
 /** Append a rule for this chat. Existing rules with the same `tool`
  *  are replaced — keeps the list canonical (one rule per tool name). */
+/** Replace a chat's rule list wholesale — a fork inherits the original's. */
+export function setChatPermissionRules(id: string, rules: PermissionRule[]): void {
+  db()
+    .prepare('UPDATE chats SET permission_rules = ? WHERE id = ?')
+    .run(JSON.stringify(rules), id);
+}
+
 export function addChatPermissionRule(id: string, rule: PermissionRule): void {
   const current = getChatPermissionRules(id);
   const next = [...current.filter((r) => r.tool !== rule.tool), rule];

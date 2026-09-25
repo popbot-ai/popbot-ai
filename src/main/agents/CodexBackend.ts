@@ -2,11 +2,9 @@ import {
   Codex,
   type Input as CodexInput,
   type ModelReasoningEffort,
-  type SandboxMode,
   type Thread,
   type ThreadEvent,
   type ThreadItem,
-  type WebSearchMode,
 } from '@openai/codex-sdk';
 import { randomUUID } from 'node:crypto';
 import type { AgentEvent, PermissionDecision } from '@shared/agent';
@@ -14,73 +12,18 @@ import type { PickedAttachment } from '@shared/ipc';
 import {
   DEFAULT_CODEX_MODEL,
   DEFAULT_CODEX_REASONING_EFFORT,
-  closestReasoningEffort,
-  codexReasoningEffortsForModel,
 } from '@shared/persistence';
 import type { AgentBackend, AgentSession, SpawnOpts } from './types';
 import { dlog } from '../diagLog';
-
-/**
- * Turn failures that are the account's situation rather than a fault in
- * PopBot or Codex: the model isn't offered to this login (GPT-6 Astra is
- * API-key only today — a ChatGPT-account login gets "not supported when
- * using Codex with a ChatGPT account"), or usage / rate limits are hit.
- * Retrying can't help, and nothing is broken; the user just needs to know.
- * Yellow, not red.
- */
-const EXPECTED_CODEX_LIMIT =
-  /not supported when using codex|not (?:available|supported) (?:for|on|with) (?:your|this)|(?:do not|don't|doesn't) have access|usage limit|rate limit|quota|out of (?:usage|credits?)|insufficient (?:credit|quota|balance)|billing|payment|upgrade your plan|limit (?:will )?reset/i;
-
-function toCodexSdkReasoningEffort(
-  model: string,
-  effort: typeof DEFAULT_CODEX_REASONING_EFFORT | SpawnOpts['codexReasoningEffort'],
-): ModelReasoningEffort {
-  // Snap to a rung this model actually accepts. The floor and ceiling
-  // both vary — GPT-6 Astra has no `none` (it starts at `low`), and
-  // `max` / `ultra` aren't on every model — so a chat that switches
-  // models keeps the nearest equivalent instead of sending a value the
-  // API would reject.
-  const resolved = closestReasoningEffort(
-    effort ?? DEFAULT_CODEX_REASONING_EFFORT,
-    codexReasoningEffortsForModel(model),
-    DEFAULT_CODEX_REASONING_EFFORT,
-  );
-  // PopBot calls the API's `minimal` rung `none` in the UI.
-  return resolved === 'none' ? 'minimal' : resolved;
-}
-
-/** Translate PopBot's provider-neutral permission policy into the coarser
- * controls exposed by Codex. Unspecified/Ask capabilities fail closed because
- * the SDK does not currently surface interactive approval events to PopBot. */
-function codexPermissions(opts: SpawnOpts): {
-  sandboxMode: SandboxMode;
-  networkAccessEnabled: boolean;
-  webSearchMode: WebSearchMode;
-} {
-  const decision = (tool: string) => opts.resolveRule?.(tool) ?? null;
-  const writesAllowed = ['Write', 'Edit', 'NotebookEdit'].every(
-    (tool) => decision(tool) === 'allow',
-  );
-  const broadFilesystemAllowed =
-    decision('Bash') === 'allow'
-    && decision('Read') === 'allow'
-    && writesAllowed;
-  // Both web capabilities must be allowed before arbitrary command execution
-  // receives network. This is deliberately fail-closed: once Bash has network,
-  // it can fetch URLs regardless of which executable performs the request.
-  const networkAccessEnabled =
-    decision('WebFetch') === 'allow' && decision('WebSearch') === 'allow';
-  const sandboxMode: SandboxMode = broadFilesystemAllowed && networkAccessEnabled
-    ? 'danger-full-access'
-    : writesAllowed
-      ? 'workspace-write'
-      : 'read-only';
-  return {
-    sandboxMode,
-    networkAccessEnabled,
-    webSearchMode: decision('WebSearch') === 'allow' ? 'live' : 'disabled',
-  };
-}
+import {
+  EXPECTED_CODEX_LIMIT,
+  codexMcpConfig,
+  codexMessageId as messageIdFor,
+  codexPermissions,
+  codexToolId as toolIdFor,
+  codexWireReasoningEffort,
+  stringifyForDisplay,
+} from './codexShared';
 
 /**
  * Real Codex backend. The Codex TypeScript SDK wraps `codex exec
@@ -140,10 +83,13 @@ class CodexSession implements AgentSession {
 
     const model = opts.codexModel ?? DEFAULT_CODEX_MODEL;
     const reasoningEffort = opts.codexReasoningEffort ?? DEFAULT_CODEX_REASONING_EFFORT;
-    const sdkReasoningEffort = toCodexSdkReasoningEffort(model, reasoningEffort);
+    // The SDK forwards this verbatim as `model_reasoning_effort`.
+    const sdkReasoningEffort = codexWireReasoningEffort(model, reasoningEffort) as ModelReasoningEffort;
     const permissions = codexPermissions(opts);
+    const mcpConfig = codexMcpConfig(opts.mcpServers);
     const codex = new Codex({
       codexPathOverride: opts.pathToCodexExecutable ?? undefined,
+      ...(mcpConfig ? { config: { mcp_servers: mcpConfig } } : {}),
     });
     const threadOptions = {
       model,
@@ -543,26 +489,4 @@ function buildCodexInput(text: string, attachments?: PickedAttachment[]): CodexI
   }
   if (text.trim()) input.push({ type: 'text', text });
   return input;
-}
-
-function messageIdFor(chatId: string, itemId: string): string {
-  return `codex_msg_${safeId(chatId)}_${safeId(itemId)}`;
-}
-
-function toolIdFor(chatId: string, itemId: string): string {
-  return `codex_tool_${safeId(chatId)}_${safeId(itemId)}`;
-}
-
-function safeId(value: string): string {
-  return value.replace(/[^a-zA-Z0-9_:-]/g, '_').slice(0, 160);
-}
-
-function stringifyForDisplay(value: unknown): string {
-  if (typeof value === 'string') return value;
-  try {
-    const json = JSON.stringify(value, null, 2);
-    return json.length > 5000 ? `${json.slice(0, 5000)}...` : json;
-  } catch {
-    return String(value);
-  }
 }

@@ -1,6 +1,6 @@
 # Configuring PopBot
 
-Everything in PopBot is configured in-app through **Preferences** (the gear in the title bar, or `⌘,`) — there are no config files to hand-edit. This guide walks through every panel in the order the nav lists them, which is roughly the order you'd set them up for the first time.
+Everything in PopBot is configured in-app through **Preferences** (the gear in the title bar, or `⌘,`) — there are no config files to hand-edit. This guide walks through every panel in the order the nav lists them, which is roughly the order you'd set them up for the first time. There is no Save button anywhere: a field is saved the moment you leave it (or press Enter), a switch the moment you flip it, and closing Preferences saves whatever is still pending.
 
 > Credentials you enter (Linear, Jira, GitHub, Perforce, etc.) are stored **locally on your machine** in the app's own database — never in this repository.
 
@@ -22,7 +22,7 @@ A single active issue tracker feeds the Tickets queue. Pick it from the selector
 - **Jira** — enter your site URL (`https://your-domain.atlassian.net`), the account email, and an API token (from *id.atlassian.com → Security → API tokens*). Optionally scope to a **Project** and add a **JQL** filter (e.g. `labels = backend`). Saving verifies the credentials before persisting them.
 - **GitHub** — GitHub Issues need no credentials here: the provider shells out to the `gh` CLI you've already authenticated for reviews and git actions, and the queue spans the same repositories configured under [Repositories](#repositories). The form is a status check that confirms `gh` is installed and authenticated and reports how many repos it covers.
 
-Each tracker with credentials verifies them on **Save** before persisting, and shows a *Connected / Not connected* status pill.
+Each tracker with credentials verifies them as soon as you leave a credential field, saves them either way, and shows a *Connected / Not connected* status pill with the verdict.
 
 ### Game engines
 
@@ -48,6 +48,30 @@ Default model **reasoning effort** for newly created chats (existing chats keep 
   - **Code reviews** — PR review chats, re-review fallback chats, and review notifications.
 
 Higher effort means deeper reasoning and more thorough tool use, at higher cost and latency. Reviews often want a different depth than feature builds — hence the split.
+
+**Steer Codex while it works** *(off by default)* — connects to Codex through its `app-server` instead of the exec SDK. With it on, a message you send while Codex is busy is folded into the running turn and reaches the model at its next step — usually the moment the command in flight returns — instead of waiting for the turn to end. It also fills the context gauge for Codex chats, enables **Compact context** for them, and makes **Stop** interrupt the turn cleanly. Codex labels `app-server` experimental and it needs `codex` 0.153 or newer, which is why it is opt-in; an older CLI simply falls back to queueing. The switch applies from each chat's next message, and a chat moves between the two connections without losing its thread.
+
+**PopBot tools for agents** *(on by default)* — hands every chat's agent a `popbot` MCP server with tools to list, create, close and reopen chats, message another chat and wait for its answer, start code reviews and ticket chats, and read and search transcripts (see [PopBot tools for agents](GUIDE.md#popbot-tools-for-agents)). The server listens on localhost only, on a random port with a per-launch secret in its URL. Switching it off applies from each chat's next agent session.
+
+**Cloud chats** — the *Anthropic API key* cloud chats run on (stored locally; falls back to the `ANTHROPIC_API_KEY` environment variable) and the *GitHub token* the sandbox clones repositories with (`repo` scope; falls back to `gh auth token`). A cloud chat with a repository needs both; one without needs only the key. Saving with a key checks it against the API first. Cloud sessions are billed by the token to the key's Console account, not to a Claude subscription. On first use PopBot creates one environment and one agent per model and effort in that account and reuses them afterwards (see [Run in the cloud](GUIDE.md#chats)). An organization-level key (one not created inside a workspace) also needs the *Workspace ID* (`wrkspc_…`, from the Console's Workspaces page); the key check says so when it is missing.
+
+## Hosts
+
+Other machines that run chats for this PopBot. Each runs `popbot-host`, a single-file Node daemon built from this repository:
+
+```sh
+npm run build:host                       # writes dist-host/popbot-host.cjs
+node dist-host/popbot-host.cjs --init --repo popbot=/path/to/checkout
+node dist-host/popbot-host.cjs           # listens on 127.0.0.1:7677
+```
+
+`--init` writes `~/.popbot-host/config.json` (bind address, port, a random bearer token, a workspaces folder, the repositories by id and path) and prints the token; edit the file, or pass `--port`, `--bind`, `--token`, `--name`, `--workspaces` and more `--repo id=/path` flags. The host needs Node 20 or newer and the `claude` and/or `codex` CLI on its PATH. It copies nothing from this machine and keeps no transcript — only the live sessions and their event log, which a reconnecting PopBot replays from where it left off. It binds to localhost; reach a remote box over an SSH tunnel (`ssh -L 7677:127.0.0.1:7677 box`) rather than exposing the port.
+
+Or run the published image instead of installing anything: `ghcr.io/popbot-ai/popbot-host` (built by the *Host image* workflow on every version tag) has Node, git and both CLIs around the daemon. `docker/host/docker-compose.yml` is a ready example: mount your checkouts at `/repos`, a volume at `/data` for the config, workspaces and logs, and the sign-ins of a user who ran `claude` and `codex login` once at `/home/popbot/.claude` and `/home/popbot/.codex` (on a Mac, export the Claude sign-in from the Keychain with `security find-generic-password -s "Claude Code-credentials" -w` into `.claude/.credentials.json`). Pass `--repo id=/repos/x` and `--slots x=4` as the container's command, publish port 7677 on localhost or a tailnet address, and read the token from the container's first log lines (or set `POPBOT_HOST_TOKEN`).
+
+In PopBot, *Add host* creates a record with the local address filled in; set the name, URL and token (the fields save when you leave them), and the panel asks the host what it is: its version, whether it found Claude and Codex, and its repositories. A host's worktrees live under its workspaces folder (`~/.popbot-host/workspaces/<repo>/<branch>`); attachments you send land under `attachments/<chat id>` there. Permission rules travel with each request, so *Always allow* decisions apply on the host the same way. Remove a host and chats already on it stay in the list but can no longer reach it. See [Run on another box](GUIDE.md#chats).
+
+This computer is always the first entry and cannot be removed; its repositories and slot pools are the Repositories section. Each other host's repositories are edited on its card — the path on the host, the default base branch, and the slot pool: a prefix, a count, or *ephemeral* for a worktree per chat — and the host rewrites its config (`--slots id=N` or `--slots id=ephemeral` does the same from its command line; a new repo gets four slots named after its id). Slot worktrees live at `<workspaces>/<repo>/<prefix>-N`, parked on `<repo>/slotN` when free; who holds what is kept in `<workspaces>/state.json` across host restarts.
 
 ## Runtime & slots
 

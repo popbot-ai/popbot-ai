@@ -230,6 +230,62 @@ export async function restoreBranchFromRoot(opts: {
   return true;
 }
 
+/**
+ * Fork: land `branch` in `worktreePath` at the tip of `sourceBranch` as it
+ * stands in the SOURCE worktree — local commits included — carrying the
+ * source's uncommitted work across as uncommitted work.
+ *
+ * Uncommitted work travels the way close→reopen already moves it: a
+ * throwaway WIP commit in the source, fetched into the fork, then undone
+ * on BOTH sides with `reset --mixed` so each ends up with the same edits
+ * unstaged and the source's branch pointing where it did. Fetching from
+ * the source path works for a shared-refs worktree and an independent
+ * clone alike, so this needs no `root` remote. When the source worktree
+ * is gone (the chat was closed), the branch is taken from the root repo,
+ * where the close persisted it.
+ */
+export async function forkBranchInto(opts: {
+  repoPath: string;
+  /** The original chat's worktree, or null when it has none right now. */
+  sourceWorktreePath: string | null;
+  sourceBranch: string;
+  worktreePath: string;
+  branch: string;
+}): Promise<void> {
+  const { repoPath, sourceWorktreePath, sourceBranch, worktreePath, branch } = opts;
+  if (!existsSync(worktreePath)) {
+    throw new GitWorktreeError('worktree-missing', `Worktree gone: ${worktreePath}`);
+  }
+  const source = sourceWorktreePath && existsSync(sourceWorktreePath) ? sourceWorktreePath : repoPath;
+  let snapshotted = false;
+  if (source !== repoPath) {
+    const { stdout } = await git(source, ['status', '--porcelain']).catch(() => ({ stdout: '', stderr: '' }));
+    if (stdout.trim().length > 0) {
+      await git(source, ['add', '-A']).catch(() => undefined);
+      await git(source, ['commit', '--no-verify', '-m', WIP_COMMIT_MSG]).catch(() => undefined);
+      const top = await git(source, ['log', '-1', '--pretty=%s']).then((r) => r.stdout.trim()).catch(() => '');
+      snapshotted = top === WIP_COMMIT_MSG;
+    }
+  }
+  try {
+    try {
+      await git(worktreePath, ['fetch', '--quiet', source, `refs/heads/${sourceBranch}`]);
+    } catch (err) {
+      throw new GitWorktreeError(
+        'branch-missing',
+        `Branch ${sourceBranch} was not found in ${source}: ${(err as Error).message}`,
+      );
+    }
+    await git(worktreePath, ['checkout', '-f', '-B', branch, 'FETCH_HEAD']);
+    await git(worktreePath, ['clean', '-fd']).catch(() => undefined);
+    const top = await git(worktreePath, ['log', '-1', '--pretty=%s']).then((r) => r.stdout.trim()).catch(() => '');
+    if (top === WIP_COMMIT_MSG) await git(worktreePath, ['reset', '--mixed', 'HEAD~1']).catch(() => undefined);
+  } finally {
+    // The source keeps its edits uncommitted, whatever happened to the fork.
+    if (snapshotted) await git(source, ['reset', '--mixed', 'HEAD~1']).catch(() => undefined);
+  }
+}
+
 export interface WorktreeStatus {
   /** Has uncommitted changes (staged / unstaged / untracked). */
   dirty: boolean;

@@ -71,10 +71,13 @@ import { registerNotificationsHandlers } from './ipc/notifications';
 import { registerSentryHandlers } from './ipc/sentry';
 import { startSentryPoller, stopSentryPoller } from './sentry/poll';
 import { registerSlackHandlers } from './ipc/slack';
+import { registerHostsHandlers } from './ipc/hosts';
 import { startSlackPoller, stopSlackPoller } from './slack/poll';
 import { pruneOlderThan } from './persistence/notifications';
 import { purgePersistedDiagnostics } from './persistence/messages';
 import { attachWebContents as attachTermWindow, disposeAll as disposeAllPtys } from './term/ptyManager';
+import { startPopbotMcp, stopPopbotMcp } from './mcp/registry';
+import { createPopbotToolHandlers } from './mcp/popbotTools';
 import { disposeAllWatches } from './p4/watcher';
 import { checkForUpdates } from './updates/check';
 import {
@@ -526,6 +529,11 @@ void app.whenReady().then(async () => {
   registerNotificationsHandlers();
   registerSentryHandlers();
   registerSlackHandlers();
+  registerHostsHandlers();
+  // PopBot's own MCP server — the tools every chat's agent gets to drive
+  // PopBot (see mcp/server.ts). Localhost, random port, secret in the
+  // path. Chats spawned before it is up simply don't get it.
+  void startPopbotMcp(createPopbotToolHandlers());
   // Sweep notifications older than 30 days at startup so the table
   // doesn't accrete unbounded. Cheap synchronous DELETE.
   pruneOlderThan(Date.now() - 30 * 24 * 60 * 60 * 1000);
@@ -583,7 +591,7 @@ app.on('before-quit', (event) => {
   stopSentryPoller();
   stopSlackPoller();
   disposeAllPtys();
-  void Promise.allSettled([AgentHost.disposeAll(), disposeAllWatches()]).finally(() => {
+  void Promise.allSettled([AgentHost.disposeAll(), disposeAllWatches(), stopPopbotMcp()]).finally(() => {
     closeDb();
     app.quit();
   });

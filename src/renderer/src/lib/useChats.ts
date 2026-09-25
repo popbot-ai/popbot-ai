@@ -1,7 +1,14 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { ChatRecord } from '@shared/persistence';
 import type { ChatStatus } from '@shared/domain';
-import type { CloseChatOptions, CreateChatInput, CreateChatResult, ReopenChatResult } from '@shared/ipc';
+import type {
+  CloseChatOptions,
+  CreateChatInput,
+  CreateChatResult,
+  ForkChatInput,
+  ForkChatResult,
+  ReopenChatResult,
+} from '@shared/ipc';
 import { playPing } from './ping';
 import { subscribeAgentEvents } from './agentEventBus';
 
@@ -42,6 +49,12 @@ export function useChats() {
 
   useEffect(() => {
     const off = subscribeAgentEvents((event) => {
+      // An agent created / closed / reopened a chat through the popbot
+      // tools: main owns that change, so reload rather than patch.
+      if (event.type === 'chats-changed') {
+        void refresh();
+        return;
+      }
       setChats((prev) => {
         let touched = false;
         const next: ChatRecord[] = prev.map((c): ChatRecord => {
@@ -67,6 +80,10 @@ export function useChats() {
               return { ...c, status: 'wait' satisfies ChatStatus, snippet: `needs you: ${event.tool}`, lastActiveAt: event.ts };
             case 'message-end':
               return { ...c, lastActiveAt: event.ts };
+            // Main changed the record itself (a cloud session id arrived,
+            // say): take the fresh copy whole.
+            case 'chat-updated':
+              return event.chat;
             default:
               return c;
           }
@@ -75,7 +92,7 @@ export function useChats() {
       });
     });
     return off;
-  }, []);
+  }, [refresh]);
 
   const create = useCallback(async (input: CreateChatInput): Promise<CreateChatResult> => {
     const result = await window.popbot.chats.create(input);
@@ -146,5 +163,21 @@ export function useChats() {
     setClosedChats(apply);
   }, []);
 
-  return { chats, closedChats, loading, refresh, create, close, reopen, attachSlot, remove, reorder, rename };
+  /** Fork a chat. The fork lands right after its original — main stores
+   *  that order, so mirror it here rather than appending. */
+  const fork = useCallback(async (input: ForkChatInput): Promise<ForkChatResult> => {
+    const result = await window.popbot.chats.fork(input);
+    if (result.ok) {
+      setChats((prev) => {
+        const without = prev.filter((c) => c.id !== result.chat.id);
+        const at = without.findIndex((c) => c.id === input.chatId);
+        const next = [...without];
+        next.splice(at < 0 ? next.length : at + 1, 0, result.chat);
+        return next;
+      });
+    }
+    return result;
+  }, []);
+
+  return { chats, closedChats, loading, refresh, create, close, reopen, attachSlot, remove, reorder, rename, fork };
 }

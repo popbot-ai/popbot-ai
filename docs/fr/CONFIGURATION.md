@@ -1,6 +1,6 @@
 # Configurer PopBot
 
-Tout dans PopBot est configuré dans l'application via les **Préférences** (l'icône d'engrenage dans la barre de titre, ou `⌘,`) — il n'y a aucun fichier de configuration à modifier à la main. Ce guide parcourt chaque panneau dans l'ordre où la navigation les liste, ce qui est à peu près l'ordre dans lequel vous les configureriez la première fois.
+Tout dans PopBot est configuré dans l'application via les **Préférences** (l'icône d'engrenage dans la barre de titre, ou `⌘,`) — il n'y a aucun fichier de configuration à modifier à la main. Ce guide parcourt chaque panneau dans l'ordre où la navigation les liste, ce qui est à peu près l'ordre dans lequel vous les configureriez la première fois. Il n'y a aucun bouton Enregistrer : un champ est enregistré dès que vous le quittez (ou appuyez sur Entrée), un interrupteur dès que vous le basculez, et fermer les Préférences enregistre ce qui reste en attente.
 
 > Les identifiants que vous saisissez (Linear, Jira, GitHub, Perforce, etc.) sont stockés **localement sur votre machine** dans la base de données propre à l'application — jamais dans ce dépôt.
 
@@ -22,7 +22,7 @@ Un seul tracker d'issues actif alimente la file d'attente Tickets. Choisissez-le
 - **Jira** — saisissez l'URL de votre site (`https://your-domain.atlassian.net`), l'email du compte, et un jeton API (depuis *id.atlassian.com → Security → API tokens*). Cadrez optionnellement à un **Projet** et ajoutez un filtre **JQL** (par ex. `labels = backend`). Sauvegarder vérifie les identifiants avant de les conserver.
 - **GitHub** — les GitHub Issues n'ont besoin d'aucun identifiant ici : le fournisseur délègue à la CLI `gh` que vous avez déjà authentifiée pour les revues et les actions git, et la file d'attente couvre les mêmes dépôts configurés sous [Dépôts](#dépôts). Le formulaire est une vérification de statut qui confirme que `gh` est installé et authentifié et rapporte combien de dépôts il couvre.
 
-Chaque tracker avec des identifiants les vérifie à la **Sauvegarde** avant de les conserver, et affiche une pastille de statut *Connecté / Non connecté*.
+Chaque tracker avec des identifiants les vérifie dès que vous quittez un champ d'identifiant, les enregistre dans tous les cas et affiche une pastille de statut *Connecté / Non connecté* avec le verdict.
 
 ### Moteurs de jeu
 
@@ -48,6 +48,30 @@ Contrairement à la source de tickets à sélection unique, les moteurs sont **i
   - **Revues de code** — chats de revue de PR, chats de repli de re-revue, et notifications de revue.
 
 Un effort plus élevé signifie un raisonnement plus profond et un usage d'outils plus approfondi, à un coût et une latence plus élevés. Les revues veulent souvent une profondeur différente des constructions de fonctionnalités — d'où la séparation.
+
+**Guider Codex pendant qu'il travaille** *(désactivé par défaut)* — se connecte à Codex via son `app-server` plutôt que le SDK exec. Une fois activé, un message envoyé pendant que Codex est occupé est intégré au tour en cours et parvient au modèle à son étape suivante — en général dès que la commande en cours se termine — au lieu d'attendre la fin du tour. L'option alimente aussi la jauge de contexte des conversations Codex, y active **Compacter le contexte** et permet à **Stop** d'interrompre proprement le tour. Codex qualifie `app-server` d'expérimental et il faut `codex` 0.153 ou plus récent, d'où le caractère facultatif ; une CLI plus ancienne revient simplement à la mise en file d'attente. Le réglage s'applique dès le prochain message de chaque conversation, et une conversation passe d'une connexion à l'autre sans perdre son fil.
+
+**Outils PopBot pour les agents** *(activé par défaut)* — donne à l'agent de chaque conversation un serveur MCP `popbot` avec des outils pour lister, créer, fermer et rouvrir des conversations, envoyer un message à une autre conversation et attendre sa réponse, lancer des revues de code et des conversations de ticket, et lire et chercher dans les transcriptions (voir [Outils PopBot pour les agents](GUIDE.md#outils-popbot-pour-les-agents)). Le serveur n'écoute que sur localhost, sur un port aléatoire avec un secret propre à chaque lancement dans son URL. Le désactiver s'applique à partir de la prochaine session d'agent de chaque conversation.
+
+**Chats cloud** — la *clé API Anthropic* sur laquelle tournent les chats cloud (stockée localement ; à défaut, la variable d'environnement `ANTHROPIC_API_KEY`) et le *jeton GitHub* avec lequel le bac à sable clone les dépôts (portée `repo` ; à défaut, `gh auth token`). Un chat cloud avec dépôt a besoin des deux ; sans dépôt, seule la clé est nécessaire. Enregistrer avec une clé la vérifie d'abord auprès de l'API. Les sessions cloud sont facturées au jeton sur le compte Console de la clé, pas sur un abonnement Claude. À la première utilisation, PopBot crée dans ce compte un environnement et un agent par modèle et effort, puis les réutilise (voir [Exécuter dans le cloud](GUIDE.md#chats)). Une clé au niveau de l'organisation (non créée dans un workspace) a aussi besoin de l'*ID du workspace* (`wrkspc_…`, sur la page Workspaces de la Console) ; la vérification de la clé le signale s'il manque.
+
+## Hôtes
+
+D'autres machines qui exécutent des conversations pour ce PopBot. Chacune fait tourner `popbot-host`, un démon Node en un seul fichier construit depuis ce dépôt :
+
+```sh
+npm run build:host                       # écrit dist-host/popbot-host.cjs
+node dist-host/popbot-host.cjs --init --repo popbot=/chemin/du/checkout
+node dist-host/popbot-host.cjs           # écoute sur 127.0.0.1:7677
+```
+
+`--init` écrit `~/.popbot-host/config.json` (adresse d'écoute, port, un jeton bearer aléatoire, un dossier d'espaces de travail, les dépôts par id et chemin) et affiche le jeton ; modifiez le fichier ou passez `--port`, `--bind`, `--token`, `--name`, `--workspaces` et d'autres options `--repo id=/chemin`. L'hôte a besoin de Node 20 ou plus récent et de la CLI `claude` et/ou `codex` dans son PATH. Il ne copie rien de cette machine et ne garde aucune transcription — seulement les sessions en cours et leur journal d'événements, qu'un PopBot qui se reconnecte rejoue là où il s'était arrêté. Il écoute sur localhost ; joignez une machine distante par un tunnel SSH (`ssh -L 7677:127.0.0.1:7677 machine`) plutôt qu'en exposant le port.
+
+Ou lancez l'image publiée sans rien installer : `ghcr.io/popbot-ai/popbot-host` (construite par le workflow *Host image* à chaque tag de version) embarque Node, git et les deux CLI autour du démon. `docker/host/docker-compose.yml` est un exemple prêt : montez vos checkouts sous `/repos`, un volume sous `/data` pour la configuration, les espaces de travail et les journaux, et les connexions d'un utilisateur ayant lancé `claude` et `codex login` une fois sous `/home/popbot/.claude` et `/home/popbot/.codex` (sur un Mac, exportez la connexion Claude du Trousseau avec `security find-generic-password -s "Claude Code-credentials" -w` vers `.claude/.credentials.json`). Passez `--repo id=/repos/x` et `--slots x=4` comme commande du conteneur, publiez le port 7677 sur localhost ou une adresse du tailnet, et lisez le jeton dans les premières lignes du journal du conteneur (ou définissez `POPBOT_HOST_TOKEN`).
+
+Dans PopBot, *Ajouter un hôte* crée une fiche avec l'adresse locale préremplie ; renseignez le nom, l'URL et le jeton (les champs s'enregistrent quand vous les quittez), et le panneau demande à l'hôte ce qu'il est : sa version, s'il a trouvé Claude et Codex, et ses dépôts. Les worktrees d'un hôte vivent sous son dossier d'espaces de travail (`~/.popbot-host/workspaces/<dépôt>/<branche>`) ; les pièces jointes envoyées y atterrissent sous `attachments/<id de conversation>`. Les règles de permission voyagent avec chaque requête, donc les décisions *Toujours autoriser* s'appliquent de la même façon sur l'hôte. Retirez un hôte et les conversations déjà dessus restent dans la liste mais ne peuvent plus le joindre. Voir [Exécuter sur une autre machine](GUIDE.md#chats).
+
+Cet ordinateur est toujours la première entrée et ne peut pas être retiré ; ses dépôts et pools de slots sont la section Dépôts. Les dépôts de chaque autre hôte se modifient sur sa carte — le chemin sur l'hôte, la branche de base et le pool de slots : un préfixe, un nombre, ou *éphémère* pour un worktree par conversation — et l'hôte réécrit sa configuration (`--slots id=N` ou `--slots id=ephemeral` fait de même depuis sa ligne de commande ; un nouveau dépôt reçoit quatre slots nommés d'après son id). Les worktrees de slot vivent dans `<workspaces>/<dépôt>/<préfixe>-N`, parqués sur `<dépôt>/slotN` quand ils sont libres ; qui tient quoi est conservé dans `<workspaces>/state.json` d'un redémarrage de l'hôte à l'autre.
 
 ## Runtime & slots
 

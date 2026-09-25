@@ -3,8 +3,8 @@ import { colAccentStyle } from '../lib/repoColor';
 import type { ChatRecord } from '@shared/persistence';
 import type { SourceControlProviderId } from '@shared/sourceControl';
 import { tokenBarClass, tokenBarPct, type Chat } from '../fixtures/data';
-import { SlotStatusStrip } from './SlotStatusStrip';
 import { P4Glyph } from './P4Glyph';
+import { ReviewAvatar } from './ReviewAvatar';
 import { useTranslation } from '../lib/i18n';
 
 /** Per-row version-control icon (replaces the old status glyph — status is
@@ -62,9 +62,13 @@ function ChatRow({ chat, focused, inactive, removing, onClick, onDelete }: ChatR
       // bar simply doesn't render in that case.
       style={colAccentStyle(chat.repoColor)}
     >
-      <span className={`status-glyph scm-glyph status-${chat.status}`}>
-        <ScmGlyph scm={chat.scm} />
-      </span>
+      {chat.prAuthor ? (
+        <ReviewAvatar author={chat.prAuthor} className={`status-glyph scm-glyph status-${chat.status}`} />
+      ) : (
+        <span className={`status-glyph scm-glyph status-${chat.status}`}>
+          <ScmGlyph scm={chat.scm} />
+        </span>
+      )}
       <div style={{ minWidth: 0 }}>
         <div className="name">{chat.name}</div>
         <div className="meta-line">
@@ -144,10 +148,6 @@ interface PanelBProps {
   onOpenInactive?: (id: string) => void;
   onDelete?: (id: string) => void;
   onNewChat?: () => void;
-  /** Bumps when chats open/close so the slot status strip refreshes. */
-  slotVersion?: number;
-  /** Opens Preferences → Runtime for first-time slot setup. */
-  onSetupSlots?: () => void;
   /** Adapter for ChatRecord → ChatFixture so search results render via
    *  the same ChatRow as the regular lists. */
   toFixture: (r: ChatRecord) => Chat;
@@ -163,8 +163,6 @@ export function PanelB({
   onOpenInactive,
   onDelete,
   onNewChat,
-  slotVersion = 0,
-  onSetupSlots,
   toFixture,
 }: PanelBProps): JSX.Element {
   const { t } = useTranslation();
@@ -224,11 +222,6 @@ export function PanelB({
 
   return (
     <div className="panel-b" data-screen-label="Panel B · Chat List">
-      <SlotStatusStrip
-        version={slotVersion}
-        onClickOccupant={(id) => setFocusedId(id)}
-        onSetupSlots={onSetupSlots}
-      />
       <div className="panel-b-search">
         <i className="fa-solid fa-magnifying-glass" />
         <input

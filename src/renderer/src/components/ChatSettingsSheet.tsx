@@ -31,6 +31,8 @@ function Field({ label, children, stack }: FieldProps): JSX.Element {
 interface ChatSettingsSheetProps {
   chat: ChatRecord;
   onClose: () => void;
+  /** Fork this chat (App does the work and focuses the fork). */
+  onFork?: () => Promise<void> | void;
 }
 
 function fmtBytes(t: Translator, n?: number): string {
@@ -48,7 +50,7 @@ function fmtAge(t: Translator, ms: number): string {
   return t('time.daysAgo', { count: Math.floor(d / 86400) });
 }
 
-export function ChatSettingsSheet({ chat, onClose }: ChatSettingsSheetProps): JSX.Element {
+export function ChatSettingsSheet({ chat, onClose, onFork }: ChatSettingsSheetProps): JSX.Element {
   const { t } = useTranslation();
   const [sessions, setSessions] = useState<SessionEntry[] | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -58,6 +60,19 @@ export function ChatSettingsSheet({ chat, onClose }: ChatSettingsSheetProps): JS
   const [search, setSearch] = useState('');
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [threadIdCopied, setThreadIdCopied] = useState(false);
+  // Cloud chats: the outcome of the last pull (the transcript gets a row too).
+  const [cloudNote, setCloudNote] = useState<{ ok: boolean; text: string } | null>(null);
+
+  const pullCloud = async (): Promise<void> => {
+    setBusy(true);
+    setCloudNote(null);
+    try {
+      const res = await window.popbot.cloud.pull(chat.id);
+      setCloudNote(res.ok ? { ok: true, text: res.summary } : { ok: false, text: res.error });
+    } finally {
+      setBusy(false);
+    }
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -110,11 +125,7 @@ export function ChatSettingsSheet({ chat, onClose }: ChatSettingsSheetProps): JS
   };
 
   const restartWithContext = async (): Promise<void> => {
-    if (!confirm(
-      'Spawn a fresh Claude session and feed it this chat\'s prior transcript so the agent ' +
-      'picks up where it left off?\n\nThis uses tokens (the transcript becomes the agent\'s ' +
-      'first message). Older middle turns may be omitted to keep the prompt size reasonable.',
-    )) return;
+    if (!confirm(t('chatSettings.restartConfirm'))) return;
     setBusy(true);
     try {
       await window.popbot.agent.restartWithContext(chat.id);
@@ -202,6 +213,107 @@ export function ChatSettingsSheet({ chat, onClose }: ChatSettingsSheetProps): JS
             </Field>
           </div>
 
+          {chat.cloud && (
+            <div className="section">
+              <h3>{t('chatSettings.cloud')}</h3>
+              <p className="pref-section-desc" style={{ marginBottom: 12 }}>
+                {t('chatSettings.cloudDesc')}
+              </p>
+              <Field label={t('chatSettings.cloudSession')}>
+                {chat.cloud.sessionId ? (
+                  <span className="mono" style={{ fontSize: 11, overflowWrap: 'anywhere' }}>
+                    {chat.cloud.sessionId}
+                    {chat.cloud.ended && (
+                      <span style={{ color: 'var(--fg-3)', fontFamily: 'inherit' }}> · {t('chatSettings.cloudEnded')}</span>
+                    )}
+                  </span>
+                ) : (
+                  <span style={{ color: 'var(--fg-3)' }}>{t('chatSettings.cloudNone')}</span>
+                )}
+              </Field>
+              {chat.cloud.mountPath && (
+                <Field label={t('chatSettings.cloudRepo')}>
+                  <span className="mono" style={{ fontSize: 11, overflowWrap: 'anywhere' }}>
+                    {chat.cloud.mountPath}{chat.cloud.branch ? ` · ${chat.cloud.branch}` : ''}
+                  </span>
+                </Field>
+              )}
+              {(chat.cloud.branch ?? chat.branch) && (
+                <>
+                  <p className="pref-section-desc" style={{ marginTop: 14, marginBottom: 8 }}>
+                    {t('chatSettings.cloudPullDesc')}
+                  </p>
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 10 }}>
+                    {cloudNote && (
+                      <span style={{ color: cloudNote.ok ? 'var(--fg-3)' : '#e89696', fontSize: 12 }}>{cloudNote.text}</span>
+                    )}
+                    <button
+                      className="btn primary"
+                      disabled={busy}
+                      onClick={() => void pullCloud()}
+                      title={t('chat.cloud.pull')}
+                    >
+                      <i className="fa-solid fa-cloud-arrow-down" aria-hidden /> {t('chatSettings.cloudPull')}
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+
+          {chat.host && (
+            <div className="section">
+              <h3>{t('chatSettings.host')}</h3>
+              <p className="pref-section-desc" style={{ marginBottom: 12 }}>
+                {t('chatSettings.hostDesc')}
+              </p>
+              <Field label={t('chatSettings.hostName')}>
+                <span className="mono" style={{ fontSize: 11 }}>{chat.host.hostName}</span>
+              </Field>
+              <Field label={t('chatSettings.hostWorkspace')}>
+                <span className="mono" style={{ fontSize: 11, overflowWrap: 'anywhere' }}>
+                  {chat.host.repoId
+                    ? (chat.host.kind === 'worktree'
+                      ? `${chat.host.repoId} · ${chat.host.branch ?? ''}${chat.host.slotId != null ? ` · ${chat.host.slotPrefix ?? chat.host.repoId}-${chat.host.slotId}` : ''}`
+                      : t('chatSettings.hostRoot', { repo: chat.host.repoId }))
+                    : t('chatSettings.hostScratch')}
+                </span>
+              </Field>
+              <Field label={t('chatSettings.hostCwd')}>
+                {chat.host.cwd ? (
+                  <span className="mono" style={{ fontSize: 11, overflowWrap: 'anywhere' }}>{chat.host.cwd}</span>
+                ) : (
+                  <span style={{ color: 'var(--fg-3)' }}>{t('chatSettings.hostNoCwd')}</span>
+                )}
+              </Field>
+            </div>
+          )}
+
+          {onFork && !chat.cloud && !chat.host && (
+            <div className="section">
+              <h3>{t('chatSettings.fork')}</h3>
+              <p className="pref-section-desc" style={{ marginBottom: 12 }}>
+                {t('chatSettings.forkDesc')}
+              </p>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 10 }}>
+                {chat.status === 'run' && (
+                  <span style={{ color: 'var(--fg-3)', fontSize: 11 }}>{t('chatSettings.forkRunningHint')}</span>
+                )}
+                <button
+                  className="btn primary"
+                  onClick={() => void onFork()}
+                  // A fork copies the agent's session as it stands; mid-turn
+                  // that is a half-written transcript.
+                  disabled={busy || chat.status === 'run'}
+                  title={t('chatSettings.forkButton')}
+                >
+                  <i className="fa-solid fa-code-fork" aria-hidden /> {t('chatSettings.forkButton')}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {!chat.cloud && (
           <div className="section">
             <h3>{t('chatSettings.recoverContext')}</h3>
             <p className="pref-section-desc" style={{ marginBottom: 12 }}>
@@ -218,8 +330,9 @@ export function ChatSettingsSheet({ chat, onClose }: ChatSettingsSheetProps): JS
               </button>
             </div>
           </div>
+          )}
 
-          {chat.agent === 'claude' && (
+          {chat.agent === 'claude' && !chat.cloud && (
           <div className="section">
             <h3>{t('chatSettings.tryReconnect')}</h3>
             <p className="pref-section-desc" style={{ marginBottom: 12 }}>

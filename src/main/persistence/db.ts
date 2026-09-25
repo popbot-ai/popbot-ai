@@ -1,4 +1,5 @@
 import { app } from 'electron';
+import { FTS_MIGRATION_SQL } from './fts';
 import { mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import Database from 'better-sqlite3';
@@ -366,6 +367,36 @@ const SCHEMA = [
   `
   ALTER TABLE chats ADD COLUMN sort_order INTEGER NOT NULL DEFAULT 0;
   UPDATE chats SET sort_order = created_at;
+  `,
+  // v23 — cloud chats. JSON {provider, sessionId, url, startedAt} for a
+  // chat that drives a Claude Code cloud session; NULL for every other
+  // chat. See CloudChatInfo in shared/persistence.
+  `
+  ALTER TABLE chats ADD COLUMN cloud TEXT;
+  `,
+  // v24 — full-text search over message text (FTS5, trigram), kept
+  // current by triggers and backfilled here. See fts.ts.
+  FTS_MIGRATION_SQL,
+  // v25 — the PR author of a review chat, whose avatar marks the chat
+  // in the thumbnail strip and chat list. NULL for every other chat.
+  `
+  ALTER TABLE chats ADD COLUMN pr_author TEXT;
+  `,
+  // v26 — hosts: other boxes running popbot-host that chats can run on
+  // (Preferences ▸ Hosts), and which host a chat runs on: JSON
+  // {hostId, hostName, repoId, branch, baseBranch, cwd, lastSeq}, NULL
+  // for a chat that runs here. See HostRecord / HostChatInfo in
+  // shared/persistence.
+  `
+  CREATE TABLE IF NOT EXISTS hosts (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    url TEXT NOT NULL,
+    token TEXT NOT NULL,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL
+  );
+  ALTER TABLE chats ADD COLUMN host TEXT;
   `,
 ];
 

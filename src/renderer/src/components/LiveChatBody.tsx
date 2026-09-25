@@ -109,6 +109,7 @@ const MD_COMPONENTS: Components = {
   code: MarkdownCode,
 };
 import type {
+  CrossChatOrigin,
   ChatAttachment,
   MessageBodyPermission,
   MessageBodyText,
@@ -120,7 +121,8 @@ import { isYesNoQuestion, looksLikeQuestion } from '@shared/questionDetect';
 import { useMessages } from '../lib/useMessages';
 import { getExternalEditor } from '../lib/editor';
 import { useTranslation } from '../lib/i18n';
-import { toolLabel } from '../lib/toolLabel';
+import { JUMP_EVENT, clearJump, peekJump } from '../lib/jumpToMessage';
+import { toolKind, toolLabel } from '../lib/toolLabel';
 import type { Translator } from '@shared/i18n';
 
 /** Total messages mounted at any time. The window slides as the user
@@ -251,6 +253,51 @@ function LiveChatBodyImpl({
   // changes the rendered slice — we need a re-render on the flip.
   const [sticky, setSticky] = useState<boolean>(true);
   const cap = sticky ? TAIL_WINDOW : BROWSE_WINDOW;
+  // A "go to message" from the Search panel: the id we're steering the
+  // window toward, and the row to flash once it's on screen.
+  const jumpTargetRef = useRef<string | null>(null);
+  const [jumpHighlightId, setJumpHighlightId] = useState<string | null>(null);
+  const jumpFlashTimerRef = useRef<number | null>(null);
+  useEffect(() => {
+    const pickUp = (): void => {
+      const id = peekJump(chatId);
+      if (!id) return;
+      if (loading) return; // try again once the transcript is in
+      const idx = messages.findIndex((m) => m.id === id);
+      clearJump(chatId);
+      if (idx < 0) return; // gone (deleted, or a different transcript)
+      jumpTargetRef.current = id;
+      // Browse mode, with the target in the middle of the mounted window;
+      // the layout effect below scrolls to it once the row exists.
+      setSticky(false);
+      setWindowStart(Math.max(0, Math.min(idx - Math.floor(BROWSE_WINDOW / 2), Math.max(0, messages.length - BROWSE_WINDOW))));
+    };
+    pickUp();
+    const onEvent = (e: Event): void => {
+      if ((e as CustomEvent<{ chatId?: string }>).detail?.chatId === chatId) pickUp();
+    };
+    window.addEventListener(JUMP_EVENT, onEvent);
+    return () => window.removeEventListener(JUMP_EVENT, onEvent);
+  }, [chatId, messages, loading]);
+  useLayoutEffect(() => {
+    const id = jumpTargetRef.current;
+    const el = scrollRef.current;
+    if (!id || !el) return;
+    const node = el.querySelector<HTMLElement>(`[data-msg-id="${id}"]`);
+    if (!node) return; // not mounted yet — next render
+    jumpTargetRef.current = null;
+    programmaticScrollRef.current = true;
+    el.scrollTop = Math.max(0, node.offsetTop - el.clientHeight / 2 + node.offsetHeight / 2);
+    requestAnimationFrame(() => { programmaticScrollRef.current = false; });
+    setJumpHighlightId(id);
+    // Not an effect cleanup: this effect runs after every render, and a
+    // cleanup would cancel the flash before it ends.
+    if (jumpFlashTimerRef.current) window.clearTimeout(jumpFlashTimerRef.current);
+    jumpFlashTimerRef.current = window.setTimeout(() => {
+      jumpFlashTimerRef.current = null;
+      setJumpHighlightId((cur) => (cur === id ? null : cur));
+    }, 2600);
+  });
   // If non-null after a setWindowStart, useLayoutEffect uses this to
   // restore the user's scroll position by re-finding the anchor element.
   const anchorRef = useRef<{ id: string; offsetWithin: number } | null>(null);
@@ -602,11 +649,12 @@ function LiveChatBodyImpl({
           // empty wrapper still adds visible blank space.
           .filter((m) => isMessageVisible(m, consumedUserIds))
           .map((m, i, arr) => (
-            <div key={m.id} data-msg-id={m.id}>
+            <div key={m.id} data-msg-id={m.id} className={m.id === jumpHighlightId ? 'msg-jump' : undefined}>
               <MessageRow
                 message={m}
                 chatId={chatId}
                 renderAsQuestion={m.id === questionMessageId}
+                chain={m.kind === 'tool' ? chainPosition(arr[i - 1]?.kind === 'tool', arr[i + 1]?.kind === 'tool') : undefined}
                 isStale={i < arr.length - 1}
                 consumed={consumedUserIds.has(m.id)}
                 qaAnswer={qaAnswers.get(m.id)}
@@ -652,9 +700,22 @@ function LiveChatBodyImpl({
  *  and snapped the scroller. */
 export const LiveChatBody = memo(LiveChatBodyImpl);
 
+/** Where a tool row sits in a run of consecutive tool rows — the
+ *  timeline draws a line between neighbours, none around a lone row. */
+type ChainPosition = 'solo' | 'start' | 'mid' | 'end';
+
+function chainPosition(prevIsTool: boolean, nextIsTool: boolean): ChainPosition {
+  if (prevIsTool && nextIsTool) return 'mid';
+  if (prevIsTool) return 'end';
+  if (nextIsTool) return 'start';
+  return 'solo';
+}
+
 interface MessageRowProps {
   message: MessageRecord;
   renderAsQuestion?: boolean;
+  /** Tool rows: their place in the tool timeline (see ChainPosition). */
+  chain?: ChainPosition;
   /** True if any later message exists in this chat — implies the user
    *  already responded, so any permission card should render collapsed. */
   isStale?: boolean;
@@ -674,7 +735,7 @@ interface MessageRowProps {
   ) => void;
 }
 
-function MessageRowImpl({ message, renderAsQuestion, isStale, consumed, qaAnswer, chatId, onQuickReply, onDecide }: MessageRowProps): JSX.Element | null {
+function MessageRowImpl({ message, renderAsQuestion, chain, isStale, consumed, qaAnswer, chatId, onQuickReply, onDecide }: MessageRowProps): JSX.Element | null {
   if (consumed) return null;
   if (message.kind === 'text' || message.kind === 'system') {
     const body = parseBody<MessageBodyText>(message.body, { text: '' });
@@ -704,12 +765,19 @@ function MessageRowImpl({ message, renderAsQuestion, isStale, consumed, qaAnswer
     const isSystemWarning =
       message.kind === 'system' && body.text.toLowerCase().startsWith('warning:');
     if (isSystemWarning) {
-      return <SystemWarningRow text={body.text} />;
+      // A sign-in that expired is fixed with a click, not a terminal.
+      return <SystemWarningRow text={body.text} signIn={signInProviderFor(body.text)} />;
     }
     const isModelSwitch =
       message.kind === 'system' && body.text.toLowerCase().startsWith('switch:');
     if (isModelSwitch) {
       return <ModelSwitchRow text={body.text} />;
+    }
+    if (message.kind === 'system' && body.text.toLowerCase().startsWith('fork:')) {
+      return <ChatForkRow text={body.text.replace(/^fork:\s*/i, '')} />;
+    }
+    if (message.kind === 'system' && body.text.toLowerCase().startsWith('cloud:')) {
+      return <CloudRow text={body.text.replace(/^cloud:\s*/i, '')} />;
     }
     if (message.kind === 'system') {
       // Compaction: the persisted outcome, and the two ephemeral phases
@@ -724,6 +792,11 @@ function MessageRowImpl({ message, renderAsQuestion, isStale, consumed, qaAnswer
       if (lower.startsWith('compactfail:')) {
         return <CompactFailedRow error={body.text.replace(/^compactfail:\s*/i, '').trim()} />;
       }
+    }
+    // A message another chat's agent sent through the popbot tools: its
+    // own box, headed by the sending chat, never the user bubble.
+    if (message.role === 'user' && body.from) {
+      return <CrossAgentRow from={body.from} text={body.text} />;
     }
     const cls = message.role === 'user' ? 'msg user' : 'msg agent';
     return (
@@ -751,7 +824,7 @@ function MessageRowImpl({ message, renderAsQuestion, isStale, consumed, qaAnswer
       args: {},
     });
     if (HIDDEN_TOOL_NAMES.has(body.name)) return null;
-    return <ToolBlock body={body} />;
+    return <ToolBlock body={body} chain={chain ?? 'solo'} />;
   }
 
   if (message.kind === 'permission') {
@@ -866,6 +939,63 @@ function SystemNoticeRow({ text }: { text: string }): JSX.Element {
   );
 }
 
+/** Where a fork's own history begins: everything above was carried over
+ *  from the original chat. */
+function ChatForkRow({ text }: { text: string }): JSX.Element {
+  return (
+    <div className="msg chat-fork">
+      <div className="body">
+        <i className="fa-solid fa-code-fork" aria-hidden="true" />
+        <span>{text}</span>
+      </div>
+    </div>
+  );
+}
+
+/** A message relayed from another chat's agent (send_to_chat). The
+ *  header names the chat it came from; the body is the agent's text,
+ *  rendered as markdown like any agent prose. */
+function CrossAgentRow({ from, text }: { from: CrossChatOrigin; text: string }): JSX.Element {
+  const { t } = useTranslation();
+  return (
+    <div className="msg cross-agent">
+      <div className="body">
+        <div className="cross-agent-head">
+          <i className="fa-solid fa-robot" aria-hidden="true" />
+          <span>{t('chat.crossAgent.from', { name: from.chatName })}</span>
+          {from.waiting && <span className="cross-agent-waiting">{t('chat.crossAgent.waiting')}</span>}
+        </div>
+        <div className="prose">
+          <ReactMarkdown remarkPlugins={[remarkGfm]} components={MD_COMPONENTS}>{text}</ReactMarkdown>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** A cloud chat's lifecycle notes — session created / linked / sent /
+ *  teleporting — with the claude.ai link clickable when there is one. */
+function CloudRow({ text }: { text: string }): JSX.Element {
+  const url = /https?:\/\/\S+/.exec(text)?.[0] ?? null;
+  const label = url ? text.replace(url, '').trim() : text;
+  return (
+    <div className="msg chat-cloud">
+      <div className="body">
+        <i className="fa-solid fa-cloud" aria-hidden="true" />
+        <span>
+          {label}
+          {url && (
+            <>
+              {' '}
+              <a href={url} target="_blank" rel="noreferrer noopener">{url.replace(/^https?:\/\//, '')}</a>
+            </>
+          )}
+        </span>
+      </div>
+    </div>
+  );
+}
+
 function ModelSwitchRow({ text }: { text: string }): JSX.Element {
   const clean = text.replace(/^switch:\s*/i, '');
   return (
@@ -906,15 +1036,37 @@ function CompactFailedRow({ error }: { error: string }): JSX.Element {
  *  needs re-authenticating. Yellow notification box: the user has to
  *  know and probably to wait, but nothing is broken, so it must not
  *  look like an error. */
-function SystemWarningRow({ text }: { text: string }): JSX.Element {
+function SystemWarningRow({ text, signIn }: {
+  text: string;
+  /** Offer a Sign in button for this CLI (App opens the dialog). */
+  signIn?: 'claude' | 'codex' | null;
+}): JSX.Element {
+  const { t } = useTranslation();
   return (
     <div className="msg system-warning">
       <div className="body">
         <i className="fa-solid fa-circle-info msg-warning-icon" aria-hidden />
         <span>{text.replace(/^warning:\s*/i, '')}</span>
+        {signIn && (
+          <button
+            className="btn primary sm msg-warning-action"
+            onClick={() => window.dispatchEvent(new CustomEvent('popbot:auth-sign-in', { detail: { provider: signIn } }))}
+          >
+            <i className="fa-solid fa-right-to-bracket" aria-hidden /> {t('auth.signIn.button')}
+          </button>
+        )}
       </div>
     </div>
   );
+}
+
+/** Which CLI a warning is asking the user to sign in to, if any. The
+ *  backends word their auth failures with "sign in" / "signed in". */
+function signInProviderFor(text: string): 'claude' | 'codex' | null {
+  if (!/sign[- ]?in|signed[- ]?in|log(?:ged)?[- ]?in|authenticat/i.test(text)) return null;
+  if (/codex|openai|chatgpt/i.test(text)) return 'codex';
+  if (/claude|anthropic|oauth/i.test(text)) return 'claude';
+  return null;
 }
 
 function SystemErrorRow({ text, chatId, stale }: {
@@ -1029,6 +1181,8 @@ function presentTool(name: string, args: Record<string, unknown>, t: Translator)
   label: string;
   hint: string;
   filePath?: string;
+  /** Tooltip for the hint when it is a summary of something longer. */
+  hintTitle?: string;
 } {
   const a = args as Record<string, unknown>;
   const str = (k: string): string => (typeof a[k] === 'string' ? (a[k] as string) : '');
@@ -1036,8 +1190,20 @@ function presentTool(name: string, args: Record<string, unknown>, t: Translator)
   // monitor card via `toolLabel`. Only icon/hint differ per tool here.
   const label = toolLabel(name, t);
   switch (name) {
-    case 'Bash':
-      return { icon: 'fa-terminal', label, hint: str('description') || str('command') };
+    case 'Bash': {
+      // One line: the agent's reason when it gave one (Claude Code's Bash
+      // tool carries a `description`; Codex's commands don't), else the
+      // command's first line. The full command is a click (or hover) away.
+      const command = str('command');
+      const firstLine = command.split('\n').find((l) => l.trim().length > 0)?.trim() ?? '';
+      const reason = str('description').trim();
+      return {
+        icon: 'fa-terminal',
+        label,
+        hint: reason || firstLine,
+        hintTitle: command && command !== (reason || firstLine) ? command : undefined,
+      };
+    }
     case 'Edit':
     case 'MultiEdit': {
       const p = str('file_path');
@@ -1319,17 +1485,16 @@ const DIFF_MODAL_STYLES = {
   marker: { padding: '0 6px', minWidth: 0, fontFamily: 'var(--font-mono)' },
 };
 
-function ToolBlock({ body }: { body: MessageBodyTool }): JSX.Element {
+function ToolBlock({ body, chain }: { body: MessageBodyTool; chain: ChainPosition }): JSX.Element {
   const { t } = useTranslation();
   const chatId = useContext(ChatIdContext);
   const expandable = body.result !== undefined;
   const isError = !!body.isError;
-  // Edit / Write rows show the diff by default; Bash rows show the
-  // command + a short output preview. Both default-open since that's
-  // the whole point of glancing at them.
+  // Edit / Write rows show the diff by default — that's the whole point
+  // of glancing at them. A Bash row is one line — the reason the agent
+  // gave (or the command) — and opens to the command text + output.
   const defaultOpen =
-    body.name === 'Edit' || body.name === 'MultiEdit' ||
-    body.name === 'Write' || body.name === 'Bash';
+    body.name === 'Edit' || body.name === 'MultiEdit' || body.name === 'Write';
   const [open, setOpen] = useState(defaultOpen);
   const [outputModal, setOutputModal] = useState(false);
   const handleToggle = () => {
@@ -1339,7 +1504,7 @@ function ToolBlock({ body }: { body: MessageBodyTool }): JSX.Element {
     () => (body.result !== undefined ? truncateOutput(body.result, t) : null),
     [body.result, t],
   );
-  const { icon, label, hint, filePath } = presentTool(body.name, body.args, t);
+  const { label, hint, filePath, hintTitle } = presentTool(body.name, body.args, t);
   // For file-path hints, render just the basename inline; the full path
   // goes in the tooltip. Keeps the row scannable when paths are deep.
   const displayHint = filePath
@@ -1408,10 +1573,13 @@ function ToolBlock({ body }: { body: MessageBodyTool }): JSX.Element {
   const status = isError ? 'err' : expandable ? 'done' : 'live';
   const canToggle = expandable || hasRichBody(body);
 
+  // The timeline: a dot coloured by what the tool does (and red when
+  // it failed, hollow while it runs), joined to the neighbouring tool
+  // rows by a thin line — the Claude Code reading of a run of calls.
   return (
-    <div className={`tool ${canToggle ? 'expandable' : ''} ${open ? 'open' : ''} status-${status}`}>
+    <div className={`tool ${canToggle ? 'expandable' : ''} ${open ? 'open' : ''} status-${status} kind-${toolKind(body.name)} chain-${chain}`}>
       <div className="tool-head" onClick={handleToggle} role={canToggle ? 'button' : undefined}>
-        <i className={`fa-solid ${icon} tool-icon`} aria-hidden="true" />
+        <span className="tool-dot" aria-hidden="true" />
         <span className="name">{label}</span>
         {hint && filePath ? (
           <a
@@ -1429,7 +1597,7 @@ function ToolBlock({ body }: { body: MessageBodyTool }): JSX.Element {
             {displayHint}
           </a>
         ) : hint ? (
-          <span className="hint">{displayHint}</span>
+          <span className="hint" title={hintTitle}>{displayHint}</span>
         ) : null}
         <span className="dot" aria-hidden="true" />
         {canToggle && (

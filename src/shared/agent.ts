@@ -4,7 +4,7 @@
  * stub backend and the real backend produce indistinguishable streams.
  */
 
-import type { MessageRecord } from './persistence';
+import type { ChatRecord, MessageRecord } from './persistence';
 
 export type AgentEventType =
   | 'message-start'
@@ -16,6 +16,7 @@ export type AgentEventType =
   | 'session-status'
   | 'usage'
   | 'compaction'
+  | 'note'
   | 'error';
 
 export interface MessageStartEvent {
@@ -89,6 +90,24 @@ export interface TurnStartEvent {
   ts: number;
 }
 
+/**
+ * A message the user sent mid-turn was folded INTO the turn already
+ * running (Codex app-server `turn/steer`), rather than queued behind it.
+ * The model sees it at its next step, and it will never get a turn — or
+ * a `turn-start` — of its own.
+ *
+ * AgentHost needs to be told, because from the outside a steered message
+ * looks exactly like one still waiting in a queue: without this the chat
+ * would be held in 'run' after the turn ends, and the stall clock armed
+ * by the send would keep ticking over what may be minutes of perfectly
+ * healthy tool execution.
+ */
+export interface TurnSteeredEvent {
+  type: 'turn-steered';
+  chatId: string;
+  ts: number;
+}
+
 export interface SessionStatusEvent {
   type: 'session-status';
   chatId: string;
@@ -123,6 +142,22 @@ export interface CompactionEvent {
   durationMs?: number;
   /** Why it failed, e.g. "Not enough messages to compact." */
   error?: string;
+  ts: number;
+}
+
+/**
+ * A durable note from the backend for the transcript — a cloud session
+ * was created, ended, or its branch was pushed. Persisted by AgentHost
+ * as a system row (`<prefix>: text`, the prefix picks the row style)
+ * and re-broadcast as `message-added`; unlike `error`, it survives
+ * reloads.
+ */
+export interface NoteEvent {
+  type: 'note';
+  chatId: string;
+  /** The system-row prefix: `cloud` renders the cloud row. */
+  prefix: 'cloud';
+  text: string;
   ts: number;
 }
 
@@ -182,6 +217,43 @@ export interface PermissionDecidedEvent {
 }
 
 /**
+ * A chat record main changed on its own (not in answer to a renderer
+ * call) — e.g. a cloud chat whose session id just arrived from the CLI.
+ * Carries the whole fresh record so the renderer can swap it in.
+ */
+export interface ChatUpdatedEvent {
+  type: 'chat-updated';
+  chatId: string;
+  chat: ChatRecord;
+  ts: number;
+}
+
+/**
+ * The set of chats changed from main's side — an agent created, closed or
+ * reopened one through the popbot MCP tools. The renderer reloads its
+ * list; the record itself rides on the next `chats.list()`.
+ */
+export interface ChatsChangedEvent {
+  type: 'chats-changed';
+  chatId: string;
+  reason: 'created' | 'closed' | 'reopened';
+  ts: number;
+}
+
+/**
+ * An agent asks the app to show a message: the popbot go_to_message tool.
+ * The renderer focuses the chat (reopening it from the archive if it has
+ * to) and scrolls its transcript to the row — what the Search panel's
+ * "Go to" does.
+ */
+export interface GoToMessageEvent {
+  type: 'go-to-message';
+  chatId: string;
+  messageId: string;
+  ts: number;
+}
+
+/**
  * A row AgentHost has removed from the transcript. Used for messages
  * that were only ever provisional — the "no response, retrying…" notice
  * is deleted the moment the retry produces a real reply, so a
@@ -204,10 +276,15 @@ export type AgentEvent =
   | MessageEndEvent
   | MessageAddedEvent
   | MessageRemovedEvent
+  | ChatUpdatedEvent
+  | ChatsChangedEvent
+  | GoToMessageEvent
   | TurnStartEvent
+  | TurnSteeredEvent
   | SessionStatusEvent
   | UsageEvent
   | CompactionEvent
+  | NoteEvent
   | ErrorEvent;
 
 /**

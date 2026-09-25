@@ -1,0 +1,4 @@
+# The host image needs only the bundled daemon and its own files.
+*
+!dist-host/popbot-host.cjs
+!docker/host/entrypoint.sh

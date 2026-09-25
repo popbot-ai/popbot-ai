@@ -250,4 +250,22 @@ export abstract class SourceControlProvider {
   }): Promise<{ p4ShelfCl?: number | null }> {
     return Promise.resolve({});
   }
+
+  /* ---------- fork (a chat branched into its own workspace) ----------
+   *
+   * Land the fork's new branch in its freshly-prepared worktree at the tip of
+   * the ORIGINAL chat's branch as it stands right now — local commits and
+   * uncommitted work included — without disturbing the original. Providers
+   * that can't express this throw; the fork then fails with that message
+   * rather than silently starting the fork from base. */
+  forkChatWorkspace(_opts: {
+    repoPath: string;
+    /** The original chat's worktree, or null when it has none right now. */
+    sourceWorktreePath: string | null;
+    sourceBranch: string;
+    worktreePath: string;
+    branch: string;
+  }): Promise<void> {
+    return Promise.reject(new Error(`Forking a workspace is not supported for ${this.id} repos yet`));
+  }
 }

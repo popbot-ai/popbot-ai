@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import type { MessageKind, MessageRecord, MessageRole } from '@shared/persistence';
 import { db } from './db';
+import { searchMessagesSql, type SqlPredicates } from './fts';
 
 interface MessageRow {
   id: string;
@@ -49,6 +50,50 @@ export function listMessages(chatId: string, tail?: number): MessageRecord[] {
     )
     .all(chatId);
   return rows.map(rowToRecord);
+}
+
+export interface MessageSearchHit {
+  message: MessageRecord;
+  /** bm25 score: lower is a better match. */
+  rank: number;
+}
+
+/**
+ * Full-text search over message bodies (see fts.ts). `match` is an FTS5
+ * MATCH expression — build it with {@link ftsQueryFor} — or null to list
+ * by the predicates alone, newest first. Scoped to `chatIds` when given;
+ * archived chats' messages only with `includeClosed`. Throws on FTS5
+ * syntax errors in a raw query.
+ */
+export function searchMessages(
+  match: string | null,
+  opts: { chatIds?: string[]; includeClosed?: boolean; limit?: number; predicates?: SqlPredicates } = {},
+): MessageSearchHit[] {
+  const chatIds = opts.chatIds ?? [];
+  const predicates = opts.predicates ?? { where: [], params: [] };
+  const rows = db()
+    .prepare<unknown[], MessageRow & { rank: number }>(
+      searchMessagesSql({
+        chatIdCount: chatIds.length,
+        includeClosed: opts.includeClosed === true,
+        useFts: match !== null,
+        extraWhere: predicates.where,
+      }),
+    )
+    .all(...(match !== null ? [match] : []), ...chatIds, ...predicates.params, opts.limit ?? 50);
+  return rows.map((r) => ({ message: rowToRecord(r), rank: r.rank }));
+}
+
+/** A message's position in its chat — the index listMessages would give
+ *  it — so a search hit can be read in context with get_chat_transcript. */
+export function indexOfMessage(m: Pick<MessageRecord, 'id' | 'chatId' | 'createdAt'>): number {
+  const row = db()
+    .prepare<[string, number, number, string], { n: number }>(
+      `SELECT COUNT(*) AS n FROM messages
+        WHERE chat_id = ? AND (created_at < ? OR (created_at = ? AND id < ?))`,
+    )
+    .get(m.chatId, m.createdAt, m.createdAt, m.id);
+  return row?.n ?? 0;
 }
 
 export function getMessage(id: string): MessageRecord | null {
@@ -151,4 +196,37 @@ export function lastUserMessageAtByChat(): Map<string, number> {
     )
     .all();
   return new Map(rows.map((r) => [r.chat_id, r.at]));
+}
+
+/**
+ * Duplicate a chat's transcript into another chat — the fork's copy of
+ * the conversation. Rows keep their timestamps (ordering, relative
+ * times, and the provider-context watermarks all compare against them)
+ * and get fresh ids (message ids are global primary keys). Returns how
+ * many rows were copied.
+ */
+export function copyMessages(fromChatId: string, toChatId: string): number {
+  const conn = db();
+  const rows = conn
+    .prepare<[string], MessageRow>(
+      'SELECT * FROM messages WHERE chat_id = ? ORDER BY created_at ASC, id ASC',
+    )
+    .all(fromChatId);
+  const insert = conn.prepare(
+    'INSERT INTO messages (id, chat_id, role, kind, body, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
+  );
+  conn.transaction(() => {
+    for (const r of rows) {
+      insert.run(
+        'msg_' + randomUUID().replace(/-/g, '').slice(0, 12),
+        toChatId,
+        r.role,
+        r.kind,
+        r.body,
+        r.created_at,
+        r.updated_at,
+      );
+    }
+  })();
+  return rows.length;
 }

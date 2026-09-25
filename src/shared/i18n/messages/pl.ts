@@ -67,6 +67,7 @@ export const pl = {
   'menu.paste': 'Wklej',
   'menu.selectAll': 'Zaznacz wszystko',
   'menu.gitPanel': 'Panel Git',
+  'menu.searchChats': 'Szukaj w czatach…',
   'menu.resetZoom': 'Resetuj powiększenie',
   'menu.zoomIn': 'Powiększ',
   'menu.zoomOut': 'Pomniejsz',
@@ -93,6 +94,7 @@ export const pl = {
   // App shell (App.tsx).
   // ---------------------------------------------------------------------------
   'app.busy.worktreeFailed': 'Konfiguracja workspace’u nie powiodła się',
+  'app.busy.forking': 'Rozgałęzianie czatu…',
   'app.reconnect.title': 'Dyski workspace’u odłączone',
   'app.reconnect.message': 'Dyski workspace’u dla {repos} zostały odłączone po restarcie. Połącz ponownie, aby korzystać z ich slotów i czatów.',
   'app.reconnect.button': 'Połącz ponownie',
@@ -159,6 +161,7 @@ export const pl = {
   'panelA.tab.tickets': 'Tickety',
   'panelA.tab.reviews': 'Reviewy',
   'panelA.tab.slack': 'Slack',
+  'panelA.tab.hosts': 'Hosty',
   'panelA.tab.unseenTitle': '{count} nowych',
   'panelA.action.markAllTicketsSeen': 'Oznacz wszystkie {count} nowych ticketów jako obejrzane',
   'panelA.action.markAllReviewsSeen': 'Oznacz wszystkie {count} nowych PR jako obejrzane',
@@ -268,6 +271,7 @@ export const pl = {
   // ---------------------------------------------------------------------------
   'panelD.terminalTab': 'Terminal',
   'panelD.slotSuffix': ' · Slot {slotId}',
+  'panelD.cloudSuffix': ' · Chmura',
   'panelD.focusedLabel': 'aktywny: {name}',
   'panelD.newTerminal': 'Nowy terminal',
   'panelD.noWorktree': 'Ten czat nie ma jeszcze worktree slotu.',
@@ -291,9 +295,35 @@ export const pl = {
   'work.reviewNumber': 'Swarm review #{number}',
   'work.lookingUp': 'Wyszukiwanie…',
   'work.pinKind': 'Przypnij {kind}',
+  'work.found': 'Znaleziono',
+  'work.merged': 'SCALONY',
+  'work.closed': 'ZAMKNIĘTY',
   'work.tickets': 'Tickety',
   'work.prs': 'PR-y',
   'work.chats': 'Czaty',
+  'search.title': 'Szukaj w czatach',
+  'search.placeholder': 'Przeszukuje wszystkie zapisy – wystarczy fragment nazwy, identyfikatora lub błędu',
+  'search.tooShort': 'Wpisz co najmniej 3 znaki.',
+  'search.noResults': 'Brak wyników.',
+  'search.goTo': 'Przejdź',
+  'search.archived': 'zarchiwizowany',
+  'search.more': 'jeszcze {count} w tym czacie',
+  'search.hint': 'Enter otwiera najlepszy wynik · Esc zamyka',
+  'search.hintSuggest': 'Tab przyjmuje podpowiedź · Enter otwiera najlepszy wynik · Esc zamyka',
+  'search.buttonTitle': 'Szukaj w czatach ({shortcut})',
+  'search.tagsLabel': 'Filtry',
+  'search.tagsOnly': 'Najnowsze wpisy pasujące do tych filtrów – dodaj słowa, aby przeszukać ich tekst.',
+  'search.tag.ticket': 'Tylko czaty ticketów; dodaj klucz, aby wskazać jeden ticket (ticket:ENG-123)',
+  'search.tag.cr': 'Tylko czaty code review; dodaj numer, aby wskazać jeden PR (cr:123)',
+  'search.tag.lastWeek': 'Ostatnie 7 dni',
+  'search.tag.lastMonth': 'Ostatnie 30 dni',
+  'search.tag.fromUser': 'To, co napisałeś',
+  'search.tag.fromAgent': 'To, co napisał agent',
+  'search.tag.fromTool': 'Wywołania narzędzi i ich wynik',
+  'search.tag.tool': 'Konkretne narzędzie (tool:Bash)',
+  'search.tag.agent': 'Czaty Codex (albo agent:claude)',
+  'search.tag.inArchive': 'Tylko zarchiwizowane czaty',
+  'search.tag.chat': 'Czaty, których nazwa zawiera… (chat:login)',
   'work.emptyHint':
     'Brak wyników. Przypnij nowy: id Linear jak {id}, numer PR jak {pr}, albo Swarm review jak {swarm}.',
 
@@ -349,6 +379,16 @@ export const pl = {
   'slots.strip.occupiedAria': '{repo} slot {slotId} · {chatName}',
   'slots.strip.freeAria': '{repo} slot {slotId} · wolny',
   'slots.strip.setupBtn': 'Skonfiguruj sloty worktree',
+  'hosts.tab.loading': 'Pytam hosty…',
+  'hosts.tab.local': 'Ten komputer',
+  'hosts.tab.meta': 'popbot-host {version}',
+  'hosts.tab.unreachable': 'niedostępny',
+  'hosts.tab.openChats': '{count} otwartych',
+  'hosts.tab.noPools': 'Brak pul slotów.',
+  'hosts.tab.noSlots': 'brak slotów',
+  'hosts.tab.ephemeral': 'tymczasowe worktree',
+  'hosts.tab.noChats': 'Brak czatów na tym hoście.',
+  'hosts.tab.noHosts': 'Brak hostów.',
 
   // ---------------------------------------------------------------------------
   // Titlebar (Titlebar.tsx).
@@ -412,6 +452,7 @@ export const pl = {
   'chat.status.error': 'błąd',
   'chat.status.idle': 'bezczynny',
   'chat.col.settingsTitle': 'Ustawienia czatu',
+  'chat.col.menuTitle': 'Menu czatu',
   'chat.col.renameTitle': 'Kliknij, aby zmienić nazwę',
   'chat.slot.workspaceTitle': 'Slot workspace’u {slotId} · {repoId}',
   'chat.slot.fallback': 'Slot {slotId}',
@@ -426,6 +467,8 @@ export const pl = {
     'Agent pracuje… wpisz, aby dodać wiadomość do kolejki  ·  Shift+Enter dla nowej linii',
   'chat.input.placeholderIdle': 'Wyślij wiadomość…  ·  Shift+Enter dla nowej linii',
   'chat.input.placeholderInactive': 'Kliknij, aby ustawić ten czat jako aktywny',
+  'chat.input.placeholderCloudFirst': 'Opisz zadanie dla agenta w chmurze…',
+  'chat.input.placeholderCloud': 'Wyślij wiadomość do agenta w chmurze…',
   'chat.input.attachImage': 'Dołącz obraz',
   'chat.input.attachFile': 'Dołącz plik',
   'chat.input.model': 'Model',
@@ -438,7 +481,8 @@ export const pl = {
   'chat.context.unreported': 'Codex nie raportuje użycia kontekstu · ostatnia tura: {used} tokenów',
   'chat.context.menu.compact': 'Kompaktuj kontekst',
   'chat.context.menu.compacting': 'Kompaktowanie…',
-  'chat.context.menu.codexHint': 'Codex kompaktuje kontekst automatycznie',
+  'chat.context.menu.codexHint':
+    'Codex sam kompaktuje kontekst. Włącz „Steruj Codexem w trakcie pracy” w Preferencje ▸ Agenci, aby widzieć użycie i kompaktować na żądanie.',
   'chat.context.menu.runningHint': 'Poczekaj, aż agent skończy',
   'chat.context.compactingNote': 'Kompaktowanie kontekstu…',
   'chat.context.failedNote': 'Kompaktowanie nie powiodło się: {error}',
@@ -446,6 +490,28 @@ export const pl = {
   'chat.agentSwitch.message':
     'Identyfikator bieżącej sesji agenta zostanie zachowany, więc można później do niej wrócić. Nowy agent użyje własnej sesji i zostanie uruchomiony ponownie z transkrypcją tego czatu jako kontekstem. Część prywatnego stanu agenta może zostać utracona.',
   'chat.agentSwitch.confirm': 'Uruchom ponownie',
+  'chat.fork.name': '{name} (rozgałęzienie)',
+  'chat.cloud.chip': 'Chmura',
+  'chat.cloud.chipTitle': 'Działa w chmurowym sandboxie Anthropic · otwórz ustawienia czatu',
+  'chat.cloud.chipPendingTitle':
+    'Nie ma jeszcze sesji w chmurze – zacznie się od Twojej pierwszej wiadomości.',
+  'chat.cloud.pull': 'Pobierz pracę z chmury do checkoutu',
+  'chat.cloud.shutdown': 'Wyłącz czat w chmurze',
+  'chat.cloud.shutdownNone': 'Dla tego czatu nie działa żadna sesja w chmurze.',
+  'chat.cloud.shutdownConfirm':
+    'Wyłączyć sesję w chmurze teraz? Jeśli wciąż pracuje, najpierw zostanie przerwana. Wszystko, co nie zostało wypchnięte, przepadnie. Twoja następna wiadomość rozpocznie nową sesję przygotowaną na podstawie tej rozmowy.',
+  'chat.cloud.shutdownConfirmBranch':
+    'Wyłączyć sesję w chmurze teraz? Jeśli wciąż pracuje, najpierw zostanie przerwana. Wszystko, co nie zostało wypchnięte na {branch}, przepadnie. Twoja następna wiadomość rozpocznie nową sesję przygotowaną na podstawie tej rozmowy.',
+  'chat.host.chipTitle': 'Działa na {host} · otwórz ustawienia czatu',
+  'chat.host.chipPendingTitle': 'Działa na {host} – sesja zaczyna się od Twojej pierwszej wiadomości.',
+  'chat.host.shutdown': 'Zakończ na hoście',
+  'chat.host.shutdownConfirm':
+    'Zakończyć teraz sesję tego czatu na {host}? Wszystko, co agent tam robi, zostanie przerwane. Twoja następna wiadomość rozpocznie nową sesję na {host}, kontynuującą tę rozmowę.',
+  'chat.host.withRepo': 'Na {host} · {repo}',
+  'chat.host.noRepo': 'Na {host} · bez repo',
+  'chat.host.slotTitle': 'Slot {slot} repozytorium {repo} na {host}',
+  'chat.crossAgent.from': 'Od agenta w czacie „{name}”',
+  'chat.crossAgent.waiting': 'czeka na Twoją odpowiedź',
   'chat.app.terminal': 'Terminal',
   'chat.app.editor': 'Edytor',
   'chat.app.unity': 'Unity',
@@ -464,6 +530,16 @@ export const pl = {
   'chat.install.stepInstallDesc': 'Postępuj zgodnie z oficjalnym przewodnikiem instalacji {vendor} dla swojego systemu.',
   'chat.install.openGuide': 'Otwórz przewodnik instalacji {vendor}',
   'chat.install.stepSignin': 'Zaloguj się',
+  'auth.signIn.button': 'Zaloguj się',
+  'auth.signIn.title': 'Zaloguj się do {vendor}',
+  'auth.signIn.opening': 'Otwieranie przeglądarki, aby się zalogować…',
+  'auth.signIn.fallback': 'Jeśli przeglądarka się nie otworzyła:',
+  'auth.signIn.openLink': 'Otwórz stronę logowania',
+  'auth.signIn.pasteCode': 'Jeśli przeglądarka pokaże kod, wklej go tutaj:',
+  'auth.signIn.continue': 'Dalej',
+  'auth.signIn.done': 'Zalogowano.',
+  'auth.signIn.failed': 'Logowanie nie zostało ukończone (kod wyjścia {code}).',
+  'auth.signIn.retry': 'Spróbuj ponownie',
   'chat.install.stepRestart': 'Uruchom ponownie PopBot',
   'chat.install.stepRestartDesc':
     'PopBot sprawdza to ponownie przy uruchomieniu i automatycznie włącza agenta.',
@@ -475,6 +551,7 @@ export const pl = {
   'chat.ready.online': 'Online',
   'chat.ready.notFound': 'nie znaleziono',
   'chat.ready.howToInstall': 'Jak zainstalować',
+  'chat.ready.signedOut': 'Zainstalowano, ale nie zalogowano',
   'chat.ready.codexLabel': 'Codex',
   'chat.ready.optional': 'opcjonalne',
   'chat.ready.repoLabel': 'Repozytorium',
@@ -601,6 +678,30 @@ export const pl = {
   'chatSettings.restartTooltip': 'Uruchom nową sesję agenta zasiloną transkrypcją tego czatu',
   'chatSettings.restarting': 'Uruchamianie ponowne…',
   'chatSettings.restartWithContext': 'Uruchom ponownie z kontekstem',
+  'chatSettings.fork': 'Rozgałęź ten czat',
+  'chatSettings.forkDesc':
+    'Rozpocznij nowy czat od tego miejsca: dotychczasową rozmowę, pamięć agenta o niej oraz — w czacie z obszarem roboczym — świeży slot na nowej gałęzi z niezatwierdzonymi zmianami tego czatu. Oryginał działa dalej bez zmian.',
+  'chatSettings.forkButton': 'Rozgałęź czat',
+  'chatSettings.forkRunningHint': 'Poczekaj, aż agent skończy, a potem rozgałęź.',
+  'chatSettings.cloud': 'Sesja w chmurze',
+  'chatSettings.cloudDesc':
+    'Ten czat działa na Anthropic Managed Agents, w chmurowym sandboxie. Pracuje dalej po zamknięciu PopBota; to, co zrobił pod Twoją nieobecność, zostanie tu odtworzone po powrocie.',
+  'chatSettings.cloudSession': 'Sesja',
+  'chatSettings.cloudNone': 'Jeszcze nie uruchomiona – zacznie się od Twojej pierwszej wiadomości.',
+  'chatSettings.cloudEnded': 'zakończona · następna wiadomość rozpocznie nową sesję',
+  'chatSettings.cloudRepo': 'Repozytorium',
+  'chatSettings.cloudPullDesc':
+    'Sandbox commituje i pushuje na gałąź czatu w origin. Pull sprowadza te commity do checkoutu tego czatu (tylko fast-forward).',
+  'chatSettings.cloudPull': 'Pull z origin',
+  'chatSettings.host': 'Host',
+  'chatSettings.hostDesc':
+    'Agent tego czatu działa na innej maszynie. Transkrypcja, wyszukiwanie i ustawienia są tutaj.',
+  'chatSettings.hostName': 'Host',
+  'chatSettings.hostWorkspace': 'Przestrzeń robocza',
+  'chatSettings.hostScratch': 'folder tymczasowy',
+  'chatSettings.hostRoot': '{repo} · katalog główny repo',
+  'chatSettings.hostCwd': 'Katalog roboczy',
+  'chatSettings.hostNoCwd': 'Jeszcze nie uruchomiono – zacznie się od Twojej pierwszej wiadomości.',
   'chatSettings.tryReconnect': 'Spróbuj połączyć ponownie',
   'chatSettings.reconnectDesc':
     'Wybierz zapisaną sesję Claude dla worktree tego czatu. Przydatne, gdy automatyczne ponowne połączenie wybrało niewłaściwą i chcesz wymusić konkretną transkrypcję. Wybrana sesja zostanie przypięta, a agent uruchomiony w niej ponownie.',
@@ -629,6 +730,11 @@ export const pl = {
   'agent.effort.ultra': 'Ultra',
   'agent.label': 'Agent',
   'agent.model': 'Model',
+  'agent.cloudToggle': 'Chmura',
+  'agent.cloudToggleTitle':
+    'Uruchom ten czat w chmurowym sandboxie Anthropic (Managed Agents, rozliczanie kluczem API) – pracuje dalej po zamknięciu PopBota. Tylko Claude.',
+  'agent.runOn': 'Uruchom na',
+  'agent.runOnLocal': 'Tym komputerze',
   'agent.effort': 'Nakład pracy',
 
   // ---------------------------------------------------------------------------
@@ -776,6 +882,30 @@ export const pl = {
   'branch.dialog.loadBranchesError': 'Nie udało się wczytać branchy: {error}',
   'branch.dialog.freeChatDesc':
     'Działa w {repo} od katalogu głównego repo — bez slotu, worktree ani brancha.',
+  'branch.dialog.cloudDescNoRepo':
+    'Działa w chmurowym sandboxie Anthropic bez repozytorium i pracuje dalej po zamknięciu PopBota.',
+  'branch.dialog.cloudDescRoot':
+    'Działa w chmurowym sandboxie Anthropic, który klonuje zdalne repozytorium GitHub {repo} na gałęzi, na której jest root repozytorium (najpierw wypchniętej, jeśli origin jej jeszcze nie ma). Pracuje dalej po zamknięciu PopBota.',
+  'branch.dialog.cloudDescSlot':
+    'Działa w chmurowym sandboxie Anthropic: czat dostaje slot i gałąź jak zwykle, gałąź jest wypychana do origin, a sandbox ją klonuje. Slot zostaje lokalnie; commity z chmury pobierzesz z menu czatu. Pracuje dalej po zamknięciu PopBota.',
+  'branch.dialog.cloudGithubNote':
+    'Sandbox klonuje Twoim tokenem GitHub: zapisanym w Preferencje ▸ Agenci ▸ Czaty w chmurze albo tym, którym zalogowany jest gh.',
+  'branch.dialog.cloudNoKey':
+    'Czaty w chmurze wymagają klucza API Anthropic. Dodaj go w Preferencje ▸ Agenci ▸ Czaty w chmurze.',
+  'branch.dialog.hostLoading': 'Pytam {host}…',
+  'branch.dialog.hostUnreachable': 'Nie udało się połączyć z {host}: {error}',
+  'branch.dialog.hostRepoLabel': 'Repozytorium na {host}',
+  'branch.dialog.tagHostScratch': 'folder tymczasowy',
+  'branch.dialog.hostNoRepos': '{host} nie ma jeszcze repozytoriów – uruchom go z --repo id=/ścieżka.',
+  'branch.dialog.hostDescScratch':
+    'Działa na {host} w folderze tymczasowym bez repozytorium. Transkrypcja zostaje tutaj.',
+  'branch.dialog.hostDescRoot':
+    'Działa na {host} z katalogu głównego {repo}, na gałęzi, na której akurat stoi. Transkrypcja zostaje tutaj.',
+  'branch.dialog.hostDescSlot':
+    'Działa na {host} w worktree {repo} na gałęzi powyżej, utworzonej z gałęzi bazowej. Transkrypcja zostaje tutaj.',
+  'branch.dialog.disabled.host': 'Czekam na {host}',
+  'branch.dialog.hostFree': 'Wolne sloty: {free} z {count}.',
+  'branch.dialog.disabled.hostNoSlot': 'Brak wolnego slotu w {repo} na {host}',
   'branch.dialog.createChat': 'Utwórz czat',
 
   // ---------------------------------------------------------------------------
@@ -805,6 +935,7 @@ export const pl = {
   'prefs.search': 'Szukaj w preferencjach…',
   'prefs.section.integ': 'Integracje',
   'prefs.section.agents': 'Agenci',
+  'prefs.section.hosts': 'Hosty',
   'prefs.section.runtime': 'Środowisko uruchomieniowe',
   'prefs.section.repos': 'Repozytoria',
   'prefs.section.git': 'Kontrola wersji',
@@ -826,6 +957,73 @@ export const pl = {
   'prefs.agents.codeReviews.title': 'Code review',
   'prefs.agents.codeReviews.desc':
     'Używane przez czaty review PR, czaty zapasowe re-review i powiadomienia o review.',
+  'prefs.agents.codexSteering.title': 'Steruj Codexem w trakcie pracy',
+  'prefs.agents.codexSteering.desc':
+    'Łączy się z Codexem przez jego app-server zamiast SDK exec, dzięki czemu wiadomość wysłana, gdy Codex jest zajęty, dociera do niego w następnym kroku, zamiast czekać na koniec tury. Zasila też wskaźnik kontekstu w czatach Codex i włącza Kompaktuj kontekst. Funkcja eksperymentalna w CLI Codex; wymaga codex 0.153 lub nowszego. Działa od następnej wiadomości w każdym czacie.',
+  'prefs.agents.codexSteering.on': 'Wł. — wiadomości docierają do Codexa w trakcie tury',
+  'prefs.agents.codexSteering.off': 'Wył. — wiadomości czekają na koniec tury',
+  'prefs.agents.mcp.title': 'Narzędzia PopBota dla agentów',
+  'prefs.agents.mcp.desc':
+    'Daje agentowi każdego czatu serwer MCP „popbot”: listowanie, tworzenie, zamykanie i ponowne otwieranie czatów, wysyłanie wiadomości do innych czatów i czekanie na odpowiedź, uruchamianie code review i czatów do ticketów oraz czytanie i przeszukiwanie zapisów. Obowiązuje od następnej sesji agenta w każdym czacie.',
+  'prefs.agents.mcp.on': 'Włączone — agenci mogą sterować PopBotem',
+  'prefs.agents.mcp.off': 'Wyłączone — bez narzędzi popbot',
+  'prefs.agents.cloud.title': 'Czaty w chmurze',
+  'prefs.agents.cloud.desc':
+    'Czat utworzony z chipem Cloud działa na Anthropic Managed Agents: sesja w chmurowym sandboxie Anthropic, rozliczana za tokeny na Twoim koncie Console, która pracuje dalej po zamknięciu PopBota.',
+  'prefs.agents.cloud.apiKey.title': 'Klucz API Anthropic',
+  'prefs.agents.cloud.apiKey.desc':
+    'Przechowywany lokalnie w bazie danych tej aplikacji. Zostaw puste, aby użyć zmiennej środowiskowej ANTHROPIC_API_KEY.',
+  'prefs.agents.cloud.getKey': 'Uzyskaj klucz',
+  'prefs.agents.cloud.githubToken.title': 'Token GitHub',
+  'prefs.agents.cloud.githubToken.desc':
+    'Sandbox klonuje nim Twoje repozytoria (zakres repo). Zostaw puste, aby użyć tokenu, którym zalogowany jest gh.',
+  'prefs.agents.cloud.workspace.title': 'ID workspace’u',
+  'prefs.agents.cloud.workspace.desc':
+    'Tylko dla klucza niepowiązanego z workspace’em (sprawdzenie to zgłosi): id wrkspc_… ze strony Workspaces w Console. Klucz utworzony wewnątrz workspace’u go nie potrzebuje.',
+  'prefs.agents.cloud.envKey': 'Używana jest zmienna środowiskowa ANTHROPIC_API_KEY.',
+  'prefs.agents.cloud.noKey': 'Nie ma jeszcze klucza – czaty w chmurze są niedostępne.',
+  'prefs.agents.cloud.ghToken': 'GitHub: używany jest token, którym zalogowany jest gh.',
+  'prefs.agents.cloud.noGh': 'GitHub: brak tokenu – zapisz go tutaj albo uruchom gh auth login.',
+  'prefs.agents.cloud.ok': 'Klucz działa.',
+  'prefs.agents.cloud.error': 'Zapisano, ale klucz nie zadziałał: {error}',
+  'prefs.hosts.title': 'Hosty',
+  'prefs.hosts.desc':
+    'Inne maszyny, które uruchamiają czaty dla tego PopBota. Na każdej działa popbot-host: zbuduj go, skopiuj dist-host/popbot-host.cjs i uruchom raz z --init, aby zapisać konfigurację i wypisać token. Transkrypcja, wyszukiwanie i ustawienia czatu zostają tutaj; agent, jego narzędzia i checkout są tam. Zdalną maszynę osiągniesz przez tunel SSH: ssh -L 7677:127.0.0.1:7677 maszyna.',
+  'prefs.hosts.none': 'Brak hostów – czaty działają na tym komputerze.',
+  'prefs.hosts.add': 'Dodaj host',
+  'prefs.hosts.defaultName': 'Nowy host',
+  'prefs.hosts.name': 'Nazwa',
+  'prefs.hosts.url': 'URL',
+  'prefs.hosts.token': 'Token',
+  'prefs.hosts.remove': 'Usuń',
+  'prefs.hosts.removeTitle': 'Usuń host',
+  'prefs.hosts.removeConfirm':
+    'Usunąć {name}? Czaty już na nim zostają, ale nie będą mogły się z nim połączyć.',
+  'prefs.hosts.checking': 'Sprawdzam…',
+  'prefs.hosts.ok':
+    'popbot-host {version} na {platform} · Claude: {claude} · Codex: {codex} · repozytoria: {repos}',
+  'prefs.hosts.okNoRepos': 'jeszcze żadnych (uruchom z --repo id=/ścieżka)',
+  'prefs.hosts.error': 'Nie udało się połączyć: {error}',
+  'prefs.hosts.found': 'znaleziono',
+  'prefs.hosts.missing': 'nie znaleziono',
+  'prefs.hosts.noUrl': 'Podaj URL i token.',
+  'prefs.hosts.repos.title': 'Repozytoria na tym hoście',
+  'prefs.hosts.repos.none': 'Jeszcze żadnych. Dodaj poniżej; ścieżka dotyczy hosta.',
+  'prefs.hosts.repos.id': 'Id',
+  'prefs.hosts.repos.path': 'Ścieżka na hoście',
+  'prefs.hosts.repos.defaultBase': 'Gałąź bazowa',
+  'prefs.hosts.repos.slotPrefix': 'Prefiks slotu',
+  'prefs.hosts.repos.slotCount': 'Sloty',
+  'prefs.hosts.repos.mode': 'Tryb',
+  'prefs.hosts.repos.modeSlots': 'pula slotów',
+  'prefs.hosts.repos.modeEphemeral': 'tymczasowy',
+  'prefs.hosts.repos.add': 'Dodaj repozytorium',
+  'prefs.hosts.repos.remove': 'Usuń',
+  'prefs.hosts.repos.removeConfirm': 'Usunąć {repo} z {host}? Jego worktree zostają na dysku.',
+  'prefs.hosts.repos.error': 'Nie udało się zapisać: {error}',
+  'prefs.hosts.local.desc': 'Zawsze obecny; nie można go usunąć.',
+  'prefs.hosts.local.noRepos': 'Brak repozytoriów.',
+  'prefs.hosts.local.manage': 'Zarządzaj repozytoriami i slotami',
 
   // Preferences — Runtime / attachment retention pane.
   'prefs.runtime.title': 'Przechowywanie załączników',
@@ -1230,10 +1428,15 @@ export const pl = {
   'language.systemNote': 'Nowe okna i menu aplikacji również będą używać tego języka.',
   // --- What's-new popup (WhatsNewDialog.tsx) — update each release ---
   'whatsNew.title': 'Co nowego w PopBot',
-  'whatsNew.f1.h': 'Claude Fable 5.1 i GPT-6 Astra',
-  'whatsNew.f1.p': 'Najnowsze modele frontier od Anthropic i OpenAI są w wyborze modelu. Oba to premiery o ograniczonej dostępności, więc są opcjonalne: twoje czaty zachowują swój model, a Opus 5 i GPT-5.6 Sol pozostają domyślne.',
-  'whatsNew.f2.h': 'Wskaźnik kontekstu, kompaktowanie i porządek w obszarze roboczym',
-  'whatsNew.f2.p': 'Pierścień w polu wpisywania pokazuje, jak zapełnione jest okno kontekstu, z kompaktowaniem jednym kliknięciem. Przeciągaj miniatury, aby zmieniać kolejność czatów, kliknij tytuł kolumny, aby zmienić nazwę, a RE-REVIEW pozostaje teraz, dopóki naprawdę nie przejrzysz ponownie.',
+  'whatsNew.f1.h': 'Uruchamiaj czaty na innych maszynach',
+  'whatsNew.f1.p':
+    'Dodaj host w Ustawieniach ▸ Hosty – dowolną maszynę z popbot-host albo opublikowany kontener – i wybierz go w polu Uruchom na przy tworzeniu czatu. Agent, jego narzędzia i checkout działają tam, w puli slotów hosta; transkrypcja, wyszukiwanie i ustawienia zostają tutaj. Zakładka Hosty pokazuje sloty i czaty każdej maszyny.',
+  'whatsNew.f2.h': 'Czaty w chmurze na Anthropic Managed Agents',
+  'whatsNew.f2.p':
+    'Włącz chip Cloud, a czat działa w chmurowym sandboksie Anthropic rozliczanym z Twojego klucza API: klonuje Twoją gałąź z GitHuba, wypycha do niej zmiany, pracuje dalej po zamknięciu PopBota i nadrabia zaległości po Twoim powrocie. Kończy go tylko Zakończ czat w chmurze.',
+  'whatsNew.f3.h': 'Claude Opus 5.5 i dużo więcej',
+  'whatsNew.f3.p':
+    'Opus 5.5 jest w wyborze modeli jako opcja; Twoje domyślne ustawienia się nie zmieniają. Agenci sterują PopBotem własnymi narzędziami i piszą do siebie z czytelnym nadawcą, wyszukiwanie pełnotekstowe obejmuje każdy czat, wywołania narzędzi rysują oś czasu, czaty można rozgałęziać, logujesz się z aplikacji, a ustawienia zapisują się same – bez przycisków Zapisz.',
   'whatsNew.gotIt': 'Rozumiem',
   // --- Auto-update prompts (persisted via the notification system) ---
   'app.update.restartAction': 'Uruchom ponownie i zainstaluj',

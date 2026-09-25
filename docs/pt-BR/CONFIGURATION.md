@@ -1,6 +1,6 @@
 # Configurando o PopBot
 
-Tudo no PopBot é configurado no próprio app através de **Preferências** (a engrenagem na barra de título, ou `⌘,`) — não há arquivos de configuração para editar manualmente. Este guia percorre cada painel na ordem em que a navegação os lista, o que é aproximadamente a ordem em que você os configuraria pela primeira vez.
+Tudo no PopBot é configurado no próprio app através de **Preferências** (a engrenagem na barra de título, ou `⌘,`) — não há arquivos de configuração para editar manualmente. Este guia percorre cada painel na ordem em que a navegação os lista, o que é aproximadamente a ordem em que você os configuraria pela primeira vez. Não há botão Salvar em lugar nenhum: um campo é salvo no momento em que você sai dele (ou pressiona Enter), um interruptor no momento em que você o alterna, e fechar as Preferências salva o que ainda estiver pendente.
 
 > Credenciais que você insere (Linear, Jira, GitHub, Perforce, etc.) são armazenadas **localmente na sua máquina** no próprio banco de dados do app — nunca neste repositório.
 
@@ -22,7 +22,7 @@ Um único rastreador de issues ativo alimenta a fila de Tickets. Escolha-o no se
 - **Jira** — insira a URL do seu site (`https://your-domain.atlassian.net`), o e-mail da conta, e um token de API (de *id.atlassian.com → Security → API tokens*). Opcionalmente restrinja a um **Project** e adicione um filtro **JQL** (por exemplo, `labels = backend`). Salvar verifica as credenciais antes de persisti-las.
 - **GitHub** — GitHub Issues não precisa de credenciais aqui: o provedor invoca a CLI `gh` que você já autenticou para revisões e ações git, e a fila abrange os mesmos repositórios configurados em [Repositórios](#repositórios). O formulário é uma verificação de status que confirma que o `gh` está instalado e autenticado e relata quantos repositórios ele cobre.
 
-Cada rastreador com credenciais as verifica ao **Salvar** antes de persistir, e mostra uma pílula de status *Conectado / Não conectado*.
+Cada rastreador com credenciais as verifica assim que você sai de um campo de credencial, as salva de qualquer forma e mostra uma pílula de status *Conectado / Não conectado* com o resultado.
 
 ### Engines de jogo
 
@@ -48,6 +48,30 @@ Diferente da fonte de tickets de seleção única, engines são **independentes*
   - **Revisões de código** — chats de revisão de PR, chats de fallback de re-revisão, e notificações de revisão.
 
 Mais esforço significa raciocínio mais profundo e uso mais completo de ferramentas, a um custo e latência maiores. Revisões frequentemente querem uma profundidade diferente de construções de feature — daí a divisão.
+
+**Orientar o Codex enquanto ele trabalha** *(desativado por padrão)* — conecta-se ao Codex pelo `app-server` em vez do SDK exec. Com a opção ativada, uma mensagem enviada enquanto o Codex está ocupado é incorporada ao turno em andamento e chega ao modelo no próximo passo — normalmente assim que o comando em execução retorna — em vez de esperar o turno terminar. Também alimenta o medidor de contexto nos chats do Codex, habilita neles **Compactar contexto** e faz o **Stop** interromper o turno de forma limpa. O Codex rotula o `app-server` como experimental e ele exige `codex` 0.153 ou mais recente, por isso é opcional; uma CLI mais antiga simplesmente volta a enfileirar. A chave vale a partir da próxima mensagem de cada chat, e um chat alterna entre as duas conexões sem perder sua thread.
+
+**Ferramentas do PopBot para agentes** *(ligado por padrão)* — dá ao agente de cada chat um servidor MCP `popbot` com ferramentas para listar, criar, fechar e reabrir chats, enviar mensagem a outro chat e aguardar a resposta, iniciar code reviews e chats de tickets, e ler e pesquisar transcrições (veja [Ferramentas do PopBot para agentes](GUIDE.md#ferramentas-do-popbot-para-agentes)). O servidor escuta só em localhost, em uma porta aleatória com um segredo por inicialização na URL. Desligar vale a partir da próxima sessão de agente de cada chat.
+
+**Chats na nuvem** — a *chave de API da Anthropic* com que os chats na nuvem rodam (armazenada localmente; na falta dela, usa-se a variável de ambiente `ANTHROPIC_API_KEY`) e o *token do GitHub* com que o sandbox clona repositórios (escopo `repo`; na falta dele, usa-se `gh auth token`). Um chat na nuvem com repositório precisa dos dois; um sem repositório precisa só da chave. Salvar com uma chave a verifica primeiro na API. As sessões na nuvem são cobradas por token na conta do Console da chave, não em uma assinatura do Claude. No primeiro uso, o PopBot cria nessa conta um ambiente e um agente por modelo e esforço, e depois os reutiliza (veja [Executar na nuvem](GUIDE.md#chats)). Uma chave no nível da organização (não criada dentro de um workspace) também precisa do *ID do workspace* (`wrkspc_…`, da página Workspaces do Console); a verificação da chave avisa quando ele falta.
+
+## Hosts
+
+Outras máquinas que executam chats para este PopBot. Cada uma roda o `popbot-host`, um daemon Node de arquivo único compilado a partir deste repositório:
+
+```sh
+npm run build:host                       # grava dist-host/popbot-host.cjs
+node dist-host/popbot-host.cjs --init --repo popbot=/caminho/do/checkout
+node dist-host/popbot-host.cjs           # escuta em 127.0.0.1:7677
+```
+
+`--init` grava `~/.popbot-host/config.json` (endereço de escuta, porta, um token bearer aleatório, uma pasta de espaços de trabalho, os repositórios por id e caminho) e imprime o token; edite o arquivo ou passe `--port`, `--bind`, `--token`, `--name`, `--workspaces` e mais opções `--repo id=/caminho`. O host precisa do Node 20 ou mais novo e da CLI `claude` e/ou `codex` no PATH. Ele não copia nada desta máquina nem guarda transcrições — apenas as sessões ativas e seu registro de eventos, que um PopBot reconectado reproduz de onde parou. Ele escuta em localhost; alcance uma máquina remota por um túnel SSH (`ssh -L 7677:127.0.0.1:7677 maquina`) em vez de expor a porta.
+
+Ou rode a imagem publicada sem instalar nada: `ghcr.io/popbot-ai/popbot-host` (construída pelo workflow *Host image* a cada tag de versão) traz Node, git e as duas CLIs em volta do daemon. `docker/host/docker-compose.yml` é um exemplo pronto: monte seus checkouts em `/repos`, um volume em `/data` para configuração, espaços de trabalho e logs, e os logins de um usuário que rodou `claude` e `codex login` uma vez em `/home/popbot/.claude` e `/home/popbot/.codex` (num Mac, exporte o login do Claude das Chaves com `security find-generic-password -s "Claude Code-credentials" -w` para `.claude/.credentials.json`). Passe `--repo id=/repos/x` e `--slots x=4` como comando do contêiner, publique a porta 7677 em localhost ou num endereço da tailnet e leia o token nas primeiras linhas do log do contêiner (ou defina `POPBOT_HOST_TOKEN`).
+
+No PopBot, *Adicionar host* cria um registro com o endereço local preenchido; defina o nome, a URL e o token (os campos salvam ao sair deles) e o painel pergunta ao host o que ele é: sua versão, se encontrou Claude e Codex e seus repositórios. Os worktrees de um host ficam na sua pasta de espaços de trabalho (`~/.popbot-host/workspaces/<repo>/<branch>`); anexos enviados vão para `attachments/<id do chat>` lá. As regras de permissão viajam com cada requisição, então decisões de *Sempre permitir* valem no host da mesma forma. Remova um host e os chats que já estão nele continuam na lista, mas não conseguem mais alcançá-lo. Veja [Executar em outra máquina](GUIDE.md#chats).
+
+Este computador é sempre a primeira entrada e não pode ser removido; seus repositórios e pools de slots são a seção Repositórios. Os repositórios de cada outro host são editados no seu card — o caminho no host, o branch base e o pool de slots: um prefixo, uma quantidade ou *efêmero* para um worktree por chat — e o host regrava sua configuração (`--slots id=N` ou `--slots id=ephemeral` faz o mesmo pela linha de comando; um repo novo recebe quatro slots com o nome do seu id). Os worktrees de slot ficam em `<workspaces>/<repo>/<prefixo>-N`, estacionados em `<repo>/slotN` quando livres; quem segura o quê fica em `<workspaces>/state.json` entre reinícios do host.
 
 ## Runtime e slots
 

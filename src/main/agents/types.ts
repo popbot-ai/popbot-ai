@@ -1,10 +1,16 @@
+import type { SessionStore } from '@anthropic-ai/claude-agent-sdk';
 import type { AgentEvent, PermissionDecision } from '@shared/agent';
 import type { PickedAttachment } from '@shared/ipc';
+import type { HostRules } from '@shared/hostProtocol';
 import type {
+  AgentBackendId,
   ClaudeModelId,
   ClaudeReasoningEffort,
+  CloudChatInfo,
   CodexModelId,
   CodexReasoningEffort,
+  HostChatInfo,
+  HostRecord,
 } from '@shared/persistence';
 
 /**
@@ -15,7 +21,7 @@ import type {
  * `onEvent` callback. The host re-broadcasts to renderer + persistence.
  */
 export interface AgentBackend {
-  readonly id: 'claude' | 'codex' | 'stub';
+  readonly id: 'claude' | 'codex' | 'cloud' | 'remote' | 'stub';
   readonly capabilities: {
     skills: boolean;
     memory: boolean;
@@ -100,6 +106,58 @@ export interface SpawnOpts {
    * backend (Claude) consumes this today. Keyed by server name.
    */
   mcpServers?: Record<string, { type: 'http'; url: string }>;
+  /**
+   * Claude only: where the SDK keeps the session transcript. The desktop
+   * passes its SQLite store (the canonical context store); the host
+   * daemon, which has no database, leaves it out and the CLI keeps its
+   * own JSONL under ~/.claude.
+   */
+  sessionStore?: SessionStore | null;
+  /**
+   * Cloud chats only (the Managed Agents backend): the session to
+   * reattach to, what to mount, and how to record what the backend
+   * learns. The host owns the chat row; the backend reports through
+   * `onCloudUpdate` and never writes the DB itself.
+   */
+  cloud?: CloudSpawnOpts;
+  /**
+   * Host chats only (the remote backend): which host, the chat's stored
+   * host state, and how to report what the backend learns. As with
+   * cloud chats, the host owns the chat row.
+   */
+  remote?: RemoteSpawnOpts;
+}
+
+export interface RemoteSpawnOpts {
+  host: HostRecord;
+  /** The chat's stored host state, as it stands at spawn. */
+  info: HostChatInfo;
+  /** Which CLI the host should run — the chat's agent column. */
+  agent: AgentBackendId;
+  /** The desktop's current permission rules, sent to the host at spawn
+   *  and after every decision (which may have added one). */
+  rules(): HostRules;
+  /** The "respond in the user's language" sentence for the preamble
+   *  (empty for English). */
+  languageDirective: string;
+  /** Merge a change into the chat's stored host state. */
+  onHostUpdate(patch: Partial<HostChatInfo>): void;
+}
+
+export interface CloudSpawnOpts {
+  /** The chat's stored cloud state, as it stands at spawn. */
+  info: CloudChatInfo;
+  /** Session title on the Anthropic side — the chat's name. */
+  title: string;
+  /** The local checkout the cloud session mirrors: a slot / worktree on
+   *  its own branch (pushed before the session is created), or the repo
+   *  root on whatever branch it is on. Null for a chat with no repo. */
+  workspace: { localPath: string; branch: string | null; ownBranch: boolean } | null;
+  /** The "respond in the user's language" sentence for the preamble
+   *  (empty for English). */
+  languageDirective: string;
+  /** Merge a change into the chat's stored cloud state. */
+  onCloudUpdate(patch: Partial<CloudChatInfo>): void;
 }
 
 export interface AgentSession {

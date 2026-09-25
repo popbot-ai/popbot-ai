@@ -8,6 +8,7 @@
  * so we keep a rolling output buffer here and replay it whenever a
  * fresh xterm attaches via `attach()`.
  */
+import { homedir } from 'node:os';
 import { spawn, type IPty } from 'node-pty';
 import type { WebContents } from 'electron';
 import { IpcChannel } from '@shared/ipc';
@@ -24,7 +25,13 @@ interface Entry {
   cwd: string;
   cols: number;
   rows: number;
+  /** Main-side readers of this pty's output (besides the renderer). */
+  listeners: Set<(data: string) => void>;
 }
+
+/** Which shell family the in-app terminal runs — decides how a command
+ *  main writes into it has to be quoted. */
+export type ShellKind = 'posix' | 'powershell' | 'cmd';
 
 const sessions = new Map<string, Entry>();
 let webContents: WebContents | null = null;
@@ -42,25 +49,44 @@ let webContents: WebContents | null = null;
  * `POPBOT_TERMINAL_SHELL` (absolute path to any shell binary) overrides
  * everything, on any platform.
  */
-function resolveShell(): { file: string; args: string[] } {
+function resolveShell(): { file: string; args: string[]; kind: ShellKind } {
   const override = process.env.POPBOT_TERMINAL_SHELL;
-  if (override) return { file: override, args: [] };
+  if (override) return { file: override, args: [], kind: process.platform === 'win32' ? 'powershell' : 'posix' };
   if (process.platform === 'win32') {
     const choice = getSetting<{ windowsShell?: string }>('apps')?.windowsShell || 'powershell';
     switch (choice) {
       case 'cmd':
-        return { file: process.env.ComSpec || 'cmd.exe', args: [] };
+        return { file: process.env.ComSpec || 'cmd.exe', args: [], kind: 'cmd' };
       case 'pwsh':
-        return { file: 'pwsh.exe', args: ['-NoLogo'] };
+        return { file: 'pwsh.exe', args: ['-NoLogo'], kind: 'powershell' };
       case 'powershell':
       default:
-        return { file: 'powershell.exe', args: ['-NoLogo'] };
+        return { file: 'powershell.exe', args: ['-NoLogo'], kind: 'powershell' };
     }
   }
   return {
     file: process.env.SHELL || (process.platform === 'darwin' ? '/bin/zsh' : '/bin/bash'),
     args: ['-l'],
+    kind: 'posix',
   };
+}
+
+export function shellKind(): ShellKind {
+  return resolveShell().kind;
+}
+
+/** Quote one argument for a command line typed into the in-app shell. */
+export function quoteForShell(text: string, kind: ShellKind = shellKind()): string {
+  switch (kind) {
+    case 'powershell':
+      return `'${text.replace(/'/g, "''")}'`;
+    case 'cmd':
+      // cmd has no multi-line arguments; node CLIs parse `""` as a quote.
+      return `"${text.replace(/\r?\n/g, ' ').replace(/"/g, '""')}"`;
+    case 'posix':
+    default:
+      return `'${text.replace(/'/g, "'\\''")}'`;
+  }
 }
 
 export function attachWebContents(wc: WebContents): void {
@@ -77,7 +103,9 @@ function broadcast(chatId: string, data: string): void {
  * existing entry's, we tear it down and start fresh — usually a sign
  * the slot worktree got reassigned.
  */
-export function open(chatId: string, cwd: string, cols = 100, rows = 30): { ok: true; buffer: string } {
+export function open(chatId: string, cwdWanted: string, cols = 100, rows = 30): { ok: true; buffer: string } {
+  // A chat with no folder of its own (a no-repo cloud chat) gets home.
+  const cwd = cwdWanted && cwdWanted !== '~' ? cwdWanted : homedir();
   let entry = sessions.get(chatId);
   if (entry && entry.cwd !== cwd) {
     dispose(chatId);
@@ -92,7 +120,7 @@ export function open(chatId: string, cwd: string, cols = 100, rows = 30): { ok: 
       cwd,
       env: process.env as Record<string, string>,
     });
-    entry = { pty, buffer: '', cwd, cols, rows };
+    entry = { pty, buffer: '', cwd, cols, rows, listeners: new Set() };
     pty.onData((data: string) => {
       entry!.buffer += data;
       // Truncate from the front when we exceed the cap.
@@ -100,6 +128,9 @@ export function open(chatId: string, cwd: string, cols = 100, rows = 30): { ok: 
         entry!.buffer = entry!.buffer.slice(entry!.buffer.length - BUFFER_CAP_BYTES);
       }
       broadcast(chatId, data);
+      for (const fn of entry!.listeners) {
+        try { fn(data); } catch { /* a reader's bug must not break the terminal */ }
+      }
     });
     pty.onExit(() => {
       sessions.delete(chatId);
@@ -108,6 +139,19 @@ export function open(chatId: string, cwd: string, cols = 100, rows = 30): { ok: 
     sessions.set(chatId, entry);
   }
   return { ok: true, buffer: entry.buffer };
+}
+
+export function has(chatId: string): boolean {
+  return sessions.has(chatId);
+}
+
+/** Read the chat's terminal output from main (e.g. to spot a session id
+ *  the CLI prints). Returns the unsubscribe; the pty's disposal ends it. */
+export function onOutput(chatId: string, fn: (data: string) => void): () => void {
+  const e = sessions.get(chatId);
+  if (!e) return () => undefined;
+  e.listeners.add(fn);
+  return () => { e.listeners.delete(fn); };
 }
 
 export function write(chatId: string, data: string): void {

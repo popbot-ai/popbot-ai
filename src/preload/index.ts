@@ -10,6 +10,7 @@ import type {
 } from '@shared/git';
 import type { SourceControlProviderId } from '@shared/sourceControl';
 import type { GameEngineId } from '@shared/gameEngine';
+import type { HostRepo } from '@shared/hostProtocol';
 import {
   IpcChannel,
   type ApprovePermissionInput,
@@ -17,8 +18,13 @@ import {
   type CloseChatOptions,
   type ConfigureAgentInput,
   type CreateChatInput,
+  type AuthProvider,
+  type AuthLoginEvent,
+  type ForkChatInput,
+  type TranscriptSearchOptions,
   type CreateRepoInput,
   type PopBotApi,
+  type SaveHostInput,
   type SendMessageInput,
   type UpdateRepoInput,
 } from '@shared/ipc';
@@ -54,8 +60,15 @@ const api: PopBotApi = {
     attachSlot: (chatId: string) => ipcRenderer.invoke(IpcChannel.ChatsAttachSlot, chatId),
     reorder: (ids: string[]) => ipcRenderer.invoke(IpcChannel.ChatsReorder, ids),
     rename: (chatId: string, name: string) => ipcRenderer.invoke(IpcChannel.ChatsRename, chatId, name),
+    fork: (input: ForkChatInput) => ipcRenderer.invoke(IpcChannel.ChatsFork, input),
+    searchTranscripts: (query: string, opts?: TranscriptSearchOptions) =>
+      ipcRenderer.invoke(IpcChannel.ChatsSearchTranscripts, query, opts),
+    listRefs: () => ipcRenderer.invoke(IpcChannel.ChatsListRefs),
     listMessages: (chatId: string, tail?: number) =>
       ipcRenderer.invoke(IpcChannel.MessagesList, chatId, tail),
+  },
+  diag: {
+    log: (tag: string, data?: Record<string, unknown>) => ipcRenderer.send(IpcChannel.DiagLog, tag, data),
   },
   settings: {
     get: <T = unknown>(key: string) =>
@@ -226,6 +239,34 @@ const api: PopBotApi = {
       ipcRenderer.on(IpcChannel.AgentEvent, listener);
       return () => ipcRenderer.removeListener(IpcChannel.AgentEvent, listener);
     },
+  },
+  auth: {
+    startLogin: (provider: AuthProvider) => ipcRenderer.invoke(IpcChannel.AuthLoginStart, provider),
+    sendLoginInput: (provider: AuthProvider, text: string) =>
+      ipcRenderer.invoke(IpcChannel.AuthLoginInput, provider, text),
+    cancelLogin: (provider: AuthProvider) => ipcRenderer.invoke(IpcChannel.AuthLoginCancel, provider),
+    onLoginEvent: (handler: (event: AuthLoginEvent) => void) => {
+      const listener = (_e: IpcRendererEvent, event: AuthLoginEvent) => handler(event);
+      ipcRenderer.on(IpcChannel.AuthLoginEvent, listener);
+      return () => ipcRenderer.removeListener(IpcChannel.AuthLoginEvent, listener);
+    },
+  },
+  cloud: {
+    status: () => ipcRenderer.invoke(IpcChannel.CloudStatus),
+    testKey: (apiKey: string, workspaceId?: string) => ipcRenderer.invoke(IpcChannel.CloudTestKey, apiKey, workspaceId),
+    pull: (chatId: string) => ipcRenderer.invoke(IpcChannel.CloudPull, chatId),
+    shutdown: (chatId: string) => ipcRenderer.invoke(IpcChannel.CloudShutdown, chatId),
+  },
+  hosts: {
+    list: () => ipcRenderer.invoke(IpcChannel.HostsList),
+    save: (input: SaveHostInput) => ipcRenderer.invoke(IpcChannel.HostsSave, input),
+    remove: (id: string) => ipcRenderer.invoke(IpcChannel.HostsRemove, id),
+    probe: (url: string, token: string) => ipcRenderer.invoke(IpcChannel.HostsProbe, url, token),
+    branches: (hostId: string, repoId: string) => ipcRenderer.invoke(IpcChannel.HostsBranches, hostId, repoId),
+    slots: (hostId: string, repoId: string) => ipcRenderer.invoke(IpcChannel.HostsSlots, hostId, repoId),
+    saveRepo: (hostId: string, repo: Partial<HostRepo> & { id: string }) => ipcRenderer.invoke(IpcChannel.HostsSaveRepo, hostId, repo),
+    removeRepo: (hostId: string, repoId: string) => ipcRenderer.invoke(IpcChannel.HostsRemoveRepo, hostId, repoId),
+    shutdown: (chatId: string) => ipcRenderer.invoke(IpcChannel.HostsShutdown, chatId),
   },
   updates: {
     onAvailable: (handler: (info: UpdateInfo) => void) => {

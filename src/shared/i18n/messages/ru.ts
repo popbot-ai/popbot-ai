@@ -67,6 +67,7 @@ export const ru = {
   'menu.paste': 'Вставить',
   'menu.selectAll': 'Выделить всё',
   'menu.gitPanel': 'Панель Git',
+  'menu.searchChats': 'Поиск по чатам…',
   'menu.resetZoom': 'Сбросить масштаб',
   'menu.zoomIn': 'Увеличить',
   'menu.zoomOut': 'Уменьшить',
@@ -93,6 +94,7 @@ export const ru = {
   // App shell (App.tsx).
   // ---------------------------------------------------------------------------
   'app.busy.worktreeFailed': 'Не удалось настроить рабочее пространство',
+  'app.busy.forking': 'Ответвление чата…',
   'app.reconnect.title': 'Диски рабочего пространства отключены',
   'app.reconnect.message': 'Диски рабочего пространства для {repos} были отключены из-за перезапуска. Переподключите их, чтобы использовать слоты и чаты.',
   'app.reconnect.button': 'Переподключить',
@@ -159,6 +161,7 @@ export const ru = {
   'panelA.tab.tickets': 'Тикеты',
   'panelA.tab.reviews': 'Ревью',
   'panelA.tab.slack': 'Slack',
+  'panelA.tab.hosts': 'Хосты',
   'panelA.tab.unseenTitle': '{count} новых',
   'panelA.action.markAllTicketsSeen': 'Отметить все {count} новых тикета как просмотренные',
   'panelA.action.markAllReviewsSeen': 'Отметить все {count} новых PR как просмотренные',
@@ -268,6 +271,7 @@ export const ru = {
   // ---------------------------------------------------------------------------
   'panelD.terminalTab': 'Терминал',
   'panelD.slotSuffix': ' · Слот {slotId}',
+  'panelD.cloudSuffix': ' · Облако',
   'panelD.focusedLabel': 'активен: {name}',
   'panelD.newTerminal': 'Новый терминал',
   'panelD.noWorktree': 'У этого чата ещё нет worktree слота.',
@@ -291,9 +295,35 @@ export const ru = {
   'work.reviewNumber': 'Swarm-ревью #{number}',
   'work.lookingUp': 'Поиск…',
   'work.pinKind': 'Закрепить {kind}',
+  'work.found': 'Найдено',
+  'work.merged': 'ВЛИТ',
+  'work.closed': 'ЗАКРЫТ',
   'work.tickets': 'Тикеты',
   'work.prs': 'PR',
   'work.chats': 'Чаты',
+  'search.title': 'Поиск по чатам',
+  'search.placeholder': 'Ищет по всем расшифровкам — достаточно фрагмента имени, идентификатора или ошибки',
+  'search.tooShort': 'Введите не менее 3 символов.',
+  'search.noResults': 'Совпадений нет.',
+  'search.goTo': 'Перейти',
+  'search.archived': 'в архиве',
+  'search.more': 'ещё {count} в этом чате',
+  'search.hint': 'Enter открывает лучшее совпадение · Esc закрывает',
+  'search.hintSuggest': 'Tab принимает подсказку · Enter открывает лучшее совпадение · Esc закрывает',
+  'search.buttonTitle': 'Поиск по чатам ({shortcut})',
+  'search.tagsLabel': 'Фильтры',
+  'search.tagsOnly': 'Новейшие записи по этим фильтрам — добавьте слова, чтобы искать в их тексте.',
+  'search.tag.ticket': 'Только чаты тикетов; добавьте ключ для одного тикета (ticket:ENG-123)',
+  'search.tag.cr': 'Только чаты код-ревью; добавьте номер для одного PR (cr:123)',
+  'search.tag.lastWeek': 'Последние 7 дней',
+  'search.tag.lastMonth': 'Последние 30 дней',
+  'search.tag.fromUser': 'Что написали вы',
+  'search.tag.fromAgent': 'Что написал агент',
+  'search.tag.fromTool': 'Вызовы инструментов и их вывод',
+  'search.tag.tool': 'Конкретный инструмент (tool:Bash)',
+  'search.tag.agent': 'Чаты Codex (или agent:claude)',
+  'search.tag.inArchive': 'Только архивные чаты',
+  'search.tag.chat': 'Чаты, в названии которых есть… (chat:login)',
   'work.emptyHint':
     'Нет совпадений. Закрепите новый: id Linear вроде {id}, номер PR вроде {pr}, или Swarm-ревью вроде {swarm}.',
 
@@ -349,6 +379,16 @@ export const ru = {
   'slots.strip.occupiedAria': '{repo} слот {slotId} · {chatName}',
   'slots.strip.freeAria': '{repo} слот {slotId} · свободен',
   'slots.strip.setupBtn': 'Настроить слоты worktree',
+  'hosts.tab.loading': 'Запрашиваю хосты…',
+  'hosts.tab.local': 'Этот компьютер',
+  'hosts.tab.meta': 'popbot-host {version}',
+  'hosts.tab.unreachable': 'недоступен',
+  'hosts.tab.openChats': 'открыто: {count}',
+  'hosts.tab.noPools': 'Нет пулов слотов.',
+  'hosts.tab.noSlots': 'нет слотов',
+  'hosts.tab.ephemeral': 'временные worktree',
+  'hosts.tab.noChats': 'На этом хосте нет чатов.',
+  'hosts.tab.noHosts': 'Хостов пока нет.',
 
   // ---------------------------------------------------------------------------
   // Titlebar (Titlebar.tsx).
@@ -412,6 +452,7 @@ export const ru = {
   'chat.status.error': 'ошибка',
   'chat.status.idle': 'простаивает',
   'chat.col.settingsTitle': 'Настройки чата',
+  'chat.col.menuTitle': 'Меню чата',
   'chat.col.renameTitle': 'Нажмите, чтобы переименовать',
   'chat.slot.workspaceTitle': 'Слот рабочего пространства {slotId} · {repoId}',
   'chat.slot.fallback': 'Слот {slotId}',
@@ -426,6 +467,8 @@ export const ru = {
     'Агент работает… введите текст, чтобы поставить сообщение в очередь  ·  Shift+Enter для новой строки',
   'chat.input.placeholderIdle': 'Отправить сообщение…  ·  Shift+Enter для новой строки',
   'chat.input.placeholderInactive': 'Нажмите, чтобы сделать этот чат активным',
+  'chat.input.placeholderCloudFirst': 'Опишите задачу для облачного агента…',
+  'chat.input.placeholderCloud': 'Отправить сообщение облачному агенту…',
   'chat.input.attachImage': 'Прикрепить изображение',
   'chat.input.attachFile': 'Прикрепить файл',
   'chat.input.model': 'Модель',
@@ -438,7 +481,8 @@ export const ru = {
   'chat.context.unreported': 'Codex не сообщает об использовании контекста · последний ход: {used} токенов',
   'chat.context.menu.compact': 'Сжать контекст',
   'chat.context.menu.compacting': 'Сжатие…',
-  'chat.context.menu.codexHint': 'Codex сжимает контекст автоматически',
+  'chat.context.menu.codexHint':
+    'Codex сжимает контекст сам. Включите «Направлять Codex во время работы» в Настройки ▸ Агенты, чтобы видеть использование и сжимать по запросу.',
   'chat.context.menu.runningHint': 'Дождитесь завершения работы агента',
   'chat.context.compactingNote': 'Сжатие контекста…',
   'chat.context.failedNote': 'Не удалось сжать контекст: {error}',
@@ -446,6 +490,27 @@ export const ru = {
   'chat.agentSwitch.message':
     'Id текущей сессии агента будет сохранён, чтобы вы могли позже вернуться. Новый агент использует свою собственную сессию и будет перезапущен со стенограммой этого чата в качестве контекста. Часть приватного состояния агента может быть потеряна.',
   'chat.agentSwitch.confirm': 'Перезапустить',
+  'chat.fork.name': '{name} (ответвление)',
+  'chat.cloud.chip': 'Облако',
+  'chat.cloud.chipTitle': 'Работает в облачной песочнице Anthropic · открыть настройки чата',
+  'chat.cloud.chipPendingTitle': 'Облачной сессии пока нет — она начнётся с вашего первого сообщения.',
+  'chat.cloud.pull': 'Забрать работу из облака в локальную копию',
+  'chat.cloud.shutdown': 'Завершить облачный чат',
+  'chat.cloud.shutdownNone': 'Для этого чата нет работающей облачной сессии.',
+  'chat.cloud.shutdownConfirm':
+    'Завершить облачную сессию сейчас? Если она ещё работает, её сначала прервут. Всё, что не запушено, будет потеряно. Следующее сообщение начнёт новую сессию, подготовленную с учётом этого разговора.',
+  'chat.cloud.shutdownConfirmBranch':
+    'Завершить облачную сессию сейчас? Если она ещё работает, её сначала прервут. Всё, что не запушено в {branch}, будет потеряно. Следующее сообщение начнёт новую сессию, подготовленную с учётом этого разговора.',
+  'chat.host.chipTitle': 'Работает на {host} · открыть настройки чата',
+  'chat.host.chipPendingTitle': 'Работает на {host} — сессия начнётся с вашего первого сообщения.',
+  'chat.host.shutdown': 'Завершить на хосте',
+  'chat.host.shutdownConfirm':
+    'Завершить сессию этого чата на {host} сейчас? Всё, что агент там делает, остановится. Следующее сообщение начнёт новую сессию на {host}, продолжающую этот разговор.',
+  'chat.host.withRepo': 'На {host} · {repo}',
+  'chat.host.noRepo': 'На {host} · без репозитория',
+  'chat.host.slotTitle': 'Слот {slot} репозитория {repo} на {host}',
+  'chat.crossAgent.from': 'От агента чата «{name}»',
+  'chat.crossAgent.waiting': 'ждёт вашего ответа',
   'chat.app.terminal': 'Терминал',
   'chat.app.editor': 'Редактор',
   'chat.app.unity': 'Unity',
@@ -464,6 +529,16 @@ export const ru = {
   'chat.install.stepInstallDesc': 'Следуйте официальному руководству по установке {vendor} для вашей операционной системы.',
   'chat.install.openGuide': 'Открыть руководство по установке {vendor}',
   'chat.install.stepSignin': 'Войти',
+  'auth.signIn.button': 'Войти',
+  'auth.signIn.title': 'Войти в {vendor}',
+  'auth.signIn.opening': 'Открываем браузер для входа…',
+  'auth.signIn.fallback': 'Если браузер не открылся:',
+  'auth.signIn.openLink': 'Открыть страницу входа',
+  'auth.signIn.pasteCode': 'Если браузер показывает код, вставьте его сюда:',
+  'auth.signIn.continue': 'Продолжить',
+  'auth.signIn.done': 'Вход выполнен.',
+  'auth.signIn.failed': 'Вход не завершён (код выхода {code}).',
+  'auth.signIn.retry': 'Повторить',
   'chat.install.stepRestart': 'Перезапустить PopBot',
   'chat.install.stepRestartDesc':
     'PopBot перепроверяет при запуске и включает агента автоматически.',
@@ -475,6 +550,7 @@ export const ru = {
   'chat.ready.online': 'В сети',
   'chat.ready.notFound': 'не найден',
   'chat.ready.howToInstall': 'Как установить',
+  'chat.ready.signedOut': 'Установлено, но вход не выполнен',
   'chat.ready.codexLabel': 'Codex',
   'chat.ready.optional': 'опционально',
   'chat.ready.repoLabel': 'Репозиторий',
@@ -601,6 +677,30 @@ export const ru = {
   'chatSettings.restartTooltip': 'Запустить новую сессию агента, инициализированную стенограммой этого чата',
   'chatSettings.restarting': 'Перезапуск…',
   'chatSettings.restartWithContext': 'Перезапустить с контекстом',
+  'chatSettings.fork': 'Ответвить этот чат',
+  'chatSettings.forkDesc':
+    'Начать новый чат с этой точки: разговор до сих пор, память агента о нём и — для чата с рабочим пространством — новый слот на новой ветке с незакоммиченными изменениями этого чата. Оригинал продолжается без изменений.',
+  'chatSettings.forkButton': 'Ответвить чат',
+  'chatSettings.forkRunningHint': 'Дождитесь завершения работы агента, затем ответвите.',
+  'chatSettings.cloud': 'Облачная сессия',
+  'chatSettings.cloudDesc':
+    'Этот чат работает на Anthropic Managed Agents в облачной песочнице. Он продолжает работать после закрытия PopBot; всё, что он сделал в ваше отсутствие, воспроизводится здесь, когда вы возвращаетесь.',
+  'chatSettings.cloudSession': 'Сессия',
+  'chatSettings.cloudNone': 'Ещё не запущена — начнётся с вашего первого сообщения.',
+  'chatSettings.cloudEnded': 'завершена · следующее сообщение начнёт новую сессию',
+  'chatSettings.cloudRepo': 'Репозиторий',
+  'chatSettings.cloudPullDesc':
+    'Песочница коммитит и пушит в ветку чата на origin. Pull забирает эти коммиты в локальную копию этого чата (только fast-forward).',
+  'chatSettings.cloudPull': 'Pull из origin',
+  'chatSettings.host': 'Хост',
+  'chatSettings.hostDesc':
+    'Агент этого чата работает на другой машине. Транскрипт, поиск и настройки находятся здесь.',
+  'chatSettings.hostName': 'Хост',
+  'chatSettings.hostWorkspace': 'Рабочее пространство',
+  'chatSettings.hostScratch': 'временная папка',
+  'chatSettings.hostRoot': '{repo} · корень репозитория',
+  'chatSettings.hostCwd': 'Рабочий каталог',
+  'chatSettings.hostNoCwd': 'Ещё не запущена — начнётся с вашего первого сообщения.',
   'chatSettings.tryReconnect': 'Попробовать переподключиться',
   'chatSettings.reconnectDesc':
     'Выберите сохранённую сессию Claude для worktree этого чата. Полезно, если автопереподключение выбрало не ту сессию и вы хотите принудительно указать конкретную стенограмму. Выбранная сессия будет закреплена, и агент перезапустится в ней.',
@@ -629,6 +729,11 @@ export const ru = {
   'agent.effort.ultra': 'Ультра',
   'agent.label': 'Агент',
   'agent.model': 'Модель',
+  'agent.cloudToggle': 'Облако',
+  'agent.cloudToggleTitle':
+    'Запустить этот чат в облачной песочнице Anthropic (Managed Agents, оплата по API-ключу) — он продолжит работать после закрытия PopBot. Только Claude.',
+  'agent.runOn': 'Запускать на',
+  'agent.runOnLocal': 'Этом компьютере',
   'agent.effort': 'Уровень усилий',
 
   // ---------------------------------------------------------------------------
@@ -776,6 +881,30 @@ export const ru = {
   'branch.dialog.loadBranchesError': 'Не удалось загрузить ветки: {error}',
   'branch.dialog.freeChatDesc':
     'Работает в {repo} из корня репозитория — без слота, worktree или ветки.',
+  'branch.dialog.cloudDescNoRepo':
+    'Работает в облачной песочнице Anthropic без репозитория и продолжает после закрытия PopBot.',
+  'branch.dialog.cloudDescRoot':
+    'Работает в облачной песочнице Anthropic, которая клонирует GitHub-remote {repo} на ветке, на которой находится корень репозитория (сначала она пушится, если её ещё нет на origin). Продолжает после закрытия PopBot.',
+  'branch.dialog.cloudDescSlot':
+    'Работает в облачной песочнице Anthropic: чат как обычно получает слот и ветку, ветка пушится на origin, и песочница её клонирует. Слот остаётся локальным; коммиты из облака забираются через меню чата. Продолжает после закрытия PopBot.',
+  'branch.dialog.cloudGithubNote':
+    'Песочница клонирует с вашим токеном GitHub: сохранённым в Настройки ▸ Агенты ▸ Облачные чаты или тем, под которым авторизован gh.',
+  'branch.dialog.cloudNoKey':
+    'Облачным чатам нужен API-ключ Anthropic. Добавьте его в Настройки ▸ Агенты ▸ Облачные чаты.',
+  'branch.dialog.hostLoading': 'Запрашиваю {host}…',
+  'branch.dialog.hostUnreachable': 'Не удалось связаться с {host}: {error}',
+  'branch.dialog.hostRepoLabel': 'Репозиторий на {host}',
+  'branch.dialog.tagHostScratch': 'временная папка',
+  'branch.dialog.hostNoRepos': 'У {host} пока нет репозиториев — запустите его с --repo id=/путь.',
+  'branch.dialog.hostDescScratch':
+    'Работает на {host} во временной папке без репозитория. Транскрипт остаётся здесь.',
+  'branch.dialog.hostDescRoot':
+    'Работает на {host} из корня {repo}, на той ветке, на которой он стоит. Транскрипт остаётся здесь.',
+  'branch.dialog.hostDescSlot':
+    'Работает на {host} в worktree репозитория {repo} на ветке выше, созданной от базовой ветки. Транскрипт остаётся здесь.',
+  'branch.dialog.disabled.host': 'Ожидание {host}',
+  'branch.dialog.hostFree': 'Свободно слотов: {free} из {count}.',
+  'branch.dialog.disabled.hostNoSlot': 'Нет свободного слота в {repo} на {host}',
   'branch.dialog.createChat': 'Создать чат',
 
   // ---------------------------------------------------------------------------
@@ -805,6 +934,7 @@ export const ru = {
   'prefs.search': 'Поиск настроек…',
   'prefs.section.integ': 'Интеграции',
   'prefs.section.agents': 'Агенты',
+  'prefs.section.hosts': 'Хосты',
   'prefs.section.runtime': 'Среда выполнения',
   'prefs.section.repos': 'Репозитории',
   'prefs.section.git': 'Система контроля версий',
@@ -826,6 +956,73 @@ export const ru = {
   'prefs.agents.codeReviews.title': 'Код-ревью',
   'prefs.agents.codeReviews.desc':
     'Используется чатами ревью PR, резервными чатами повторного ревью и уведомлениями о ревью.',
+  'prefs.agents.codexSteering.title': 'Направлять Codex во время работы',
+  'prefs.agents.codexSteering.desc':
+    'Подключается к Codex через его app-server вместо exec SDK: сообщение, отправленное, пока Codex занят, доходит до него на следующем шаге, а не ждёт конца хода. Также наполняет индикатор контекста в чатах Codex и включает «Сжать контекст». В Codex CLI функция экспериментальная; требуется codex 0.153 или новее. Действует со следующего сообщения в каждом чате.',
+  'prefs.agents.codexSteering.on': 'Вкл. — сообщения доходят до Codex посреди хода',
+  'prefs.agents.codexSteering.off': 'Выкл. — сообщения ждут конца хода',
+  'prefs.agents.mcp.title': 'Инструменты PopBot для агентов',
+  'prefs.agents.mcp.desc':
+    'Даёт агенту каждого чата MCP-сервер «popbot»: перечислять, создавать, закрывать и заново открывать чаты, писать другим чатам и ждать их ответа, запускать код-ревью и чаты по тикетам, читать и искать по расшифровкам. Действует со следующей сессии агента в каждом чате.',
+  'prefs.agents.mcp.on': 'Вкл — агенты могут управлять PopBot',
+  'prefs.agents.mcp.off': 'Выкл — без инструментов popbot',
+  'prefs.agents.cloud.title': 'Облачные чаты',
+  'prefs.agents.cloud.desc':
+    'Чат, созданный с чипом Cloud, работает на Anthropic Managed Agents: сессия в облачной песочнице Anthropic, оплачиваемая по токенам с вашего аккаунта Console, которая продолжает работать после закрытия PopBot.',
+  'prefs.agents.cloud.apiKey.title': 'API-ключ Anthropic',
+  'prefs.agents.cloud.apiKey.desc':
+    'Хранится локально в базе данных приложения. Оставьте пустым, чтобы использовать переменную окружения ANTHROPIC_API_KEY.',
+  'prefs.agents.cloud.getKey': 'Получить ключ',
+  'prefs.agents.cloud.githubToken.title': 'Токен GitHub',
+  'prefs.agents.cloud.githubToken.desc':
+    'Песочница клонирует ваши репозитории с ним (scope repo). Оставьте пустым, чтобы использовать токен, под которым авторизован gh.',
+  'prefs.agents.cloud.workspace.title': 'ID рабочего пространства',
+  'prefs.agents.cloud.workspace.desc':
+    'Только для ключа, не привязанного к рабочему пространству (проверка об этом скажет): id wrkspc_… со страницы Workspaces в Console. Ключу, созданному внутри рабочего пространства, он не нужен.',
+  'prefs.agents.cloud.envKey': 'Используется переменная окружения ANTHROPIC_API_KEY.',
+  'prefs.agents.cloud.noKey': 'Ключа пока нет — облачные чаты недоступны.',
+  'prefs.agents.cloud.ghToken': 'GitHub: используется токен, под которым авторизован gh.',
+  'prefs.agents.cloud.noGh': 'GitHub: токена нет — сохраните его здесь или выполните gh auth login.',
+  'prefs.agents.cloud.ok': 'Ключ работает.',
+  'prefs.agents.cloud.error': 'Сохранён, но ключ не сработал: {error}',
+  'prefs.hosts.title': 'Хосты',
+  'prefs.hosts.desc':
+    'Другие машины, выполняющие чаты для этого PopBot. На каждой работает popbot-host: соберите его, скопируйте dist-host/popbot-host.cjs и запустите один раз с --init, чтобы записать конфигурацию и вывести токен. Транскрипт, поиск и настройки чата остаются здесь; агент, его инструменты и checkout — там. Удалённая машина доступна через SSH-туннель: ssh -L 7677:127.0.0.1:7677 машина.',
+  'prefs.hosts.none': 'Хостов пока нет — чаты работают на этом компьютере.',
+  'prefs.hosts.add': 'Добавить хост',
+  'prefs.hosts.defaultName': 'Новый хост',
+  'prefs.hosts.name': 'Имя',
+  'prefs.hosts.url': 'URL',
+  'prefs.hosts.token': 'Токен',
+  'prefs.hosts.remove': 'Удалить',
+  'prefs.hosts.removeTitle': 'Удалить хост',
+  'prefs.hosts.removeConfirm':
+    'Удалить {name}? Чаты на нём останутся, но больше не смогут к нему обращаться.',
+  'prefs.hosts.checking': 'Проверка…',
+  'prefs.hosts.ok':
+    'popbot-host {version} на {platform} · Claude: {claude} · Codex: {codex} · репозитории: {repos}',
+  'prefs.hosts.okNoRepos': 'пока нет (запустите с --repo id=/путь)',
+  'prefs.hosts.error': 'Не удалось связаться: {error}',
+  'prefs.hosts.found': 'найден',
+  'prefs.hosts.missing': 'не найден',
+  'prefs.hosts.noUrl': 'Введите URL и токен.',
+  'prefs.hosts.repos.title': 'Репозитории на этом хосте',
+  'prefs.hosts.repos.none': 'Пока нет. Добавьте ниже; путь указывается на хосте.',
+  'prefs.hosts.repos.id': 'Id',
+  'prefs.hosts.repos.path': 'Путь на хосте',
+  'prefs.hosts.repos.defaultBase': 'Базовая ветка',
+  'prefs.hosts.repos.slotPrefix': 'Префикс слота',
+  'prefs.hosts.repos.slotCount': 'Слоты',
+  'prefs.hosts.repos.mode': 'Режим',
+  'prefs.hosts.repos.modeSlots': 'пул слотов',
+  'prefs.hosts.repos.modeEphemeral': 'временный',
+  'prefs.hosts.repos.add': 'Добавить репозиторий',
+  'prefs.hosts.repos.remove': 'Удалить',
+  'prefs.hosts.repos.removeConfirm': 'Удалить {repo} с {host}? Его worktree останутся на диске.',
+  'prefs.hosts.repos.error': 'Не удалось сохранить: {error}',
+  'prefs.hosts.local.desc': 'Всегда здесь; удалить нельзя.',
+  'prefs.hosts.local.noRepos': 'Репозиториев пока нет.',
+  'prefs.hosts.local.manage': 'Управлять репозиториями и слотами',
 
   // Preferences — Runtime / attachment retention pane.
   'prefs.runtime.title': 'Хранение вложений',
@@ -1230,10 +1427,15 @@ export const ru = {
   'language.systemNote': 'Новые окна и меню приложения также используют этот язык.',
   // --- What's-new popup (WhatsNewDialog.tsx) — update each release ---
   'whatsNew.title': 'Что нового в PopBot',
-  'whatsNew.f1.h': 'Claude Fable 5.1 и GPT-6 Astra',
-  'whatsNew.f1.p': 'Новейшие передовые модели Anthropic и OpenAI появились в выборе модели. Обе выпущены с ограниченной доступностью, поэтому включаются вручную: ваши чаты сохраняют свою модель, а Opus 5 и GPT-5.6 Sol остаются по умолчанию.',
-  'whatsNew.f2.h': 'Индикатор контекста, сжатие и порядок в рабочем пространстве',
-  'whatsNew.f2.p': 'Кольцо в поле ввода показывает, насколько заполнено контекстное окно, со сжатием в один клик. Перетаскивайте миниатюры, чтобы менять порядок чатов, нажимайте на заголовок колонки, чтобы переименовать её, а RE-REVIEW теперь остаётся, пока вы действительно не проверите заново.',
+  'whatsNew.f1.h': 'Запускайте чаты на других машинах',
+  'whatsNew.f1.p':
+    'Добавьте хост в Настройках ▸ Хосты — любую машину с popbot-host или опубликованный контейнер — и выберите его в поле Запускать на при создании чата. Агент, его инструменты и checkout живут там, в пуле слотов хоста; транскрипт, поиск и настройки остаются здесь. Вкладка Хосты показывает слоты и чаты каждой машины.',
+  'whatsNew.f2.h': 'Облачные чаты на Anthropic Managed Agents',
+  'whatsNew.f2.p':
+    'Включите чип Cloud — и чат работает в облачной песочнице Anthropic по вашему API-ключу: клонирует вашу ветку с GitHub, пушит в неё, продолжает работать после закрытия PopBot и догоняет пропущенное, когда вы вернётесь. Завершает его только Завершить облачный чат.',
+  'whatsNew.f3.h': 'Claude Opus 5.5 и многое другое',
+  'whatsNew.f3.p':
+    'Opus 5.5 доступен в выборе моделей как опция; настройки по умолчанию не меняются. Агенты управляют PopBot через его инструменты и пишут друг другу с понятной подписью, полнотекстовый поиск охватывает все чаты, вызовы инструментов рисуют ленту времени, чаты можно ветвить, вход выполняется из приложения, а настройки сохраняются сами — без кнопок Сохранить.',
   'whatsNew.gotIt': 'Понятно',
   // --- Auto-update prompts (persisted via the notification system) ---
   'app.update.restartAction': 'Перезапустить и установить',

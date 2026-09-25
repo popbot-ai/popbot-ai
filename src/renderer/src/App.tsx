@@ -1,11 +1,13 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type MouseEvent } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type MouseEvent } from 'react';
 import { RAW_CHAT_REPO_ID, type ChatRecord } from '@shared/persistence';
 import { Titlebar } from './components/Titlebar';
 import { AboutDialog } from './components/AboutDialog';
 import { WhatsNewDialog } from './components/WhatsNewDialog';
 import { PanelA } from './components/PanelA';
 import { PanelB } from './components/PanelB';
-import { MonitorCard } from './components/MonitorCard';
+import { MonitorCard, THIN_MODE_BELOW } from './components/MonitorCard';
+import { accordionLayout, scrollToReveal } from './lib/accordion';
+import { useGripScroll } from './lib/useGripScroll';
 import { ChatColumn, EmptyColumn, ReadinessGateModal } from './components/ChatColumn';
 import { P4LoginModal } from './components/P4LoginModal';
 import { PanelD } from './components/PanelD';
@@ -13,6 +15,10 @@ import { SourceControlPanel } from './components/SourceControlPanel';
 import { DiffOverlay } from './components/DiffOverlay';
 import { BaseBranchDialog } from './components/BaseBranchDialog';
 import { ChatSettingsSheet } from './components/ChatSettingsSheet';
+import { SignInDialog } from './components/SignInDialog';
+import { SearchPanel } from './components/SearchPanel';
+import { requestJump } from './lib/jumpToMessage';
+import { subscribeAgentEvents } from './lib/agentEventBus';
 import { Modal } from './components/Modal';
 import { PreferencesSheet } from './components/PreferencesSheet';
 import { CloseChatPrompt } from './components/CloseChatPrompt';
@@ -24,7 +30,7 @@ import {
   type AgentCreateConfig,
   type AgentEffortDefaultsSettings,
 } from './components/AgentCreateControls';
-import { DEFAULT_RE_REVIEW_TEMPLATE, DEFAULT_START_CL_REVIEW_TEMPLATE, DEFAULT_START_CODE_REVIEW_TEMPLATE, DEFAULT_START_TICKET_TEMPLATE, expandTemplate } from './lib/templates';
+import { DEFAULT_RE_REVIEW_TEMPLATE, DEFAULT_START_CL_REVIEW_TEMPLATE, DEFAULT_START_CODE_REVIEW_TEMPLATE, DEFAULT_START_TICKET_TEMPLATE, expandTemplate } from '@shared/templates';
 import { DEFAULT_SOURCE_CONTROL, SOURCE_CONTROL_PROVIDERS } from '@shared/sourceControl';
 import type { SourceControlProviderId } from '@shared/sourceControl';
 import type { ReviewItem } from '@shared/reviews';
@@ -38,7 +44,7 @@ import { HighlightProvider } from './lib/highlightBus';
 import { playPing, playUrgentDing } from './lib/ping';
 import type { NotificationAction, NotificationRecord } from '@shared/notifications';
 import { NotificationToastStack } from './components/NotificationToast';
-import type { CreateChatInput } from '@shared/ipc';
+import type { CreateChatInput, TranscriptSearchHit } from '@shared/ipc';
 import { useChats } from './lib/useChats';
 import { useReadiness } from './lib/useReadiness';
 import { hotkey } from './lib/hotkeys';
@@ -59,6 +65,9 @@ type ColumnLayoutVars = CSSProperties & {
 /** Min width per column. Mirrors `.col { min-width }` in prototype.css.
  *  TODO: make this user-adjustable in prefs. */
 const MIN_COL_WIDTH = 560;
+/** Thumbnail strip accordion: a full thumbnail, a thin stripe, the gap. */
+const THUMB = { full: 240, thin: 20, gap: 6 };
+const THUMB_STRIP_PAD = 16;
 
 /**
  * Adapter: many of the prototype-derived components (PanelB row,
@@ -78,6 +87,7 @@ function chatRecordToFixture(c: ChatRecord, t: Translator): ChatFixture {
     type: c.type,
     ticket: c.ticket ?? undefined,
     pr: c.pr ?? undefined,
+    prAuthor: c.prAuthor,
     agent: c.agent,
     slotId: c.slotId,
     worktreePath: c.worktreePath,
@@ -97,7 +107,7 @@ function relativeTime(ts: number, t: Translator): string {
 
 export default function App(): JSX.Element {
   const { t } = useTranslation();
-  const { chats, closedChats, loading, create, close, reopen, attachSlot, remove, refresh, reorder, rename } = useChats();
+  const { chats, closedChats, loading, create, close, reopen, attachSlot, remove, refresh, reorder, rename, fork } = useChats();
   // The visible columns are a contiguous window of `chats`. windowStart is
   // the index of the leftmost visible chat. Click a thumbnail to scroll
   // the window so that chat is visible (and active).
@@ -105,6 +115,18 @@ export default function App(): JSX.Element {
   const [focusedId, setFocusedId] = useState<string | null>(null);
   const [foregroundId, setForegroundId] = useState<string | null>(null);
   const [settingsForId, setSettingsForId] = useState<string | null>(null);
+  // Sign-in dialog opened from a chat's "sign-in expired" warning.
+  const [signInFor, setSignInFor] = useState<'claude' | 'codex' | null>(null);
+  // Transcript search (⌘⇧F / View ▸ Search Chats…).
+  const [searchOpen, setSearchOpen] = useState(false);
+  useEffect(() => {
+    const onSignIn = (e: Event): void => {
+      const provider = (e as CustomEvent<{ provider?: 'claude' | 'codex' }>).detail?.provider;
+      if (provider === 'claude' || provider === 'codex') setSignInFor(provider);
+    };
+    window.addEventListener('popbot:auth-sign-in', onSignIn);
+    return () => window.removeEventListener('popbot:auth-sign-in', onSignIn);
+  }, []);
   const [prefsOpen, setPrefsOpen] = useState(false);
   const [prefsSection, setPrefsSection] = useState<string | undefined>(undefined);
   // Bumped whenever setup might have changed (Preferences closed, repos
@@ -297,6 +319,8 @@ export default function App(): JSX.Element {
       subject?: string;
       branch?: string;
       workspaceMode?: 'slot' | 'repo-root';
+      cloud?: boolean;
+      host?: { hostId: string; repoId: string | null; kind: import('@shared/hostProtocol').HostWorkspaceKind; branch: string | null; baseBranch: string | null };
       agentConfig?: AgentCreateConfig;
     }) => void | Promise<void>;
   } | null>(null);
@@ -335,6 +359,64 @@ export default function App(): JSX.Element {
     if (at < 0) return;
     ids.splice(side === 'after' ? at + 1 : at, 0, source);
     void reorder(ids);
+  };
+  // The strip's accordion (lib/accordion.ts): one scroll position picks
+  // which cards are open; the layout hands every card its width.
+  const [stripWidth, setStripWidth] = useState(0);
+  const [stripScroll, setStripScroll] = useState(0);
+  const stripScrollRef = useRef(0);
+  const stripMaxScrollRef = useRef(0);
+  useEffect(() => {
+    const el = thumbstripRef.current;
+    if (!el) return;
+    const measure = (): void => setStripWidth(el.clientWidth);
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  const accordion = useMemo(
+    () => accordionLayout(chats.length, Math.max(0, stripWidth - THUMB_STRIP_PAD), stripScroll, THUMB),
+    [chats.length, stripWidth, stripScroll],
+  );
+  // Over the top third of the strip the cursor is a hand: press and
+  // drag there to scroll it by hand (the rest of a card still clicks
+  // to select and drags to reorder).
+  useGripScroll(thumbstripRef);
+  stripMaxScrollRef.current = accordion.maxScroll;
+  useEffect(() => {
+    // Fewer chats or a wider strip: keep the scroll in range.
+    if (stripScroll > accordion.maxScroll) {
+      stripScrollRef.current = accordion.maxScroll;
+      setStripScroll(accordion.maxScroll);
+    }
+  }, [accordion.maxScroll, stripScroll]);
+  // The strip is a real horizontal scroll container — the same scrollbar
+  // as always, over the same virtual row of full-width thumbnails: a
+  // track as wide as that row sets the range, and the cards sit in a
+  // sticky layer that stays put while its scrollLeft drives the
+  // accordion. A vertical wheel scrolls it too (it has no other axis).
+  useEffect(() => {
+    const el = thumbstripRef.current;
+    if (!el) return;
+    const onWheel = (e: WheelEvent): void => {
+      if (stripMaxScrollRef.current <= 0) return;
+      if (Math.abs(e.deltaY) <= Math.abs(e.deltaX)) return; // horizontal: native
+      e.preventDefault();
+      el.scrollLeft += e.deltaY;
+    };
+    el.addEventListener('wheel', onWheel, { passive: false });
+    return () => el.removeEventListener('wheel', onWheel);
+  }, []);
+  /** Put the strip where card `idx` is a full thumbnail — the least
+   *  distance that does it — at once. A click should land the state,
+   *  not animate toward it; the wheel and the grip give the motion. */
+  const revealCard = (idx: number): void => {
+    const el = thumbstripRef.current;
+    if (!el) return;
+    const target = scrollToReveal(idx, stripScrollRef.current, chats.length, Math.max(0, stripWidth - THUMB_STRIP_PAD), THUMB);
+    if (Math.abs(target - el.scrollLeft) < 1) return;
+    el.scrollLeft = target;
   };
   const visibleStartRef = useRef<HTMLDivElement | null>(null);
   const visibleEndRef = useRef<HTMLDivElement | null>(null);
@@ -394,7 +476,7 @@ export default function App(): JSX.Element {
 
   useLayoutEffect(() => {
     computeOverlay();
-  }, [computeOverlay, chats, windowStart, visibleCols]);
+  }, [computeOverlay, chats, windowStart, visibleCols, stripScroll, stripWidth]);
 
   useEffect(() => {
     const head = centerHeadRef.current;
@@ -564,6 +646,7 @@ export default function App(): JSX.Element {
     const idx = chats.findIndex((c) => c.id === id);
     if (idx < 0) return;
     setFocusedId(id);
+    revealCard(idx);
     if (idx >= windowStart && idx < windowStart + visibleCols) return;
     const newStart = idx < windowStart ? idx : Math.max(0, idx - (visibleCols - 1));
     setWindowStart(Math.min(maxStart, Math.max(0, newStart)));
@@ -579,6 +662,33 @@ export default function App(): JSX.Element {
     } else {
       void doClose(id, { stash: false });
     }
+  };
+
+  /** Fork a chat from its settings sheet: same error surfaces as creating
+   *  a chat (the fork may need a slot), then focus the fork. */
+  const forkChat = async (chat: ChatRecord): Promise<void> => {
+    setSettingsForId(null);
+    // Only a chat with a workspace does slow work (a slot + a branch); a
+    // repo-root or raw chat forks in a blink and needs no overlay.
+    if (chat.branch) {
+      setBusy({ message: t('app.busy.forking'), detail: workspaceSetupDetail(chat.repoScm, chat.branch) });
+    }
+    let result;
+    try {
+      result = await fork({ chatId: chat.id, name: t('chat.fork.name', { name: chat.name }) });
+    } finally {
+      setBusy(null);
+    }
+    if (!result.ok) {
+      if (result.reason === 'slots-not-configured') openPrefsAt('runtime');
+      else if (result.reason === 'no-free-slot') setNoSlotsOpen(true);
+      else if (result.reason === 'git-not-configured') openPrefsAt('git');
+      else if (result.reason === 'worktree-failed') {
+        setBusy({ message: t('app.busy.worktreeFailed'), detail: result.message, error: true });
+      }
+      return;
+    }
+    scrollToChat(result.chat.id);
   };
 
   const doClose = async (id: string, opts: { stash: boolean }) => {
@@ -627,6 +737,8 @@ export default function App(): JSX.Element {
         setNoSlotsOpen(true);
       } else if (result.reason === 'git-not-configured') {
         openPrefsAt('git');
+      } else if (result.reason === 'host-not-found') {
+        openPrefsAt('hosts');
       } else if (result.reason === 'worktree-failed') {
         // eslint-disable-next-line no-console
         console.error('worktree setup failed:', result.message);
@@ -731,6 +843,27 @@ export default function App(): JSX.Element {
       }
     }
   };
+
+  /** A Search-panel hit: focus its chat — reopening it from the archive
+   *  when it's closed — and have the transcript scroll to the message. */
+  const goToMessage = async (hit: TranscriptSearchHit): Promise<void> => {
+    requestJump(hit.chatId, hit.messageId);
+    const open = chats.find((c) => c.id === hit.chatId);
+    if (open) {
+      scrollToChat(open.id);
+      return;
+    }
+    // focusOrAttach only needs the id to reopen; the record it gets
+    // back from main is the one that matters.
+    const closed = closedChats.find((c) => c.id === hit.chatId) ?? ({ id: hit.chatId } as ChatRecord);
+    await focusOrAttach(closed);
+  };
+
+  // An agent's go_to_message (popbot MCP): same path as the Search panel.
+  useEffect(() => subscribeAgentEvents((event) => {
+    if (event.type !== 'go-to-message') return;
+    void goToMessage({ chatId: event.chatId, messageId: event.messageId } as TranscriptSearchHit);
+  }));
 
   const handleSpawnFromTicket = (ticket: Ticket) => {
     const existing =
@@ -896,6 +1029,7 @@ export default function App(): JSX.Element {
         name: t('app.chat.reviewName', { number: r.number, title: r.title.slice(0, 80) }),
         pr: r.number,
         prUrl: r.url,
+        prAuthor: r.author,
         type: 'lite',
         repoId,
         ...reviewAgentConfig,
@@ -1164,14 +1298,31 @@ export default function App(): JSX.Element {
       allowNoRepo: true,
       allowRepoRoot: type === 'lite',
       showAgentPicker: true,
-      run: async ({ repoId, baseBranch, subject, branch, workspaceMode, agentConfig }) => {
+      run: async ({ repoId, baseBranch, subject, branch, workspaceMode, cloud, host, agentConfig }) => {
         const name = (subject?.trim() || (type === 'lite' ? t('common.newChat') : t('app.create.newClientTestChat')));
+        // A host chat has no local workspace: the host makes its own
+        // (repo root, worktree or scratch) when the first message arrives.
+        if (host) {
+          await createWithSlot({
+            name,
+            type,
+            repoId: RAW_CHAT_REPO_ID,
+            host,
+            ...agentConfig,
+          });
+          return;
+        }
+        // A cloud chat (Claude Code on the web drives the work) can have
+        // any of the workspaces below; main pushes a slot's branch for the
+        // cloud to clone. Claude only — the dialog enforces it.
+        const cloudBits = cloud ? { agent: 'claude' as const, cloud: true } : {};
         if (repoId === null) {
           await createWithSlot({
             name,
             type,
             repoId: RAW_CHAT_REPO_ID,
             ...agentConfig,
+            ...cloudBits,
           });
           return;
         }
@@ -1181,6 +1332,7 @@ export default function App(): JSX.Element {
             type,
             repoId,
             ...agentConfig,
+            ...cloudBits,
           });
           return;
         }
@@ -1193,10 +1345,32 @@ export default function App(): JSX.Element {
           allocateSlot: true,
           repoId,
           ...agentConfig,
+          ...cloudBits,
         });
       },
     });
   };
+
+  // ⌘F (Ctrl+F) outside a text field, or ⌘⇧F anywhere, opens the
+  // transcript search. The plain form stays out of inputs and the
+  // terminal so their own find / shortcuts keep working.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent): void => {
+      if (e.key !== 'f' && e.key !== 'F') return;
+      if (!(e.metaKey || e.ctrlKey) || e.altKey) return;
+      if (!e.shiftKey) {
+        const target = e.target as HTMLElement | null;
+        if (target) {
+          const tag = target.tagName;
+          if (tag === 'INPUT' || tag === 'TEXTAREA' || target.isContentEditable) return;
+        }
+      }
+      e.preventDefault();
+      setSearchOpen(true);
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, []);
 
   // Cmd-K (Ctrl-K elsewhere) → "+ new chat" — the same flow as the
   // thumbnail bar's "+" button. We skip the shortcut while focus is on
@@ -1279,6 +1453,7 @@ export default function App(): JSX.Element {
       <Titlebar
         onOpenModal={setModal}
         onOpenPrefs={() => openPrefsAt()}
+        onSearchChats={() => setSearchOpen(true)}
         onNewChat={() => void handleNewChat('lite')}
         onOpenAbout={() => setAboutOpen(true)}
         gitPanelOpen={gitPanelOpen}
@@ -1314,6 +1489,11 @@ export default function App(): JSX.Element {
             onNewReviews={onNewReviews}
             reviewChats={reviewChats}
             ticketChats={ticketChats}
+            slotVersion={
+              chats.length +
+              chats.filter((c) => c.slotId != null || c.host?.slotId != null).length +
+              slotConfigVersion
+            }
           />
           <div className="resize-v" onMouseDown={startResizePanelA} title={t('common.dragToResize')} />
           <PanelB
@@ -1321,12 +1501,6 @@ export default function App(): JSX.Element {
             inactive={inactiveFixtures}
             focusedId={focusedId ?? ''}
             setFocusedId={scrollToChat}
-            slotVersion={
-              chats.length +
-              chats.filter((c) => c.slotId != null).length +
-              slotConfigVersion
-            }
-            onSetupSlots={() => openPrefsAt('runtime')}
             onOpenInactive={async (id) => {
               const result = await reopen(id);
               if (result.ok) {
@@ -1358,7 +1532,15 @@ export default function App(): JSX.Element {
 
         <div className="center">
           <div className="center-head" ref={centerHeadRef}>
-            <div className="thumbstrip" ref={thumbstripRef}>
+            <div
+              className="thumbstrip"
+              ref={thumbstripRef}
+              onScroll={(e) => {
+                const v = e.currentTarget.scrollLeft;
+                stripScrollRef.current = v;
+                setStripScroll(v);
+              }}
+            >
               {fixtures.length === 0 && (
                 <div className="thumbstrip-empty">
                   <i className="fa-regular fa-images" />
@@ -1368,6 +1550,9 @@ export default function App(): JSX.Element {
                   </div>
                 </div>
               )}
+              {fixtures.length > 0 && (
+              <div className="thumbstrip-track" style={{ width: stripWidth + accordion.maxScroll }}>
+              <div className="thumbstrip-cards" style={{ width: stripWidth }}>
               {fixtures.map((c, idx) => {
                 const isVisible = idx >= windowStart && idx < windowStart + visibleCols;
                 const isWindowStart = idx === windowStart;
@@ -1378,6 +1563,7 @@ export default function App(): JSX.Element {
                       if (isWindowEnd) visibleEndRef.current = el;
                     }
                   : undefined;
+                const width = accordion.widths[idx] ?? THUMB.full;
                 return (
                   <MonitorCard
                     key={c.id}
@@ -1386,6 +1572,10 @@ export default function App(): JSX.Element {
                     isForeground={c.id === foregroundId}
                     isVisible={isVisible}
                     refSetter={refSetter}
+                    width={width}
+                    mode={width < THIN_MODE_BELOW ? 'thin' : 'full'}
+                    anchor={accordion.anchors[idx] ?? 'left'}
+                    fullWidth={THUMB.full}
                     onClick={() => scrollToChat(c.id)}
                     onBringForward={() =>
                       setForegroundId((prev) => (prev === c.id ? null : c.id))
@@ -1415,6 +1605,9 @@ export default function App(): JSX.Element {
                   />
                 );
               })}
+              </div>
+              </div>
+              )}
             </div>
             {overlayRect && fixtures.length > 0 && (
               <div
@@ -1450,6 +1643,7 @@ export default function App(): JSX.Element {
                 onActivate={() => setFocusedId(chat.id)}
                 onClose={() => void closeCol(chat.id)}
                 onOpenSettings={() => setSettingsForId(chat.id)}
+                onFork={() => forkChat(chat)}
                 onChatUpdated={() => void refresh()}
                 onRename={(name) => rename(chat.id, name)}
                 onOpenPrefs={openPrefsAt}
@@ -1546,6 +1740,7 @@ export default function App(): JSX.Element {
           allowNoRepo={pendingCreate.allowNoRepo}
           allowRepoRoot={pendingCreate.allowRepoRoot}
           showAgentPicker={pendingCreate.showAgentPicker}
+          onOpenPrefs={openPrefsAt}
           onCancel={() => setPendingCreate(null)}
           onConfirm={(input) => {
             const pc = pendingCreate;
@@ -1554,7 +1749,25 @@ export default function App(): JSX.Element {
           }}
         />
       )}
-      {settingsChat && <ChatSettingsSheet chat={settingsChat} onClose={() => setSettingsForId(null)} />}
+      {searchOpen && (
+        <SearchPanel
+          onClose={() => setSearchOpen(false)}
+          onGoTo={(hit) => void goToMessage(hit)}
+        />
+      )}
+      {signInFor && (
+        <SignInDialog
+          provider={signInFor}
+          onClose={() => { setSignInFor(null); setReadinessVersion((v) => v + 1); }}
+        />
+      )}
+      {settingsChat && (
+        <ChatSettingsSheet
+          chat={settingsChat}
+          onClose={() => setSettingsForId(null)}
+          onFork={() => forkChat(settingsChat)}
+        />
+      )}
       {prefsOpen && (
         <PreferencesSheet
           onClose={() => { setPrefsOpen(false); setReadinessVersion((v) => v + 1); }}

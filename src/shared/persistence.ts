@@ -14,17 +14,18 @@ export type AgentBackendId = 'claude' | 'codex';
  * The model pickers, in display order. Each provider's default comes
  * first, then the rest of the current line-up.
  *
- * The newest tier on each side — Claude Fable 5.1 and GPT-6 Astra — is
- * listed but deliberately NOT the default and never a roll-forward
+ * The newest tiers — Claude Opus 5.5, Claude Fable 5.1 and GPT-6 Astra —
+ * are listed but deliberately NOT the default and never a roll-forward
  * target (see {@link normalizeClaudeModel} / {@link normalizeCodexModel}).
- * Both are limited-availability launches at top-tier pricing: Fable
+ * New launches come at top-tier pricing and limited availability: Fable
  * needs usage credits on the Claude side, and Codex only serves Astra to
  * API-key logins for now (a ChatGPT-account login gets a 400). A chat
  * lands on one of them only because the user picked it, so nobody's
- * running Opus/Sol chat quietly turns into a Fable/Astra bill.
+ * running Opus 5 / Sol chat quietly turns into a pricier bill.
  */
 export const CLAUDE_MODELS = [
   'claude-opus-5',
+  'claude-opus-5-5',
   'claude-sonnet-5',
   'claude-fable-5',
   'claude-fable-5-1',
@@ -49,6 +50,7 @@ export type AgentReasoningEffort = ClaudeReasoningEffort | CodexReasoningEffort;
 /** Display names for the model pickers. Product names, not localized. */
 export const CLAUDE_MODEL_LABELS: Record<ClaudeModelId, string> = {
   'claude-opus-5': 'Claude Opus 5',
+  'claude-opus-5-5': 'Claude Opus 5.5',
   'claude-sonnet-5': 'Claude Sonnet 5',
   'claude-fable-5': 'Claude Fable 5',
   'claude-fable-5-1': 'Claude Fable 5.1',
@@ -66,11 +68,12 @@ export const CODEX_MODEL_LABELS: Record<CodexModelId, string> = {
  *  main-side row mappers.
  *
  *  Retired Opus versions (4.8, 4.7, 4.6, …) deliberately roll forward to
- *  the current Opus rather than staying pinned: unlike the Codex tiers,
- *  which are distinct concurrent models, the Opus line is a single model
- *  that supersedes itself, and old versions are eventually retired
- *  upstream. A chat pinned to a retired ID would fail at request time,
- *  so we always point it at the latest Opus.
+ *  Opus 5 rather than staying pinned: unlike the Codex tiers, which are
+ *  distinct concurrent models, the Opus line is a single model that
+ *  supersedes itself, and old versions are eventually retired upstream.
+ *  A chat pinned to a retired ID would fail at request time, so we point
+ *  it at the Opus that is the default — not at Opus 5.5, which is a new
+ *  launch a chat should reach only by the user's choice.
  *
  *  Fable is the one line that does NOT roll forward: a chat on Claude
  *  Fable 5 stays there even though Fable 5.1 exists. Both are still
@@ -78,7 +81,7 @@ export const CODEX_MODEL_LABELS: Record<CodexModelId, string> = {
  *  decision that belongs to the user. */
 export function normalizeClaudeModel(value: string | null | undefined): ClaudeModelId {
   if (CLAUDE_MODELS.includes(value as ClaudeModelId)) return value as ClaudeModelId;
-  // Any prior Opus (claude-opus-4-8, -4-7, -4-6, -4-5, -4-1, …) → current Opus.
+  // Any prior Opus (claude-opus-4-8, -4-7, -4-6, -4-5, -4-1, …) → the default Opus.
   if (typeof value === 'string' && value.startsWith('claude-opus-')) return 'claude-opus-5';
   return DEFAULT_CLAUDE_MODEL;
 }
@@ -149,8 +152,150 @@ export function closestReasoningEffort<T extends AgentReasoningEffort>(
     return itemDelta < bestDelta ? item : best;
   }, fallback);
 }
+/** Settings stored under the `agent.codex` key (Preferences ▸ Agents). */
+export const CODEX_SETTINGS_KEY = 'agent.codex';
+
+export interface CodexSettings {
+  /**
+   * Drive Codex through `codex app-server` instead of the exec SDK.
+   *
+   * The exec SDK takes one prompt and runs one turn, so a message sent
+   * while Codex is working can only wait for that turn to end. The
+   * app-server protocol can steer: the message is folded into the
+   * running turn and the model sees it at its next step. It also reports
+   * context usage and can compact on request.
+   *
+   * Opt-in: Codex labels app-server experimental, so the protocol can
+   * move between CLI releases. Off means exactly the old behavior.
+   */
+  appServer?: boolean;
+}
+
+export function codexUsesAppServer(settings: CodexSettings | null | undefined): boolean {
+  return settings?.appServer === true;
+}
+
+/** Settings stored under `agent.mcp` (Preferences ▸ Agents). */
+export const POPBOT_MCP_SETTINGS_KEY = 'agent.mcp';
+
+export interface PopbotMcpSettings {
+  /**
+   * Hand every chat's agent a `popbot` MCP server (list / create / close /
+   * reopen chats, message other chats, start reviews and ticket chats,
+   * read and search transcripts). On by default; applies from each
+   * chat's next agent session.
+   */
+  enabled?: boolean;
+}
+
+export function popbotMcpEnabled(settings: PopbotMcpSettings | null | undefined): boolean {
+  return settings?.enabled !== false;
+}
+
 export type ChatType = 'lite' | 'client_test' | 'server_test';
 export type ChatMode = 'interactive' | 'autonomous';
+
+/** Settings stored under `agent.cloud` (Preferences ▸ Agents ▸ Cloud chats). */
+export const CLOUD_SETTINGS_KEY = 'agent.cloud';
+/** Main-only cache of the cloud resources PopBot created (environment,
+ *  agents per model). Kept apart from the user-edited settings so a
+ *  Preferences save can never clobber it. */
+export const CLOUD_CACHE_SETTINGS_KEY = 'agent.cloud.cache';
+
+export interface CloudSettings {
+  /** Anthropic API key (Console billing). Falls back to the
+   *  ANTHROPIC_API_KEY environment variable when empty. */
+  apiKey?: string;
+  /** GitHub token the sandbox clones with. Falls back to `gh auth token`
+   *  when empty. */
+  githubToken?: string;
+  /** The Console workspace (`wrkspc_…`) Managed Agents resources live
+   *  in. Needed only for a key that is not scoped to a workspace (an
+   *  organization key): the API then asks for it by name. Falls back
+   *  to ANTHROPIC_WORKSPACE_ID. */
+  workspaceId?: string;
+}
+
+export interface CloudCache {
+  /** The one cloud environment every PopBot session runs in. */
+  environmentId?: string;
+  /** Agent per model + effort, keyed `${model}|${effort}`. */
+  agents?: Record<string, { id: string; version: number }>;
+}
+
+/**
+ * A chat that runs on Anthropic Managed Agents (an API-key session in an
+ * Anthropic cloud sandbox) instead of a local CLI. The session keeps
+ * running after PopBot quits; PopBot streams its events into the chat
+ * whenever it is open and lists what it missed on reattach.
+ * `sessionId` is null until the first message creates the session.
+ */
+/**
+ * A PopBot host: another box running `popbot-host`, which runs the
+ * agent CLIs in its own checkouts for chats whose transcript, search
+ * and settings stay in this desktop's database. The list lives in the
+ * `hosts` table (Preferences ▸ Hosts).
+ */
+export interface HostRecord {
+  id: string;
+  /** Shown in the picker and on the chat's chip. */
+  name: string;
+  /** `http://127.0.0.1:7677` for the local daemon or an SSH tunnel. */
+  url: string;
+  /** Bearer token from the host's config. */
+  token: string;
+  createdAt: number;
+}
+
+/** Where a chat runs when it runs on a host — see {@link HostRecord}. */
+export interface HostChatInfo {
+  hostId: string;
+  /** The host's name when the chat was made, for a chip that outlives
+   *  the host record. */
+  hostName: string;
+  /** A repository id on the host, or null for a scratch folder there. */
+  repoId: string | null;
+  /** What the chat asked the host for: a scratch folder, the repo
+   *  root, or a worktree on its branch (a slot or an ephemeral one,
+   *  as the host's repo is configured). */
+  kind: 'scratch' | 'root' | 'worktree';
+  /** The chat's worktree branch on the host; null runs at the repo root. */
+  branch: string | null;
+  baseBranch: string | null;
+  /** The slot the host gave the chat (slot-pool repos), once spawned or
+   *  made at creation; null before that, for ephemeral worktrees, and
+   *  after the host released it. */
+  slotId: number | null;
+  /** The host repo's slot prefix, for the `prefix-N` pill. */
+  slotPrefix: string | null;
+  /** The directory the agent runs in on the host, once it has spawned. */
+  cwd: string | null;
+  /** The last frame of the host's event log applied to the transcript;
+   *  a reconnect asks for what came after it. */
+  lastSeq: number;
+}
+
+export interface CloudChatInfo {
+  provider: 'anthropic';
+  /** `sesn_…` — the Managed Agents session. */
+  sessionId: string | null;
+  /** Reserved (no web UI for a session today); kept for the schema. */
+  url: string | null;
+  /** When the session was created, or null before that. */
+  startedAt: number | null;
+  /** Newest session event applied to the transcript, so a reattach
+   *  replays only what came after it. */
+  lastEventId?: string | null;
+  /** Where the chat's repository is cloned in the sandbox, e.g.
+   *  `/workspace/my-app`; null when the chat has no repository. */
+  mountPath?: string | null;
+  /** The branch the sandbox checked out (and pushes to); null without
+   *  a repository. */
+  branch?: string | null;
+  /** The session ended (terminated, archived, deleted): the next message
+   *  starts a new one, primed with the conversation so far. */
+  ended?: boolean;
+}
 
 export interface ChatRecord {
   id: string;
@@ -162,6 +307,11 @@ export interface ChatRecord {
   /** Canonical review URL captured when the chat is created or first
    * resolved. Persisted so the PR chip never depends on a live gh poll. */
   prUrl: string | null;
+  /** Review chats: the login of the person whose PR (or Swarm review)
+   *  this is — the GitHub login for git, the Perforce user for Swarm.
+   *  Their avatar stands in for the repo dot on the thumbnail and in
+   *  the chat list so reviews are easy to spot. Null for other chats. */
+  prAuthor: string | null;
   branch: string | null;
   type: ChatType;
   mode: ChatMode;
@@ -207,6 +357,13 @@ export interface ChatRecord {
    *  the stored `worktreePath` basename — which may be stale from
    *  before the per-repo path resolver landed. */
   repoSlotPrefix: string | null;
+  /** Denormalized from `repos.repo_path` at query time — the folder a
+   *  worktree-less chat (repo root, cloud) runs from. */
+  repoPath: string | null;
+  /** Set when this chat is a cloud chat — see {@link CloudChatInfo}. */
+  cloud: CloudChatInfo | null;
+  /** Set when this chat runs on a host — see {@link HostChatInfo}. */
+  host: HostChatInfo | null;
   /** Claude SDK session UUID, captured on first message. Passed back
    *  as `resume` so the agent keeps conversation history across opens. */
   sessionId: string | null;
@@ -345,6 +502,17 @@ export interface MessageRecord {
 export interface MessageBodyText {
   text: string;
   attachments?: ChatAttachment[];
+  /** Set on a user-role row that another chat's agent sent through the
+   *  popbot MCP server (send_to_chat): the chat shows it in a
+   *  cross-agent box, not as this chat's user speaking. */
+  from?: CrossChatOrigin;
+}
+
+/** Who sent a relayed message and whether they wait for the reply. */
+export interface CrossChatOrigin {
+  chatId: string;
+  chatName: string;
+  waiting: boolean;
 }
 
 export interface ChatAttachment {

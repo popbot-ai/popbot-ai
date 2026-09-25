@@ -50,12 +50,16 @@ import type {
   CodexModelId,
   CodexReasoningEffort,
   ChatAttachment,
+  HostRecord,
   MessageRecord,
   PerforceRepoConfig,
   RepoRecord,
   RepoWorktreeMode,
+  MessageKind,
+  MessageRole,
 } from './persistence';
 import type { SourceControlProviderId } from './sourceControl';
+import type { HostInfo, HostRepo, HostSlotsInfo, HostWorkspaceKind } from './hostProtocol';
 
 export const IpcChannel = {
   AppGetVersion: 'pb:app:get-version',
@@ -67,14 +71,25 @@ export const IpcChannel = {
   ChatsReopen: 'pb:chats:reopen',
   ChatsDelete: 'pb:chats:delete',
   ChatsSearch: 'pb:chats:search',
+  /** Full-text search over transcripts — the Search panel. */
+  ChatsSearchTranscripts: 'pb:chats:search-transcripts',
+  /** The tickets, PRs and chat names the database knows — for the
+   *  Search panel's autocomplete of ticket: / cr: / chat: values. */
+  ChatsListRefs: 'pb:chats:list-refs',
   ChatsAttachSlot: 'pb:chats:attach-slot',
   ChatsClosePrep: 'pb:chats:close-prep',
   /** Persist a drag-and-drop arrangement of the open chats. */
   ChatsReorder: 'pb:chats:reorder',
   /** Rename a chat (click on the column title). */
   ChatsRename: 'pb:chats:rename',
+  /** Fork a chat: a new chat with the conversation so far, the agent's
+   *  forked native session, and its own workspace. */
+  ChatsFork: 'pb:chats:fork',
   MessagesList: 'pb:messages:list',
 
+  /** Renderer → diagnostic log (fire-and-forget): a line in the same
+   *  popbot-agent.log the main process writes, tagged `renderer.<tag>`. */
+  DiagLog: 'pb:diag:log',
   SettingsGet: 'pb:settings:get',
   SettingsSet: 'pb:settings:set',
   SettingsGetAll: 'pb:settings:get-all',
@@ -262,6 +277,36 @@ export const IpcChannel = {
   /** Push channel — main → renderer. */
   AgentEvent: 'pb:agent:event',
 
+  /** Run the agent CLI's own sign-in (`claude auth login` / `codex
+   *  login`) from inside the app; its output streams back on
+   *  AuthLoginEvent and the pasted code goes in through AuthLoginInput. */
+  AuthLoginStart: 'pb:auth:login-start',
+  AuthLoginInput: 'pb:auth:login-input',
+  AuthLoginCancel: 'pb:auth:login-cancel',
+  AuthLoginEvent: 'pb:auth:login-event',
+
+  /** Cloud chats (Anthropic Managed Agents): is the cloud set up, does
+   *  a key work, pull the sandbox's commits into the local checkout. */
+  CloudStatus: 'pb:cloud:status',
+  CloudTestKey: 'pb:cloud:test-key',
+  CloudPull: 'pb:cloud:pull',
+  /** End the chat's cloud session on the server (interrupt, then archive). */
+  CloudShutdown: 'pb:cloud:shutdown',
+
+  /** Hosts (Preferences ▸ Hosts): other boxes running popbot-host that
+   *  chats can run on. List / save / remove the records, probe one
+   *  (info + repos), list a host repo's branches, and end a chat's
+   *  session on its host. */
+  HostsList: 'pb:hosts:list',
+  HostsSave: 'pb:hosts:save',
+  HostsRemove: 'pb:hosts:remove',
+  HostsProbe: 'pb:hosts:probe',
+  HostsBranches: 'pb:hosts:branches',
+  HostsSlots: 'pb:hosts:slots',
+  HostsSaveRepo: 'pb:hosts:save-repo',
+  HostsRemoveRepo: 'pb:hosts:remove-repo',
+  HostsShutdown: 'pb:hosts:shutdown',
+
   /** Push channel — main → renderer. A newer release exists but can't be
    *  installed in-app (unsigned build / updater error) — surface a
    *  manual "Download" link to the release page. */
@@ -365,6 +410,8 @@ export interface CreateChatInput {
   ticket?: string;
   pr?: number;
   prUrl?: string;
+  /** Review chats: the PR / review author's login (see ChatRecord.prAuthor). */
+  prAuthor?: string;
   branch?: string;
   type?: 'lite' | 'client_test' | 'server_test';
   /** Caller-chosen slot. When set, main verifies it's still free and
@@ -388,15 +435,77 @@ export interface CreateChatInput {
   claudeReasoningEffort?: ClaudeReasoningEffort;
   codexModel?: CodexModelId;
   codexReasoningEffort?: CodexReasoningEffort;
+  /** Make this a cloud chat: it runs on Anthropic Managed Agents instead
+   *  of a local CLI, on top of whatever workspace is chosen. The agent
+   *  is Claude. */
+  cloud?: boolean;
+  /** Run this chat on a host (Preferences ▸ Hosts) instead of this
+   *  computer: in one of the host's repositories — at its root, or in a
+   *  worktree on `branch` forked from `baseBranch` — or, with no repo, in
+   *  a scratch folder there. No local workspace is made. */
+  host?: { hostId: string; repoId: string | null; kind: HostWorkspaceKind; branch?: string | null; baseBranch?: string | null };
 }
 
 export type CreateChatResult =
   | { ok: true; chat: ChatRecord }
   | { ok: false; reason: 'slots-not-configured' }
   | { ok: false; reason: 'git-not-configured' }
+  | { ok: false; reason: 'host-not-found' }
   | { ok: false; reason: 'slot-taken'; slotId: number }
   | { ok: false; reason: 'no-free-slot' }
   | { ok: false; reason: 'worktree-failed'; message: string };
+
+/** One transcript search hit: where it is, and the text around it. */
+export interface TranscriptSearchHit {
+  chatId: string;
+  chatName: string;
+  /** The chat is archived; going to it reopens it. */
+  closed: boolean;
+  messageId: string;
+  /** The message's position in its chat (get_chat_transcript's index). */
+  index: number;
+  role: MessageRole;
+  kind: MessageKind;
+  ts: number;
+  offset: number;
+  before: string;
+  match: string;
+  after: string;
+}
+
+export interface TranscriptSearchOptions {
+  /** Only these chats; default every open chat (plus archived with includeClosed). */
+  chatIds?: string[];
+  includeClosed?: boolean;
+  /** text: a literal substring (3+ chars); fts: FTS5 syntax. */
+  mode?: 'text' | 'fts';
+  contextChars?: number;
+  maxResults?: number;
+  caseSensitive?: boolean;
+}
+
+/** What the Search panel can complete: every ticket key, PR number and
+ *  chat name on a non-deleted chat, most recently active first. */
+export interface ChatRefs {
+  tickets: Array<{ key: string; chatName: string; closed: boolean }>;
+  prs: Array<{ number: number; chatName: string; closed: boolean }>;
+  chats: Array<{ id: string; name: string; closed: boolean }>;
+}
+
+export type TranscriptSearchResult =
+  | { ok: true; hits: TranscriptSearchHit[] }
+  | { ok: false; error: string };
+
+export interface ForkChatInput {
+  chatId: string;
+  /** Name for the fork. Built by the renderer so it is localized;
+   *  main falls back to "<name> (fork)". */
+  name?: string;
+}
+
+/** Result of `pb:chats:fork` — the create failures, plus a source chat
+ *  that no longer exists. */
+export type ForkChatResult = CreateChatResult | { ok: false; reason: 'not-found' };
 
 /** Result of `pb:chats:reopen`. `ok: false` lets the renderer surface
  *  a meaningful error (e.g. no-slots modal) instead of silently no-oping. */
@@ -557,9 +666,46 @@ export interface AgentBackendStatus {
   version?: string;
   /** Failure reason when not ok (e.g. "claude not found on PATH"). */
   error?: string;
+  /** Whether the CLI is signed in (`claude auth status` / `codex login
+   *  status`). Only meaningful when `ok`; 'unknown' when the CLI didn't
+   *  say (an older CLI, a timeout). */
+  auth?: AuthState;
 }
 
+export type AuthProvider = 'claude' | 'codex';
+export type AuthState = 'signed-in' | 'signed-out' | 'unknown';
+
+/** Push from a running CLI login (`pb:auth:login-event`). */
+export type AuthLoginEvent =
+  | { provider: AuthProvider; type: 'output'; line: string }
+  /** The login printed a URL — the browser fallback link. */
+  | { provider: AuthProvider; type: 'url'; url: string }
+  /** The login is asking for a code to be pasted. */
+  | { provider: AuthProvider; type: 'prompt-code' }
+  | { provider: AuthProvider; type: 'exit'; code: number; message?: string };
+
 /** Online/offline state of the agent CLI backends. */
+/** How cloud chats are set up on this machine. */
+export interface CloudStatus {
+  /** Where the Anthropic API key comes from, or null when there is none. */
+  apiKey: 'settings' | 'env' | null;
+  /** Where the GitHub token the sandbox clones with comes from. */
+  githubToken: 'settings' | 'gh' | null;
+  /** A key is saved in Preferences (as opposed to only the environment). */
+  hasSettingsKey: boolean;
+}
+
+/** What a host answered to a probe: its info, or why it could not be reached. */
+export type HostProbeResult = { ok: true; info: HostInfo } | { ok: false; error: string };
+
+export interface SaveHostInput {
+  /** Omitted to add a host. */
+  id?: string;
+  name: string;
+  url: string;
+  token: string;
+}
+
 export interface AgentBackendsStatus {
   claude: AgentBackendStatus;
   codex: AgentBackendStatus;
@@ -618,7 +764,17 @@ export interface PopBotApi {
     /** Rename a chat. Resolves to the updated record, or null when the
      *  chat is gone or the name was blank. */
     rename(chatId: string, name: string): Promise<ChatRecord | null>;
+    /** Fork a chat — see {@link ForkChatInput}. The fork lands right
+     *  after the original in the strip. */
+    fork(input: ForkChatInput): Promise<ForkChatResult>;
     listMessages(chatId: string, tail?: number): Promise<MessageRecord[]>;
+    /** Full-text search over transcripts, best matches first. */
+    searchTranscripts(query: string, opts?: TranscriptSearchOptions): Promise<TranscriptSearchResult>;
+    listRefs(): Promise<ChatRefs>;
+  };
+  diag: {
+    /** Write a line to the diagnostic log (see IpcChannel.DiagLog). */
+    log(tag: string, data?: Record<string, unknown>): void;
   };
   settings: {
     get<T = unknown>(key: string): Promise<T | null>;
@@ -935,6 +1091,47 @@ export interface PopBotApi {
      * Returns an unsubscribe function.
      */
     onEvent(handler: (event: AgentEvent) => void): () => void;
+  };
+  auth: {
+    /** Start the CLI's sign-in. Resolves once the process is running (or
+     *  says why it couldn't start); progress arrives on onLoginEvent. */
+    startLogin(provider: AuthProvider): Promise<{ ok: true } | { ok: false; error: string }>;
+    /** Feed a line (the pasted code) to the running sign-in. */
+    sendLoginInput(provider: AuthProvider, text: string): Promise<boolean>;
+    cancelLogin(provider: AuthProvider): Promise<void>;
+    onLoginEvent(handler: (event: AuthLoginEvent) => void): () => void;
+  };
+  cloud: {
+    /** Which key and GitHub token cloud chats would run with. */
+    status(): Promise<CloudStatus>;
+    /** Does this Anthropic API key work for Managed Agents? An
+     *  organization-level key needs the workspace it should use. */
+    testKey(apiKey: string, workspaceId?: string): Promise<{ ok: true } | { ok: false; error: string }>;
+    /** Fast-forward the chat's checkout to what the cloud pushed. */
+    pull(chatId: string): Promise<{ ok: true; summary: string } | { ok: false; error: string }>;
+    /** Shut the chat's cloud session down on the server. The next
+     *  message starts a new one, primed with the conversation. */
+    shutdown(chatId: string): Promise<void>;
+  };
+  hosts: {
+    list(): Promise<HostRecord[]>;
+    /** Add or update a host; fields apply as they are left. */
+    save(input: SaveHostInput): Promise<HostRecord>;
+    remove(id: string): Promise<void>;
+    /** Ask a host what it is and has: version, the CLIs it found, its
+     *  repositories, the chats it is running. */
+    probe(url: string, token: string): Promise<HostProbeResult>;
+    /** Branches of one of a host's repositories, for the new-chat dialog. */
+    branches(hostId: string, repoId: string): Promise<{ ok: true; branches: string[] } | { ok: false; error: string }>;
+    /** A host repository's slot pool and who holds each slot. */
+    slots(hostId: string, repoId: string): Promise<{ ok: true; slots: HostSlotsInfo } | { ok: false; error: string }>;
+    /** Add or change a repository on the host (path, base branch, slot
+     *  pool); the host rewrites its config. */
+    saveRepo(hostId: string, repo: Partial<HostRepo> & { id: string }): Promise<{ ok: true; repo: HostRepo } | { ok: false; error: string }>;
+    removeRepo(hostId: string, repoId: string): Promise<{ ok: true } | { ok: false; error: string }>;
+    /** End the chat's session on its host. The next message starts a
+     *  new one there, resuming the same conversation. */
+    shutdown(chatId: string): Promise<void>;
   };
   updates: {
     /** Subscribe to "newer release available, download manually" pushes

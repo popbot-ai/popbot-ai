@@ -409,6 +409,111 @@ input, textarea { font: inherit; color: inherit; background: none; border: 0; ou
   font-size: 11px;
 }
 
+/* The cloud note under the workspace choice in the new-chat dialog. */
+.cloud-note {
+  display: flex; gap: 8px; align-items: flex-start;
+  margin: 0 16px 10px; padding: 8px 10px; border-radius: 6px;
+  background: rgba(207,157,106,0.08); border: 1px solid rgba(207,157,106,0.35);
+  color: var(--fg-2); font-size: 12px; line-height: 1.45;
+}
+.cloud-note i { color: #cf9d6a; margin-top: 2px; }
+
+/* The Cloud chip. In the new-chat dialog it's a toggle beside the agent
+   selectors: a faded outline when off, filled in Claude's color (the one
+   the agent selector uses) when the chat will run on Claude Code on the
+   web. In a chat's composer the same chip, always filled, marks a cloud
+   chat and opens its session. Small and squarish like the other chips. */
+.cloud-toggle, .cloud-chip {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 2px 7px; border-radius: 4px; line-height: 1.4;
+  font-size: 10.5px; font-weight: 600; font-family: inherit; letter-spacing: 0.02em;
+  border: 1px solid #cf9d6a; background: #cf9d6a; color: #1a1208;
+  cursor: pointer; transition: background 80ms, border-color 80ms, color 80ms, opacity 80ms;
+}
+.cloud-toggle i, .cloud-chip i { font-size: 10px; }
+.cloud-toggle:not(.on) {
+  background: transparent; border-color: var(--line-3); color: var(--fg-3); opacity: 0.7;
+}
+.cloud-toggle:not(.on):hover { opacity: 1; color: var(--fg-1); }
+.cloud-chip:hover { filter: brightness(1.08); }
+/* No session id yet: the outline form, until the link arrives. */
+.cloud-chip.pending { background: transparent; color: #cf9d6a; }
+
+/* Search panel (⌘⇧F): transcript hits grouped by chat, best first.
+   Doubly qualified: `.confirm-dialog`'s own max-width is declared later
+   in this file and would win at equal specificity. */
+.confirm-dialog.search-panel { width: min(1400px, 94vw); max-width: 94vw; margin-top: 10vh; }
+.search-panel-results { max-height: 68vh; overflow-y: auto; margin-top: 4px; }
+.search-panel-chat {
+  display: flex; align-items: center; gap: 8px; width: 100%;
+  background: transparent; border: 0; cursor: pointer; font-family: inherit;
+  padding: 8px 2px 4px;
+}
+.search-panel-chat:hover .search-panel-chat-name { color: var(--fg-0); text-decoration: underline; }
+.search-panel-chat i { color: var(--fg-3); }
+.search-panel-chat-name {
+  color: var(--fg-1); font-size: 12px; font-weight: 600; text-transform: none; letter-spacing: 0;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.search-panel-tag {
+  font-size: 10px; font-weight: 500; letter-spacing: 0.04em; text-transform: uppercase;
+  color: var(--fg-3); border: 1px solid var(--line-2); border-radius: 3px; padding: 0 5px;
+}
+.search-panel-count { margin-left: auto; font-size: 10px; color: var(--fg-3); font-family: var(--font-mono); }
+.search-panel-hit { cursor: pointer; }
+.search-panel-role {
+  flex: 0 0 auto; width: 46px; font-family: var(--font-mono); font-size: 10px; color: var(--fg-3);
+  text-transform: uppercase; letter-spacing: 0.04em;
+}
+.search-panel-role.role-user { color: var(--acc); }
+.search-panel-snippet {
+  flex: 1 1 auto; min-width: 0; font-family: var(--font-mono); font-size: 11px; color: var(--fg-2);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.search-panel-snippet mark { background: color-mix(in srgb, var(--acc) 28%, transparent); color: var(--fg-0); border-radius: 2px; padding: 0 1px; }
+.search-panel-go { flex: 0 0 auto; visibility: hidden; }
+.search-panel-hit:hover .search-panel-go { visibility: visible; }
+.search-panel-more { padding: 2px 8px 6px 62px; font-size: 11px; color: var(--fg-3); }
+.search-panel-note { padding: 14px 4px 4px; font-size: 12px; color: var(--fg-3); }
+.search-panel-keys { margin-right: auto; font-size: 11px; color: var(--fg-3); }
+
+/* Completions for ticket: / cr: / chat: values: a panel floating under
+   the box, over the buttons and results, so nothing shifts while typing. */
+.search-panel-input-wrap { position: relative; }
+.search-panel-suggest {
+  position: absolute; left: 0; right: 0; top: calc(100% + 4px); z-index: 5;
+  max-height: 260px; overflow-y: auto;
+  padding: 4px; border: 1px solid var(--line-2); border-radius: 6px;
+  background: var(--bg-2); box-shadow: 0 8px 24px rgba(0,0,0,0.35);
+}
+.search-panel-suggest-row {
+  display: flex; align-items: center; gap: 10px; width: 100%;
+  padding: 5px 8px; background: transparent; border: 0; border-radius: 4px;
+  color: var(--fg-1); font-size: 12px; text-align: left; cursor: pointer; font-family: inherit;
+}
+.search-panel-suggest-row .mono { color: var(--fg-0); font-size: 11px; flex: 0 0 auto; }
+.search-panel-suggest-row.active { background: var(--bg-3); }
+.search-panel-suggest-detail { color: var(--fg-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Filter tag buttons under the search box. */
+.search-panel-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.search-panel-tag-btn {
+  font-family: var(--font-mono); font-size: 11px; line-height: 1;
+  padding: 5px 10px; border-radius: 999px;
+  background: var(--bg-2); border: 1px solid var(--line-2); color: var(--fg-2);
+  cursor: pointer; transition: background 80ms, border-color 80ms, color 80ms;
+}
+.search-panel-tag-btn:hover { background: var(--bg-3); border-color: var(--line-3); color: var(--fg-0); }
+.search-panel-tag-btn.active { background: color-mix(in srgb, var(--acc) 22%, var(--bg-2)); border-color: var(--acc); color: var(--fg-0); }
+.search-panel-tag-btn.prefix { border-style: dashed; }
+
+/* The row a "Go to" landed on: a fade-out flash so the eye finds it. */
+@keyframes msg-jump-flash {
+  from { box-shadow: 0 0 0 3px color-mix(in srgb, var(--acc) 70%, transparent); background: color-mix(in srgb, var(--acc) 14%, transparent); }
+  to   { box-shadow: 0 0 0 3px transparent; background: transparent; }
+}
+.msg-jump { border-radius: 6px; animation: msg-jump-flash 2.4s ease-out forwards; }
+
 /* Refresh banner — slides down from under the panel header while
    tickets + PRs are being refetched, flips to confirmation, then
    slides shut. Yellow during, blue at done; the brand-blue accent
@@ -558,6 +663,28 @@ input, textarea { font: inherit; color: inherit; background: none; border: 0; ou
 /* (Earlier iteration had a top-edge color bar here; removed because
    the unified per-chat color blip on the status glyph below already
    conveys the repo association without coloring the whole row.) */
+/* A review chat's mark is the Reviews tab's author circle (`.avatar`
+   above: two characters of the login on the author's hashed colour),
+   in the same round slot the repo dot occupies (`.status-glyph`,
+   `.mon-glyph`, `.col-name-dot`). The host class keeps its status
+   pulse; the size and type match the Reviews tab at 18px and scale
+   down with the smaller marks. The background is set inline. */
+.review-avatar {
+  font-family: inherit; font-weight: 600; letter-spacing: 0.04em;
+  color: white; padding: 0; overflow: hidden;
+}
+/* The host marks set the mono face later in this file; the circle
+   keeps the UI face the Reviews tab uses, so the two read the same. */
+.chat-row .status-glyph.scm-glyph.review-avatar { width: 18px; height: 18px; flex-basis: 18px; margin-top: 1px; font-size: 9px; font-family: inherit; color: white; }
+/* The card head and the chat header get the list's full 18px circle;
+   a stripe is 16px wide, so its circle is 14px with the type to match. */
+.mon-head .mon-glyph.review-avatar { width: 18px; height: 18px; flex-basis: 18px; font-size: 9px; font-family: inherit; color: white; }
+.mon-thin .mon-glyph.review-avatar { width: 14px; height: 14px; flex-basis: 14px; font-size: 7px; letter-spacing: 0; font-family: inherit; color: white; }
+.col-head .col-name-dot.review-avatar {
+  width: 18px; height: 18px; flex-basis: 18px; font-size: 9px; font-family: inherit; color: white;
+  display: inline-flex; align-items: center; justify-content: center;
+}
+
 /* Unified per-chat color blip — filled circle in the chat's repo
    color (or apple-blue fallback). Status is conveyed by the glyph
    shape sitting inside (▶ ✓ ? ✗ ○); the perceptual fg keeps the
@@ -641,15 +768,33 @@ input, textarea { font: inherit; color: inherit; background: none; border: 0; ou
   background: var(--bg-1);
   flex: 0 0 auto;
 }
+/* The strip is an accordion (lib/accordion.ts): every open chat fits,
+   as a full thumbnail or a thin stripe. It is still a real horizontal
+   scroller — the track below is as wide as the virtual row of full
+   thumbnails, so the scrollbar is the one it always had — while the
+   cards sit in a sticky layer that stays in view and lays itself out
+   from the scroll position. */
 .thumbstrip {
   flex: 1 1 auto;
-  display: flex; gap: 6px;
-  padding: 8px 8px 8px 8px;
+  display: block;
   overflow-x: auto;
   overflow-y: hidden;
   scrollbar-width: thin;
   min-width: 0;
+  position: relative;
 }
+.thumbstrip-track { height: 100%; min-height: 172px; }
+.thumbstrip-cards {
+  position: sticky; left: 0;
+  box-sizing: border-box;
+  display: flex; gap: 6px;
+  padding: 8px 8px 8px 8px;
+}
+.thumbstrip-empty { margin: 8px; }
+/* Grip-scrolling (lib/useGripScroll.ts): a hand over the strip's top
+   third, a fist while panning. */
+.thumbstrip.grip-zone, .thumbstrip.grip-zone .monitor { cursor: grab; }
+.thumbstrip.grabbing, .thumbstrip.grabbing .monitor { cursor: grabbing; user-select: none; }
 
 /* ============================================================
    Monitor cards — mini-chat snapshot per chat
@@ -662,17 +807,60 @@ input, textarea { font: inherit; color: inherit; background: none; border: 0; ou
    ============================================================ */
 .monitor {
   flex: 0 0 240px;
+  width: 240px;
   height: 156px;
+  box-sizing: border-box;
   background: var(--bg-2);
   border: 1px solid var(--line-2);
   border-left-width: 3px;
   border-radius: var(--radius-sm);
-  padding: 6px 8px 6px;
-  display: flex; flex-direction: column;
   cursor: pointer;
   position: relative;
   overflow: hidden;
   transition: border-color 0.12s, background 0.12s;
+}
+/* The full thumbnail: laid out at its natural width inside the (maybe
+   narrower) card and clipped by it — anchored to whichever edge the
+   card is opening from. */
+.mon-full {
+  position: absolute; top: 0; bottom: 0; left: 0;
+  box-sizing: border-box;
+  padding: 6px 8px 6px;
+  display: flex; flex-direction: column;
+}
+.monitor.anchor-right .mon-full { left: auto; right: 0; }
+/* The stripe: glyph on top, the name running down, the blinker at the
+   foot. A hair smaller than the thumbnail's type so stripes pack. */
+/* A fixed-width band on the edge the card opens from (the space a
+   partly open card gains stays empty until the thumbnail takes over). */
+.mon-thin {
+  position: absolute; top: 0; bottom: 0; left: 0; width: 16px;
+  display: flex; flex-direction: column; align-items: center; gap: 5px;
+  padding: 5px 0 6px;
+}
+.monitor.anchor-right .mon-thin { left: auto; right: 0; }
+.mon-thin .mon-glyph { flex: 0 0 12px; }
+/* The name runs down the stripe; its box is exactly one line tall
+   (sideways: wide) so the stripe carries no spare width. */
+.mon-thin-name {
+  writing-mode: vertical-rl;
+  font-size: 10px; line-height: 12px; font-weight: 600; color: var(--fg-1); letter-spacing: 0.01em;
+  flex: 1 1 auto; min-height: 0; width: 12px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.monitor.is-thin.focused .mon-thin-name { color: var(--fg-0); }
+.mon-thin-attn {
+  flex: 0 0 auto; width: 7px; height: 7px; border-radius: 50%;
+  background: var(--st-wait);
+}
+.mon-thin-attn[data-kind='plan'] { background: var(--acc); }
+/* The working blinker at the foot of the stripe — the same blue cursor
+   the thumbnail's transcript shows. */
+.mon-thin-cursor {
+  flex: 0 0 auto; width: 4px; height: 11px; border-radius: 1px;
+  margin-top: 1px;
+  background: var(--acc-hi);
+  animation: blink 1s steps(2) infinite;
 }
 .monitor:hover { background: var(--bg-3); }
 .monitor.focused {
@@ -841,6 +1029,17 @@ input, textarea { font: inherit; color: inherit; background: none; border: 0; ou
   padding: 5px 10px;
 }
 
+/* Forked from … — the seam in a fork's transcript between the history it
+   inherited and its own. Same quiet centered treatment as a model switch. */
+.msg.chat-fork, .msg.chat-cloud { justify-content: center; }
+.msg.chat-fork .body, .msg.chat-cloud .body {
+  display: flex; align-items: center; gap: 7px;
+  color: var(--fg-2); background: transparent; border: 0;
+  font-size: 12px; padding: 5px 10px;
+}
+.msg.chat-fork .body i, .msg.chat-cloud .body i { color: var(--acc); }
+.msg.chat-cloud .body a { color: var(--acc); overflow-wrap: anywhere; }
+
 /* Context compacted — the outcome of a /compact (from the gauge, a typed
    slash command, or the CLI's autocompact), written to the transcript.
    `.busy` is the ephemeral in-progress row. */
@@ -867,6 +1066,24 @@ input, textarea { font: inherit; color: inherit; background: none; border: 0; ou
   font-size: var(--fs-sm);
 }
 .msg.system-warning .msg-warning-icon { color: #e0c07a; }
+.msg.system-warning .msg-warning-action { margin-left: auto; flex: 0 0 auto; align-self: center; }
+
+/* Sign-in dialog — the CLI's own login, mirrored. */
+.sign-in-dialog { width: min(520px, 92vw); }
+.sign-in-status { display: flex; align-items: center; gap: 8px; margin: 0 0 10px; color: var(--fg-1); }
+.sign-in-status.ok { color: var(--st-done); }
+.sign-in-status.err { color: #e89696; }
+.sign-in-fallback { margin: 0 0 10px; color: var(--fg-2); font-size: 12px; }
+.sign-in-fallback a { color: var(--acc-hi); }
+.sign-in-code label { display: block; font-size: 11px; color: var(--fg-2); margin-bottom: 4px; }
+.sign-in-code-row { display: flex; gap: 6px; }
+.sign-in-code-row .input { flex: 1 1 auto; min-width: 0; }
+.sign-in-log {
+  margin: 10px 0 0; padding: 6px 8px; max-height: 120px; overflow: auto;
+  background: var(--bg-1); border: 1px solid var(--line-2); border-radius: 4px;
+  font-family: var(--font-mono); font-size: 10.5px; color: var(--fg-3);
+  white-space: pre-wrap; word-break: break-all;
+}
 
 /* System error message in the chat body — distinct red treatment so a
    backend / SDK error is unmistakable amongst normal prose. */
@@ -1493,15 +1710,109 @@ input, textarea { font: inherit; color: inherit; background: none; border: 0; ou
 }
 .msg .stamp { font-size: 10px; color: var(--fg-3); padding: 0 4px; }
 
+/* A message from another chat's agent (the popbot send_to_chat tool):
+   its own box, so it is never mistaken for this chat's user. A teal
+   tint and a header naming the sending chat set it apart from both
+   the user bubble (blue) and agent prose (bare). */
+.msg.cross-agent { align-items: flex-start; }
+.msg.cross-agent .body {
+  background: rgba(79, 193, 193, 0.08);
+  border: 1px solid rgba(79, 193, 193, 0.35);
+  border-left-width: 3px;
+  border-radius: 6px;
+  color: var(--fg-0);
+  padding: 6px 10px 8px;
+  max-width: 88%;
+  white-space: normal;
+}
+.cross-agent-head {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 11px; font-weight: 600; color: #4fc1c1;
+  margin-bottom: 4px;
+}
+.cross-agent-head i { font-size: 10px; }
+.cross-agent-waiting {
+  margin-left: auto; font-weight: 500; color: var(--fg-3);
+}
+
 /* Tool call block */
 /* Tool calls — lightweight inline status row, no boxy frame.
-   Emulates Claude Code in VS Code: a single line with an icon, the
-   tool kind, and a one-line "what it's doing" hint. */
+   Emulates Claude Code in VS Code: a single line with a dot, the tool
+   kind, and a one-line "what it's doing" hint (a Bash row leads with
+   the reason the agent gave; the command is under the fold).
+
+   The dot is the timeline: coloured by what the tool does (`kind-*`),
+   red when the call failed, hollow and pulsing while it runs. A run
+   of consecutive tool rows is joined by a thin line through the dots
+   (`chain-*`: where this row sits in the run). The line is drawn by
+   `::before` and reaches up through the chat scroll's row gap, which
+   neighbouring tool rows also close up so the run reads as one. */
+:root {
+  --tool-run: #b48ead;
+  --tool-edit: #e0a458;
+  --tool-read: #6b9fff;
+  --tool-web: #4fc1c1;
+  --tool-agent: #e07ab8;
+  --tool-plan: #8fbf7f;
+  --tool-mcp: #9b8cff;
+  --tool-other: #8a93a6;
+  --tool-gap: 14px;
+  /* Vertical centre of the dot, from the top of the row. */
+  --tool-dot-y: 9px;
+  --tool-dot-r: 4.5px;
+  /* Space left between consecutive tool rows, and between the line and
+     the dot it points at. */
+  --tool-chain-gap: 5px;
+  --tool-dot-clear: 2.5px;
+}
 .tool {
   font-family: var(--font-mono);
   font-size: 11px;
   flex: 0 0 auto;
   margin: 1px 0;
+  position: relative;
+  padding-left: 18px;
+  --tool-color: var(--tool-other);
+}
+.tool.kind-run { --tool-color: var(--tool-run); }
+.tool.kind-edit { --tool-color: var(--tool-edit); }
+.tool.kind-read { --tool-color: var(--tool-read); }
+.tool.kind-web { --tool-color: var(--tool-web); }
+.tool.kind-agent { --tool-color: var(--tool-agent); }
+.tool.kind-plan { --tool-color: var(--tool-plan); }
+.tool.kind-mcp { --tool-color: var(--tool-mcp); }
+.tool.status-err { --tool-color: var(--st-err); }
+/* Consecutive tool rows sit closer than prose does. */
+.tool.chain-mid, .tool.chain-end { margin-top: calc(-1 * (var(--tool-gap) - var(--tool-chain-gap))); }
+/* The line is two segments that stop clear of the dot: `::before`
+   comes down from the previous row (through the narrowed gap) to just
+   above the dot, `::after` leaves just below it for the next row. */
+.tool::before, .tool::after {
+  content: ""; position: absolute; left: 4px; width: 1px;
+  background: var(--line-3);
+  z-index: 0;
+}
+.tool::before {
+  top: calc(-1 * var(--tool-chain-gap));
+  bottom: calc(100% - var(--tool-dot-y) + var(--tool-dot-r) + var(--tool-dot-clear));
+}
+.tool::after {
+  top: calc(var(--tool-dot-y) + var(--tool-dot-r) + var(--tool-dot-clear));
+  bottom: 0;
+}
+.tool.chain-solo::before, .tool.chain-start::before { display: none; }
+.tool.chain-solo::after, .tool.chain-end::after { display: none; }
+.tool-dot {
+  position: absolute; left: calc(4.5px - var(--tool-dot-r)); top: calc(var(--tool-dot-y) - var(--tool-dot-r));
+  width: calc(2 * var(--tool-dot-r)); height: calc(2 * var(--tool-dot-r)); border-radius: 50%;
+  background: var(--tool-color);
+  z-index: 1;
+  flex: 0 0 auto;
+}
+.tool.status-live .tool-dot {
+  background: transparent;
+  border: 1.5px solid var(--tool-color);
+  animation: pulse 1.6s ease-in-out infinite;
 }
 .tool-head {
   display: flex;
@@ -1514,16 +1825,6 @@ input, textarea { font: inherit; color: inherit; background: none; border: 0; ou
 }
 .tool.expandable .tool-head { cursor: pointer; }
 .tool.expandable .tool-head:hover { color: var(--fg-0); }
-.tool-icon {
-  font-size: 11px;
-  color: var(--acc-hi);
-  width: 14px;
-  text-align: center;
-  flex: 0 0 auto;
-}
-.tool.status-err .tool-icon { color: var(--st-err); }
-.tool.status-live .tool-icon { color: var(--st-wait); }
-.tool.status-done .tool-icon { color: var(--st-done); }
 .tool-head .name {
   color: var(--fg-1);
   font-weight: 600;
@@ -1570,7 +1871,7 @@ input, textarea { font: inherit; color: inherit; background: none; border: 0; ou
 }
 .tool.expandable:hover .tool-chev { opacity: 1; color: var(--acc-hi); }
 .tool-body {
-  margin: 4px 0 6px 22px;
+  margin: 4px 0 6px 0;
   padding: 0;
   font-size: 10.5px;
 }
@@ -1958,7 +2259,29 @@ input, textarea { font: inherit; color: inherit; background: none; border: 0; ou
 .ctx-gauge-menu-item:hover:not(:disabled) { background: var(--bg-3); }
 .ctx-gauge-menu-item:disabled { color: var(--fg-3); cursor: default; }
 .ctx-gauge-menu-item:disabled i { color: var(--fg-3); }
-.ctx-gauge-menu-hint { padding: 2px 10px 6px; font-size: 10px; color: var(--fg-3); }
+.ctx-gauge-menu-hint {
+  padding: 2px 10px 6px; font-size: 10px; line-height: 1.4; color: var(--fg-3);
+  max-width: 260px; white-space: normal;
+}
+
+/* The chat's ☰ menu (column header): its commands, then the settings
+   sheet. Same look as the gauge menu; opens downward under its button. */
+.chat-menu {
+  position: fixed; background: var(--bg-2); border: 1px solid var(--line-1);
+  border-radius: 6px; padding: 4px; z-index: 100; min-width: 220px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+}
+.chat-menu-item {
+  display: flex; align-items: center; gap: 8px;
+  width: 100%; padding: 6px 10px; background: transparent; border: 0;
+  color: var(--fg-1); cursor: pointer; font-size: 12px; text-align: left;
+  border-radius: 3px; font-family: inherit; white-space: nowrap;
+}
+.chat-menu-item i { width: 14px; text-align: center; color: var(--fg-2); }
+.chat-menu-item:hover:not(:disabled) { background: var(--bg-3); }
+.chat-menu-item:disabled { color: var(--fg-3); cursor: default; }
+.chat-menu-item:disabled i { color: var(--fg-3); }
+.chat-menu-sep { height: 1px; margin: 4px 8px; background: var(--line-2); }
 
 /* Picked attachments — chips above the textarea, before send. */
 .attachment-chips {
@@ -3972,8 +4295,10 @@ input.input.mono, select.input.mono { font-family: var(--font-mono); font-size: 
    stay authoritative and our overrides win on cascade order.
    ============================================================ */
 
-/* Dim out-of-window thumbnails so the visible group reads. */
+/* Dim out-of-window thumbnails so the visible group reads. Stripes
+   less so — the point of them is that every chat stays legible. */
 .monitor.is-offscreen { opacity: 0.5; }
+.monitor.is-thin.is-offscreen { opacity: 0.78; }
 .monitor.is-offscreen:hover { opacity: 0.85; }
 
 /* Wait state — needs-you indicator on the thumbnail. The design's base
@@ -4015,16 +4340,16 @@ input.input.mono, select.input.mono { font-family: var(--font-mono); font-size: 
 .monitor.is-foreground .attn-tag { top: 22px; }
 
 /* Scrollbar treatment for the horizontally-scrolling thumbstrip. */
-.thumbstrip { scrollbar-color: #232936 transparent; }
-.thumbstrip::-webkit-scrollbar { height: 4px; }
+.thumbstrip { scrollbar-color: #3f4a5e transparent; }
+.thumbstrip::-webkit-scrollbar { height: 5px; }
 .thumbstrip::-webkit-scrollbar-track { background: transparent; }
 .thumbstrip::-webkit-scrollbar-thumb {
-  background: #232936;
+  background: #3f4a5e;
   border-radius: 8px;
   border: 1px solid transparent;
   background-clip: padding-box;
 }
-.thumbstrip::-webkit-scrollbar-thumb:hover { background: #2e3645; background-clip: padding-box; }
+.thumbstrip::-webkit-scrollbar-thumb:hover { background: #55627a; background-clip: padding-box; }
 
 /* Free-floating frame around the visible thumbnails. Lives as a sibling
    of the thumbstrip (inside center-head) so it isn't clipped by the
@@ -5707,3 +6032,90 @@ input.input.mono, select.input.mono { font-family: var(--font-mono); font-size: 
   margin: 10px 0; display: flex; align-items: center; gap: 8px;
   font-size: var(--fs-xs); color: #5fb98a;
 }
+
+/* The host chip: a chat whose agent runs on a PopBot host. Filled once
+   the session has a directory there; outlined before the first
+   message. Same shape as the cloud chip, in the host colour. */
+.host-chip {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 2px 7px; border-radius: 4px; line-height: 1.4;
+  font-size: 10.5px; font-weight: 600; font-family: inherit; letter-spacing: 0.02em;
+  border: 1px solid #6fb1c9; background: #6fb1c9; color: #08161a;
+  cursor: pointer; transition: background 80ms, border-color 80ms, color 80ms, opacity 80ms;
+  flex: 0 0 auto; max-width: 160px; white-space: nowrap;
+}
+.host-chip i { font-size: 10px; flex: 0 0 auto; }
+.host-chip span { overflow: hidden; text-overflow: ellipsis; }
+.host-chip:hover { filter: brightness(1.08); }
+.host-chip.pending { background: transparent; color: #6fb1c9; }
+
+/* Preferences ▸ Hosts: one card per host, fields that save when left. */
+.host-howto {
+  margin: 10px 0 0; padding: 8px 10px; border-radius: 4px;
+  background: var(--bg-3); border: 1px solid var(--line-2);
+  font-family: var(--font-mono); font-size: 11px; line-height: 1.6; color: var(--fg-1);
+  white-space: pre; overflow-x: auto; max-width: 600px;
+}
+.host-card {
+  margin-top: 10px; padding: 10px 12px; border-radius: 6px;
+  border: 1px solid var(--line-2); background: var(--bg-2);
+}
+.host-card-fields {
+  display: grid; gap: 10px;
+  grid-template-columns: minmax(110px, 1fr) minmax(200px, 2fr) minmax(160px, 1.6fr);
+}
+.host-card-field { display: flex; flex-direction: column; gap: 4px; font-size: 11px; color: var(--fg-3); min-width: 0; }
+.host-card-field .pref-input { width: 100%; }
+.host-card-foot { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 8px; }
+.host-card-status { display: inline-flex; align-items: center; gap: 6px; min-width: 0; font-size: 11.5px; color: var(--fg-2); }
+.host-card-status.ok i { color: var(--st-done); }
+.host-card-status.error { color: #e89696; }
+
+/* Preferences ▸ Hosts: a host's repositories, editable in place. */
+.host-repos { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--line-1); }
+.host-repos-head { font-size: 11px; color: var(--fg-3); margin-bottom: 6px; }
+.host-repo { padding: 8px 10px; border: 1px solid var(--line-1); border-radius: 5px; background: var(--bg-1); margin-bottom: 8px; }
+.host-repo-head { display: flex; align-items: center; gap: 8px; }
+.host-repo-id { font-size: 12.5px; font-weight: 600; color: var(--fg-0); }
+.host-repo-fields {
+  display: grid; gap: 8px 10px; margin-top: 8px;
+  grid-template-columns: repeat(4, minmax(90px, 1fr));
+}
+.host-repo-fields .pref-select { width: 100%; min-width: 0; }
+.host-repo-add { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 4px; }
+
+/* The Hosts tab: this computer's slot pools, then each host's pools
+   and chats. Pips are the slot-strip pips; the accent colour comes
+   from the repo (local) or stays neutral (a host). */
+.hosts-panel { padding: 6px 0 12px; }
+.hosts-host { border-bottom: 1px solid var(--line-1); padding: 6px 10px 8px; }
+.hosts-host:last-of-type { border-bottom: 0; }
+.hosts-host-head { display: flex; align-items: center; gap: 7px; min-height: 22px; }
+.hosts-host-head > i { color: var(--fg-3); font-size: 11px; width: 14px; text-align: center; }
+.hosts-host-name { font-size: 12px; font-weight: 600; color: var(--fg-0); }
+.hosts-host-meta { font-size: 10.5px; color: var(--fg-3); white-space: nowrap; }
+.hosts-host-meta.error { color: #e89696; }
+.hosts-pool { display: flex; align-items: center; gap: 8px; padding: 3px 0 3px 21px; min-width: 0; }
+.hosts-pool-repo { font-size: 11px; color: var(--fg-2); flex: 0 0 auto; }
+.hosts-pool-tag { font-size: 10.5px; color: var(--fg-3); }
+.hosts-empty { font-size: 11px; color: var(--fg-3); padding: 3px 0 3px 21px; }
+.hosts-chats { list-style: none; margin: 4px 0 0; padding: 0 0 0 21px; display: flex; flex-direction: column; gap: 1px; }
+.hosts-chat {
+  display: flex; align-items: center; gap: 7px; width: 100%;
+  background: transparent; border: 0; padding: 3px 6px; border-radius: 4px;
+  font-family: inherit; font-size: 11.5px; color: var(--fg-1); text-align: left; cursor: pointer; min-width: 0;
+}
+.hosts-chat:hover { background: var(--bg-2); color: var(--fg-0); }
+.hosts-chat-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; flex: 1 1 auto; }
+.hosts-chat-slot { font-size: 10px; color: var(--fg-3); flex: 0 0 auto; }
+.hosts-chat-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--st-idle); flex: 0 0 auto; }
+.hosts-chat-dot.st-run { background: var(--st-run); }
+.hosts-chat-dot.st-done { background: var(--st-done); }
+.hosts-chat-dot.st-wait { background: var(--st-wait); }
+.hosts-chat-dot.st-err { background: var(--st-err); }
+.host-card.local { background: var(--bg-2); }
+.host-card-head { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; min-width: 0; }
+.host-card-head > i { color: var(--fg-3); font-size: 11px; }
+.host-card-title { font-size: 12.5px; font-weight: 600; color: var(--fg-0); white-space: nowrap; }
+.host-repo-line { display: flex; align-items: center; gap: 8px; padding: 4px 0; min-width: 0; font-size: 11.5px; }
+.host-repo-path { color: var(--fg-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }

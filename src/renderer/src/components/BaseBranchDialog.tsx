@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { GitBaseBranches } from '@shared/git';
-import type { RepoRecord } from '@shared/persistence';
+import type { HostRecord, RepoRecord } from '@shared/persistence';
+import type { HostInfo, HostSlotsInfo, HostWorkspaceKind } from '@shared/hostProtocol';
 import { useTranslation } from '../lib/i18n';
 import { P4Glyph } from './P4Glyph';
 import {
@@ -47,6 +48,9 @@ interface BaseBranchDialogProps {
   allowRepoRoot?: boolean;
   /** Show an agent/model picker before creating the chat. */
   showAgentPicker?: boolean;
+  /** Open Preferences at a section — offered when the Cloud chip is on
+   *  but no Anthropic API key is set, so the fix is one click away. */
+  onOpenPrefs?: (sectionId?: string) => void;
   onCancel: () => void;
   /** Returns the repo + base branch for repo-backed chats. Raw chats
    *  return null for both. Subject + derived branch only come back
@@ -57,12 +61,23 @@ interface BaseBranchDialogProps {
     subject?: string;
     branch?: string;
     workspaceMode?: 'slot' | 'repo-root';
+    /** The chat drives a Claude Code cloud session, whatever workspace
+     *  it has: none (runs remotely), the repo root, or a slot / worktree
+     *  whose branch is pushed for the cloud to clone. */
+    cloud?: boolean;
+    /** The chat runs on a host (Preferences ▸ Hosts): in one of its
+     *  repositories — at the root, or in a worktree on `branch` forked
+     *  from `baseBranch` — or in a scratch folder there. `repoId` is
+     *  null then; nothing is made on this machine. */
+    host?: { hostId: string; repoId: string | null; kind: HostWorkspaceKind; branch: string | null; baseBranch: string | null };
     agentConfig?: AgentCreateConfig;
   }) => void;
 }
 
 const LAST_REPO_SETTING = 'chatCreate.lastRepoId';
 const LAST_AGENT_SETTING = 'chatCreate.lastAgentConfig';
+/** The host the last chat was made on; empty for this computer. */
+const LAST_HOST_SETTING = 'chatCreate.lastHostId';
 /** Most-recent-first list of previously-picked base branches; the top
  *  few surface at the top of the picker. */
 const RECENT_BASE_BRANCHES_SETTING = 'chatCreate.recentBaseBranches';
@@ -199,6 +214,18 @@ function BaseBranchPicker({
             {branches.length === 0 && !allowRepoRoot && (
               <div style={{ padding: 8, color: 'var(--fg-3)', fontSize: 12 }}>{t('branch.picker.noBranches')}</div>
             )}
+            {/* The two non-branch choices first, where they can't be missed. */}
+            {allowRepoRoot && (!q || freeChatHaystack.includes(q)) && (
+              <button
+                type="button"
+                className={`base-branch-row ${isFree ? 'selected' : ''}`}
+                onClick={() => pick(freeChatValue)}
+              >
+                <span className="base-branch-name">{t('branch.picker.freeChat')}</span>
+                <span className="base-branch-tag">{t('branch.picker.tagRepoRoot')}</span>
+              </button>
+            )}
+            {allowRepoRoot && (shownRecents.length > 0 || others.length > 0) && <div className="base-branch-divider" />}
             {shownRecents.map((b) => (
               <button
                 type="button"
@@ -222,16 +249,6 @@ function BaseBranchPicker({
                 {b === defaultBase && <span className="base-branch-tag">{t('branch.picker.tagDefault')}</span>}
               </button>
             ))}
-            {allowRepoRoot && (!q || freeChatHaystack.includes(q)) && (
-              <button
-                type="button"
-                className={`base-branch-row ${isFree ? 'selected' : ''}`}
-                onClick={() => pick(freeChatValue)}
-              >
-                <span className="base-branch-name">{t('branch.picker.freeChat')}</span>
-                <span className="base-branch-tag">{t('branch.picker.tagRepoRoot')}</span>
-              </button>
-            )}
           </div>
         </div>
       )}
@@ -248,6 +265,7 @@ export function BaseBranchDialog({
   allowNoRepo,
   allowRepoRoot,
   showAgentPicker,
+  onOpenPrefs,
   onCancel,
   onConfirm,
 }: BaseBranchDialogProps): JSX.Element {
@@ -301,10 +319,142 @@ export function BaseBranchDialog({
   // The branch / changelist name actually used: the user's edit if they typed
   // one, else the seed.
   const effectiveBranch = branchEdit && branchEdit.trim() ? branchEdit.trim() : seedBranch;
-  const isRawChat = pickedRepoId === null && allowNoRepo === true;
+  // "Run on": this computer, or a host from Preferences ▸ Hosts. On a
+  // host the workspace is one of ITS repositories — the root, or a
+  // worktree on the chat's branch — or a scratch folder there; nothing
+  // is made on this machine. Offered by the generic new-chat flow.
+  const hostAllowed = showAgentPicker === true && allowNoRepo === true && !lockedRepoId;
+  const [hosts, setHosts] = useState<HostRecord[]>([]);
+  const [hostId, setHostId] = useState<string | null>(null);
+  const host = hostAllowed ? hosts.find((h) => h.id === hostId) ?? null : null;
+  const isHost = host !== null;
+  const [hostInfo, setHostInfo] = useState<{ state: 'loading' | 'ok' | 'error'; info?: HostInfo; error?: string } | null>(null);
+  const [hostRepoId, setHostRepoId] = useState<string | null>(null);
+  const [hostBranches, setHostBranches] = useState<string[] | null>(null);
+  const [hostBranchError, setHostBranchError] = useState<string | null>(null);
+  const [hostPicked, setHostPicked] = useState<string>('');
+  useEffect(() => {
+    if (!hostAllowed) return;
+    let cancelled = false;
+    void (async () => {
+      const [list, last] = await Promise.all([
+        window.popbot.hosts.list(),
+        window.popbot.settings.get<string>(LAST_HOST_SETTING),
+      ]);
+      if (cancelled) return;
+      setHosts(list);
+      if (last && list.some((h) => h.id === last)) setHostId(last);
+    })();
+    return () => { cancelled = true; };
+  }, [hostAllowed]);
+  // Ask the picked host what it has; start on its first repository.
+  useEffect(() => {
+    if (!host) {
+      setHostInfo(null);
+      setHostRepoId(null);
+      return;
+    }
+    let cancelled = false;
+    setHostInfo({ state: 'loading' });
+    setHostRepoId(null);
+    void window.popbot.hosts.probe(host.url, host.token).then((r) => {
+      if (cancelled) return;
+      if (!r.ok) {
+        setHostInfo({ state: 'error', error: r.error });
+        return;
+      }
+      setHostInfo({ state: 'ok', info: r.info });
+      setHostRepoId(r.info.repos[0]?.id ?? null);
+    });
+    return () => { cancelled = true; };
+    // The host's id is what matters; its record does not change here.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [host?.id]);
+  const hostRepo = hostInfo?.info?.repos.find((r) => r.id === hostRepoId) ?? null;
+  // Branches of the picked host repository: recents first, then the
+  // repository's default, then main — as for a local repo.
+  useEffect(() => {
+    if (!host || !hostRepoId) {
+      setHostBranches(null);
+      setHostBranchError(null);
+      setHostPicked('');
+      return;
+    }
+    let cancelled = false;
+    setHostBranches(null);
+    setHostBranchError(null);
+    void (async () => {
+      const res = await window.popbot.hosts.branches(host.id, hostRepoId);
+      if (cancelled) return;
+      if (!res.ok) {
+        setHostBranchError(res.error);
+        return;
+      }
+      const stored = (await window.popbot.settings.get<string[]>(RECENT_BASE_BRANCHES_SETTING)) ?? [];
+      if (cancelled) return;
+      const recents = Array.isArray(stored) ? stored : [];
+      setRecentBases(recents);
+      setHostBranches(res.branches);
+      const recent = recents.find((b) => res.branches.includes(b));
+      const defaultBase = hostRepo?.defaultBase && res.branches.includes(hostRepo.defaultBase) ? hostRepo.defaultBase : '';
+      setHostPicked(recent ?? (defaultBase || pickDefaultBase(null, res.branches, [])));
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [host?.id, hostRepoId]);
+  // The picked host repo's pool, so a full one is known before Create.
+  const [hostPool, setHostPool] = useState<HostSlotsInfo | null>(null);
+  useEffect(() => {
+    if (!host || !hostRepoId) {
+      setHostPool(null);
+      return;
+    }
+    let cancelled = false;
+    setHostPool(null);
+    void window.popbot.hosts.slots(host.id, hostRepoId).then((res) => {
+      if (!cancelled && res.ok) setHostPool(res.slots);
+    });
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [host?.id, hostRepoId]);
+  const hostFreeSlots = hostPool ? hostPool.slots.filter((sl) => !sl.chatId).length : null;
+  // What still blocks Create on a host: its answer, then its branches.
+  const hostNotReady = isHost && hostInfo?.state !== 'ok';
+  const hostBranchesLoading = isHost && hostRepoId !== null && hostBranches === null && !hostBranchError;
+  const hostNoBranchPicked = isHost && hostRepoId !== null && hostBranches !== null && !hostPicked;
+  const hostPoolFull = isHost && hostRepoId !== null && hostPicked !== FREE_CHAT_VALUE
+    && hostPool?.mode === 'slots' && hostFreeSlots === 0;
+  const hostBlocked = hostNotReady || hostBranchesLoading || hostNoBranchPicked || hostPoolFull || (isHost && !!hostBranchError);
+
+  // On a host, "no repository" is its scratch folder.
+  const isRawChat = isHost ? hostRepoId === null : (pickedRepoId === null && allowNoRepo === true);
   // "Free Chat (no slot)" radio is selected → run from the repo root with
   // no slot/worktree/branch (same as a CR chat).
-  const isFreeChat = !isRawChat && pickedRepoId !== null && allowRepoRoot === true && picked === FREE_CHAT_VALUE;
+  const isFreeChat = isHost
+    ? hostRepoId !== null && hostPicked === FREE_CHAT_VALUE
+    : !isRawChat && pickedRepoId !== null && allowRepoRoot === true && picked === FREE_CHAT_VALUE;
+  // The Cloud toggle beside the agent picker: the chat drives a Claude
+  // Code cloud session on top of whatever workspace is chosen here — no
+  // repo (it just runs remotely), the repo root, or a slot / worktree
+  // whose branch gets pushed for the cloud to clone. Offered by the
+  // generic new-chat flow; Claude only (the toggle hides for Codex).
+  const [cloud, setCloud] = useState(false);
+  const cloudAllowed = allowRepoRoot === true && showAgentPicker === true && !isHost;
+  const isCloud = cloudAllowed && cloud && agentConfig.agent !== 'codex';
+  // Cloud chats run on an Anthropic API key; without one there is no
+  // point creating the chat. Checked once the toggle is on.
+  const [cloudKey, setCloudKey] = useState<boolean | null>(null);
+  useEffect(() => {
+    if (!isCloud) return;
+    let cancelled = false;
+    void window.popbot.cloud.status().then((s) => { if (!cancelled) setCloudKey(s.apiKey !== null); });
+    return () => { cancelled = true; };
+  }, [isCloud]);
+  const cloudNoKey = isCloud && cloudKey === false;
+  // Pressing Create without a key is answered with an error, not a
+  // greyed-out button: the reason and the way to fix it are spelled out.
+  const [cloudError, setCloudError] = useState(false);
+  useEffect(() => { if (!cloudNoKey) setCloudError(false); }, [cloudNoKey]);
 
   // Initial load: repos + (when not locked) the last-used repo id from
   // settings. Locked-repo callers skip the picker entirely; their repo
@@ -370,12 +520,41 @@ export function BaseBranchDialog({
   }, [pickedRepoId, repos]);
 
   const submit = (): void => {
+    if (cloudNoKey) {
+      setCloudError(true);
+      return;
+    }
     const chosenAgent = showAgentPicker ? compactAgentCreateConfig(agentConfig) : undefined;
     if (chosenAgent) void window.popbot.settings.set(LAST_AGENT_SETTING, chosenAgent);
+    if (hostAllowed) void window.popbot.settings.set(LAST_HOST_SETTING, host?.id ?? '');
+    if (isHost && host) {
+      if (hostBlocked) return;
+      const onBranch = hostRepoId !== null && !isFreeChat;
+      if (onBranch && hostPicked) {
+        const nextRecents = [hostPicked, ...recentBases.filter((b) => b !== hostPicked)].slice(0, 8);
+        void window.popbot.settings.set(RECENT_BASE_BRANCHES_SETTING, nextRecents);
+      }
+      onConfirm({
+        repoId: null,
+        baseBranch: onBranch ? hostPicked : null,
+        host: {
+          hostId: host.id,
+          repoId: hostRepoId,
+          kind: hostRepoId === null ? 'scratch' : onBranch ? 'worktree' : 'root',
+          branch: onBranch && effectiveBranch ? effectiveBranch : null,
+          baseBranch: onBranch ? hostPicked : null,
+        },
+        ...(askSubject ? { subject: effectiveSubject } : {}),
+        ...(onBranch && effectiveBranch ? { branch: effectiveBranch } : {}),
+        ...(chosenAgent ? { agentConfig: chosenAgent } : {}),
+      });
+      return;
+    }
     if (isRawChat) {
       onConfirm({
         repoId: null,
         baseBranch: null,
+        ...(isCloud ? { cloud: true } : {}),
         ...(askSubject ? { subject: effectiveSubject } : {}),
         ...(chosenAgent ? { agentConfig: chosenAgent } : {}),
       });
@@ -395,6 +574,7 @@ export function BaseBranchDialog({
       // Perforce slots sync to latest — there's no base branch to fork from.
       baseBranch: isFreeChat ? null : isPerforce ? 'latest' : picked,
       workspaceMode: isFreeChat ? 'repo-root' : 'slot',
+      ...(isCloud ? { cloud: true } : {}),
       ...(askSubject ? { subject: effectiveSubject } : {}),
       // Return the (possibly edited) branch/changelist name for any slot chat,
       // so a ticket/PR flow uses what the user saw + tweaked, not its own.
@@ -408,33 +588,38 @@ export function BaseBranchDialog({
       if (e.key === 'Escape') onCancel();
       // `picked` is FREE_CHAT_VALUE (truthy) when the free-chat radio is
       // selected, so the slot-branch condition already covers that case.
-      else if (e.key === 'Enter' && (isRawChat || ((picked || isPerforce) && pickedRepoId))) submit();
+      else if (e.key === 'Enter' && (isHost ? !hostBlocked : (isRawChat || ((picked || isPerforce) && pickedRepoId)))) submit();
     };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
     // submit closes over current state via the live binding below.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [onCancel, onConfirm, picked, pickedRepoId, derivedBranch, subject, isRawChat, isFreeChat]);
+  }, [onCancel, onConfirm, picked, pickedRepoId, derivedBranch, subject, isRawChat, isFreeChat, isCloud, isHost, hostBlocked, hostRepoId, hostPicked]);
 
   const currentRepo = repos?.find((r) => r.id === pickedRepoId) ?? null;
-  const isPerforce = (currentRepo?.scm ?? 'git') === 'perforce';
+  const isPerforce = !isHost && (currentRepo?.scm ?? 'git') === 'perforce';
   const allBranches = branches?.branches ?? [];
 
   // The subject is never blocking now — it falls back to a generated
   // default. A git slot chat still needs a repo + a base branch picked;
   // Perforce has no branches (the slot syncs to latest), so those gates
   // don't apply.
-  const noRepo = !isRawChat && !pickedRepoId;
-  const noBranches = !isRawChat && !isFreeChat && !isPerforce && branches != null && allBranches.length === 0;
-  const noBranchPicked = !isRawChat && !isFreeChat && !isPerforce && !noBranches && !picked;
-  const branchesLoading = !isRawChat && !isFreeChat && !isPerforce && branches == null && !error;
-  const confirmDisabled = noRepo || noBranches || noBranchPicked || branchesLoading;
+  const noRepo = !isHost && !isRawChat && !pickedRepoId;
+  const noBranches = !isHost && !isRawChat && !isFreeChat && !isPerforce && branches != null && allBranches.length === 0;
+  const noBranchPicked = !isHost && !isRawChat && !isFreeChat && !isPerforce && !noBranches && !picked;
+  const branchesLoading = !isHost && !isRawChat && !isFreeChat && !isPerforce && branches == null && !error;
+  const confirmDisabled = noRepo || noBranches || noBranchPicked || branchesLoading || hostBlocked;
   // Plain-language reason shown beside a disabled Create button.
   const disabledReason = noRepo ? t('branch.dialog.disabled.pickRepo')
-    : branchesLoading ? t('branch.dialog.disabled.loadingBranches')
-      : noBranches ? t('branch.dialog.disabled.noBranches')
-        : noBranchPicked ? t('branch.dialog.disabled.pickBranch')
-          : '';
+    : hostNotReady
+      ? (hostInfo?.state === 'error'
+        ? t('branch.dialog.hostUnreachable', { host: host?.name ?? '', error: hostInfo.error ?? '' })
+        : t('branch.dialog.disabled.host', { host: host?.name ?? '' }))
+      : (branchesLoading || hostBranchesLoading) ? t('branch.dialog.disabled.loadingBranches')
+        : (noBranches || (isHost && !!hostBranchError)) ? t('branch.dialog.disabled.noBranches')
+          : (noBranchPicked || hostNoBranchPicked) ? t('branch.dialog.disabled.pickBranch')
+            : hostPoolFull ? t('branch.dialog.disabled.hostNoSlot', { repo: hostRepoId ?? '', host: host?.name ?? '' })
+              : '';
 
   return createPortal(
     <div className="confirm-scrim" onMouseDown={onCancel}>
@@ -447,10 +632,38 @@ export function BaseBranchDialog({
         <div className="confirm-head">{t('branch.dialog.title')}</div>
         {subtitle && !askSubject && <div className="base-branch-subtitle">{subtitle}</div>}
         <div className="confirm-body">
+          {/* Where the chat runs comes first: it decides which agents,
+              repositories and branches the rest of the dialog offers.
+              Only shown once a host exists. */}
+          {hostAllowed && hosts.length > 0 && (
+            <div style={{ marginBottom: 12 }}>
+              <div style={{ fontSize: 11, color: 'var(--fg-3)', marginBottom: 4 }}>{t('agent.runOn')}</div>
+              <div className="base-branch-list">
+                <label className={`base-branch-row ${!host ? 'selected' : ''}`}>
+                  <input type="radio" name="run-on" value="" checked={!host} onChange={() => setHostId(null)} />
+                  <span className="base-branch-name" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                    <i className="fa-solid fa-laptop" style={{ color: 'var(--fg-3)' }} />
+                    {t('agent.runOnLocal')}
+                  </span>
+                </label>
+                {hosts.map((h) => (
+                  <label key={h.id} className={`base-branch-row ${host?.id === h.id ? 'selected' : ''}`}>
+                    <input type="radio" name="run-on" value={h.id} checked={host?.id === h.id} onChange={() => setHostId(h.id)} />
+                    <span className="base-branch-name" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                      <i className="fa-solid fa-server" style={{ color: '#6fb1c9' }} />
+                      {h.name}
+                    </span>
+                    <span className="base-branch-tag mono">{h.url.replace(/^https?:\/\//, '')}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+          )}
           {showAgentPicker && (
             <AgentCreateControls
               value={agentConfig}
               onChange={(next) => setAgentConfig(compactAgentCreateConfig(next))}
+              {...(cloudAllowed ? { cloud: { value: cloud, onChange: setCloud } } : {})}
             />
           )}
           {askSubject && (
@@ -482,13 +695,96 @@ export function BaseBranchDialog({
               />
             </div>
           )}
-          {!repos && <div>{t('branch.dialog.loadingRepos')}</div>}
-          {repos && repos.length === 0 && !allowNoRepo && (
+          {isHost && host && (
+            <>
+              {hostInfo?.state === 'loading' && <div>{t('branch.dialog.hostLoading', { host: host.name })}</div>}
+              {hostInfo?.state === 'error' && (
+                <div className="diff-overlay-status error">
+                  {t('branch.dialog.hostUnreachable', { host: host.name, error: hostInfo.error ?? '' })}
+                </div>
+              )}
+              {hostInfo?.state === 'ok' && hostInfo.info && (
+                <>
+                  <div style={{ marginBottom: 12 }}>
+                    <div style={{ fontSize: 11, color: 'var(--fg-3)', marginBottom: 4 }}>{t('branch.dialog.hostRepoLabel', { host: host.name })}</div>
+                    <div className="base-branch-list">
+                      <label className={`base-branch-row ${hostRepoId === null ? 'selected' : ''}`}>
+                        <input
+                          type="radio"
+                          name="picked-host-repo"
+                          value="__none__"
+                          checked={hostRepoId === null}
+                          onChange={() => setHostRepoId(null)}
+                        />
+                        <span className="base-branch-name mono">{t('branch.dialog.noRepoOption')}</span>
+                        <span className="base-branch-tag">{t('branch.dialog.tagHostScratch')}</span>
+                      </label>
+                      {hostInfo.info.repos.map((r) => (
+                        <label key={r.id} className={`base-branch-row ${hostRepoId === r.id ? 'selected' : ''}`}>
+                          <input
+                            type="radio"
+                            name="picked-host-repo"
+                            value={r.id}
+                            checked={hostRepoId === r.id}
+                            onChange={() => setHostRepoId(r.id)}
+                          />
+                          <span className="base-branch-name mono" style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                            <i className="fa-solid fa-code-branch" style={{ color: 'var(--scm-git)' }} />
+                            {r.id}
+                          </span>
+                          <span className="base-branch-tag" title={r.path}>
+                            {r.mode === 'ephemeral'
+                              ? t('branch.dialog.tagEphemeral')
+                              : t('branch.dialog.tagSlots', { count: r.slotCount })}
+                          </span>
+                        </label>
+                      ))}
+                    </div>
+                    {hostInfo.info.repos.length === 0 && (
+                      <div style={{ color: 'var(--fg-2)', fontSize: 12, marginTop: 6 }}>{t('branch.dialog.hostNoRepos', { host: host.name })}</div>
+                    )}
+                  </div>
+                  {hostRepoId === null ? (
+                    <div style={{ color: 'var(--fg-2)', fontSize: 12 }}>{t('branch.dialog.hostDescScratch', { host: host.name })}</div>
+                  ) : (
+                    <>
+                      <div style={{ fontSize: 11, color: 'var(--fg-3)', marginBottom: 4 }}>{t('branch.dialog.baseBranchLabel')}</div>
+                      <div style={{ minHeight: 34, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+                        {!hostBranches && !hostBranchError && <div>{t('branch.dialog.disabled.loadingBranches')}</div>}
+                        {hostBranchError && <div className="diff-overlay-status error">{t('branch.dialog.loadBranchesError', { error: hostBranchError })}</div>}
+                        {hostBranches && (
+                          <BaseBranchPicker
+                            branches={hostBranches}
+                            recents={recentBases}
+                            value={hostPicked}
+                            onChange={setHostPicked}
+                            defaultBase={hostRepo?.defaultBase}
+                            allowRepoRoot
+                            freeChatValue={FREE_CHAT_VALUE}
+                          />
+                        )}
+                      </div>
+                      <div style={{ color: 'var(--fg-2)', fontSize: 12, marginTop: 8 }}>
+                        {isFreeChat
+                          ? t('branch.dialog.hostDescRoot', { host: host.name, repo: hostRepoId ?? '' })
+                          : t('branch.dialog.hostDescSlot', { host: host.name, repo: hostRepoId ?? '' })}
+                        {!isFreeChat && hostPool?.mode === 'slots' && hostFreeSlots !== null && (
+                          <> {t('branch.dialog.hostFree', { free: hostFreeSlots, count: hostPool.slotCount })}</>
+                        )}
+                      </div>
+                    </>
+                  )}
+                </>
+              )}
+            </>
+          )}
+          {!isHost && !repos && <div>{t('branch.dialog.loadingRepos')}</div>}
+          {!isHost && repos && repos.length === 0 && !allowNoRepo && (
             <div className="diff-overlay-status error">
               {t('branch.dialog.noReposConfigured')}
             </div>
           )}
-          {repos && (repos.length > 0 || allowNoRepo) && (
+          {!isHost && repos && (repos.length > 0 || allowNoRepo) && (
             <>
               {/* Show the repo selector whenever there's a repo to pick — even a
                   single one. Hiding it for exactly one repo (the old `> 1`)
@@ -572,7 +868,7 @@ export function BaseBranchDialog({
                   </div>
                   {isFreeChat && (
                     <div style={{ color: 'var(--fg-2)', fontSize: 12, marginTop: 8 }}>
-                      {t('branch.dialog.freeChatDesc', { repo: pickedRepoId })}
+                      {t('branch.dialog.freeChatDesc', { repo: pickedRepoId ?? '' })}
                     </div>
                   )}
                 </>
@@ -580,9 +876,57 @@ export function BaseBranchDialog({
             </>
           )}
         </div>
+        {isCloud && (
+          <div className="cloud-note">
+            <i className="fa-solid fa-cloud" aria-hidden />
+            <span>
+              {isRawChat
+                ? t('branch.dialog.cloudDescNoRepo')
+                : isFreeChat
+                  ? t('branch.dialog.cloudDescRoot', { repo: pickedRepoId ?? '' })
+                  : t('branch.dialog.cloudDescSlot', { repo: pickedRepoId ?? '' })}
+              {!isRawChat && <>{' '}{t('branch.dialog.cloudGithubNote')}</>}
+              {cloudNoKey && (
+                <>
+                  {' '}<strong>{t('branch.dialog.cloudNoKey')}</strong>
+                  {onOpenPrefs && (
+                    <>
+                      {' '}
+                      <button
+                        type="button"
+                        className="btn-link"
+                        onClick={() => { onOpenPrefs('agents'); onCancel(); }}
+                      >
+                        {t('app.noSlots.openPreferences')}
+                      </button>
+                    </>
+                  )}
+                </>
+              )}
+            </span>
+          </div>
+        )}
         <div className="confirm-foot">
           {confirmDisabled && disabledReason && (
             <span style={{ fontSize: 11.5, color: 'var(--fg-3)', marginRight: 'auto' }}>{disabledReason}</span>
+          )}
+          {cloudError && (
+            <span style={{ fontSize: 11.5, color: '#e89696', marginRight: 'auto' }}>
+              <i className="fa-solid fa-circle-exclamation" aria-hidden style={{ marginRight: 5 }} />
+              {t('branch.dialog.cloudNoKey')}
+              {onOpenPrefs && (
+                <>
+                  {' '}
+                  <button
+                    type="button"
+                    className="btn-link"
+                    onClick={() => { onOpenPrefs('agents'); onCancel(); }}
+                  >
+                    {t('app.noSlots.openPreferences')}
+                  </button>
+                </>
+              )}
+            </span>
           )}
           <button className="btn ghost" onClick={onCancel}>{t('common.cancel')}</button>
           <button

@@ -9,12 +9,15 @@ import {
   DEFAULT_CLAUDE_REASONING_EFFORT,
   DEFAULT_CODEX_MODEL,
   DEFAULT_CODEX_REASONING_EFFORT,
+  CODEX_SETTINGS_KEY,
   RAW_CHAT_REPO_ID,
+  codexUsesAppServer,
   type ChatRecord,
   type ClaudeModelId,
   type ClaudeReasoningEffort,
   type CodexModelId,
   type CodexReasoningEffort,
+  type CodexSettings,
   closestReasoningEffort,
   codexReasoningEffortsForModel,
 } from '@shared/persistence';
@@ -22,6 +25,7 @@ import type { PickedAttachment } from '@shared/ipc';
 import type { GitPrInfo } from '@shared/git';
 import { subscribeAgentEvents } from '../lib/agentEventBus';
 import { ContextGauge } from './ContextGauge';
+import { SignInDialog } from './SignInDialog';
 import type { Readiness } from '../lib/useReadiness';
 import { hotkey } from '../lib/hotkeys';
 import { LiveChatBody } from './LiveChatBody';
@@ -29,6 +33,7 @@ import { useAppsRunning } from '../lib/useAppsRunning';
 import { useSettings } from '../lib/useSettings';
 import { LinearStateIcon, isPausedState, PAUSED_COLOR } from '../lib/linearIcons';
 import { colAccentStyle } from '../lib/repoColor';
+import { ReviewAvatar } from './ReviewAvatar';
 import { useTranslation } from '../lib/i18n';
 import type { MessageKey, Translator } from '@shared/i18n';
 import { engineEnabled, engineMeta, type GameEngineId, type GameEnginesSettings } from '@shared/gameEngine';
@@ -170,6 +175,8 @@ interface ChatColumnProps {
   onActivate: () => void;
   onClose: () => void;
   onOpenSettings: () => void;
+  /** Fork this chat (App does the work and focuses the fork). */
+  onFork?: () => Promise<void> | void;
   onChatUpdated?: () => void;
   /** Rename the chat — the column title is click-to-edit. */
   onRename?: (name: string) => Promise<void> | void;
@@ -194,6 +201,7 @@ interface ChatColumnProps {
 
 export function ChatColumn({
   chat,
+  onFork,
   isForeground,
   isActive,
   onActivate,
@@ -258,6 +266,10 @@ export function ChatColumn({
   // position correctly across variable-height items.
 
   const agent = chat.agent || 'claude';
+  // Codex only measures its context window over the app-server connection.
+  const { get: getAppSetting } = useSettings();
+  const usageReported =
+    agent !== 'codex' || codexUsesAppServer(getAppSetting<CodexSettings>(CODEX_SETTINGS_KEY));
   const selectedModelValue = agent === 'codex'
     ? `codex:${chat.codexModel || DEFAULT_CODEX_MODEL}`
     : `claude:${chat.claudeModel || DEFAULT_CLAUDE_MODEL}`;
@@ -284,6 +296,65 @@ export function ChatColumn({
   const handleSettings = (e: MouseEvent) => {
     e.stopPropagation();
     onOpenSettings();
+  };
+
+  // The ☰ chat menu: the chat's commands (fork, restart with context,
+  // compact, the cloud actions) plus the settings sheet for everything
+  // else. Anchored under its button; closes on outside click / scroll /
+  // Escape like the gauge menu.
+  const [menu, setMenu] = useState<{ top: number; right: number } | null>(null);
+  useEffect(() => {
+    if (!menu) return;
+    const close = (): void => setMenu(null);
+    const onKey = (e: globalThis.KeyboardEvent): void => {
+      if (e.key === 'Escape') close();
+    };
+    document.addEventListener('mousedown', close);
+    document.addEventListener('scroll', close, true);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', close);
+      document.removeEventListener('scroll', close, true);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [menu]);
+  const toggleMenu = (e: MouseEvent<HTMLButtonElement>): void => {
+    e.stopPropagation();
+    if (menu) { setMenu(null); return; }
+    const r = e.currentTarget.getBoundingClientRect();
+    setMenu({ top: r.bottom + 4, right: Math.max(4, window.innerWidth - r.right) });
+  };
+  // The cloud session ends only on request: closing the chat detaches,
+  // quitting PopBot leaves it working. Reached from the ☰ menu and by
+  // right-clicking the Cloud chip.
+  const cloudLive = !!chat.cloud?.sessionId && !chat.cloud.ended;
+  const shutdownCloud = async (): Promise<void> => {
+    const branch = chat.cloud?.branch ?? chat.branch;
+    const body = branch
+      ? t('chat.cloud.shutdownConfirmBranch', { branch })
+      : t('chat.cloud.shutdownConfirm');
+    if (!confirm(body)) return;
+    await window.popbot.cloud.shutdown(chat.id);
+  };
+  // Likewise a host session: closing the chat detaches, this ends it.
+  const shutdownHost = async (): Promise<void> => {
+    if (!chat.host) return;
+    if (!confirm(t('chat.host.shutdownConfirm', { host: chat.host.hostName }))) return;
+    await window.popbot.hosts.shutdown(chat.id);
+  };
+  const openMenuAt = (el: Element): void => {
+    const r = el.getBoundingClientRect();
+    setMenu({ top: r.bottom + 4, right: Math.max(4, window.innerWidth - r.right) });
+  };
+  const restartWithContext = async (): Promise<void> => {
+    if (!confirm(t('chatSettings.restartConfirm'))) return;
+    try {
+      await window.popbot.agent.restartWithContext(chat.id);
+      onChatUpdated?.();
+    } catch (err) {
+      // eslint-disable-next-line no-alert
+      alert(`Restart failed:\n\n${(err as Error).message}`);
+    }
   };
 
   const sendText = useCallback(async (text: string, atts?: PickedAttachment[]): Promise<void> => {
@@ -502,9 +573,13 @@ export function ChatColumn({
       console.error('agent.approve failed', err);
     }
   }, [chat.id]);
-  const repoTitle = chat.repoId === RAW_CHAT_REPO_ID
-    ? t('chat.repo.none')
-    : t('chat.repo.withName', { repoId: chat.repoId });
+  const repoTitle = chat.host
+    ? (chat.host.repoId
+      ? t('chat.host.withRepo', { host: chat.host.hostName, repo: chat.host.repoId })
+      : t('chat.host.noRepo', { host: chat.host.hostName }))
+    : chat.repoId === RAW_CHAT_REPO_ID
+      ? t('chat.repo.none')
+      : t('chat.repo.withName', { repoId: chat.repoId });
 
   return (
     <>
@@ -527,8 +602,11 @@ export function ChatColumn({
         <span className="col-name" title={chat.name}>
           {/* Repo color blip — same dot used in the chat-list rows
               and thumbnail strip so the three lists are read-equivalent.
-              Inherits `--col-accent` from the col element. */}
-          <span className="col-name-dot" aria-hidden="true" title={repoTitle} />
+              Inherits `--col-accent` from the col element. A review
+              chat shows its PR author's avatar instead, as those do. */}
+          {chat.prAuthor
+            ? <ReviewAvatar author={chat.prAuthor} className="col-name-dot" title={`${chat.prAuthor} · ${repoTitle}`} />
+            : <span className="col-name-dot" aria-hidden="true" title={repoTitle} />}
           {renaming ? (
             <input
               className="col-title-input"
@@ -567,13 +645,112 @@ export function ChatColumn({
           <button
             className="iconbtn"
             style={{ width: 22, height: 22, borderRadius: 4, color: 'var(--fg-2)' }}
-            onClick={handleSettings}
-            title={t('chat.col.settingsTitle')}
+            onClick={toggleMenu}
+            title={t('chat.col.menuTitle')}
+            aria-haspopup="menu"
+            aria-expanded={!!menu}
           >
-            <i className="fa-solid fa-gear" />
+            <i className="fa-solid fa-bars" />
           </button>
         </span>
       </div>
+      {menu && (
+        <div
+          className="chat-menu"
+          role="menu"
+          style={{ top: menu.top, right: menu.right }}
+          onMouseDown={(e) => e.stopPropagation()}
+        >
+          {!chat.cloud && !chat.host && (
+            <>
+              <button
+                type="button"
+                className="chat-menu-item"
+                role="menuitem"
+                // A fork copies the agent's session as it stands; mid-turn
+                // that is a half-written transcript.
+                disabled={!onFork || chat.status === 'run'}
+                title={chat.status === 'run' ? t('chatSettings.forkRunningHint') : undefined}
+                onClick={() => { setMenu(null); void onFork?.(); }}
+              >
+                <i className="fa-solid fa-code-fork" aria-hidden="true" />
+                {t('chatSettings.forkButton')}
+              </button>
+              <button
+                type="button"
+                className="chat-menu-item"
+                role="menuitem"
+                disabled={chat.status === 'run'}
+                title={t('chatSettings.restartTooltip')}
+                onClick={() => { setMenu(null); void restartWithContext(); }}
+              >
+                <i className="fa-solid fa-rotate-right" aria-hidden="true" />
+                {t('chatSettings.restartWithContext')}
+              </button>
+              {agent === 'claude' && (
+                <button
+                  type="button"
+                  className="chat-menu-item"
+                  role="menuitem"
+                  disabled={chat.status === 'run' || compacting}
+                  onClick={() => { setMenu(null); void compact(); }}
+                >
+                  <i className={`fa-solid ${compacting ? 'fa-spinner fa-spin' : 'fa-compress'}`} aria-hidden="true" />
+                  {compacting ? t('chat.context.menu.compacting') : t('chat.context.menu.compact')}
+                </button>
+              )}
+            </>
+          )}
+          {chat.cloud && (
+            <>
+              {/* The sandbox pushes to the chat's branch; this brings those
+                  commits into the local checkout. Only once there is a branch. */}
+              <button
+                type="button"
+                className="chat-menu-item"
+                role="menuitem"
+                disabled={!(chat.cloud.branch ?? chat.branch)}
+                onClick={() => { setMenu(null); void window.popbot.cloud.pull(chat.id); }}
+              >
+                <i className="fa-solid fa-cloud-arrow-down" aria-hidden="true" />
+                {t('chat.cloud.pull')}
+              </button>
+              <button
+                type="button"
+                className="chat-menu-item"
+                role="menuitem"
+                disabled={!cloudLive}
+                title={cloudLive ? undefined : t('chat.cloud.shutdownNone')}
+                onClick={() => { setMenu(null); void shutdownCloud(); }}
+              >
+                <i className="fa-solid fa-power-off" aria-hidden="true" />
+                {t('chat.cloud.shutdown')}
+              </button>
+            </>
+          )}
+          {chat.host && (
+            <button
+              type="button"
+              className="chat-menu-item"
+              role="menuitem"
+              onClick={() => { setMenu(null); void shutdownHost(); }}
+            >
+              <i className="fa-solid fa-power-off" aria-hidden="true" />
+              {t('chat.host.shutdown')}
+            </button>
+          )}
+          <div className="chat-menu-sep" />
+          <button
+            type="button"
+            className="chat-menu-item"
+            role="menuitem"
+            onClick={(e) => { setMenu(null); handleSettings(e); }}
+          >
+            <i className="fa-solid fa-gear" aria-hidden="true" />
+            {t('chat.col.settingsTitle')}
+          </button>
+        </div>
+      )}
       <div className="runtime-strip">
         <SlotAppButtons worktreePath={chat.worktreePath ?? null} chatId={chat.id} onOpenPrefs={onOpenPrefs} />
         {/* Both chips render side-by-side when applicable so the user
@@ -620,6 +797,16 @@ export function ChatColumn({
               glance which workspace this chat owns. Same repo color as
               the slot pip, but rendered as an outline to make the mode
               difference immediately readable. */}
+          {/* A host chat's slot: the host's pool, in the host colour. */}
+          {chat.host?.slotId != null && (
+            <span
+              className="slot-pip occupied slot-pip-wide"
+              style={{ background: '#6fb1c9', color: '#08161a' }}
+              title={t('chat.host.slotTitle', { slot: chat.host.slotId, repo: chat.host.repoId ?? '', host: chat.host.hostName })}
+            >
+              {`${chat.host.slotPrefix ?? chat.host.repoId ?? 'slot'}-${chat.host.slotId}`}
+            </span>
+          )}
           {chat.slotId == null && chat.worktreePath && chat.repoMode === 'ephemeral' && (
             <span
               className="slot-pip slot-pip-wide slot-pip-outline"
@@ -704,11 +891,15 @@ export function ChatColumn({
           )}
           <textarea
             placeholder={
-              isActive
-                ? chat.status === 'run'
-                  ? t('chat.input.placeholderRunning')
-                  : t('chat.input.placeholderIdle')
-                : t('chat.input.placeholderInactive')
+              chat.cloud
+                ? chat.cloud.sessionId && !chat.cloud.ended
+                  ? t('chat.input.placeholderCloud')
+                  : t('chat.input.placeholderCloudFirst')
+                : isActive
+                  ? chat.status === 'run'
+                    ? t('chat.input.placeholderRunning')
+                    : t('chat.input.placeholderIdle')
+                  : t('chat.input.placeholderInactive')
             }
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
@@ -739,7 +930,8 @@ export function ChatColumn({
               disabled={configuringAgent || chat.status === 'run'}
               onChange={(e) => changeModel(e.currentTarget.value)}
             >
-              {MODEL_OPTIONS.map((m) => (
+              {/* A cloud chat is Claude in an Anthropic sandbox: no Codex. */}
+              {MODEL_OPTIONS.filter((m) => !chat.cloud || m.agent === 'claude').map((m) => (
                 <option key={m.value} value={m.value}>{m.label}</option>
               ))}
             </select>
@@ -757,11 +949,42 @@ export function ChatColumn({
                 <option key={effort} value={effort}>{t(REASONING_LABEL_KEYS[effort])}</option>
               ))}
             </select>
+            {/* Cloud chats only: the chip says so beside the agent and
+                opens the settings, where the session is shown. Outlined
+                until the first message has started a session. */}
+            {chat.cloud && (
+              <button
+                type="button"
+                className={`cloud-chip${cloudLive ? '' : ' pending'}`}
+                title={chat.cloud.sessionId ? t('chat.cloud.chipTitle') : t('chat.cloud.chipPendingTitle')}
+                onClick={(e) => handleSettings(e)}
+                // Right-click: the chat menu, with its cloud actions, at the chip.
+                onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); openMenuAt(e.currentTarget); }}
+              >
+                <i className="fa-solid fa-cloud" aria-hidden /> {t('chat.cloud.chip')}
+              </button>
+            )}
+            {/* Host chats: the chip names the host and opens the settings.
+                Outlined until the first message has started a session. */}
+            {chat.host && (
+              <button
+                type="button"
+                className={`host-chip${chat.host.cwd ? '' : ' pending'}`}
+                title={chat.host.cwd
+                  ? t('chat.host.chipTitle', { host: chat.host.hostName })
+                  : t('chat.host.chipPendingTitle', { host: chat.host.hostName })}
+                onClick={(e) => handleSettings(e)}
+                onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); openMenuAt(e.currentTarget); }}
+              >
+                <i className="fa-solid fa-server" aria-hidden /> <span>{chat.host.hostName}</span>
+              </button>
+            )}
             <span className="spacer" />
             <ContextGauge
               used={chat.tokensUsed}
               budget={chat.tokensBudget}
               agent={agent}
+              reported={usageReported}
               compacting={compacting}
               running={chat.status === 'run'}
               onCompact={() => void compact()}
@@ -997,9 +1220,14 @@ function ReadyRow({
  */
 function InstallHelpDialog({
   provider,
+  installed = false,
+  onSignIn,
   onClose,
 }: {
   provider: 'claude' | 'codex';
+  /** The CLI is already on PATH: the sign-in step can be done from here. */
+  installed?: boolean;
+  onSignIn?: () => void;
   onClose: () => void;
 }): JSX.Element {
   const { t } = useTranslation();
@@ -1026,7 +1254,13 @@ function InstallHelpDialog({
       desc: t('chat.install.stepInstallDesc', { vendor: info.vendor }),
       cta: { text: t('chat.install.openGuide', { vendor: info.vendor }), onClick: () => window.open(info.docsUrl, '_blank') },
     },
-    { title: t('chat.install.stepSignin'), desc: info.signin },
+    {
+      title: t('chat.install.stepSignin'),
+      desc: info.signin,
+      ...(installed && onSignIn
+        ? { cta: { text: t('auth.signIn.button'), onClick: onSignIn } }
+        : {}),
+    },
     { title: t('chat.install.stepRestart'), desc: t('chat.install.stepRestartDesc') },
   ];
   return (
@@ -1077,8 +1311,18 @@ export function ReadinessChecklist({
 }): JSX.Element {
   const { t } = useTranslation();
   const [installHelp, setInstallHelp] = useState<'claude' | 'codex' | null>(null);
+  const [signIn, setSignIn] = useState<'claude' | 'codex' | null>(null);
   const claudeOk = r.backends?.claude.ok ?? false;
   const codexOk = r.backends?.codex.ok ?? false;
+  // Installed but signed out is its own state: the fix is a click away,
+  // not an install guide.
+  const claudeSignedOut = claudeOk && r.backends?.claude.auth === 'signed-out';
+  const codexSignedOut = codexOk && r.backends?.codex.auth === 'signed-out';
+  const signInAction = (provider: 'claude' | 'codex') => ({
+    text: t('auth.signIn.button'),
+    icon: 'fa-right-to-bracket',
+    onClick: () => setSignIn(provider),
+  });
   return (
     <>
       <div className="ready-card">
@@ -1094,25 +1338,29 @@ export function ReadinessChecklist({
           </button>
         </div>
         <ReadyRow
-          state={claudeOk ? 'ok' : 'missing'}
+          state={claudeSignedOut ? 'missing' : claudeOk ? 'ok' : 'missing'}
           label={t('chat.ready.claudeLabel')}
-          detail={claudeOk
-            ? (r.backends?.claude.version?.replace(/\s*\(.*\)$/, '') ?? '')
-            : t('chat.ready.notFound')}
+          detail={claudeSignedOut
+            ? t('chat.ready.signedOut')
+            : claudeOk
+              ? (r.backends?.claude.version?.replace(/\s*\(.*\)$/, '') ?? '')
+              : t('chat.ready.notFound')}
           okText={t('chat.ready.online')}
-          action={claudeOk ? undefined : {
+          action={claudeSignedOut ? signInAction('claude') : claudeOk ? undefined : {
             text: t('chat.ready.howToInstall'),
             onClick: () => setInstallHelp('claude'),
           }}
         />
         <ReadyRow
-          state={codexOk ? 'ok' : 'optional'}
+          state={codexSignedOut ? 'optional' : codexOk ? 'ok' : 'optional'}
           label={t('chat.ready.codexLabel')}
-          detail={codexOk
-            ? (r.backends?.codex.version?.replace(/\s*\(.*\)$/, '') ?? '')
-            : t('chat.ready.optional')}
+          detail={codexSignedOut
+            ? t('chat.ready.signedOut')
+            : codexOk
+              ? (r.backends?.codex.version?.replace(/\s*\(.*\)$/, '') ?? '')
+              : t('chat.ready.optional')}
           okText={t('chat.ready.online')}
-          action={codexOk ? undefined : {
+          action={codexSignedOut ? signInAction('codex') : codexOk ? undefined : {
             text: t('chat.ready.howToInstall'),
             onClick: () => setInstallHelp('codex'),
           }}
@@ -1132,7 +1380,15 @@ export function ReadinessChecklist({
         />
       </div>
       {installHelp && (
-        <InstallHelpDialog provider={installHelp} onClose={() => setInstallHelp(null)} />
+        <InstallHelpDialog
+          provider={installHelp}
+          installed={installHelp === 'claude' ? claudeOk : codexOk}
+          onSignIn={() => { setInstallHelp(null); setSignIn(installHelp); }}
+          onClose={() => setInstallHelp(null)}
+        />
+      )}
+      {signIn && (
+        <SignInDialog provider={signIn} onClose={() => { setSignIn(null); r.refresh(); }} />
       )}
     </>
   );

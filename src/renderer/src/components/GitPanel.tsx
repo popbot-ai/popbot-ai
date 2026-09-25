@@ -24,7 +24,7 @@ import {
   DEFAULT_PUSH_PR_TEMPLATE,
   DEFAULT_REBASE_BASE_TEMPLATE,
   expandTemplate,
-} from '../lib/templates';
+} from '@shared/templates';
 
 /** GitPanel implements the shared provider-panel contract. The git
  *  sidebar is the default ("generic") presentation; the field docs live

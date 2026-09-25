@@ -18,6 +18,7 @@ PopBot is actively developed — here are the last few releases. On macOS and Wi
 
 | Version | Highlights |
 | --- | --- |
+| **v0.2.0** | **Remote hosts** — run chats on any machine running `popbot-host` (or the published container), each with its own slot pool, while transcripts, search and settings stay local; a Hosts tab shows every machine's slots and chats. **Cloud chats** on Anthropic Managed Agents: a sandbox on your API key that keeps working after PopBot quits. **Claude Opus 5.5** as an opt-in model. Agents drive PopBot through its own MCP tools and message each other with attribution, full-text search across all chats, a tool-call timeline, forked chats, in-app sign-in, and settings that save themselves. |
 | **v0.1.3** | **Claude Fable 5.1** and **GPT-6 Astra** as opt-in models (defaults unchanged). A context-usage gauge with one-click compaction, drag-to-reorder thumbnails, click-to-rename chats, and RE-REVIEW that sticks until you re-review. |
 | **v0.1.2** | **Claude Opus 5** — Anthropic's new flagship, now the default for Claude agents. Chats on a retired model roll forward on their own: older Opus versions to Opus 5, GPT-5.5 to GPT-5.6 Terra. |
 | **v0.1.1** | **GPT-5.6 (Sol, Terra, Luna)** and **Claude Sonnet 5**, including Sol's Max reasoning effort. Added the what's-new popup on launch and the "New in this release" panel on the site. |

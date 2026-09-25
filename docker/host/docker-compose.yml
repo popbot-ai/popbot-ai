@@ -1,0 +1,24 @@
+# A popbot-host next to your repositories. Put the checkouts under
+# ./repos (or change the mount), start with `docker compose up -d`, read
+# the token from `docker compose logs`, and add http://<box>:7677 with
+# that token in PopBot's Preferences ▸ Hosts (over a tunnel or a tailnet;
+# do not expose the port to the internet).
+services:
+  popbot-host:
+    image: ghcr.io/popbot-ai/popbot-host:latest
+    container_name: popbot-host
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:7677:7677"
+    environment:
+      # POPBOT_HOST_TOKEN: choose-your-own-token
+      POPBOT_HOST_NAME: docker-host
+    volumes:
+      - popbot-host-data:/data
+      - ./repos:/repos
+      # Sign-ins of a user who ran `claude` and `codex login` once.
+      - ~/.claude:/home/popbot/.claude
+      - ~/.codex:/home/popbot/.codex
+    command: ["--repo", "myrepo=/repos/myrepo", "--slots", "myrepo=4"]
+volumes:
+  popbot-host-data:

@@ -367,6 +367,12 @@ export async function recoverChatSessions(): Promise<void> {
       dlog('chat.recover.skip-empty', { chatId: chat.id, name: chat.name.slice(0, 60) });
       continue;
     }
+    // A cloud chat has user messages but never a local session: the
+    // conversation lives on claude.ai. Nothing here to recover.
+    if (chat.cloud) {
+      dlog('chat.recover.skip-cloud', { chatId: chat.id, name: chat.name.slice(0, 60) });
+      continue;
+    }
     // Filter chat-attributed sessions to those that actually started
     // with this chat's spawn template (= the real working sessions).
     // Unverified sessions are usually fresh respawns that got opened
