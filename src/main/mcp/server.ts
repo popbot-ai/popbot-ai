@@ -137,7 +137,7 @@ export function registerPopbotTools(server: McpServer, h: PopbotToolHandlers, ca
   server.registerTool('send_to_chat', {
     title: 'Message another chat',
     annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
-    description: 'Send a message to another chat’s agent. With waitForReply (default) it waits for that agent’s turn to finish and returns what it said; a chat that is mid-turn gets the message queued behind its current work. Outcomes: replied, timeout (still working; call get_chat_transcript later), needs-permission (waiting on the user), errored. You cannot message the chat you are running in.',
+    description: 'Send a message to another chat’s agent. It arrives attributed to you — your chat’s name and id, and whether you are waiting — so that agent knows it is not from its user and how to answer. With waitForReply (default) it waits for that agent’s turn to finish and returns what it said; a chat that is mid-turn gets the message queued behind its current work. Outcomes: replied, timeout (still working; call get_chat_transcript later), needs-permission (waiting on the user), errored. You cannot message the chat you are running in.',
     inputSchema: {
       chatId: z.string(),
       text: z.string().min(1),

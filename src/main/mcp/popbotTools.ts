@@ -37,6 +37,7 @@ import { activeTicketSource } from '../tickets/registry';
 import type { ChatSummary, PopbotToolHandlers, ToolFailure } from './server';
 import { searchTranscripts } from '../search/transcriptSearch';
 import { renderTranscript, transcriptEntries } from './transcript';
+import { attributeCrossChatMessage } from './crossChat';
 
 const CLOSED_LOOKBACK = 500;
 
@@ -234,11 +235,16 @@ export function createPopbotToolHandlers(): PopbotToolHandlers {
       const chat = getChat(chatId);
       if (!chat) return fail(`no chat ${chatId}`);
       if (!isOpen(chatId)) return fail(`chat ${chatId} is closed; reopen it first`);
+      // The message lands as a user turn in the other chat: say who it is
+      // from and how to answer, or that agent takes it for its own user's.
+      const senderId = caller ?? '';
+      const senderName = (caller && getChat(caller)?.name) || senderId || 'another chat';
+      const attributed = attributeCrossChatMessage(text, { id: senderId, name: senderName }, waitForReply);
       if (!waitForReply) {
-        sendInBackground(chatId, text);
+        sendInBackground(chatId, attributed);
         return { outcome: 'sent', reply: '', entries: 0 };
       }
-      const { outcome, messages } = await AgentHost.sendAndWait(chatId, text, timeoutSeconds * 1000);
+      const { outcome, messages } = await AgentHost.sendAndWait(chatId, attributed, timeoutSeconds * 1000);
       const entries = transcriptEntries(messages, { includeTools: false });
       const reply = entries.filter((e) => e.role === 'agent').map((e) => e.text).join('\n\n')
         || entries.map((e) => e.text).join('\n');
