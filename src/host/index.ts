@@ -43,6 +43,9 @@ async function main(): Promise<void> {
   server.listen(config.port, config.bind, () => {
     process.stdout.write(
       `popbot-host ${VERSION} listening on http://${config.bind}:${config.port} as "${config.name}"\n` +
+      // A first start made the token: say it once so `docker logs` (or
+      // the terminal) has what PopBot needs.
+      (created ? `  token:  ${config.token}\n` : '') +
       `  claude: ${cli.claude ?? 'not found'}\n  codex:  ${cli.codex ?? 'not found'}\n` +
       `  repos:  ${config.repos.map((r) => `${r.id}=${r.path} (${r.mode === 'ephemeral' ? 'ephemeral' : `${r.slotCount} slots as ${r.slotPrefix}-N`})`).join(', ') || '(none)'}\n` +
       `  config: ${path}\n`,

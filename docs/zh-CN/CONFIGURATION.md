@@ -67,6 +67,8 @@ node dist-host/popbot-host.cjs           # 监听 127.0.0.1:7677
 
 `--init` 会写入 `~/.popbot-host/config.json`（绑定地址、端口、随机的 bearer 令牌、工作区文件夹、按 id 和路径列出的仓库）并打印令牌；编辑该文件，或传入 `--port`、`--bind`、`--token`、`--name`、`--workspaces` 以及更多 `--repo id=/path` 参数。主机需要 Node 20 或更新版本，以及 PATH 中的 `claude` 和/或 `codex` CLI。它不会从这台机器复制任何东西，也不保存对话记录——只保留运行中的会话及其事件日志，重新连接的 PopBot 会从上次中断处回放。它绑定到 localhost；访问远程机器请使用 SSH 隧道（`ssh -L 7677:127.0.0.1:7677 machine`），而不是暴露端口。
 
+也可以直接运行已发布的镜像，无需安装任何东西：`ghcr.io/popbot-ai/popbot-host`（每个版本标签由 *Host image* 工作流构建）内含 Node、git 和两个 CLI 以及守护进程。`docker/host/docker-compose.yml` 是现成的示例：把检出挂载到 `/repos`，把用于配置、工作区和日志的卷挂载到 `/data`，把曾运行过一次 `claude` 和 `codex login` 的用户登录信息挂载到 `/home/popbot/.claude` 和 `/home/popbot/.codex`（在 Mac 上用 `security find-generic-password -s "Claude Code-credentials" -w` 把钥匙串中的 Claude 登录导出到 `.claude/.credentials.json`）。把 `--repo id=/repos/x` 和 `--slots x=4` 作为容器命令传入，把 7677 端口发布到 localhost 或 tailnet 地址，然后从容器的前几行日志中读取令牌（或设置 `POPBOT_HOST_TOKEN`）。
+
 在 PopBot 中，*添加主机* 会创建一条已填入本地地址的记录；设置名称、URL 和令牌（离开字段时自动保存），面板随后会询问主机的信息：版本、是否找到 Claude 和 Codex、以及它的仓库。主机的工作树位于其工作区文件夹下（`~/.popbot-host/workspaces/<repo>/<branch>`）；你发送的附件存放在那边的 `attachments/<对话 id>`。权限规则随每个请求一起传送，因此 *始终允许* 的决定在主机上同样生效。移除主机后，已在其上的对话仍留在列表中，但无法再连接它。参见 [在另一台机器上运行](GUIDE.md#chats)。
 
 这台电脑始终是第一项，无法移除；它的仓库和卡槽池就是“仓库”部分。其他每台主机的仓库在其卡片上编辑——主机上的路径、基础分支和卡槽池：前缀和数量，或选 *临时* 为每个对话建一个工作树——主机会重写自己的配置（命令行的 `--slots id=N` 或 `--slots id=ephemeral` 效果相同；新仓库默认有四个以其 id 命名的卡槽）。卡槽工作树位于 `<workspaces>/<repo>/<prefix>-N`，空闲时停在 `<repo>/slotN` 上；谁占用了什么记录在 `<workspaces>/state.json` 中，主机重启后仍保留。
