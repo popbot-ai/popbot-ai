@@ -423,28 +423,29 @@ function CloudChatsRows({
     void window.popbot.cloud.status().then((s) => { if (!cancelled) setStatus(s); });
     return () => { cancelled = true; };
   }, [statusAt]);
-
-  const dirty = apiKey.trim() !== (initial.apiKey ?? '') || githubToken.trim() !== (initial.githubToken ?? '');
-  // Traced while the save path is under investigation: a remount would
-  // wipe a typed key, and a save that never reaches main is invisible.
   useEffect(() => {
     window.popbot.diag.log('prefs.cloud.mount', { hasInitialKey: !!initial.apiKey });
     return () => window.popbot.diag.log('prefs.cloud.unmount', {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // The key is saved whatever the check says: the check is a courtesy
-  // (it tells you now rather than at the first cloud chat), and a
-  // failing or unreachable check must never leave the field unsaved
-  // with nothing to show for it.
-  const save = async () => {
+  // No Save button: the fields save themselves when left (or on Enter),
+  // like the switches above them apply on their own. The key is stored
+  // whatever its check says — the check is a courtesy that tells you
+  // now rather than at the first cloud chat — and only a changed key is
+  // checked, so editing the token does not re-verify the key.
+  const commit = async () => {
+    const key = apiKey.trim();
+    const token = githubToken.trim();
+    const keyChanged = key !== (initial.apiKey ?? '');
+    const tokenChanged = token !== (initial.githubToken ?? '');
+    if (!keyChanged && !tokenChanged) return;
     setSaving(true);
     setResult(null);
-    window.popbot.diag.log('prefs.cloud.save', { keyLen: apiKey.trim().length, tokenLen: githubToken.trim().length, dirty });
+    window.popbot.diag.log('prefs.cloud.save', { keyLen: key.length, tokenLen: token.length, keyChanged, tokenChanged });
     try {
-      const key = apiKey.trim();
       let verdict: { ok: boolean; text: string } | null = null;
-      if (key) {
+      if (key && keyChanged) {
         try {
           const check = await window.popbot.cloud.testKey(key);
           window.popbot.diag.log('prefs.cloud.checked', { ok: check.ok, ...(check.ok ? {} : { error: check.error }) });
@@ -457,7 +458,7 @@ function CloudChatsRows({
       }
       await onSave({
         ...(key ? { apiKey: key } : {}),
-        ...(githubToken.trim() ? { githubToken: githubToken.trim() } : {}),
+        ...(token ? { githubToken: token } : {}),
       });
       window.popbot.diag.log('prefs.cloud.saved', { keyLen: key.length });
       setResult(verdict ?? { ok: true, text: t('common.saved') });
@@ -467,6 +468,12 @@ function CloudChatsRows({
       setResult({ ok: false, text: err instanceof Error ? err.message : String(err) });
     } finally {
       setSaving(false);
+    }
+  };
+  const onEnter = (e: React.KeyboardEvent<HTMLInputElement>): void => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      e.currentTarget.blur();
     }
   };
 
@@ -508,7 +515,11 @@ function CloudChatsRows({
             >
               {t('prefs.agents.cloud.getKey')}
             </a>
-            {keyLine && <div style={{ marginTop: 4 }}>{keyLine}</div>}
+            {keyLine && !result && !saving && <div style={{ marginTop: 4 }}>{keyLine}</div>}
+            {saving && <div style={{ marginTop: 4 }}>{t('common.saving')}</div>}
+            {result && !saving && (
+              <div style={{ marginTop: 4, color: result.ok ? 'var(--st-done)' : '#e89696' }}>{result.text}</div>
+            )}
           </div>
         </div>
         <div className="pref-control" style={{ flex: 1, minWidth: 280 }}>
@@ -517,12 +528,9 @@ function CloudChatsRows({
             type="password"
             placeholder="sk-ant-…"
             value={apiKey}
-            onChange={(e) => {
-              setApiKey(e.target.value);
-              setResult(null);
-              window.popbot.diag.log('prefs.cloud.edit', { field: 'apiKey', len: e.target.value.length });
-            }}
-            onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); void save(); } }}
+            onChange={(e) => { setApiKey(e.target.value); setResult(null); }}
+            onBlur={() => void commit()}
+            onKeyDown={onEnter}
             style={{ width: '100%' }}
           />
         </div>
@@ -541,27 +549,11 @@ function CloudChatsRows({
             type="password"
             placeholder="ghp_… / github_pat_…"
             value={githubToken}
-            onChange={(e) => {
-              setGithubToken(e.target.value);
-              setResult(null);
-              window.popbot.diag.log('prefs.cloud.edit', { field: 'githubToken', len: e.target.value.length });
-            }}
-            onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); void save(); } }}
+            onChange={(e) => { setGithubToken(e.target.value); setResult(null); }}
+            onBlur={() => void commit()}
+            onKeyDown={onEnter}
             style={{ width: '100%' }}
           />
-        </div>
-      </div>
-      <div className="pref-row wide">
-        <div className="pref-control" style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 8, width: '100%' }}>
-          {result && (
-            <span style={{ color: result.ok ? 'var(--fg-3)' : '#e89696', fontSize: 11 }}>{result.text}</span>
-          )}
-          {/* Always pressable: saving what is in the fields is never wrong,
-              and a Save that will not press is the failure mode this form
-              had. Enter in either field does the same. */}
-          <button className="btn primary sm" disabled={saving} onClick={() => void save()}>
-            {saving ? t('common.saving') : t('common.save')}
-          </button>
         </div>
       </div>
     </>
