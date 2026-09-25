@@ -517,7 +517,12 @@ function CloudChatsRows({
             type="password"
             placeholder="sk-ant-…"
             value={apiKey}
-            onChange={(e) => { setApiKey(e.target.value); setResult(null); }}
+            onChange={(e) => {
+              setApiKey(e.target.value);
+              setResult(null);
+              window.popbot.diag.log('prefs.cloud.edit', { field: 'apiKey', len: e.target.value.length });
+            }}
+            onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); void save(); } }}
             style={{ width: '100%' }}
           />
         </div>
@@ -536,7 +541,12 @@ function CloudChatsRows({
             type="password"
             placeholder="ghp_… / github_pat_…"
             value={githubToken}
-            onChange={(e) => { setGithubToken(e.target.value); setResult(null); }}
+            onChange={(e) => {
+              setGithubToken(e.target.value);
+              setResult(null);
+              window.popbot.diag.log('prefs.cloud.edit', { field: 'githubToken', len: e.target.value.length });
+            }}
+            onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); void save(); } }}
             style={{ width: '100%' }}
           />
         </div>
@@ -546,7 +556,10 @@ function CloudChatsRows({
           {result && (
             <span style={{ color: result.ok ? 'var(--fg-3)' : '#e89696', fontSize: 11 }}>{result.text}</span>
           )}
-          <button className="btn primary sm" disabled={!dirty || saving} onClick={() => void save()}>
+          {/* Always pressable: saving what is in the fields is never wrong,
+              and a Save that will not press is the failure mode this form
+              had. Enter in either field does the same. */}
+          <button className="btn primary sm" disabled={saving} onClick={() => void save()}>
             {saving ? t('common.saving') : t('common.save')}
           </button>
         </div>
