@@ -423,23 +423,30 @@ function CloudChatsRows({
     void window.popbot.cloud.status().then((s) => { if (!cancelled) setStatus(s); });
     return () => { cancelled = true; };
   }, [statusAt]);
-  useEffect(() => {
-    window.popbot.diag.log('prefs.cloud.mount', { hasInitialKey: !!initial.apiKey });
-    return () => window.popbot.diag.log('prefs.cloud.unmount', {});
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  // The latest field values and saved values, for a commit that runs
+  // from a blur, from Enter, or from the sheet closing under the field.
+  const latest = useRef({ apiKey, githubToken, initial });
+  latest.current = { apiKey, githubToken, initial };
+  // Values currently being written — a blur followed by a close must
+  // not write the same thing twice.
+  const inFlight = useRef<string | null>(null);
 
-  // No Save button: the fields save themselves when left (or on Enter),
-  // like the switches above them apply on their own. The key is stored
-  // whatever its check says — the check is a courtesy that tells you
-  // now rather than at the first cloud chat — and only a changed key is
-  // checked, so editing the token does not re-verify the key.
+  // No Save button: the fields save themselves when left (or on Enter,
+  // or when the sheet closes), like the switches above them apply on
+  // their own. The key is stored whatever its check says — the check is
+  // a courtesy that tells you now rather than at the first cloud chat —
+  // and only a changed key is checked, so editing the token does not
+  // re-verify the key.
   const commit = async () => {
-    const key = apiKey.trim();
-    const token = githubToken.trim();
-    const keyChanged = key !== (initial.apiKey ?? '');
-    const tokenChanged = token !== (initial.githubToken ?? '');
+    const key = latest.current.apiKey.trim();
+    const token = latest.current.githubToken.trim();
+    const saved = latest.current.initial;
+    const keyChanged = key !== (saved.apiKey ?? '');
+    const tokenChanged = token !== (saved.githubToken ?? '');
     if (!keyChanged && !tokenChanged) return;
+    const signature = `${key}\n${token}`;
+    if (inFlight.current === signature) return;
+    inFlight.current = signature;
     setSaving(true);
     setResult(null);
     window.popbot.diag.log('prefs.cloud.save', { keyLen: key.length, tokenLen: token.length, keyChanged, tokenChanged });
@@ -467,9 +474,21 @@ function CloudChatsRows({
       window.popbot.diag.log('prefs.cloud.save.failed', { error: err instanceof Error ? err.message : String(err) });
       setResult({ ok: false, text: err instanceof Error ? err.message : String(err) });
     } finally {
+      inFlight.current = null;
       setSaving(false);
     }
   };
+  const commitRef = useRef(commit);
+  commitRef.current = commit;
+  useEffect(() => {
+    window.popbot.diag.log('prefs.cloud.mount', { hasInitialKey: !!latest.current.initial.apiKey });
+    // Closing the sheet with the field still focused (Escape, a
+    // shortcut) never blurs it: write what is there on the way out.
+    return () => {
+      window.popbot.diag.log('prefs.cloud.unmount', {});
+      void commitRef.current();
+    };
+  }, []);
   const onEnter = (e: React.KeyboardEvent<HTMLInputElement>): void => {
     if (e.key === 'Enter') {
       e.preventDefault();
