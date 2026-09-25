@@ -86,6 +86,9 @@ export interface ReviewItem {
    *  time you touched its chat), as epoch ms. 0 when never. Drives
    *  re-review detection. */
   engagedAt?: number;
+  /** Open, merged, or closed without merging. Set by the by-number
+   *  lookup, which is the only path that returns anything but open. */
+  state?: 'open' | 'merged' | 'closed';
   /** Merged or closed. Only ever set on pinned reviews (the queue
    *  searches are `is:open`), so a pin can be retired once it lands. */
   closed?: boolean;

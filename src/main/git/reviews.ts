@@ -536,6 +536,9 @@ export async function getReviewByNumber(paths: string[], prNumber: number): Prom
       createdAt: data.createdAt,
       updatedAt: data.updatedAt,
       closed: !!data.state && data.state.toUpperCase() !== 'OPEN',
+      state: data.state?.toUpperCase() === 'MERGED' ? 'merged'
+        : data.state?.toUpperCase() === 'CLOSED' ? 'closed'
+          : 'open',
       requestedLogins: directReviewers(data),
       humanReviewed: hasHumanReview(data),
       approved: data.reviewDecision === 'APPROVED',

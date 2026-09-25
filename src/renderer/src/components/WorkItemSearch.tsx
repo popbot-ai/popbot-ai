@@ -135,6 +135,15 @@ export function WorkItemSearch({
   const [chatHits, setChatHits] = useState<ChatRecord[]>([]);
   const [busyKind, setBusyKind] = useState<'ticket' | 'pr' | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // An exact id or number the lists do not hold is looked up as such —
+  // merged and closed PRs, closed tickets — and shown with its state,
+  // so "18713" finds a merged PR instead of nothing.
+  const [found, setFound] = useState<
+    | { kind: 'pr'; key: string; pr: ReviewItem }
+    | { kind: 'ticket'; key: string; issue: LinearIssueDto }
+    | null
+  >(null);
+  const [looking, setLooking] = useState(false);
 
   // Debounce chat search — fires after the user stops typing. 250ms
   // strikes a balance between feeling instant and not hammering the
@@ -161,6 +170,30 @@ export function WorkItemSearch({
     // even if its linked chat was closed), so always offer the add action.
     return ff;
   }, [query, knownTickets]);
+
+  // Look the exact id up once the user pauses. The lists cover only
+  // open items; this is what finds the rest.
+  useEffect(() => {
+    const ff = parseFreeForm(query);
+    if (!ff) { setFound(null); setLooking(false); return; }
+    const key = ff.kind === 'ticket' ? `ticket:${ff.identifier}` : `${ff.system}:${ff.number}`;
+    if (ff.kind === 'ticket' && knownTickets.some((t) => t.identifier === ff.identifier)) { setFound(null); return; }
+    if (ff.kind === 'pr' && knownPrs.some((p) => p.scm === ff.system && p.number === ff.number)) { setFound(null); return; }
+    if (found?.key === key) return;
+    let cancelled = false;
+    setLooking(true);
+    const timer = setTimeout(() => {
+      const lookup = ff.kind === 'ticket'
+        ? window.popbot.linear.getIssue(ff.identifier).then((r) => (r.ok ? { kind: 'ticket' as const, key, issue: r.issue } : null))
+        : window.popbot.reviews.getPr(ff.number, ff.system === 'swarm' ? 'perforce' : 'git').then((r) => (r.ok ? { kind: 'pr' as const, key, pr: r.pr } : null));
+      void lookup
+        .catch(() => null)
+        .then((hit) => { if (!cancelled) { setFound(hit); setLooking(false); } });
+    }, 350);
+    return () => { cancelled = true; clearTimeout(timer); };
+    // `found` is read to skip a repeat lookup, not to trigger one.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [query, knownTickets, knownPrs]);
 
   const pinNew = async (): Promise<void> => {
     if (!freeForm) return;
@@ -220,7 +253,48 @@ export function WorkItemSearch({
             autoFocus
           />
 
-          {freeForm && (
+          {freeForm && found && (
+            <div className="work-item-search-group">
+              <div className="work-item-search-head">{t('work.found')}</div>
+              {found.kind === 'pr' ? (
+                <button
+                  type="button"
+                  className="work-item-search-row"
+                  onClick={() => { onSelectPr?.(found.pr); onCancel(); }}
+                >
+                  <i className="fa-solid fa-code-pull-request" style={{ color: 'var(--fg-3)' }} />
+                  <span className="mono">
+                    {found.pr.scm === 'swarm'
+                      ? t('work.reviewNumber', { number: found.pr.number })
+                      : t('work.prNumber', { number: found.pr.number })}
+                  </span>
+                  <span className="work-item-search-row-title">{found.pr.title}</span>
+                  {found.pr.state === 'merged' && <span className="pill done">{t('work.merged')}</span>}
+                  {(found.pr.state === 'closed' || (found.pr.closed && found.pr.state !== 'merged')) && (
+                    <span className="pill err">{t('work.closed')}</span>
+                  )}
+                  {found.pr.isDraft && !found.pr.closed && <span className="pill muted">{t('reviews.row.draft')}</span>}
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  className="work-item-search-row"
+                  onClick={() => { onSelectTicket?.(found.issue); onCancel(); }}
+                >
+                  <LinearStateIcon state={{ name: found.issue.state.name, type: found.issue.state.type, color: found.issue.state.color }} size={11} />
+                  <span className="mono">{found.issue.identifier}</span>
+                  <span className="work-item-search-row-title">{found.issue.title}</span>
+                  {(found.issue.state.type === 'completed' || found.issue.state.type === 'canceled') && (
+                    <span className="pill muted">{found.issue.state.name}</span>
+                  )}
+                </button>
+              )}
+            </div>
+          )}
+
+          {/* Pinning keeps an item in the panel; a merged or closed PR
+              would be retired from it at once, so that one only opens. */}
+          {freeForm && !(found?.kind === 'pr' && found.pr.closed) && (
             <div className="work-item-search-group">
               <div className="work-item-search-head">{t('work.addNew')}</div>
               <button
@@ -239,7 +313,7 @@ export function WorkItemSearch({
                 </span>
                 <span style={{ flex: 1 }} />
                 <span className="work-item-search-row-hint">
-                  {busyKind ? t('work.lookingUp') : t('work.pinKind', { kind: freeForm.kind })}
+                  {busyKind || (looking && !found) ? t('work.lookingUp') : t('work.pinKind', { kind: freeForm.kind })}
                 </span>
               </button>
             </div>
