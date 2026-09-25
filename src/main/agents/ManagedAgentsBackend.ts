@@ -213,7 +213,7 @@ class ManagedAgentsSession implements AgentSession {
     }
 
     const ws = this.cloud.workspace;
-    let repo: { url: string; branch: string; mountPath: string } | null = null;
+    let repo: { url: string; branch: string; mountPath: string; token: string } | null = null;
     let resource: SessionCreateParams['resources'] = undefined;
     if (ws) {
       const url = await githubOriginUrl(ws.localPath);
@@ -241,7 +241,7 @@ class ManagedAgentsSession implements AgentSession {
         }
         this.note(`Pushed ${branch} to origin.`);
       }
-      repo = { url, branch, mountPath: mountPathFor(url) };
+      repo = { url, branch, mountPath: mountPathFor(url), token: token.token };
       resource = [{
         type: 'github_repository',
         url,

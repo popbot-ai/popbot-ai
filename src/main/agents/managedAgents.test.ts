@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   agentCacheKey,
+  authenticatedRemote,
   blocksToText,
   cloudPreamble,
   eventId,
@@ -163,11 +164,17 @@ describe('the rest', () => {
     expect(agentCacheKey('claude-opus-5', 'high')).toBe('claude-opus-5|high');
   });
 
-  it('tells the agent where the repository is and where to push', () => {
-    const text = cloudPreamble({ url: 'https://github.com/o/r', branch: 'ben/x', mountPath: '/workspace/r' }, '');
+  it('tells the agent where the repository is, where to push, and how to authenticate', () => {
+    const text = cloudPreamble({ url: 'https://github.com/o/r', branch: 'ben/x', mountPath: '/workspace/r', token: 'ghp_abc' }, '');
     expect(text).toContain('/workspace/r');
     expect(text).toContain('push it to branch ben/x');
+    expect(text).toContain('git remote set-url origin https://x-access-token:ghp_abc@github.com/o/r');
+    expect(text).toContain('never print it');
     expect(cloudPreamble(null, ' Respond in French.')).toContain('No repository is mounted');
     expect(cloudPreamble(null, ' Respond in French.')).toContain('Respond in French.');
+  });
+
+  it('puts the token on the remote as the Basic-auth password GitHub expects', () => {
+    expect(authenticatedRemote('https://github.com/o/r', 'ghp_x/y')).toBe('https://x-access-token:ghp_x%2Fy@github.com/o/r');
   });
 });

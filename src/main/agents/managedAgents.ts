@@ -258,17 +258,34 @@ export const CLOUD_SYSTEM_PROMPT =
 /**
  * What the agent is told on the first message of a session: where the
  * repository is and how work gets back to the user.
+ *
+ * The platform clones with the GitHub token but leaves none of it in
+ * the sandbox, and GitHub's git endpoints take only Basic auth (which
+ * git base64-encodes, so a masked vault variable cannot serve a push).
+ * So the token rides here, in the clear, for the agent to put on the
+ * remote. This text goes to the agent only: PopBot stores the user's
+ * own words, and a replay skips user events.
  */
 export function cloudPreamble(
-  repo: { url: string; branch: string; mountPath: string } | null,
+  repo: { url: string; branch: string; mountPath: string; token: string } | null,
   languageDirective: string,
 ): string {
   const now = new Date().toLocaleString('sv-SE', { dateStyle: 'short', timeStyle: 'short' });
   const where = repo
     ? `The repository ${repo.url} is cloned at ${repo.mountPath} on branch ${repo.branch}; work there. ` +
-      `When a piece of work is done, commit it and push it to branch ${repo.branch} on origin (the clone is ` +
-      `authenticated), then say in your reply what you pushed. Never push to another branch. ` +
-      `If a push is rejected, say so and keep the commits local.`
+      `When a piece of work is done, commit it and push it to branch ${repo.branch} on origin, then say in ` +
+      `your reply what you pushed. Never push to another branch. If a push is rejected, say so and keep ` +
+      `the commits local.\n` +
+      `The clone has no credentials of its own. Before the first push, run once, exactly:\n` +
+      `  git remote set-url origin ${authenticatedRemote(repo.url, repo.token)}\n` +
+      `The gh CLI, if you need it, takes the same token: install it (apt-get install -y gh) and set ` +
+      `GH_TOKEN=${repo.token} in the shell that runs it. This token is a secret: never print it, log it, ` +
+      `commit it, or write it anywhere but the git remote URL and that variable.`
     : 'No repository is mounted; use /workspace as scratch space and put results in your reply.';
   return `[System] Starting up at ${now} (the user's local time) in an Anthropic cloud sandbox. ${where}${languageDirective}\n\n`;
+}
+
+/** The HTTPS remote with the token as GitHub's Basic-auth password. */
+export function authenticatedRemote(url: string, token: string): string {
+  return url.replace(/^https:\/\/github\.com\//, `https://x-access-token:${encodeURIComponent(token)}@github.com/`);
 }
