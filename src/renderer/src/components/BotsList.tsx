@@ -204,6 +204,9 @@ export function BotsList({ onOpen, focusedChatId }: BotsListProps): JSX.Element 
           <button className="git-menu-item" onClick={() => void act(() => window.popbot.bots.action(menu.hostId, menu.bot.id, 'wake'))}>
             <i className="fa-solid fa-bolt" /> {t('bots.menu.wake')}
           </button>
+          <button className="git-menu-item" title={t('bots.menu.resetTooltip')} onClick={() => void act(() => window.popbot.bots.action(menu.hostId, menu.bot.id, 'reset'))}>
+            <i className="fa-solid fa-rotate-right" /> {t('bots.menu.reset')}
+          </button>
           <button
             className="git-menu-item"
             onClick={() => void act(() => window.popbot.bots.action(menu.hostId, menu.bot.id, menu.bot.state === 'paused' ? 'resume' : 'pause'))}

@@ -265,6 +265,6 @@ export async function killHostBot(host: HostAddress, botId: string): Promise<voi
   await hostRequest(host, 'DELETE', `/v1/bots/${encodeURIComponent(botId)}`, undefined, 120_000);
 }
 
-export async function hostBotAction(host: HostAddress, botId: string, action: 'wake' | 'pause' | 'resume'): Promise<void> {
+export async function hostBotAction(host: HostAddress, botId: string, action: 'wake' | 'pause' | 'resume' | 'reset'): Promise<void> {
   await hostRequest(host, 'POST', `/v1/bots/${encodeURIComponent(botId)}/${action}`, {});
 }

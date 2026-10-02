@@ -6263,3 +6263,7 @@ textarea.input.bot-form-prompt {
 }
 .bot-trigger-add { position: relative; padding-top: 2px; }
 .bot-trigger-add-menu { position: absolute; left: 0; bottom: calc(100% + 4px); top: auto; }
+
+.chat-menu-item.danger { color: #e89696; }
+.chat-menu-item.danger i { color: #e89696; }
+.chat-menu-note { padding: 4px 10px 2px; font-size: 11px; color: var(--fg-3); }

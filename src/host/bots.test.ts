@@ -111,10 +111,8 @@ describe('bots on a host', () => {
 
     // On its list, a typo too. Its orders never name the list: list_bots
     // is the only way it learns of a bot.
-    const before = spawned.get(botChatId('web-reviewer'));
     bots.save('web-reviewer', { name: 'Web Reviewer', peers: ['web-shepherd', 'web-shepard'] });
-    await vi.waitFor(() => expect(spawned.get(botChatId('web-reviewer'))).not.toBe(before));
-    expect(spawned.get(botChatId('web-reviewer'))?.appendSystemPrompt).not.toMatch(/web-shep/);
+    expect(bots.spawnFor(botChatId('web-reviewer'))?.appendSystemPrompt).not.toMatch(/web-shep/);
     expect(await listed()).toEqual(['web-shepherd']);
     // By name or id.
     expect(JSON.parse(await say(client, 'Web Shepherd', 'Review is up on #12.'))).toEqual({ ok: true });
@@ -194,6 +192,47 @@ describe('bots on a host', () => {
     const ok = bots.save('web-reviewer', { name: 'Web Reviewer', triggers: [{ id: 't1', kind: 'cron', schedule: '0 9 * * 1-5', message: 'Morning sweep.' }] });
     expect(ok.triggers).toHaveLength(1);
     expect(ok.hasToken).toBe(true);
+  });
+
+  it('resets a bot mid-turn: a clean conversation that picks its task back up', async () => {
+    const chatId = botChatId('web-reviewer');
+    await sessions.prompt(chatId, 'Review PR #77 please.', { id: 'github', name: 'GitHub' });
+    expect(sessions.isIdle(chatId)).toBe(false);
+    const before = spawned.get(chatId);
+    expect(await bots.reset('web-reviewer', 'test')).toBe(true);
+    const after = spawned.get(chatId);
+    expect(after).not.toBe(before);
+    expect(after?.sessionId).toBeNull();
+    const briefing = sent.get(chatId)!.at(-1)!;
+    expect(briefing).toContain('You were reset in the middle of this');
+    expect(briefing).toContain('> Review PR #77 please.');
+    expect(briefing).toContain('You were just reset (test)');
+    // The chat shows the reset, and the stopped turn as ended.
+    const frames: HostFrame[] = [];
+    sessions.subscribe(chatId, 0, (f) => frames.push(f))();
+    const note = frames.find((f) => f.kind === 'event' && f.event.type === 'note');
+    expect(note && note.kind === 'event' && note.event.type === 'note' ? note.event.text : '').toContain('was reset (test)');
+  });
+
+  it('resets a bot once a round of edits settles', async () => {
+    vi.useFakeTimers();
+    try {
+      const chatId = botChatId('web-reviewer');
+      const before = spawned.get(chatId);
+      bots.save('web-reviewer', { name: 'Web Reviewer', prompt: 'Review carefully.' });
+      bots.save('web-reviewer', { name: 'Web Reviewer', prompt: 'Review very carefully.' });
+      expect(spawned.get(chatId)).toBe(before);
+      await vi.advanceTimersByTimeAsync(9_000);
+      expect(spawned.get(chatId)).not.toBe(before);
+      expect(spawned.get(chatId)?.appendSystemPrompt).toContain('Review very carefully.');
+      // A new picture alone resets nothing.
+      const now = spawned.get(chatId);
+      bots.save('web-reviewer', { name: 'Web Reviewer', avatar: 'data:image/png;base64,iVBORw0KGgo=' });
+      await vi.advanceTimersByTimeAsync(9_000);
+      expect(spawned.get(chatId)).toBe(now);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('kills a bot: gone from the config, its session and its folder', async () => {

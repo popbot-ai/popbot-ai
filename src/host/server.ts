@@ -150,6 +150,7 @@ export function createHostServer(opts: {
         if (parts[3] === 'wake') return json(res, 200, { ok: bots.wake(id) });
         if (parts[3] === 'pause') return json(res, 200, { ok: bots.setEnabled(id, false) });
         if (parts[3] === 'resume') return json(res, 200, { ok: bots.setEnabled(id, true) });
+        if (parts[3] === 'reset') return json(res, 200, { ok: await bots.reset(id) });
       }
       return json(res, 404, { error: 'not found' });
     }

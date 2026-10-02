@@ -155,8 +155,9 @@ export interface CompactionEvent {
 export interface NoteEvent {
   type: 'note';
   chatId: string;
-  /** The system-row prefix: `cloud` renders the cloud row. */
-  prefix: 'cloud';
+  /** The system-row prefix: `cloud` renders the cloud row, `bot` a
+   *  bot's lifecycle line (reset). */
+  prefix: 'cloud' | 'bot';
   text: string;
   ts: number;
 }

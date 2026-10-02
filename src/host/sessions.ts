@@ -89,6 +89,11 @@ interface LiveChat {
   log: FrameLog | null;
   /** A message went in and the turn it started has not ended. */
   busy: boolean;
+  /** The message that started the turn in flight, while there is one. */
+  lastAsk: string | null;
+  /** Which spawn's session this is: a replaced session's last events
+   *  (an abort, a closing status) are dropped, not logged as current. */
+  token: object;
 }
 
 export class HostSessions {
@@ -117,6 +122,12 @@ export class HostSessions {
 
   isBot(chatId: string): boolean {
     return !!this.bots?.spawnFor(chatId);
+  }
+
+  /** What the chat was asked to do in the turn it is in, if it is in one. */
+  inFlight(chatId: string): string | null {
+    const live = this.chats.get(chatId);
+    return live?.busy ? live.lastAsk : null;
   }
 
   /** Alive, and not in the middle of a turn. */
@@ -157,7 +168,11 @@ export class HostSessions {
       cap: bot ? bot.logCap : LOG_CAP,
       log: prior?.log ?? opened?.log ?? null,
       busy: false,
+      lastAsk: null,
+      token: {},
     };
+    const token = live.token;
+    const current = (): boolean => this.chats.get(chatId)?.token === token;
     this.chats.set(chatId, live);
     // Frames of this session start after this seq.
     const startSeq = live.seq;
@@ -180,8 +195,9 @@ export class HostSessions {
       pathToCodexExecutable: this.cli.codex,
       ...(mcpServers ? { mcpServers } : {}),
       ...(bot ? { env: bot.env, appendSystemPrompt: bot.appendSystemPrompt } : {}),
-      onEvent: (event: AgentEvent) => this.push(chatId, { kind: 'event', event }),
+      onEvent: (event: AgentEvent) => { if (current()) this.push(chatId, { kind: 'event', event }); },
       onSessionId: (sessionId) => {
+        if (!current()) return;
         bot?.onSessionId(sessionId);
         this.push(chatId, { kind: 'session-id', sessionId });
       },
@@ -190,6 +206,20 @@ export class HostSessions {
     this.push(chatId, { kind: 'spawned', cwd });
     dlog('host.spawn', { chatId, agent: isCodex ? 'codex' : 'claude', cwd, kind: workspace.kind, slotId: workspace.slotId, resume: bot ? bot.sessionId : body.sessionId ?? null, startSeq, popbotMcp: !!popbotMcp, bot: !!bot });
     return { cwd, seq: startSeq, workspace };
+  }
+
+  /** A line in the chat about the chat itself (a bot was reset), and
+   *  the end of whatever turn was running — a desktop showing it as
+   *  working would otherwise wait for an idle that is not coming. */
+  note(chatId: string, text: string): void {
+    const live = this.chats.get(chatId);
+    if (!live) return;
+    const ts = Date.now();
+    if (live.busy) {
+      live.busy = false;
+      this.push(chatId, { kind: 'event', event: { type: 'session-status', chatId, status: 'idle', ts } });
+    }
+    this.push(chatId, { kind: 'event', event: { type: 'note', chatId, prefix: 'bot', text, ts } });
   }
 
   /** Put a bot's answer to a chat's message in its log, for the
@@ -206,6 +236,7 @@ export class HostSessions {
     const live = this.must(chatId);
     this.push(chatId, { kind: 'prompt', text, from });
     live.busy = true;
+    live.lastAsk = text;
     await live.session.sendUser(text, []);
   }
 
@@ -213,6 +244,7 @@ export class HostSessions {
     const live = this.must(chatId);
     const attachments = this.storeAttachments(chatId, body.attachments ?? []);
     live.busy = true;
+    live.lastAsk = body.text;
     await live.session.sendUser(body.text, attachments);
     this.noteAlive(chatId);
   }

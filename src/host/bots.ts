@@ -47,6 +47,10 @@ const MAX_BOT_MESSAGES_PER_HOUR = 20;
  *  held back while the bot was busy. */
 const AFTER_TURN_POLL_MS = 5_000;
 const GH_TIMEOUT_MS = 60_000;
+/** A form applies each field as it is left, so a reset waits this long
+ *  after the last change — one reset for a round of edits, not one per
+ *  field. */
+const RESET_SETTLE_MS = 8_000;
 /** How long a team's member list is trusted before it is asked again. */
 const TEAM_TTL_MS = 10 * 60_000;
 
@@ -126,9 +130,8 @@ interface Runtime {
   sent: number[];
   /** Bots that messaged it, and when: it may answer them. */
   heardFrom: Map<string, number>;
-  /** Its config changed while its session ran: start a new session
-   *  (resuming the conversation) at the next idle moment. */
-  restartDue: boolean;
+  /** A reset waiting for edits to settle (see RESET_SETTLE_MS). */
+  resetTimer: ReturnType<typeof setTimeout> | null;
 }
 
 export class HostBots implements BotHooks {
@@ -173,11 +176,15 @@ export class HostBots implements BotHooks {
   /** Make a bot (`id` null) or change one. A changed prompt reaches the
    *  bot at its next session; triggers apply now. */
   save(id: string | null, input: HostBotInput): HostBotInfo {
+    // What the bot runs with — everything but its picture, which only
+    // the desktop shows.
+    const settings = (b: HostBot | null): string => (b ? JSON.stringify({ ...b, avatar: null, enabled: null }) : '');
+    const before = id ? settings(this.bot(id)) : '';
     const bot = upsertBot(this.config, this.configPath, id, input);
     dlog('host.bot.saved', { bot: bot.id, created: !id, triggers: bot.triggers.length, peers: bot.peers.length });
-    // Its orders (prompt, triggers, who it talks to) are read at spawn.
-    if (id && this.sessions.get(botChatId(bot.id))) this.runtime(bot.id).restartDue = true;
-    void this.serial(bot.id, () => this.restartIfDue(bot));
+    // New settings, new start: the bot is reset (soon, so a round of
+    // edits resets it once) — even mid-turn.
+    if (id && before !== settings(bot)) this.scheduleReset(bot.id, RESET_SETTLE_MS, 'its settings changed');
     this.arm(bot, 0);
     return this.info(bot);
   }
@@ -188,7 +195,10 @@ export class HostBots implements BotHooks {
     const bot = this.bot(id);
     if (!bot) return false;
     const rt = this.runtimes.get(id);
-    if (rt) for (const t of rt.timers.values()) clearTimeout(t);
+    if (rt) {
+      for (const t of rt.timers.values()) clearTimeout(t);
+      if (rt.resetTimer) clearTimeout(rt.resetTimer);
+    }
     this.runtimes.delete(id);
     removeBot(this.config, this.configPath, id);
     await this.sessions.dispose(botChatId(id));
@@ -309,19 +319,63 @@ export class HostBots implements BotHooks {
   idle(chatId: string): void {
     const bot = this.config.bots.find((b) => botChatId(b.id) === chatId);
     if (!bot) return;
-    void this.serial(bot.id, () => this.restartIfDue(bot));
     this.arm(bot, AFTER_TURN_POLL_MS);
   }
 
-  /** Start a new session with its current orders, resuming the same
-   *  conversation — when its config changed and it is between turns. */
-  private async restartIfDue(bot: HostBot): Promise<void> {
-    const rt = this.runtime(bot.id);
+  /** Reset after `delayMs`, replacing any reset already waiting. */
+  private scheduleReset(id: string, delayMs: number, why: string): void {
+    const rt = this.runtime(id);
+    if (rt.resetTimer) clearTimeout(rt.resetTimer);
+    rt.resetTimer = setTimeout(() => {
+      rt.resetTimer = null;
+      void this.reset(id, why).catch((err: unknown) => this.fail(id, err));
+    }, delayMs);
+    rt.resetTimer.unref?.();
+  }
+
+  /**
+   * Reset: stop whatever the bot is doing — a review in progress too —
+   * and start it over with a clean conversation and its current
+   * settings. What it watches is kept, so it is not told about every
+   * pull request as if new (and does not re-review them all); instead
+   * the new conversation opens with where each one stands, and the bot
+   * reads the rest — what it already did — on GitHub.
+   */
+  async reset(id: string, why = 'by hand'): Promise<boolean> {
+    const bot = this.bot(id);
+    if (!bot) return false;
+    const rt = this.runtime(id);
+    if (rt.resetTimer) {
+      clearTimeout(rt.resetTimer);
+      rt.resetTimer = null;
+    }
     const chatId = botChatId(bot.id);
-    if (!rt.restartDue || !this.sessions.isIdle(chatId)) return;
-    rt.restartDue = false;
-    await this.sessions.spawn(chatId, { agent: 'claude', rules: BOT_RULES });
-    dlog('host.bot.restarted', { bot: bot.id });
+    // What it was in the middle of, so the new conversation can pick it up.
+    const interrupted = this.sessions.inFlight(chatId);
+    rt.state.sessionId = null;
+    this.saveState(bot.id);
+    if (this.sessions.get(chatId)) {
+      this.sessions.note(chatId, `${bot.name} was reset (${why}): whatever it was doing was stopped, and it starts over with its current settings and a clean conversation.`);
+    }
+    await this.serial(bot.id, async () => {
+      // Spawning replaces the running session, mid-turn or not.
+      await this.sessions.spawn(chatId, { agent: 'claude', rules: BOT_RULES });
+      const watched = this.info(bot).watching;
+      const resumeTask = interrupted
+        ? `You were reset in the middle of this, which was stopped before you finished. Take it up again — check GitHub for how far you ` +
+          `got, and do not repeat what is already there:\n\n${interrupted.split('\n').map((l) => `> ${l}`).join('\n')}\n\n`
+        : '';
+      const briefing = resumeTask + (watched.length
+        ? `You were just reset (${why}), so this conversation starts over. Pull requests you are watching, as last seen:\n\n` +
+          watched.map((pr) => `- PR #${pr.number} "${pr.title}" by @${pr.author} in ${pr.repo} — head ${pr.head.slice(0, 7)}, CI ${pr.ci.toLowerCase()}, ` +
+            `review ${pr.decision.toLowerCase().replace(/_/g, ' ')}${pr.mergeable === 'CONFLICTING' ? ', has conflicts' : ''}\n  ${pr.url}`).join('\n') +
+          `\n\nWhat you already did on them is on GitHub. Look before you act, and do not repeat a review or a fix that is already there.`
+        : `You were just reset (${why}), so this conversation starts over. You are watching no pull requests yet.`);
+      await this.sessions.prompt(chatId, briefing, { id: 'popbot', name: 'PopBot' });
+    });
+    dlog('host.bot.reset', { bot: bot.id, why, watching: this.info(bot).watching.length });
+    this.arm(bot, 0);
+    return true;
   }
 
   /** The bots this one may know about: those on its list that are
@@ -518,7 +572,7 @@ export class HostBots implements BotHooks {
   private runtime(id: string): Runtime {
     let rt = this.runtimes.get(id);
     if (!rt) {
-      rt = { state: this.loadState(id), timers: new Map(), chain: Promise.resolve(), sent: [], heardFrom: new Map(), restartDue: false };
+      rt = { state: this.loadState(id), timers: new Map(), chain: Promise.resolve(), sent: [], heardFrom: new Map(), resetTimer: null };
       this.runtimes.set(id, rt);
     }
     return rt;
