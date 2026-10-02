@@ -3048,7 +3048,7 @@ input, textarea { font: inherit; color: inherit; background: none; border: 0; ou
 .field.stack { grid-template-columns: 1fr; gap: 6px; }
 .field.stack > label { color: var(--fg-2); font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; }
 
-input[type="text"].input, input[type="number"].input, select.input {
+input[type="text"].input, input[type="number"].input, input[type="email"].input, input[type="password"].input, select.input {
   background: var(--bg-2); border: 1px solid var(--line-2); border-radius: 4px;
   padding: 5px 8px; font-size: var(--fs-sm); width: 100%;
   font-family: var(--font-sans);
@@ -6167,7 +6167,17 @@ input.input.mono, select.input.mono { font-family: var(--font-mono); font-size: 
   background: var(--st-err-bg); color: #f3b6b6; font-size: 11px;
 }
 .bot-row { cursor: pointer; max-height: none; }
-.bot-row .bot-glyph { font-size: 10px; color: var(--fg-2); margin-right: 2px; }
+.bot-row { grid-template-columns: 22px 1fr; }
+.bot-avatar {
+  position: relative; width: 22px; height: 22px; border-radius: 50%; margin-top: 1px;
+  background: var(--bg-3); color: var(--fg-2); font-size: 10px;
+  display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto;
+}
+.bot-avatar img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; display: block; }
+.bot-avatar .bot-dot { position: absolute; right: -2px; bottom: -2px; margin: 0; border: 2px solid var(--bg-1); width: 10px; height: 10px; }
+.bot-avatar.lg { width: 48px; height: 48px; font-size: 18px; cursor: pointer; border: 1px solid var(--line-2); }
+.bot-avatar.lg:hover { border-color: var(--acc-line); }
+.bot-form-avatar-row { display: flex; align-items: center; gap: 8px; }
 .bot-dot {
   width: 9px; height: 9px; border-radius: 50%; margin: 4px 0 0 2px; box-sizing: border-box;
   background: var(--st-idle);

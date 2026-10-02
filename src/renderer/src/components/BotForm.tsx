@@ -26,6 +26,35 @@ interface BotFormProps {
 
 type Verdict = { kind: 'saving' } | { kind: 'saved' } | { kind: 'error'; text: string } | null;
 
+/** The picture as a small square thumbnail: centre-cropped and scaled
+ *  to THUMB px, so it stays small in the host's config and listings. */
+const THUMB = 128;
+function thumbnail(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      const side = Math.min(img.naturalWidth, img.naturalHeight);
+      const canvas = document.createElement('canvas');
+      canvas.width = THUMB;
+      canvas.height = THUMB;
+      const ctx = canvas.getContext('2d');
+      if (!ctx || !side) return reject(new Error('that image could not be read'));
+      ctx.imageSmoothingQuality = 'high';
+      ctx.drawImage(img, (img.naturalWidth - side) / 2, (img.naturalHeight - side) / 2, side, side, 0, 0, THUMB, THUMB);
+      const png = canvas.toDataURL('image/png');
+      // A photo compresses far better as JPEG.
+      resolve(png.length > 60_000 ? canvas.toDataURL('image/jpeg', 0.88) : png);
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error('that file is not an image'));
+    };
+    img.src = url;
+  });
+}
+
 /** The talks-to list as typed: names or ids, separated by commas. */
 function parsePeers(text: string): string[] {
   return [...new Set(text.split(',').map((p) => p.trim()).filter(Boolean))];
@@ -45,6 +74,9 @@ export function BotForm({ hosts, editing, onClose, onSaved }: BotFormProps): JSX
   const [prompt, setPrompt] = useState(editing?.bot.prompt ?? '');
   const [repoId, setRepoId] = useState(editing?.bot.repoId ?? '');
   const [githubLogin, setGithubLogin] = useState(editing?.bot.githubLogin ?? '');
+  const [email, setEmail] = useState(editing?.bot.email ?? '');
+  const [avatar, setAvatar] = useState<string | null>(editing?.bot.avatar ?? null);
+  const fileRef = useRef<HTMLInputElement | null>(null);
   const [githubToken, setGithubToken] = useState('');
   const [triggers, setTriggers] = useState<BotTrigger[]>(editing?.bot.triggers ?? []);
   const [peersText, setPeersText] = useState((editing?.bot.peers ?? []).join(', '));
@@ -71,6 +103,8 @@ export function BotForm({ hosts, editing, onClose, onSaved }: BotFormProps): JSX
     prompt,
     repoId: repoId || null,
     githubLogin: githubLogin.trim() || null,
+    email: email.trim() || null,
+    avatar,
     triggers,
     peers: parsePeers(peersText),
     ...(githubToken.trim() ? { githubToken: githubToken.trim() } : {}),
@@ -166,6 +200,35 @@ export function BotForm({ hosts, editing, onClose, onSaved }: BotFormProps): JSX
               onKeyDown={(e) => { if (e.key === 'Enter') void apply(); }}
             />
           </div>
+          <div className="field">
+            <label>{t('bots.form.picture')}</label>
+            <div className="bot-form-avatar-row">
+              <button className="bot-avatar lg" onClick={() => fileRef.current?.click()} title={t('bots.form.pictureUpload')}>
+                {avatar ? <img src={avatar} alt="" /> : <i className="fa-solid fa-robot" />}
+              </button>
+              <button className="btn ghost sm" onClick={() => fileRef.current?.click()}>{t('bots.form.pictureUpload')}</button>
+              {avatar && (
+                <button className="btn ghost sm" onClick={() => { setAvatar(null); void apply({ avatar: null }); }}>
+                  {t('bots.form.pictureRemove')}
+                </button>
+              )}
+              <input
+                ref={fileRef}
+                type="file"
+                accept="image/png,image/jpeg,image/webp,image/gif"
+                style={{ display: 'none' }}
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  e.target.value = '';
+                  if (!file) return;
+                  void thumbnail(file).then((url) => {
+                    setAvatar(url);
+                    void apply({ avatar: url });
+                  }).catch((err: unknown) => setVerdict({ kind: 'error', text: err instanceof Error ? err.message : String(err) }));
+                }}
+              />
+            </div>
+          </div>
           <div className="field stack">
             <label>
               {t('bots.form.prompt')}
@@ -216,6 +279,19 @@ export function BotForm({ hosts, editing, onClose, onSaved }: BotFormProps): JSX
               value={githubLogin}
               placeholder="webreviewer-bot"
               onChange={(e) => setGithubLogin(e.target.value)}
+              onBlur={() => void apply()}
+              onKeyDown={(e) => { if (e.key === 'Enter') void apply(); }}
+            />
+          </div>
+          <div className="field">
+            <label>{t('bots.form.email')}</label>
+            <input
+              className="input mono"
+              type="email"
+              value={email}
+              // Empty: the account's GitHub noreply address, which the host uses.
+              placeholder={githubLogin.trim() ? `${githubLogin.trim().replace(/^@/, '')}@users.noreply.github.com` : t('bots.form.emailPlaceholder')}
+              onChange={(e) => setEmail(e.target.value)}
               onBlur={() => void apply()}
               onKeyDown={(e) => { if (e.key === 'Enter') void apply(); }}
             />

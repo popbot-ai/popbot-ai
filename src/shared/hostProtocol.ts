@@ -137,9 +137,14 @@ export interface HostBot {
    *  to a desktop. Or name an environment variable that holds it. */
   githubToken: string | null;
   githubTokenEnv: string | null;
-  /** Commit author; defaults to the login and its noreply address. */
+  /** Commit author name; defaults to the login. */
   gitName: string | null;
-  gitEmail: string | null;
+  /** The bot's email: who it is, and the address on every commit it
+   *  makes. Empty: commits carry the login's GitHub noreply address.
+   *  GitHub credits a commit to the account with that address verified. */
+  email: string | null;
+  /** Its picture: a small square image as a data: URL. */
+  avatar: string | null;
   claudeModel: ClaudeModelId | null;
   claudeReasoningEffort: ClaudeReasoningEffort | null;
   /** Off: paused — no trigger wakes it; its chat stays. */

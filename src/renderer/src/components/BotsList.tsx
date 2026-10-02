@@ -134,11 +134,12 @@ export function BotsList({ onOpen, focusedChatId }: BotsListProps): JSX.Element 
                     }}
                     title={bot.lastError ?? undefined}
                   >
-                    <span className={`bot-dot ${state}`} title={t(`bots.state.${state}`)} />
+                    <span className="bot-avatar" title={t(`bots.state.${state}`)}>
+                      {bot.avatar ? <img src={bot.avatar} alt="" /> : <i className="fa-solid fa-robot" />}
+                      <span className={`bot-dot ${state}`} />
+                    </span>
                     <div style={{ minWidth: 0 }}>
-                      <div className="name">
-                        <i className="fa-solid fa-robot bot-glyph" /> {bot.name}
-                      </div>
+                      <div className="name">{bot.name}</div>
                       <div className="meta-line">
                         <span className="pill muted">{t(`bots.state.${state}`)}</span>
                         {bot.githubLogin && <span className="branch">@{bot.githubLogin}</span>}

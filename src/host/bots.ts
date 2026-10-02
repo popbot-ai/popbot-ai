@@ -622,7 +622,7 @@ export class HostBots implements BotHooks {
       env[`GIT_CONFIG_VALUE_${i}`] = value;
     });
     const name = bot.gitName ?? bot.githubLogin;
-    const email = bot.gitEmail ?? (bot.githubLogin ? `${bot.githubLogin}@users.noreply.github.com` : null);
+    const email = bot.email ?? (bot.githubLogin ? `${bot.githubLogin}@users.noreply.github.com` : null);
     if (name) env.GIT_AUTHOR_NAME = env.GIT_COMMITTER_NAME = name;
     if (email) env.GIT_AUTHOR_EMAIL = env.GIT_COMMITTER_EMAIL = email;
     return env;
