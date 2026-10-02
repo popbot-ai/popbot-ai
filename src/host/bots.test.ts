@@ -156,6 +156,27 @@ describe('bots on a host', () => {
     expect(existsSync(join(config.workspacesDir, 'bots', 'web-shepherd', 'events.jsonl'))).toBe(true);
   });
 
+  it('commits under the email it is given', async () => {
+    expect(() => bots.save('web-reviewer', { name: 'Web Reviewer', email: 'not an email' })).toThrow(/not an email address/);
+    bots.save('web-reviewer', { name: 'Web Reviewer', email: 'webreviewer@comfy.org' });
+    // What its next session gets (a busy one restarts when it is idle).
+    expect(bots.spawnFor(botChatId('web-reviewer'))?.env).toMatchObject({
+      GIT_AUTHOR_EMAIL: 'webreviewer@comfy.org',
+      GIT_COMMITTER_EMAIL: 'webreviewer@comfy.org',
+    });
+    expect(bots.list().find((b) => b.id === 'web-reviewer')?.email).toBe('webreviewer@comfy.org');
+  });
+
+  it('keeps a small picture and refuses anything else', () => {
+    const png = 'data:image/png;base64,iVBORw0KGgo=';
+    expect(bots.save('web-reviewer', { name: 'Web Reviewer', avatar: png }).avatar).toBe(png);
+    expect(() => bots.save('web-reviewer', { name: 'Web Reviewer', avatar: 'data:text/html;base64,PGI+' })).toThrow(/picture/);
+    expect(() => bots.save('web-reviewer', { name: 'Web Reviewer', avatar: `data:image/png;base64,${'A'.repeat(300 * 1024)}` })).toThrow(/picture/);
+    // Left out: kept. Empty: removed.
+    expect(bots.save('web-reviewer', { name: 'Web Reviewer' }).avatar).toBe(png);
+    expect(bots.save('web-reviewer', { name: 'Web Reviewer', avatar: null }).avatar).toBeNull();
+  });
+
   it('refuses triggers it could not run', () => {
     expect(() => bots.save('web-reviewer', { name: 'Web Reviewer', triggers: [{ id: 't1', kind: 'github', repo: 'o/r', labels: [], pollSeconds: 30 }] }))
       .toThrow(/at least one label/);

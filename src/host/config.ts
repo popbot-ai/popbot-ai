@@ -70,6 +70,10 @@ export function loadConfig(path: string): HostConfig {
 }
 
 const BOT_ID_RE = /^[A-Za-z0-9_-]+$/;
+/** A bot's picture rides in the config and in every bot listing, so it
+ *  is kept small: the form shrinks it to a thumbnail before it is sent. */
+const AVATAR_RE = /^data:image\/(png|jpeg|webp|gif);base64,[A-Za-z0-9+/=]+$/;
+const MAX_AVATAR_CHARS = 256 * 1024;
 
 export function normalizeBot(b: Partial<HostBot> & { id: string }): HostBot {
   const str = (v: unknown): string | null => (typeof v === 'string' && v.trim() ? v.trim() : null);
@@ -86,7 +90,8 @@ export function normalizeBot(b: Partial<HostBot> & { id: string }): HostBot {
     githubToken: str(b.githubToken),
     githubTokenEnv: str(b.githubTokenEnv),
     gitName: str(b.gitName),
-    gitEmail: str(b.gitEmail),
+    email: str(b.email),
+    avatar: typeof b.avatar === 'string' && AVATAR_RE.test(b.avatar) && b.avatar.length <= MAX_AVATAR_CHARS ? b.avatar : null,
     claudeModel: (CLAUDE_MODELS as readonly string[]).includes(b.claudeModel as string) ? b.claudeModel! : null,
     claudeReasoningEffort: (CLAUDE_REASONING_EFFORTS as readonly string[]).includes(b.claudeReasoningEffort as string) ? b.claudeReasoningEffort! : null,
     enabled: b.enabled !== false,
@@ -143,6 +148,10 @@ export function upsertBot(config: HostConfig, configPath: string, id: string | n
     id: existing?.id ?? botIdFor(config, name),
   });
   if (next.repoId && !config.repos.some((r) => r.id === next.repoId)) throw new Error(`no repo "${next.repoId}" on this host`);
+  if (next.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(next.email)) throw new Error(`"${next.email}" is not an email address`);
+  if (typeof input.avatar === 'string' && input.avatar && !next.avatar) {
+    throw new Error(`the picture must be a PNG, JPEG, WebP or GIF of at most ${Math.round(MAX_AVATAR_CHARS / 1024)} KB`);
+  }
   for (const t of next.triggers) {
     if (t.kind === 'github' && t.labels.length === 0) throw new Error('a GitHub trigger needs at least one label');
     if (t.kind === 'github' && !t.repo && !next.repoId) throw new Error('a GitHub trigger needs a repository (owner/name), or give the bot a repo');
