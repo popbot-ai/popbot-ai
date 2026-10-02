@@ -348,11 +348,13 @@ export interface CreateChatArgs {
   cloud?: CloudChatInfo | null;
   /** A chat that runs on a host — see {@link HostChatInfo}. */
   host?: HostChatInfo | null;
+  /** A fixed id — a bot's chat, whose id its host decides. */
+  id?: string;
 }
 
 export function createChat(args: CreateChatArgs): ChatRecord {
   const now = Date.now();
-  const id = 'chat_' + randomUUID().replaceAll('-', '').slice(0, 12);
+  const id = args.id ?? 'chat_' + randomUUID().replaceAll('-', '').slice(0, 12);
   const agent = normalizeAgent(args.agent);
   const claudeModel = normalizeClaudeModel(args.claudeModel);
   const claudeReasoningEffort = normalizeClaudeReasoningEffort(args.claudeReasoningEffort);

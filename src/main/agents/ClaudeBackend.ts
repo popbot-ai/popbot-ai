@@ -172,8 +172,8 @@ export const ClaudeBackend: AgentBackend = {
  * user's sign-in, and fail every turn once it is revoked; local chats
  * are the sign-in's. Set POPBOT_CLAUDE_USE_API_KEY=1 to hand it through.
  */
-function claudeCliEnv(): Record<string, string | undefined> {
-  const env: Record<string, string | undefined> = { ...process.env };
+function claudeCliEnv(extra?: Record<string, string>): Record<string, string | undefined> {
+  const env: Record<string, string | undefined> = { ...process.env, ...extra };
   if (process.env.POPBOT_CLAUDE_USE_API_KEY !== '1') delete env.ANTHROPIC_API_KEY;
   return env;
 }
@@ -188,6 +188,8 @@ class ClaudeSession implements AgentSession {
   private readonly resolveRule?: (toolName: string) => 'allow' | 'deny' | null;
   /** Per-slot HTTP MCP servers (e.g. this chat's Unity/Unreal editor). */
   private readonly mcpServers?: Record<string, { type: 'http'; url: string }>;
+  private readonly extraEnv?: Record<string, string>;
+  private readonly appendSystemPrompt?: string;
   private readonly sessionStore: SessionStore | null;
   private readonly model: string;
   private readonly reasoningEffort: SdkOptions['effort'];
@@ -257,6 +259,8 @@ class ClaudeSession implements AgentSession {
     this.sessionStore = opts.sessionStore ?? null;
     this.resolveRule = opts.resolveRule;
     this.mcpServers = opts.mcpServers;
+    this.extraEnv = opts.env;
+    this.appendSystemPrompt = opts.appendSystemPrompt;
     this.model = opts.claudeModel ?? DEFAULT_CLAUDE_MODEL;
     this.reasoningEffort = opts.claudeReasoningEffort ?? DEFAULT_CLAUDE_REASONING_EFFORT;
     dlog('claude.start', {
@@ -307,7 +311,10 @@ class ClaudeSession implements AgentSession {
       ...(this.pathToClaudeCodeExecutable
         ? { pathToClaudeCodeExecutable: this.pathToClaudeCodeExecutable }
         : {}),
-      env: claudeCliEnv(),
+      env: claudeCliEnv(this.extraEnv),
+      ...(this.appendSystemPrompt
+        ? { systemPrompt: { type: 'preset' as const, preset: 'claude_code' as const, append: this.appendSystemPrompt, snapshot: false } }
+        : {}),
       // SDK-side transcript persistence. With the desktop's store set,
       // the CLI's append-on-disk JSONL becomes a redundant local cache
       // and SQLite is the canonical context store. On resume, the SDK

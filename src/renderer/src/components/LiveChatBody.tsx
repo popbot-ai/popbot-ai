@@ -997,7 +997,11 @@ function CrossAgentRow({ from, text }: { from: CrossChatOrigin; text: string }):
     <div className="msg cross-agent">
       <div className="body">
         <div className="cross-agent-head">
-          <i className="fa-solid fa-robot" aria-hidden="true" />
+          {/* A bot's triggers speak as GitHub or its schedule (see src/host/bots.ts). */}
+          <i
+            className={from.chatId === 'github' ? 'fa-brands fa-github' : from.chatId === 'schedule' ? 'fa-regular fa-clock' : 'fa-solid fa-robot'}
+            aria-hidden="true"
+          />
           <span>{t('chat.crossAgent.from', { name: from.chatName })}</span>
           {from.waiting && <span className="cross-agent-waiting">{t('chat.crossAgent.waiting')}</span>}
         </div>

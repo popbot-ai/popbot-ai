@@ -25,6 +25,7 @@ import { CodexBackend } from '../main/agents/CodexBackend';
 import type { AgentSession } from '../main/agents/types';
 import { dlog } from '../main/diagLog';
 import type { HostConfig } from './config';
+import { FrameLog } from './frameLog';
 import type { HostWorkspaces } from './workspaces';
 
 /** Frames kept per chat. A long turn is a few thousand at most. */
@@ -34,6 +35,40 @@ const LOG_CAP = 20_000;
 const MCP_RELAY_TIMEOUT_MS = 35 * 60_000;
 
 type McpAnswer = Omit<HostMcpResponse, 'id'>;
+
+/**
+ * How a bot's chat runs. The host's own settings, whoever asks: a
+ * desktop that spawns a bot chat gets the bot, not what it sent — its
+ * checkout, its context, its GitHub identity and its tools.
+ */
+export interface BotSpawn {
+  /** The bot's own checkout (made on first use). */
+  cwd(): Promise<string>;
+  /** The native session of the task it is on; null starts a clean one. */
+  sessionId: string | null;
+  claudeModel: HostSpawnBody['claudeModel'];
+  claudeReasoningEffort: HostSpawnBody['claudeReasoningEffort'];
+  /** Added to the CLI's environment (GH_TOKEN, git identity). */
+  env: Record<string, string>;
+  /** The bot's standing orders, after Claude Code's own prompt. */
+  appendSystemPrompt: string;
+  /** Its MCP servers — the bots server, never the desktop's popbot. */
+  mcpServers: Record<string, { type: 'http'; url: string }>;
+  /** Nobody is there to answer a prompt: these decide every tool. */
+  rules: HostRules;
+  /** Where the event log is kept, and how many frames of it. */
+  logPath: string;
+  logCap: number;
+  onSessionId(sessionId: string): void;
+}
+
+/** What the bots tell and ask of the session layer. */
+export interface BotHooks {
+  /** The bot whose chat this is, or null for an ordinary chat. */
+  spawnFor(chatId: string): BotSpawn | null;
+  /** The chat's turn ended — or its session did. */
+  idle(chatId: string): void;
+}
 
 /** A frame before its seq is assigned (Omit over a union would collapse
  *  it to the common keys, so it is spelled out per kind). */
@@ -48,11 +83,18 @@ interface LiveChat {
   listeners: Set<(frame: HostFrame) => void>;
   /** popbot MCP calls the desktop has not answered, by frame id. */
   mcpPending: Map<string, (answer: McpAnswer) => void>;
+  /** Frames kept for replay. */
+  cap: number;
+  /** A bot's log, kept on disk. */
+  log: FrameLog | null;
+  /** A message went in and the turn it started has not ended. */
+  busy: boolean;
 }
 
 export class HostSessions {
   private readonly chats = new Map<string, LiveChat>();
   private mcpUrlFor: ((chatId: string) => string) | null = null;
+  private bots: BotHooks | null = null;
 
   constructor(
     private readonly config: HostConfig,
@@ -68,6 +110,21 @@ export class HostSessions {
     return this.chats.get(chatId);
   }
 
+  /** Bot chats are run by the bots (see bots.ts). */
+  useBots(hooks: BotHooks): void {
+    this.bots = hooks;
+  }
+
+  isBot(chatId: string): boolean {
+    return !!this.bots?.spawnFor(chatId);
+  }
+
+  /** Alive, and not in the middle of a turn. */
+  isIdle(chatId: string): boolean {
+    const live = this.chats.get(chatId);
+    return !!live && live.session.isAlive() && !live.busy;
+  }
+
   /** Where agents reach the popbot relay (see mcpRelay.ts). */
   useMcpRelay(urlFor: (chatId: string) => string): void {
     this.mcpUrlFor = urlFor;
@@ -79,49 +136,83 @@ export class HostSessions {
     if (prior) {
       await prior.session.dispose().catch(() => undefined);
     }
-    const workspace = await this.workspaces.ensure(chatId, body.workspace);
+    const bot = this.bots?.spawnFor(chatId) ?? null;
+    const workspace = bot
+      ? { cwd: await bot.cwd(), kind: 'root' as const, slotId: null, branch: null }
+      : await this.workspaces.ensure(chatId, body.workspace);
     const cwd = workspace.cwd;
+    // A bot's log is on disk, so a host restart neither loses what a
+    // desktop has yet to see nor restarts the numbering it reads by.
+    const opened = !prior && bot ? FrameLog.open(bot.logPath, bot.logCap) : null;
     const live: LiveChat = {
       // Filled in below; the backend calls onEvent synchronously during
       // spawn in some paths, so the record exists before it.
       session: null as unknown as AgentSession,
       cwd,
-      rules: normalizeRules(body.rules),
-      frames: prior?.frames ?? [],
-      seq: prior?.seq ?? 0,
+      rules: bot ? bot.rules : normalizeRules(body.rules),
+      frames: prior?.frames ?? opened?.frames ?? [],
+      seq: prior?.seq ?? opened?.seq ?? 0,
       listeners: prior?.listeners ?? new Set(),
       mcpPending: prior?.mcpPending ?? new Map(),
+      cap: bot ? bot.logCap : LOG_CAP,
+      log: prior?.log ?? opened?.log ?? null,
+      busy: false,
     };
     this.chats.set(chatId, live);
     // Frames of this session start after this seq.
     const startSeq = live.seq;
-    const backend = body.agent === 'codex' ? CodexBackend : ClaudeBackend;
-    const isCodex = body.agent === 'codex';
-    const popbotMcp = body.popbotMcp && this.mcpUrlFor ? this.mcpUrlFor(chatId) : null;
+    const isCodex = !bot && body.agent === 'codex';
+    const backend = isCodex ? CodexBackend : ClaudeBackend;
+    const popbotMcp = !bot && body.popbotMcp && this.mcpUrlFor ? this.mcpUrlFor(chatId) : null;
+    const mcpServers = bot
+      ? bot.mcpServers
+      : popbotMcp ? { popbot: { type: 'http' as const, url: popbotMcp } } : null;
     live.session = backend.spawn({
       chatId,
       history: [],
       cwd,
-      sessionId: body.sessionId ?? null,
-      claudeModel: isCodex ? null : body.claudeModel ?? null,
-      claudeReasoningEffort: isCodex ? null : body.claudeReasoningEffort ?? null,
+      sessionId: bot ? bot.sessionId : body.sessionId ?? null,
+      claudeModel: isCodex ? null : (bot ? bot.claudeModel : body.claudeModel) ?? null,
+      claudeReasoningEffort: isCodex ? null : (bot ? bot.claudeReasoningEffort : body.claudeReasoningEffort) ?? null,
       codexModel: isCodex ? body.codexModel ?? null : null,
       codexReasoningEffort: isCodex ? body.codexReasoningEffort ?? null : null,
       pathToClaudeCodeExecutable: this.cli.claude,
       pathToCodexExecutable: this.cli.codex,
-      ...(popbotMcp ? { mcpServers: { popbot: { type: 'http' as const, url: popbotMcp } } } : {}),
+      ...(mcpServers ? { mcpServers } : {}),
+      ...(bot ? { env: bot.env, appendSystemPrompt: bot.appendSystemPrompt } : {}),
       onEvent: (event: AgentEvent) => this.push(chatId, { kind: 'event', event }),
-      onSessionId: (sessionId) => this.push(chatId, { kind: 'session-id', sessionId }),
+      onSessionId: (sessionId) => {
+        bot?.onSessionId(sessionId);
+        this.push(chatId, { kind: 'session-id', sessionId });
+      },
       resolveRule: (tool) => resolveHostRule(this.chats.get(chatId)?.rules, tool),
     });
     this.push(chatId, { kind: 'spawned', cwd });
-    dlog('host.spawn', { chatId, agent: body.agent, cwd, kind: workspace.kind, slotId: workspace.slotId, resume: body.sessionId ?? null, startSeq, popbotMcp: !!popbotMcp });
+    dlog('host.spawn', { chatId, agent: isCodex ? 'codex' : 'claude', cwd, kind: workspace.kind, slotId: workspace.slotId, resume: bot ? bot.sessionId : body.sessionId ?? null, startSeq, popbotMcp: !!popbotMcp, bot: !!bot });
     return { cwd, seq: startSeq, workspace };
+  }
+
+  /** Put a bot's answer to a chat's message in its log, for the
+   *  desktop that issued the reply id to deliver. */
+  reply(chatId: string, replyId: string, text: string): void {
+    this.must(chatId);
+    this.push(chatId, { kind: 'reply', replyId, text });
+  }
+
+  /** The host's own message to a chat — a bot's trigger, or another
+   *  bot. Recorded in the log first, so a desktop shows it as the turn
+   *  it is. */
+  async prompt(chatId: string, text: string, from: { id: string; name: string }): Promise<void> {
+    const live = this.must(chatId);
+    this.push(chatId, { kind: 'prompt', text, from });
+    live.busy = true;
+    await live.session.sendUser(text, []);
   }
 
   async send(chatId: string, body: HostSendBody): Promise<void> {
     const live = this.must(chatId);
     const attachments = this.storeAttachments(chatId, body.attachments ?? []);
+    live.busy = true;
     await live.session.sendUser(body.text, attachments);
     this.noteAlive(chatId);
   }
@@ -142,7 +233,10 @@ export class HostSessions {
   }
 
   setRules(chatId: string, rules: HostRules | undefined): void {
-    this.must(chatId).rules = normalizeRules(rules);
+    const live = this.must(chatId);
+    // A bot's rules are its own; a desktop's do not apply to it.
+    if (this.isBot(chatId)) return;
+    live.rules = normalizeRules(rules);
   }
 
   /** Send the agent's popbot MCP call up the chat's stream and wait for
@@ -207,8 +301,23 @@ export class HostSessions {
     live.seq += 1;
     const full = { ...frame, seq: live.seq } as HostFrame;
     live.frames.push(full);
-    if (live.frames.length > LOG_CAP) live.frames.splice(0, live.frames.length - LOG_CAP);
+    if (live.frames.length > live.cap) live.frames.splice(0, live.frames.length - live.cap);
+    live.log?.append(full, live.frames);
     for (const l of live.listeners) l(full);
+    if (full.kind === 'event') this.noteTurn(chatId, live, full.event);
+  }
+
+  /** Track whether a turn is in flight, and tell the bots when one ends. */
+  private noteTurn(chatId: string, live: LiveChat, event: AgentEvent): void {
+    if (event.type === 'turn-start') {
+      live.busy = true;
+      return;
+    }
+    if (event.type === 'session-status' && (event.status === 'idle' || event.status === 'errored' || event.status === 'complete')) {
+      if (!live.busy) return;
+      live.busy = false;
+      this.bots?.idle(chatId);
+    }
   }
 
   /** After a send, a session whose query has ended is reported so the

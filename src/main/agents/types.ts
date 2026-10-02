@@ -107,6 +107,19 @@ export interface SpawnOpts {
    */
   mcpServers?: Record<string, { type: 'http'; url: string }>;
   /**
+   * Claude only: variables added to the CLI's environment. A host bot
+   * passes its own GitHub token and git identity here, so it acts as
+   * its account rather than whoever runs the host.
+   */
+  env?: Record<string, string>;
+  /**
+   * Claude only: standing orders appended to Claude Code's own system
+   * prompt — a host bot's. Rendered fresh at each spawn, not recorded
+   * with the conversation, so an edit reaches the bot at its next
+   * session while it keeps its history.
+   */
+  appendSystemPrompt?: string;
+  /**
    * Claude only: where the SDK keeps the session transcript. The desktop
    * passes its SQLite store (the canonical context store); the host
    * daemon, which has no database, leaves it out and the CLI keeps its
@@ -145,6 +158,12 @@ export interface RemoteSpawnOpts {
   languageDirective: string;
   /** Merge a change into the chat's stored host state. */
   onHostUpdate(patch: Partial<HostChatInfo>): void;
+  /** The host sent the agent a message itself — a bot's trigger, or
+   *  another bot. Record it as the turn it starts. */
+  onPrompt(text: string, from: { id: string; name: string }): void;
+  /** A bot answered a chat's message by the reply id it carried:
+   *  deliver it to that chat, once. */
+  onReply(replyId: string, text: string): void;
 }
 
 export interface CloudSpawnOpts {
@@ -185,6 +204,9 @@ export interface AgentSession {
    *  without awaiting it, ⌘Q can amputate writes mid-flight and the
    *  next resume hits "no conversation found". */
   dispose(): Promise<void>;
+  /** Host chats only: open the event stream now, with no message to
+   *  send — for a bot's chat, which its host drives. */
+  follow?(): Promise<void>;
   /** False once the underlying SDK query has finished iterating —
    *  any messages pushed after this would be silently dropped, so the
    *  host should dispose + respawn. */

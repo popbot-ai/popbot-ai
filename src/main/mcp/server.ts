@@ -57,6 +57,22 @@ export interface HostSummary {
   repos?: Array<{ id: string; defaultBase: string; mode: 'slots' | 'ephemeral'; slotCount: number }>;
 }
 
+/** A bot on a host, as list_bots shows it to a chat. */
+export interface BotSummary {
+  id: string;
+  name: string;
+  host: string;
+  /** False when its host did not answer: it is not running now. */
+  hostReachable: boolean;
+  /** Its chat — get_chat_transcript reads what it has been doing. */
+  chatId: string;
+  state: 'idle' | 'working' | 'error' | 'paused' | 'offline';
+  githubLogin: string | null;
+  triggers: Array<{ github: string | null; labels: string[] } | { schedule: string }>;
+  watching: Array<{ repo: string; number: number; title: string; ci: string; decision: string }>;
+  lastError: string | null;
+}
+
 export type ToolFailure = { error: string };
 
 /** Everything the tools do, as plain functions. `caller` is the chat id
@@ -91,6 +107,13 @@ export interface PopbotToolHandlers {
   listRefs(caller: string | null): ChatRefs;
   /** Show a message in the app: focus its chat, scroll to the row. */
   goToMessage(input: { chatId: string; messageId: string }, caller: string | null): { ok: true } | ToolFailure;
+  /** Bots: chats can see them and talk to them — not make, pause or
+   *  kill them (a person does that, in the Bots tab). */
+  listBots(input: { host?: string }, caller: string | null): Promise<BotSummary[] | ToolFailure>;
+  messageBot(
+    input: { bot: string; host?: string; text: string; waitForReply: boolean; timeoutSeconds: number },
+    caller: string | null,
+  ): Promise<{ outcome: 'sent' | 'replied' | 'timeout' | 'needs-permission' | 'errored'; reply: string; entries: number; chatId: string } | ToolFailure>;
 }
 
 function text(value: unknown): { content: Array<{ type: 'text'; text: string }>; isError?: boolean } {
@@ -113,12 +136,34 @@ export function registerPopbotTools(server: McpServer, h: PopbotToolHandlers, ca
   server.registerTool('list_chats', {
     title: 'List chats',
     annotations: { readOnlyHint: true, openWorldHint: false },
-    description: 'PopBot chats: id, name, status (idle/run/wait/err), agent, repo, branch, ticket, PR, whether it is a cloud chat, the PopBot host it runs on (null: this computer), and which one is you (isCaller). Closed (archived) chats are included on request.',
+    description: 'PopBot chats: id, name, status (idle/run/wait/err), agent, repo, branch, ticket, PR, whether it is a cloud chat, the PopBot host it runs on (null: this computer), and which one is you (isCaller). Closed (archived) chats are included on request. Bots are listed by list_bots, not here.',
     inputSchema: {
       includeClosed: z.boolean().default(false).describe('Also list closed/archived chats'),
       host: z.string().optional().describe('Only the chats on this PopBot host (a name or id from list_hosts), or "local" for this computer\'s'),
     },
   }, async ({ includeClosed, host }) => guarded(() => h.listChats({ includeClosed, ...(host ? { host } : {}) }, caller)));
+
+  server.registerTool('list_bots', {
+    title: 'List bots',
+    annotations: { readOnlyHint: true, openWorldHint: false },
+    description: 'Bots: chats a PopBot host runs on its own, woken by triggers (GitHub pull requests, schedules). For each: id, name, host, state (idle/working/paused/error, offline when its host is unreachable), the GitHub account it acts as, its triggers, the pull requests it is watching, and its chatId — read what it has been doing with get_chat_transcript. Bots are not in list_chats.',
+    inputSchema: {
+      host: z.string().optional().describe('Only the bots on this PopBot host (a name or id from list_hosts)'),
+    },
+  }, async ({ host }) => guarded(() => h.listBots(host ? { host } : {}, caller)));
+
+  server.registerTool('message_bot', {
+    title: 'Message a bot',
+    annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
+    description: 'Send a message to a bot. It arrives in the bot’s chat attributed to you, as a turn of its own (queued behind any work it is doing). A bot cannot message chats: with waitForReply it waits for the bot’s turn to finish and returns what it said; without, read its chat later with get_chat_transcript. Outcomes as for send_to_chat.',
+    inputSchema: {
+      bot: z.string().describe('The bot’s id or name, from list_bots'),
+      host: z.string().optional().describe('Its host, when two hosts have a bot of that name'),
+      text: z.string().min(1),
+      waitForReply: z.boolean().default(false),
+      timeoutSeconds: z.number().int().min(5).max(1800).default(300),
+    },
+  }, async (input) => guarded(() => h.messageBot(input, caller)));
 
   server.registerTool('list_hosts', {
     title: 'List hosts',

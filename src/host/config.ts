@@ -6,7 +6,16 @@ import { randomBytes } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
-import type { HostRepo } from '@shared/hostProtocol';
+import {
+  DEFAULT_GITHUB_POLL_SECONDS,
+  MIN_GITHUB_POLL_SECONDS,
+  type BotTrigger,
+  type HostBot,
+  type HostBotInput,
+  type HostRepo,
+} from '@shared/hostProtocol';
+import { CLAUDE_MODELS, CLAUDE_REASONING_EFFORTS } from '@shared/persistence';
+import { cronProblem } from './cron';
 
 export interface HostConfig {
   /** Address to bind. Localhost by default: reach it over an SSH tunnel. */
@@ -19,6 +28,8 @@ export interface HostConfig {
   /** Where per-chat worktrees and attachments go. */
   workspacesDir: string;
   repos: HostRepo[];
+  /** Chats this host runs on its own, woken by triggers. See bots.ts. */
+  bots: HostBot[];
 }
 
 export const DEFAULT_CONFIG_PATH = join(homedir(), '.popbot-host', 'config.json');
@@ -31,6 +42,7 @@ export function defaultConfig(): HostConfig {
     name: require('node:os').hostname(),
     workspacesDir: join(homedir(), '.popbot-host', 'workspaces'),
     repos: [],
+    bots: [],
   };
 }
 
@@ -49,7 +61,108 @@ export function loadConfig(path: string): HostConfig {
     name: typeof raw.name === 'string' && raw.name ? raw.name : base.name,
     workspacesDir: typeof raw.workspacesDir === 'string' && raw.workspacesDir ? resolve(raw.workspacesDir) : base.workspacesDir,
     repos,
+    bots: Array.isArray(raw.bots)
+      ? raw.bots
+          .filter((b): b is HostBot => !!b && typeof b.id === 'string' && BOT_ID_RE.test(b.id))
+          .map((b) => normalizeBot(b))
+      : [],
   };
+}
+
+const BOT_ID_RE = /^[A-Za-z0-9_-]+$/;
+
+export function normalizeBot(b: Partial<HostBot> & { id: string }): HostBot {
+  const str = (v: unknown): string | null => (typeof v === 'string' && v.trim() ? v.trim() : null);
+  return {
+    id: b.id,
+    name: str(b.name) ?? b.id,
+    prompt: typeof b.prompt === 'string' ? b.prompt : '',
+    repoId: str(b.repoId),
+    triggers: Array.isArray(b.triggers) ? b.triggers.map(normalizeTrigger).filter((t): t is BotTrigger => !!t) : [],
+    peers: Array.isArray(b.peers)
+      ? [...new Set(b.peers.filter((p): p is string => typeof p === 'string').map((p) => p.trim()).filter((p) => p && p !== b.id))]
+      : [],
+    githubLogin: str(b.githubLogin)?.replace(/^@/, '') ?? null,
+    githubToken: str(b.githubToken),
+    githubTokenEnv: str(b.githubTokenEnv),
+    gitName: str(b.gitName),
+    gitEmail: str(b.gitEmail),
+    claudeModel: (CLAUDE_MODELS as readonly string[]).includes(b.claudeModel as string) ? b.claudeModel! : null,
+    claudeReasoningEffort: (CLAUDE_REASONING_EFFORTS as readonly string[]).includes(b.claudeReasoningEffort as string) ? b.claudeReasoningEffort! : null,
+    enabled: b.enabled !== false,
+  };
+}
+
+function normalizeTrigger(t: unknown, i: number): BotTrigger | null {
+  if (!t || typeof t !== 'object') return null;
+  const raw = t as Record<string, unknown>;
+  const id = typeof raw.id === 'string' && raw.id ? raw.id : `t${i + 1}`;
+  if (raw.kind === 'github') {
+    const poll = typeof raw.pollSeconds === 'number' ? Math.floor(raw.pollSeconds) : DEFAULT_GITHUB_POLL_SECONDS;
+    return {
+      id,
+      kind: 'github',
+      repo: typeof raw.repo === 'string' && raw.repo.trim()
+        ? raw.repo.trim().replace(/^https?:\/\/github\.com\//, '').replace(/(\.git)?\/*$/, '')
+        : null,
+      labels: Array.isArray(raw.labels) ? raw.labels.map((l) => String(l).trim()).filter(Boolean) : [],
+      pollSeconds: Math.max(MIN_GITHUB_POLL_SECONDS, poll || DEFAULT_GITHUB_POLL_SECONDS),
+    };
+  }
+  if (raw.kind === 'cron') {
+    return {
+      id,
+      kind: 'cron',
+      schedule: typeof raw.schedule === 'string' ? raw.schedule.trim() : '',
+      message: typeof raw.message === 'string' ? raw.message : '',
+    };
+  }
+  return null;
+}
+
+/** An id for a new bot from its name: lower-case, dashes, unique here. */
+function botIdFor(config: HostConfig, name: string): string {
+  const base = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40) || 'bot';
+  let id = base;
+  for (let n = 2; config.bots.some((b) => b.id === id); n += 1) id = `${base}-${n}`;
+  return id;
+}
+
+/** Make a bot (`id` null) or change one, and rewrite the file. A token
+ *  left out keeps the stored one; an empty one clears it. */
+export function upsertBot(config: HostConfig, configPath: string, id: string | null, input: HostBotInput): HostBot {
+  const existing = id ? config.bots.find((b) => b.id === id) : undefined;
+  if (id && !existing) throw new Error(`no bot "${id}" on this host`);
+  const name = (input.name ?? existing?.name ?? '').trim();
+  if (!name) throw new Error('a bot needs a name');
+  const next = normalizeBot({
+    ...existing,
+    ...input,
+    githubToken: input.githubToken === undefined ? existing?.githubToken ?? null : input.githubToken,
+    name,
+    id: existing?.id ?? botIdFor(config, name),
+  });
+  if (next.repoId && !config.repos.some((r) => r.id === next.repoId)) throw new Error(`no repo "${next.repoId}" on this host`);
+  for (const t of next.triggers) {
+    if (t.kind === 'github' && t.labels.length === 0) throw new Error('a GitHub trigger needs at least one label');
+    if (t.kind === 'github' && !t.repo && !next.repoId) throw new Error('a GitHub trigger needs a repository (owner/name), or give the bot a repo');
+    if (t.kind === 'cron') {
+      const why = cronProblem(t.schedule);
+      if (why) throw new Error(`schedule "${t.schedule}": ${why}`);
+    }
+  }
+  if (existing) Object.assign(existing, next);
+  else config.bots.push(next);
+  writeConfig(configPath, config);
+  return next;
+}
+
+export function removeBot(config: HostConfig, configPath: string, id: string): boolean {
+  const at = config.bots.findIndex((b) => b.id === id);
+  if (at < 0) return false;
+  config.bots.splice(at, 1);
+  writeConfig(configPath, config);
+  return true;
 }
 
 /** Slot pool defaults match a fresh desktop repository. */

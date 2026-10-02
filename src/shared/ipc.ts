@@ -59,7 +59,7 @@ import type {
   MessageRole,
 } from './persistence';
 import type { SourceControlProviderId } from './sourceControl';
-import type { HostInfo, HostRepo, HostSlotsInfo, HostWorkspaceKind } from './hostProtocol';
+import type { HostBotInfo, HostBotInput, HostInfo, HostRepo, HostSlotsInfo, HostWorkspaceKind } from './hostProtocol';
 
 export const IpcChannel = {
   AppGetVersion: 'pb:app:get-version',
@@ -309,6 +309,14 @@ export const IpcChannel = {
   HostsSaveRepo: 'pb:hosts:save-repo',
   HostsRemoveRepo: 'pb:hosts:remove-repo',
   HostsShutdown: 'pb:hosts:shutdown',
+
+  /** Bots (the Bots tab): chats a host runs on its own, woken by
+   *  triggers. They live in each host's config; see src/host/bots.ts. */
+  BotsList: 'pb:bots:list',
+  BotsSave: 'pb:bots:save',
+  BotsKill: 'pb:bots:kill',
+  BotsAction: 'pb:bots:action',
+  BotsOpen: 'pb:bots:open',
 
   /** Push channel — main → renderer. A newer release exists but can't be
    *  installed in-app (unsigned build / updater error) — surface a
@@ -700,6 +708,21 @@ export interface CloudStatus {
 
 /** What a host answered to a probe: its info, or why it could not be reached. */
 export type HostProbeResult = { ok: true; info: HostInfo } | { ok: false; error: string };
+
+/** One host's bots, for the Bots tab. */
+export interface BotHostListing {
+  hostId: string;
+  hostName: string;
+  /** The host answered just now. When it did not, `bots` is what it
+   *  last reported — they are not running while it is off. */
+  reachable: boolean;
+  error?: string;
+  bots: HostBotInfo[];
+  /** Its repositories, for the bot form's repo picker. */
+  repos: Array<{ id: string; defaultBase: string }>;
+}
+
+export type BotResult<T> = ({ ok: true } & T) | { ok: false; error: string };
 
 export interface SaveHostInput {
   /** Omitted to add a host. */
@@ -1143,6 +1166,18 @@ export interface PopBotApi {
     /** End the chat's session on its host. The next message starts a
      *  new one there, resuming the same conversation. */
     shutdown(chatId: string): Promise<void>;
+  };
+  bots: {
+    /** Every host's bots. `refresh` asks the hosts again first. */
+    list(refresh?: boolean): Promise<BotHostListing[]>;
+    /** Make a bot on a host (`botId` null) or change one. */
+    save(hostId: string, botId: string | null, input: HostBotInput): Promise<BotResult<{ bot: HostBotInfo }>>;
+    /** Stop it and remove it from its host, with its chat here. */
+    kill(hostId: string, botId: string): Promise<BotResult<object>>;
+    action(hostId: string, botId: string, action: 'wake' | 'pause' | 'resume'): Promise<BotResult<object>>;
+    /** The bot's chat record, made if missing, for the renderer to open
+     *  as a column like any chat. */
+    open(hostId: string, botId: string): Promise<BotResult<{ chat: ChatRecord }>>;
   };
   updates: {
     /** Subscribe to "newer release available, download manually" pushes

@@ -5,6 +5,7 @@
  * chat from here is the review chat the Reviews list would have made,
  * template and all — and tells the renderer afterwards (`chats-changed`).
  */
+import { randomBytes } from 'node:crypto';
 import { homedir } from 'node:os';
 import type { CreateChatInput, CreateChatResult } from '@shared/ipc';
 import { type CrossChatOrigin,
@@ -38,7 +39,8 @@ import { getSetting } from '../persistence/settings';
 import { getReviewByNumber } from '../reviews';
 import { getSourceControlProvider } from '../scm';
 import { activeTicketSource } from '../tickets/registry';
-import type { ChatSummary, HostSummary, PopbotToolHandlers, ToolFailure } from './server';
+import type { BotSummary, ChatSummary, HostSummary, PopbotToolHandlers, ToolFailure } from './server';
+import { botChat, botListings } from '../ipc/bots';
 import { searchTranscripts } from '../search/transcriptSearch';
 import { renderTranscript, transcriptEntries } from './transcript';
 
@@ -242,9 +244,69 @@ export function createPopbotToolHandlers(): PopbotToolHandlers {
         if (!record) return unknownHost(host);
         keep = (c) => c.host?.hostId === record.id;
       }
-      const open = listOpenChats().filter(keep).map((c) => summarize(c, caller, false));
-      const closed = includeClosed ? listClosedChats(200).filter(keep).map((c) => summarize(c, caller, true)) : [];
+      // Bots have list_bots.
+      const notBot = (c: ChatRecord): boolean => keep(c) && !c.host?.botId;
+      const open = listOpenChats().filter(notBot).map((c) => summarize(c, caller, false));
+      const closed = includeClosed ? listClosedChats(200).filter(notBot).map((c) => summarize(c, caller, true)) : [];
       return [...open, ...closed];
+    },
+
+    async listBots({ host }) {
+      let listings = await botListings(true);
+      if (host) {
+        const record = findHost(host);
+        if (!record) return unknownHost(host);
+        listings = listings.filter((l) => l.hostId === record.id);
+      }
+      return listings.flatMap((l) => l.bots.map((b): BotSummary => ({
+        id: b.id,
+        name: b.name,
+        host: l.hostName,
+        hostReachable: l.reachable,
+        chatId: b.chatId,
+        state: l.reachable ? b.state : 'offline',
+        githubLogin: b.githubLogin,
+        triggers: b.triggers.map((t) => (t.kind === 'github' ? { github: t.repo, labels: t.labels } : { schedule: t.schedule })),
+        watching: b.watching.map((pr) => ({ repo: pr.repo, number: pr.number, title: pr.title, ci: pr.ci, decision: pr.decision })),
+        lastError: b.lastError,
+      })));
+    },
+
+    async messageBot({ bot: wanted, host, text, waitForReply, timeoutSeconds }, caller) {
+      let listings = await botListings(false);
+      if (host) {
+        const record = findHost(host);
+        if (!record) return unknownHost(host);
+        listings = listings.filter((l) => l.hostId === record.id);
+      }
+      const key = wanted.trim().toLowerCase();
+      const matches = listings.flatMap((l) => l.bots
+        .filter((b) => b.id.toLowerCase() === key || b.name.toLowerCase() === key)
+        .map((b) => ({ listing: l, bot: b })));
+      if (matches.length === 0) return fail(`no bot "${wanted}"${host ? ` on ${host}` : ''}; list_bots names them`);
+      if (matches.length > 1) return fail(`"${wanted}" is a bot on ${matches.map((m) => m.listing.hostName).join(' and ')}; say which with host`);
+      const { listing, bot } = matches[0];
+      if (!listing.reachable) return fail(`${bot.name}'s host ${listing.hostName} is not reachable${listing.error ? ` (${listing.error})` : ''}; the bot is not running`);
+      const chat = botChat(listing.hostId, bot);
+      if (!chat) return fail(`could not reach ${bot.name}'s chat`);
+      const origin: CrossChatOrigin = {
+        chatId: caller ?? '',
+        chatName: (caller && getChat(caller)?.name) || caller || 'a chat',
+        waiting: waitForReply,
+        // A message that does not wait can be answered later — once, by
+        // this id. A caller with no chat cannot be answered at all.
+        ...(!waitForReply && caller ? { replyId: `r_${randomBytes(8).toString('hex')}` } : {}),
+      };
+      if (!waitForReply) {
+        sendInBackground(chat.id, text, origin);
+        dlog('mcp.popbot.messageBot', { by: caller, bot: bot.id, host: listing.hostName, wait: false });
+        return { outcome: 'sent', reply: '', entries: 0, chatId: chat.id };
+      }
+      const { outcome, messages, reason } = await AgentHost.sendAndWait(chat.id, text, timeoutSeconds * 1000, origin);
+      const entries = transcriptEntries(messages, { includeTools: false });
+      const reply = entries.filter((e) => e.role === 'agent').map((e) => e.text).join('\n\n');
+      dlog('mcp.popbot.messageBot', { by: caller, bot: bot.id, host: listing.hostName, outcome, replyChars: reply.length, reason });
+      return { outcome, reply, entries: messages.length, chatId: chat.id };
     },
 
     async listHosts() {
@@ -309,6 +371,7 @@ export function createPopbotToolHandlers(): PopbotToolHandlers {
       if (chatId === caller) return fail('you cannot message the chat you are running in — that would wait on your own turn');
       const chat = getChat(chatId);
       if (!chat) return fail(`no chat ${chatId}`);
+      if (chat.host?.botId) return fail(`${chat.name} is a bot; use message_bot`);
       if (!isOpen(chatId)) return fail(`chat ${chatId} is closed; reopen it first`);
       // The message lands as a user turn in the other chat: the origin
       // on the row shows it in a cross-agent box, and the agent gets an

@@ -1,0 +1,406 @@
+/**
+ * Make or change a bot: its host, name and prompt, the repository and
+ * GitHub account it works as, and the triggers that wake it — a list of
+ * frames, each with its fields and an example of what it sends the bot.
+ *
+ * A new bot is made with one button (half a bot is no bot). An existing
+ * one applies each change when the field is left, with a verdict inline.
+ */
+import { useEffect, useMemo, useRef, useState } from 'react';
+import type { BotHostListing } from '@shared/ipc';
+import type { BotTrigger, HostBotInfo, HostBotInput } from '@shared/hostProtocol';
+import { DEFAULT_GITHUB_POLL_SECONDS } from '@shared/hostProtocol';
+import { BOT_TEMPLATES } from '@shared/botTemplates';
+import { exampleWakeText } from '@shared/botTriggers';
+import { useTranslation } from '../lib/i18n';
+import { ConfirmDialog } from './ConfirmDialog';
+
+interface BotFormProps {
+  hosts: BotHostListing[];
+  /** The bot to change; absent to make one. */
+  editing?: { hostId: string; bot: HostBotInfo };
+  onClose: () => void;
+  /** After a bot was made or changed. */
+  onSaved: () => void;
+}
+
+type Verdict = { kind: 'saving' } | { kind: 'saved' } | { kind: 'error'; text: string } | null;
+
+/** The talks-to list as typed: names or ids, separated by commas. */
+function parsePeers(text: string): string[] {
+  return [...new Set(text.split(',').map((p) => p.trim()).filter(Boolean))];
+}
+
+let triggerSeq = 0;
+function newTriggerId(): string {
+  triggerSeq += 1;
+  return `t${Date.now().toString(36)}${triggerSeq}`;
+}
+
+export function BotForm({ hosts, editing, onClose, onSaved }: BotFormProps): JSX.Element {
+  const { t } = useTranslation();
+  const reachable = hosts.filter((h) => h.reachable);
+  const [hostId, setHostId] = useState(editing?.hostId ?? reachable[0]?.hostId ?? '');
+  const [name, setName] = useState(editing?.bot.name ?? '');
+  const [prompt, setPrompt] = useState(editing?.bot.prompt ?? '');
+  const [repoId, setRepoId] = useState(editing?.bot.repoId ?? '');
+  const [githubLogin, setGithubLogin] = useState(editing?.bot.githubLogin ?? '');
+  const [githubToken, setGithubToken] = useState('');
+  const [triggers, setTriggers] = useState<BotTrigger[]>(editing?.bot.triggers ?? []);
+  const [peersText, setPeersText] = useState((editing?.bot.peers ?? []).join(', '));
+  const [addOpen, setAddOpen] = useState(false);
+  const [verdict, setVerdict] = useState<Verdict>(null);
+  const [creating, setCreating] = useState(false);
+  const [replacing, setReplacing] = useState<string | null>(null);
+  const listEnd = useRef<HTMLDivElement | null>(null);
+
+  const host = hosts.find((h) => h.hostId === hostId) ?? null;
+  /** The other bots on its host it could talk to. */
+  const others = (host?.bots ?? []).filter((b) => b.id !== editing?.bot.id);
+  const fallbackRepo = useMemo(() => (repoId ? `(${repoId}'s GitHub repository)` : null), [repoId]);
+
+  useEffect(() => {
+    if (!addOpen) return;
+    const close = (): void => setAddOpen(false);
+    window.addEventListener('mousedown', close);
+    return () => window.removeEventListener('mousedown', close);
+  }, [addOpen]);
+
+  const input = (patch: Partial<HostBotInput> = {}): HostBotInput => ({
+    name: name.trim(),
+    prompt,
+    repoId: repoId || null,
+    githubLogin: githubLogin.trim() || null,
+    triggers,
+    peers: parsePeers(peersText),
+    ...(githubToken.trim() ? { githubToken: githubToken.trim() } : {}),
+    ...patch,
+  });
+
+  /** An existing bot applies each change as it is made. */
+  const apply = async (patch: Partial<HostBotInput> = {}): Promise<void> => {
+    if (!editing) return;
+    if (!(patch.name ?? name).trim()) return;
+    setVerdict({ kind: 'saving' });
+    const res = await window.popbot.bots.save(editing.hostId, editing.bot.id, input(patch));
+    if (res.ok) {
+      setVerdict({ kind: 'saved' });
+      if (githubToken) setGithubToken('');
+      onSaved();
+    } else {
+      setVerdict({ kind: 'error', text: res.error });
+    }
+  };
+
+  const create = async (): Promise<void> => {
+    if (!hostId || !name.trim()) return;
+    setCreating(true);
+    setVerdict(null);
+    const res = await window.popbot.bots.save(hostId, null, input());
+    setCreating(false);
+    if (res.ok) {
+      onSaved();
+      onClose();
+    } else {
+      setVerdict({ kind: 'error', text: res.error });
+    }
+  };
+
+  const setTrigger = (id: string, next: BotTrigger, applyNow = false): void => {
+    const list = triggers.map((x) => (x.id === id ? next : x));
+    setTriggers(list);
+    if (applyNow) void apply({ triggers: list });
+  };
+
+  const removeTrigger = (id: string): void => {
+    const list = triggers.filter((x) => x.id !== id);
+    setTriggers(list);
+    void apply({ triggers: list });
+  };
+
+  const addTrigger = (kind: BotTrigger['kind']): void => {
+    const trigger: BotTrigger = kind === 'github'
+      ? { id: newTriggerId(), kind: 'github', repo: null, labels: [], pollSeconds: DEFAULT_GITHUB_POLL_SECONDS }
+      : { id: newTriggerId(), kind: 'cron', schedule: '0 9 * * 1-5', message: '' };
+    setTriggers((prev) => [...prev, trigger]);
+    setAddOpen(false);
+    // A new GitHub trigger has no labels yet; it is applied once it does.
+    setTimeout(() => listEnd.current?.scrollIntoView({ behavior: 'smooth', block: 'end' }), 0);
+  };
+
+  return (
+    <>
+      <div className="scrim" onClick={onClose} />
+      <div className="modal bot-form" data-screen-label="Modal · bot">
+        <div className="modal-head">
+          <h2>{editing ? t('bots.form.editTitle', { name: editing.bot.name }) : t('bots.form.newTitle')}</h2>
+          <span style={{ flex: 1 }} />
+          {verdict && (
+            <span className={`bot-form-verdict ${verdict.kind}`}>
+              {verdict.kind === 'saving' ? t('common.saving') : verdict.kind === 'saved' ? t('common.saved') : verdict.text}
+            </span>
+          )}
+          <button className="btn ghost sm" onClick={onClose} title={t('common.close')}>×</button>
+        </div>
+        <div className="modal-body bot-form-body">
+          <div className="field">
+            <label>{t('bots.form.host')}</label>
+            {editing ? (
+              <span className="bot-form-static">{host?.hostName ?? editing.hostId}</span>
+            ) : (
+              <select className="input" value={hostId} onChange={(e) => { setHostId(e.target.value); setRepoId(''); }}>
+                {reachable.length === 0 && <option value="">{t('bots.form.noHosts')}</option>}
+                {reachable.map((h) => <option key={h.hostId} value={h.hostId}>{h.hostName}</option>)}
+              </select>
+            )}
+          </div>
+          <div className="field">
+            <label>{t('bots.form.name')}</label>
+            <input
+              className="input"
+              type="text"
+              value={name}
+              placeholder={t('bots.form.namePlaceholder')}
+              onChange={(e) => setName(e.target.value)}
+              onBlur={() => void apply()}
+              onKeyDown={(e) => { if (e.key === 'Enter') void apply(); }}
+            />
+          </div>
+          <div className="field stack">
+            <label>
+              {t('bots.form.prompt')}
+              <span className="bot-form-templates">
+                {t('bots.form.startFrom')}
+                {BOT_TEMPLATES.map((tpl) => (
+                  <button
+                    key={tpl.id}
+                    className="btn ghost sm"
+                    onClick={() => {
+                      if (prompt.trim()) {
+                        setReplacing(tpl.prompt);
+                        return;
+                      }
+                      setPrompt(tpl.prompt);
+                      void apply({ prompt: tpl.prompt });
+                    }}
+                  >
+                    {t(`bots.template.${tpl.id}`)}
+                  </button>
+                ))}
+              </span>
+            </label>
+            <textarea
+              className="input bot-form-prompt"
+              value={prompt}
+              placeholder={t('bots.form.promptPlaceholder')}
+              onChange={(e) => setPrompt(e.target.value)}
+              onBlur={() => void apply()}
+            />
+          </div>
+          <div className="field">
+            <label>{t('bots.form.repo')}</label>
+            <select
+              className="input"
+              value={repoId}
+              onChange={(e) => { setRepoId(e.target.value); void apply({ repoId: e.target.value || null }); }}
+            >
+              <option value="">{t('bots.form.noRepo')}</option>
+              {(host?.repos ?? []).map((r) => <option key={r.id} value={r.id}>{r.id}</option>)}
+            </select>
+          </div>
+          <div className="field">
+            <label>{t('bots.form.githubLogin')}</label>
+            <input
+              className="input mono"
+              type="text"
+              value={githubLogin}
+              placeholder="webreviewer-bot"
+              onChange={(e) => setGithubLogin(e.target.value)}
+              onBlur={() => void apply()}
+              onKeyDown={(e) => { if (e.key === 'Enter') void apply(); }}
+            />
+          </div>
+          <div className="field">
+            <label>{t('bots.form.githubToken')}</label>
+            <input
+              className="input mono"
+              type="password"
+              value={githubToken}
+              placeholder={editing?.bot.hasToken ? t('bots.form.tokenSet') : t('bots.form.tokenPlaceholder')}
+              onChange={(e) => setGithubToken(e.target.value)}
+              onBlur={() => { if (githubToken.trim()) void apply(); }}
+              onKeyDown={(e) => { if (e.key === 'Enter' && githubToken.trim()) void apply(); }}
+            />
+          </div>
+
+          <div className="field">
+            <label>{t('bots.form.talksTo')}</label>
+            <input
+              className="input mono"
+              type="text"
+              value={peersText}
+              placeholder={t('bots.form.talksToPlaceholder')}
+              onChange={(e) => setPeersText(e.target.value)}
+              onBlur={() => void apply({ peers: parsePeers(peersText) })}
+              onKeyDown={(e) => { if (e.key === 'Enter') void apply({ peers: parsePeers(peersText) }); }}
+            />
+          </div>
+          {others.length > 0 && (
+            <div className="bot-form-peers">
+              {others.map((b) => {
+                const on = parsePeers(peersText).some((p) => p.toLowerCase() === b.id.toLowerCase() || p.toLowerCase() === b.name.toLowerCase());
+                return (
+                  <button
+                    key={b.id}
+                    className={`pill ${on ? 'run' : 'muted'} bot-form-peer`}
+                    title={on ? t('bots.form.peerRemove') : t('bots.form.peerAdd')}
+                    onClick={() => {
+                      const current = parsePeers(peersText);
+                      const next = on
+                        ? current.filter((p) => p.toLowerCase() !== b.id.toLowerCase() && p.toLowerCase() !== b.name.toLowerCase())
+                        : [...current, b.id];
+                      setPeersText(next.join(', '));
+                      void apply({ peers: next });
+                    }}
+                  >
+                    {on ? '✓ ' : '+ '}{b.name}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+          <div className="bot-form-hint">{t('bots.form.talksToHint')}</div>
+
+          <div className="bot-form-triggers-head">{t('bots.form.triggers')}</div>
+          {triggers.length === 0 && <div className="bot-form-hint">{t('bots.form.noTriggers')}</div>}
+          {triggers.map((trigger) => (
+            <div className="bot-trigger" key={trigger.id}>
+              <div className="bot-trigger-head">
+                <i className={trigger.kind === 'github' ? 'fa-brands fa-github' : 'fa-regular fa-clock'} />
+                <span>{trigger.kind === 'github' ? t('bots.trigger.github') : t('bots.trigger.cron')}</span>
+                <span style={{ flex: 1 }} />
+                <button className="bot-trigger-delete" title={t('bots.trigger.delete')} onClick={() => removeTrigger(trigger.id)}>
+                  <i className="fa-regular fa-trash-can" />
+                </button>
+              </div>
+              {trigger.kind === 'github' ? (
+                <>
+                  <div className="field">
+                    <label>{t('bots.trigger.repo')}</label>
+                    <input
+                      className="input mono"
+                      type="text"
+                      value={trigger.repo ?? ''}
+                      placeholder={repoId ? t('bots.trigger.repoFromBot') : 'owner/name'}
+                      onChange={(e) => setTrigger(trigger.id, { ...trigger, repo: e.target.value || null })}
+                      onBlur={() => void apply()}
+                    />
+                  </div>
+                  <div className="field">
+                    <label>{t('bots.trigger.labels')}</label>
+                    <input
+                      className="input mono"
+                      type="text"
+                      value={trigger.labels.join(', ')}
+                      placeholder="website-review, website-shepherd"
+                      onChange={(e) => setTrigger(trigger.id, { ...trigger, labels: e.target.value.split(',').map((l) => l.trim()).filter(Boolean) })}
+                      onBlur={() => void apply()}
+                    />
+                  </div>
+                  <div className="field">
+                    <label>{t('bots.trigger.every')}</label>
+                    <div className="bot-trigger-inline">
+                      <input
+                        className="input mono"
+                        type="number"
+                        min={15}
+                        value={trigger.pollSeconds}
+                        onChange={(e) => setTrigger(trigger.id, { ...trigger, pollSeconds: Number(e.target.value) || DEFAULT_GITHUB_POLL_SECONDS })}
+                        onBlur={() => void apply()}
+                      />
+                      <span>{t('bots.trigger.seconds')}</span>
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="field">
+                    <label>{t('bots.trigger.schedule')}</label>
+                    <input
+                      className="input mono"
+                      type="text"
+                      value={trigger.schedule}
+                      placeholder="0 9 * * 1-5"
+                      title={t('bots.trigger.scheduleHelp')}
+                      onChange={(e) => setTrigger(trigger.id, { ...trigger, schedule: e.target.value })}
+                      onBlur={() => void apply()}
+                    />
+                  </div>
+                  <div className="field">
+                    <label>{t('bots.trigger.message')}</label>
+                    <input
+                      className="input"
+                      type="text"
+                      value={trigger.message}
+                      placeholder={t('bots.trigger.messagePlaceholder')}
+                      onChange={(e) => setTrigger(trigger.id, { ...trigger, message: e.target.value })}
+                      onBlur={() => void apply()}
+                    />
+                  </div>
+                </>
+              )}
+              <div className="bot-trigger-sends">
+                <div className="bot-trigger-sends-label">
+                  {trigger.kind === 'github' ? t('bots.trigger.sendsGithub') : t('bots.trigger.sendsCron')}
+                </div>
+                <pre>{exampleWakeText(trigger, fallbackRepo)}</pre>
+              </div>
+            </div>
+          ))}
+          <div className="bot-trigger-add" ref={listEnd}>
+            <button
+              className="btn sm"
+              onMouseDown={(e) => e.stopPropagation()}
+              onClick={() => setAddOpen((v) => !v)}
+            >
+              <i className="fa-solid fa-plus" /> {t('bots.form.addTrigger')} <i className="fa-solid fa-caret-down" />
+            </button>
+            {addOpen && (
+              <div className="git-context-menu bot-trigger-add-menu" onMouseDown={(e) => e.stopPropagation()}>
+                <button className="git-menu-item" onClick={() => addTrigger('github')}>
+                  <i className="fa-brands fa-github" /> {t('bots.trigger.github')}
+                </button>
+                <button className="git-menu-item" onClick={() => addTrigger('cron')}>
+                  <i className="fa-regular fa-clock" /> {t('bots.trigger.cron')}
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+        {replacing !== null && (
+          <ConfirmDialog
+            title={t('bots.form.replaceTitle')}
+            message={t('bots.form.replacePrompt')}
+            confirmLabel={t('bots.form.replace')}
+            destructive
+            onCancel={() => setReplacing(null)}
+            onConfirm={() => {
+              const next = replacing;
+              setReplacing(null);
+              setPrompt(next);
+              void apply({ prompt: next });
+            }}
+          />
+        )}
+        {!editing && (
+          <div className="modal-foot">
+            <button className="btn ghost" onClick={onClose}>{t('common.cancel')}</button>
+            <button className="btn primary" disabled={creating || !hostId || !name.trim()} onClick={() => void create()}>
+              {creating ? t('bots.form.creating') : t('bots.form.create')}
+            </button>
+          </div>
+        )}
+      </div>
+    </>
+  );
+}

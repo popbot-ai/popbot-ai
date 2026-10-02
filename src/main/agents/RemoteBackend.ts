@@ -188,6 +188,12 @@ class RemoteSession implements AgentSession {
       case 'mcp-request':
         void this.onMcpRequest(frame.id, frame.request);
         break;
+      case 'prompt':
+        this.remote.onPrompt(frame.text, frame.from);
+        break;
+      case 'reply':
+        this.remote.onReply(frame.replyId, frame.text);
+        break;
       default:
         break;
     }
@@ -249,6 +255,17 @@ class RemoteSession implements AgentSession {
       : `[System] Starting up at ${now} on the host "${this.host.name}"${where}.${this.remote.languageDirective} ` +
           `This machine is not the one the person is using: files and tools are here, on the host. ` +
           `Instructions will follow.\n\n`;
+  }
+
+  /** Follow the chat's stream without sending anything — a bot's chat,
+   *  whose turns its host starts. A failed attempt can be tried again. */
+  async follow(): Promise<void> {
+    try {
+      await this.ensureStarted();
+    } catch (err) {
+      this.starting = null;
+      throw err;
+    }
   }
 
   async sendUser(text: string, attachments?: PickedAttachment[]): Promise<void> {

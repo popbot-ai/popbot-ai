@@ -11,6 +11,8 @@ import type { HostRecord } from '@shared/persistence';
 import {
   HOST_PROTOCOL_VERSION,
   type HostAttachment,
+  type HostBotInfo,
+  type HostBotInput,
   type HostFrame,
   type HostInfo,
   type HostRepo,
@@ -244,4 +246,25 @@ export async function encodeAttachments(attachments: PickedAttachment[] | undefi
     }
   }
   return out;
+}
+
+/** A host's bots, as it reports them. */
+export async function hostBots(host: HostAddress): Promise<HostBotInfo[]> {
+  const res = await hostRequest<{ bots?: HostBotInfo[] }>(host, 'GET', '/v1/bots', undefined, 10_000);
+  return Array.isArray(res?.bots) ? res.bots : [];
+}
+
+/** Make a bot (`botId` null) or change one. */
+export async function saveHostBot(host: HostAddress, botId: string | null, input: HostBotInput): Promise<HostBotInfo> {
+  return botId
+    ? hostRequest<HostBotInfo>(host, 'PUT', `/v1/bots/${encodeURIComponent(botId)}`, input)
+    : hostRequest<HostBotInfo>(host, 'POST', '/v1/bots', input);
+}
+
+export async function killHostBot(host: HostAddress, botId: string): Promise<void> {
+  await hostRequest(host, 'DELETE', `/v1/bots/${encodeURIComponent(botId)}`, undefined, 120_000);
+}
+
+export async function hostBotAction(host: HostAddress, botId: string, action: 'wake' | 'pause' | 'resume'): Promise<void> {
+  await hostRequest(host, 'POST', `/v1/bots/${encodeURIComponent(botId)}/${action}`, {});
 }

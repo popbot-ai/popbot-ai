@@ -9,6 +9,7 @@ import type { PermissionDecision } from '@shared/agent';
 import {
   HOST_PROTOCOL_VERSION,
   type HostApproveBody,
+  type HostBotInput,
   type HostFrame,
   type HostInfo,
   type HostMcpResponse,
@@ -19,6 +20,7 @@ import {
   type HostWorkspaceRequest,
 } from '@shared/hostProtocol';
 import { dlog } from '../main/diagLog';
+import type { HostBots } from './bots';
 import { removeRepo, upsertRepo, type HostConfig } from './config';
 import { listBranches } from './git';
 import { HostError, HostSessions } from './sessions';
@@ -35,9 +37,10 @@ export function createHostServer(opts: {
   configPath: string;
   sessions: HostSessions;
   workspaces: HostWorkspaces;
+  bots: HostBots;
   cli: { claude: string | null; codex: string | null };
 }): Server {
-  const { config, sessions, workspaces } = opts;
+  const { config, sessions, workspaces, bots } = opts;
 
   const authorized = (req: IncomingMessage): boolean => {
     const header = req.headers.authorization ?? '';
@@ -113,8 +116,42 @@ export function createHostServer(opts: {
         codex: { ok: !!opts.cli.codex, path: opts.cli.codex },
         repos: config.repos,
         chats: sessions.list(),
+        bots: bots.list(),
       };
       return json(res, 200, info);
+    }
+
+    if (parts[1] === 'bots') {
+      if (req.method === 'GET' && parts.length === 2) return json(res, 200, { bots: bots.list() });
+      const asInput = async (): Promise<HostBotInput> => {
+        const body = (await readJson(req)) as HostBotInput;
+        if (!body || typeof body !== 'object' || typeof body.name !== 'string') throw new HostError(400, 'a bot needs a name');
+        return body;
+      };
+      const saved = (fn: () => unknown): unknown => {
+        try {
+          return fn();
+        } catch (err) {
+          throw new HostError(400, err instanceof Error ? err.message : String(err));
+        }
+      };
+      if (req.method === 'POST' && parts.length === 2) {
+        const input = await asInput();
+        return json(res, 200, saved(() => bots.save(null, input)));
+      }
+      const id = parts[2] ? decodeURIComponent(parts[2]) : '';
+      if (!bots.bot(id)) return json(res, 404, { error: `no bot "${id}" on this host` });
+      if (req.method === 'PUT' && parts.length === 3) {
+        const input = await asInput();
+        return json(res, 200, saved(() => bots.save(id, input)));
+      }
+      if (req.method === 'DELETE' && parts.length === 3) return json(res, 200, { ok: await bots.kill(id) });
+      if (req.method === 'POST' && parts.length === 4) {
+        if (parts[3] === 'wake') return json(res, 200, { ok: bots.wake(id) });
+        if (parts[3] === 'pause') return json(res, 200, { ok: bots.setEnabled(id, false) });
+        if (parts[3] === 'resume') return json(res, 200, { ok: bots.setEnabled(id, true) });
+      }
+      return json(res, 404, { error: 'not found' });
     }
 
     if (req.method === 'GET' && parts[1] === 'repos' && parts[3] === 'branches' && parts.length === 4) {

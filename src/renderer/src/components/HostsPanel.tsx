@@ -79,7 +79,8 @@ export function HostsPanel({
       openCount: chats.filter((c) => !c.host && !c.cloud).length,
     };
     const remote = await Promise.all(hosts.map(async (h): Promise<HostView> => {
-      const mine = chats.filter((c) => c.host?.hostId === h.id);
+      // Bots are in the Bots tab; this lists the chats a person opened.
+      const mine = chats.filter((c) => c.host?.hostId === h.id && !c.host.botId);
       const probe = await window.popbot.hosts.probe(h.url, h.token);
       if (!probe.ok) {
         return { id: h.id, name: h.name, local: false, state: 'error', error: probe.error, pools: [], chats: mine, openCount: mine.length };

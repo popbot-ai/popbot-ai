@@ -10,7 +10,7 @@ import type {
 } from '@shared/git';
 import type { SourceControlProviderId } from '@shared/sourceControl';
 import type { GameEngineId } from '@shared/gameEngine';
-import type { HostRepo } from '@shared/hostProtocol';
+import type { HostBotInput, HostRepo } from '@shared/hostProtocol';
 import {
   IpcChannel,
   type ApprovePermissionInput,
@@ -269,6 +269,13 @@ const api: PopBotApi = {
     saveRepo: (hostId: string, repo: Partial<HostRepo> & { id: string }) => ipcRenderer.invoke(IpcChannel.HostsSaveRepo, hostId, repo),
     removeRepo: (hostId: string, repoId: string) => ipcRenderer.invoke(IpcChannel.HostsRemoveRepo, hostId, repoId),
     shutdown: (chatId: string) => ipcRenderer.invoke(IpcChannel.HostsShutdown, chatId),
+  },
+  bots: {
+    list: (refresh?: boolean) => ipcRenderer.invoke(IpcChannel.BotsList, refresh === true),
+    save: (hostId: string, botId: string | null, input: HostBotInput) => ipcRenderer.invoke(IpcChannel.BotsSave, hostId, botId, input),
+    kill: (hostId: string, botId: string) => ipcRenderer.invoke(IpcChannel.BotsKill, hostId, botId),
+    action: (hostId: string, botId: string, action: 'wake' | 'pause' | 'resume') => ipcRenderer.invoke(IpcChannel.BotsAction, hostId, botId, action),
+    open: (hostId: string, botId: string) => ipcRenderer.invoke(IpcChannel.BotsOpen, hostId, botId),
   },
   updates: {
     onAvailable: (handler: (info: UpdateInfo) => void) => {

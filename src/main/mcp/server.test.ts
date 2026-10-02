@@ -22,6 +22,11 @@ const handlers: PopbotToolHandlers = {
   searchTranscripts: () => ({ matches: [] }),
   listRefs: () => ({ tickets: [], prs: [], chats: [] }),
   goToMessage: (input) => (input.messageId ? { ok: true } : { error: 'no message' }),
+  listBots: async () => [{
+    id: 'webreviewer', name: 'Web Reviewer', host: 'winbox', hostReachable: true, chatId: 'chat_bot_webreviewer', state: 'idle',
+    githubLogin: 'webreviewer-bot', triggers: [{ github: 'Comfy-Org/website', labels: ['website-review'] }], watching: [], lastError: null,
+  }],
+  messageBot: async (input, caller) => { calls.push({ tool: 'message_bot', input, caller }); return { outcome: 'sent', reply: '', entries: 0, chatId: 'chat_bot_webreviewer' }; },
 };
 
 describe('popbot MCP server over Streamable HTTP', () => {
@@ -39,9 +44,11 @@ describe('popbot MCP server over Streamable HTTP', () => {
     const client = await connect('chat_a');
     const { tools } = await client.listTools();
     expect(tools.map((t) => t.name).sort()).toEqual([
-      'close_chat', 'create_chat', 'get_chat_transcript', 'go_to_message', 'list_chats', 'list_hosts', 'list_refs',
-      'open_ticket_chat', 'reopen_chat', 'search_chats', 'send_to_chat', 'start_code_review',
+      'close_chat', 'create_chat', 'get_chat_transcript', 'go_to_message', 'list_bots', 'list_chats', 'list_hosts', 'list_refs',
+      'message_bot', 'open_ticket_chat', 'reopen_chat', 'search_chats', 'send_to_chat', 'start_code_review',
     ]);
+    // Chats see bots and talk to them; making, pausing and killing them is a person's.
+    expect(tools.map((t) => t.name).filter((n) => /bot/.test(n)).sort()).toEqual(['list_bots', 'message_bot']);
     const send = tools.find((t) => t.name === 'send_to_chat')!;
     expect(JSON.stringify(send.inputSchema)).toContain('"waitForReply"');
     await client.close();

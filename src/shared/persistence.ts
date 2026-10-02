@@ -273,6 +273,9 @@ export interface HostChatInfo {
   /** The last frame of the host's event log applied to the transcript;
    *  a reconnect asks for what came after it. */
   lastSeq: number;
+  /** This chat is a bot's (see HostBot): its host drives it, it lives
+   *  in the Bots tab, and closing it only stops showing it. */
+  botId?: string | null;
 }
 
 export interface CloudChatInfo {
@@ -513,6 +516,12 @@ export interface CrossChatOrigin {
   chatId: string;
   chatName: string;
   waiting: boolean;
+  /** A chat's message to a bot that is not waiting carries a one-time
+   *  id: the only way the bot can answer (its reply_to_chat tool takes
+   *  the id, never a chat). Set on the row in the bot's chat. */
+  replyId?: string;
+  /** When that id was used; a second reply with it is refused. */
+  repliedAt?: number;
 }
 
 export interface ChatAttachment {

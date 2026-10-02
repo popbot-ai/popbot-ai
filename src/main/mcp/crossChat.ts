@@ -10,12 +10,23 @@ export function attributeCrossChatMessage(
   text: string,
   from: { id: string; name: string },
   waiting: boolean,
+  /** Bots on either end answer through their own tools: a bot with the
+   *  bots tool reply_to_chat, a chat answering a bot with message_bot. */
+  bots: { toBot?: boolean; fromBotId?: string; replyId?: string } = {},
 ): string {
   const how = waiting
     ? 'That chat is waiting for this turn to finish: reply as you normally would, and your reply is delivered to it.'
-    : `That chat is not waiting for a reply. To answer it, use the popbot tool send_to_chat with chatId "${from.id}".`;
+    : bots.toBot
+      ? bots.replyId
+        ? `That chat is not waiting for a reply. To answer it, use the bots tool reply_to_chat with replyId "${bots.replyId}" (once).`
+        : 'That chat is not waiting and cannot be answered: act on it, and say what you did here.'
+      : bots.fromBotId
+        ? `It is a bot, and it is not waiting for a reply. To answer it, use the popbot tool message_bot with bot "${bots.fromBotId}".`
+        : `That chat is not waiting for a reply. To answer it, use the popbot tool send_to_chat with chatId "${from.id}".`;
   return (
-    `Message from the agent in PopBot chat "${from.name}" (chat id ${from.id}) — not from the user of this chat. ${how}\n\n` +
+    (bots.fromBotId
+      ? `Message from the bot "${from.name}" — not from the user of this chat. ${how}\n\n`
+      : `Message from the agent in PopBot chat "${from.name}" (chat id ${from.id}) — not from the user of this chat. ${how}\n\n`) +
     text
   );
 }

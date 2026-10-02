@@ -71,6 +71,7 @@ import { registerNotificationsHandlers } from './ipc/notifications';
 import { registerSentryHandlers } from './ipc/sentry';
 import { startSentryPoller, stopSentryPoller } from './sentry/poll';
 import { registerSlackHandlers } from './ipc/slack';
+import { registerBotsHandlers } from './ipc/bots';
 import { registerHostsHandlers } from './ipc/hosts';
 import { startSlackPoller, stopSlackPoller } from './slack/poll';
 import { pruneOlderThan } from './persistence/notifications';
@@ -531,6 +532,7 @@ void app.whenReady().then(async () => {
   registerSentryHandlers();
   registerSlackHandlers();
   registerHostsHandlers();
+  registerBotsHandlers();
   // PopBot's own MCP server — the tools every chat's agent gets to drive
   // PopBot (see mcp/server.ts). Localhost, random port, secret in the
   // path. Chats spawned before it is up simply don't get it.

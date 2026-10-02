@@ -6,6 +6,7 @@ import { tokenBarClass, tokenBarPct, type Chat } from '../fixtures/data';
 import { P4Glyph } from './P4Glyph';
 import { ReviewAvatar } from './ReviewAvatar';
 import { useTranslation } from '../lib/i18n';
+import { BotsList } from './BotsList';
 
 /** Per-row version-control icon (replaces the old status glyph — status is
  *  already conveyed by the row's color/animation; the VCS is more useful at a
@@ -151,6 +152,8 @@ interface PanelBProps {
   /** Adapter for ChatRecord → ChatFixture so search results render via
    *  the same ChatRow as the regular lists. */
   toFixture: (r: ChatRecord) => Chat;
+  /** Show a bot's chat as a column (the Bots tab). */
+  onOpenBot: (hostId: string, botId: string) => void;
 }
 
 const REMOVE_ANIM_MS = 220;
@@ -164,8 +167,22 @@ export function PanelB({
   onDelete,
   onNewChat,
   toFixture,
+  onOpenBot,
 }: PanelBProps): JSX.Element {
   const { t } = useTranslation();
+  // Chats run while open; bots run until paused or killed — two lists,
+  // one place.
+  const [tab, setTab] = useState<'chats' | 'bots'>(() => {
+    try {
+      return localStorage.getItem('panelB.tab') === 'bots' ? 'bots' : 'chats';
+    } catch {
+      return 'chats';
+    }
+  });
+  const pickTab = (next: 'chats' | 'bots'): void => {
+    setTab(next);
+    try { localStorage.setItem('panelB.tab', next); } catch { /* per-viewer nicety only */ }
+  };
   const [openActive, setOpenActive] = useState(true);
   const [openInactive, setOpenInactive] = useState(true);
   const [inactiveLimit, setInactiveLimit] = useState(25);
@@ -222,6 +239,22 @@ export function PanelB({
 
   return (
     <div className="panel-b" data-screen-label="Panel B · Chat List">
+      <div className="panel-head">
+        <div className="panel-tabs">
+          <button className="panel-tab" aria-selected={tab === 'chats'} onClick={() => pickTab('chats')}>
+            {t('panelB.tab.chats')}
+          </button>
+          <button className="panel-tab" aria-selected={tab === 'bots'} onClick={() => pickTab('bots')}>
+            {t('panelB.tab.bots')}
+          </button>
+        </div>
+      </div>
+      {tab === 'bots' ? (
+        <div className="panel-b-scroll">
+          <BotsList onOpen={onOpenBot} focusedChatId={focusedId} />
+        </div>
+      ) : (
+      <>
       <div className="panel-b-search">
         <i className="fa-solid fa-magnifying-glass" />
         <input
@@ -331,6 +364,8 @@ export function PanelB({
         </div>
       )}
       </div>
+      </>
+      )}
       {pendingDeleteId && (() => {
         const all = [...chats, ...inactive, ...searchResults];
         const target = all.find((c) => c.id === pendingDeleteId);

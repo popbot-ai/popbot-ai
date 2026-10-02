@@ -606,7 +606,10 @@ export default function App(): JSX.Element {
   };
 
   const fixtures = chats.map((c) => chatRecordToFixture(c, t));
-  const inactiveFixtures = closedChats.map((c) => chatRecordToFixture(c, t));
+  // Bots live in the Bots tab, open or closed: their chats run on their
+  // host either way. Their columns still show among the others.
+  const chatListFixtures = chats.filter((c) => !c.host?.botId).map((c) => chatRecordToFixture(c, t));
+  const inactiveFixtures = closedChats.filter((c) => !c.host?.botId).map((c) => chatRecordToFixture(c, t));
   const focusedRecord = chats.find((c) => c.id === focusedId);
   const settingsChat = chats.find((c) => c.id === settingsForId);
 
@@ -653,6 +656,30 @@ export default function App(): JSX.Element {
     if (idx >= windowStart && idx < windowStart + visibleCols) return;
     const newStart = idx < windowStart ? idx : Math.max(0, idx - (visibleCols - 1));
     setWindowStart(Math.min(maxStart, Math.max(0, newStart)));
+  };
+
+  // A chat that was just opened is in `chats` only from the next render;
+  // scroll to it once it is.
+  const [pendingScrollId, setPendingScrollId] = useState<string | null>(null);
+  useEffect(() => {
+    if (!pendingScrollId || !chats.some((c) => c.id === pendingScrollId)) return;
+    setPendingScrollId(null);
+    scrollToChat(pendingScrollId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingScrollId, chats]);
+
+  /** Show a bot's chat as a column. Its host keeps running it either way. */
+  const openBot = async (hostId: string, botId: string): Promise<void> => {
+    const res = await window.popbot.bots.open(hostId, botId);
+    if (!res.ok) {
+      setBusy({ message: t('bots.openFailed'), detail: res.error, error: true });
+      return;
+    }
+    if (!chats.some((c) => c.id === res.chat.id)) {
+      const reopened = await reopen(res.chat.id);
+      if (!reopened.ok) return;
+    }
+    setPendingScrollId(res.chat.id);
   };
 
   const closeCol = (id: string) => {
@@ -1549,8 +1576,9 @@ export default function App(): JSX.Element {
           />
           <div className="resize-v" onMouseDown={startResizePanelA} title={t('common.dragToResize')} />
           <PanelB
-            chats={fixtures}
+            chats={chatListFixtures}
             inactive={inactiveFixtures}
+            onOpenBot={(hostId, botId) => void openBot(hostId, botId)}
             focusedId={focusedId ?? ''}
             setFocusedId={scrollToChat}
             onOpenInactive={async (id) => {

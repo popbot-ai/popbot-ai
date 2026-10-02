@@ -21,6 +21,15 @@
  *   POST /v1/chats/:chatId/rules           { rules }
  *   POST /v1/chats/:chatId/mcp-response    HostMcpResponse
  *   GET  /v1/chats/:chatId/events?after=N  SSE of HostFrame, replaying seq > N
+ *   GET  /v1/bots                          → { bots: HostBotInfo[] }
+ *   POST /v1/bots                          HostBotInput → HostBotInfo  (a new bot)
+ *   PUT  /v1/bots/:id                      HostBotInput → HostBotInfo  (rewrites the config)
+ *   DELETE /v1/bots/:id                    → { ok }
+ *   POST /v1/bots/:id/wake | pause | resume → { ok }
+ *
+ * A bot's chat is an ordinary chat on this wire, under `botChatId(id)`:
+ * the desktop attaches to it like any other. Only who drives it differs
+ * — the host does, so it runs while no desktop is there.
  *
  * The agent's popbot MCP calls go the other way: the host serves a
  * stand-in endpoint on its own localhost, sends each request up the
@@ -96,6 +105,120 @@ export interface HostInfo {
   repos: HostRepo[];
   /** Chats with a live session on the host, for a desktop that comes back. */
   chats: Array<{ chatId: string; alive: boolean; lastSeq: number }>;
+  /** The bots this host runs. An older host leaves it out. */
+  bots?: HostBotInfo[];
+}
+
+/**
+ * A bot: a chat the host keeps running on its own, woken by triggers.
+ * It lives in the host's config and runs whether or not any desktop is
+ * connected; a desktop that is finds its chat and shows it like any
+ * other host chat. What it does is its prompt. See src/host/bots.ts.
+ */
+export interface HostBot {
+  /** Short name without spaces, e.g. `webreviewer`; made from the name. */
+  id: string;
+  /** Shown as the chat's name. */
+  name: string;
+  /** Its standing orders — what it is for and how to do it. */
+  prompt: string;
+  /** The host repository it works in; null for a scratch folder. */
+  repoId: string | null;
+  /** What wakes it. None: only a person or another bot writing to it. */
+  triggers: BotTrigger[];
+  /** The bots it may message, by id or name — set with its config, and
+   *  untouched when those bots come and go. Only the ones running on its
+   *  host exist for it. Any bot that messages it, it may answer. */
+  peers: string[];
+  /** The GitHub account it acts as — for every trigger and every push —
+   *  and how it tells its own comments apart. */
+  githubLogin: string | null;
+  /** That account's token, kept in the host's config — never sent back
+   *  to a desktop. Or name an environment variable that holds it. */
+  githubToken: string | null;
+  githubTokenEnv: string | null;
+  /** Commit author; defaults to the login and its noreply address. */
+  gitName: string | null;
+  gitEmail: string | null;
+  claudeModel: ClaudeModelId | null;
+  claudeReasoningEffort: ClaudeReasoningEffort | null;
+  /** Off: paused — no trigger wakes it; its chat stays. */
+  enabled: boolean;
+}
+
+/**
+ * Something that wakes a bot. The host runs it — no model is involved
+ * until it fires — and posts what happened into the bot's chat.
+ *
+ *  - `github`: open pull requests in a repository carrying any of the
+ *    labels. Fires when one is new to the bot, gets new commits (by
+ *    anyone but the bot), finishes CI, gets comments or reviews from
+ *    someone else, gains or loses conflicts, or leaves draft.
+ *  - `cron`: a five-field cron schedule (minute hour day month weekday,
+ *    the host's local time) and the message the bot gets.
+ */
+export type BotTrigger = GithubTrigger | CronTrigger;
+
+export interface GithubTrigger {
+  id: string;
+  kind: 'github';
+  /** `owner/name`; empty: the bot repo's GitHub origin. */
+  repo: string | null;
+  labels: string[];
+  /** Seconds between looks. */
+  pollSeconds: number;
+}
+
+export interface CronTrigger {
+  id: string;
+  kind: 'cron';
+  schedule: string;
+  message: string;
+}
+
+export const DEFAULT_GITHUB_POLL_SECONDS = 30;
+export const MIN_GITHUB_POLL_SECONDS = 15;
+
+/** A bot as a desktop sees it: its config without secrets, its chat,
+ *  and what it is doing. */
+export interface HostBotInfo extends Omit<HostBot, 'githubToken' | 'githubTokenEnv'> {
+  chatId: string;
+  /** It has a token to act as its account. */
+  hasToken: boolean;
+  state: 'idle' | 'working' | 'error' | 'paused';
+  /** Last time any trigger looked, and what went wrong if one failed. */
+  lastPollAt: number | null;
+  lastError: string | null;
+  /** Pull requests its GitHub triggers are watching. */
+  watching: BotWatchedPr[];
+}
+
+/** A pull request a bot is paying attention to, as it last saw it. */
+export interface BotWatchedPr {
+  /** `owner/name`. */
+  repo: string;
+  number: number;
+  title: string;
+  url: string;
+  author: string;
+  /** Head commit, CI rollup (SUCCESS, FAILURE, PENDING, …), review
+   *  decision (APPROVED, CHANGES_REQUESTED, …), MERGEABLE/CONFLICTING. */
+  head: string;
+  ci: string;
+  decision: string;
+  mergeable: string;
+  draft: boolean;
+  /** When it last woke the bot; null if it has not yet. */
+  lastWokeAt: number | null;
+}
+
+/** A bot to make or change, from a desktop. `githubToken` absent keeps
+ *  the stored one; an empty string clears it. */
+export type HostBotInput = Partial<Omit<HostBot, 'id'>> & { name: string };
+
+/** A bot's chat id, the same on the host and every desktop. */
+export function botChatId(botId: string): string {
+  return `chat_bot_${botId}`;
 }
 
 export interface HostSpawnBody {
@@ -178,5 +301,14 @@ export type HostFrame =
   /** The agent is waiting on this popbot MCP call; answer with
    *  `mcp-response`. A replay leaves out the ones already answered. */
   | { seq: number; kind: 'mcp-request'; id: string; request: HostMcpRequest }
+  /** The host itself sent the agent a message — a bot's trigger, or
+   *  another bot — which no desktop typed, so a desktop records it as
+   *  the user turn it is. `from` names the sender. */
+  | { seq: number; kind: 'prompt'; text: string; from: { id: string; name: string } }
+  /** A bot answered a chat's message (its bots tool reply_to_chat),
+   *  naming the reply id that message carried — never a chat. The
+   *  desktop that issued the id delivers it, once: now, or when it next
+   *  reads this log. */
+  | { seq: number; kind: 'reply'; replyId: string; text: string }
   /** The backend session is gone (its query ended); spawn again to go on. */
   | { seq: number; kind: 'dead' };

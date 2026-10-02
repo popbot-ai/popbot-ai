@@ -11,6 +11,8 @@
 import { resolveCliPath } from '../main/agents/resolveCli';
 import { dlog } from '../main/diagLog';
 import { resolveConfig } from './config';
+import { startBotMcp } from './botMcp';
+import { HostBots } from './bots';
 import { startMcpRelay } from './mcpRelay';
 import { createHostServer } from './server';
 import { HostSessions } from './sessions';
@@ -42,7 +44,12 @@ async function main(): Promise<void> {
   const sessions = new HostSessions(config, cli, workspaces);
   const mcpRelay = await startMcpRelay((chatId, request, signal) => sessions.relayMcp(chatId, request, signal));
   sessions.useMcpRelay(mcpRelay.urlFor);
-  const server = createHostServer({ config, version: VERSION, configPath: path, sessions, workspaces, cli });
+  // Bots run whether or not a desktop is connected (bots.ts).
+  const bots = new HostBots(config, path, sessions);
+  sessions.useBots(bots);
+  const botMcp = await startBotMcp(bots, VERSION);
+  bots.useMcp(botMcp.urlFor);
+  const server = createHostServer({ config, version: VERSION, configPath: path, sessions, workspaces, bots, cli });
   server.listen(config.port, config.bind, () => {
     process.stdout.write(
       `popbot-host ${VERSION} listening on http://${config.bind}:${config.port} as "${config.name}"\n` +
@@ -51,14 +58,18 @@ async function main(): Promise<void> {
       (created ? `  token:  ${config.token}\n` : '') +
       `  claude: ${cli.claude ?? 'not found'}\n  codex:  ${cli.codex ?? 'not found'}\n` +
       `  repos:  ${config.repos.map((r) => `${r.id}=${r.path} (${r.mode === 'ephemeral' ? 'ephemeral' : `${r.slotCount} slots as ${r.slotPrefix}-N`})`).join(', ') || '(none)'}\n` +
+      `  bots:   ${config.bots.map((b) => `${b.id}${b.enabled ? '' : ' (paused)'}`).join(', ') || '(none)'}\n` +
       `  config: ${path}\n`,
     );
-    dlog('host.listening', { bind: config.bind, port: config.port, repos: config.repos.length });
+    dlog('host.listening', { bind: config.bind, port: config.port, repos: config.repos.length, bots: config.bots.length });
+    bots.start();
   });
   const shutdown = async (): Promise<void> => {
     server.close();
+    bots.stop();
     await sessions.disposeAll();
     await mcpRelay.close();
+    await botMcp.close();
     process.exit(0);
   };
   process.on('SIGINT', () => void shutdown());

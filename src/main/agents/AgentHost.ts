@@ -531,7 +531,11 @@ class AgentHostImpl {
       } satisfies MessageBodyText,
     });
     const wireText = origin
-      ? attributeCrossChatMessage(text, { id: origin.chatId, name: origin.chatName }, origin.waiting)
+      ? attributeCrossChatMessage(text, { id: origin.chatId, name: origin.chatName }, origin.waiting, {
+          toBot: !!chat.host?.botId,
+          fromBotId: getChat(origin.chatId)?.host?.botId ?? undefined,
+          replyId: origin.replyId,
+        })
       : text;
     updateChatStatus(chatId, 'run', text.slice(0, 140));
 
@@ -1236,6 +1240,19 @@ class AgentHostImpl {
     this.broadcast({ type: 'session-status', chatId, status: 'idle', ts: Date.now() });
   }
 
+  /** Follow a host chat's stream with no message to send: a bot's chat,
+   *  which its host drives on its own. Spawns the remote session if the
+   *  chat has none; a host that cannot be reached throws. */
+  async attachHostChat(chatId: string): Promise<void> {
+    const session = await this.getOrSpawnSession(chatId);
+    await session.follow?.();
+  }
+
+  /** Whether the chat has a live session here right now. */
+  isAttached(chatId: string): boolean {
+    return this.sessions.get(chatId)?.isAlive() ?? false;
+  }
+
   /** Tear down the session for a chat (e.g. on close). Awaits the
    *  backend's flush so we don't lose in-flight session JSONL writes. */
   async dispose(chatId: string): Promise<void> {
@@ -1820,6 +1837,46 @@ class AgentHostImpl {
       }),
       popbotMcpUrl: () => popbotMcpUrlForChat(chatId),
       languageDirective: languageDirective(),
+      onReply: (replyId, text) => {
+        if (!isDbOpen()) return;
+        const bot = getChat(chatId);
+        // The id names the message it answers, and so the chat; a bot
+        // never names a chat itself. Each id answers once.
+        let asked: { id: string; body: MessageBodyText } | null = null;
+        for (const m of listMessages(chatId)) {
+          if (m.role !== 'user' || !m.body.includes(replyId)) continue;
+          try {
+            const body = JSON.parse(m.body) as MessageBodyText;
+            if (body.from?.replyId === replyId) asked = { id: m.id, body };
+          } catch {
+            // not a text row
+          }
+        }
+        const from = asked?.body.from;
+        const target = from ? getChat(from.chatId) : null;
+        if (!bot || !asked || !from || !target || from.repliedAt) {
+          dlog('agent.bot-reply.refused', { botChat: chatId, replyId, issued: !!asked, used: !!from?.repliedAt, chatExists: !!target });
+          return;
+        }
+        updateMessageBody(asked.id, { ...asked.body, from: { ...from, repliedAt: Date.now() } } satisfies MessageBodyText);
+        void this.send(target.id, text, undefined, { chatId, chatName: bot.name, waiting: false }).catch((err: unknown) => {
+          dlog('agent.bot-reply.failed', { botChat: chatId, toChatId: target.id, error: err instanceof Error ? err.message : String(err) });
+        });
+      },
+      onPrompt: (text, from) => {
+        if (!isDbOpen()) return;
+        // A turn nobody typed here: the bot's trigger, or another bot.
+        // It shows as a message from its sender, like a cross-chat one.
+        const row = appendMessage({
+          chatId,
+          role: 'user',
+          kind: 'text',
+          body: { text, from: { chatId: from.id, chatName: from.name, waiting: false } } satisfies MessageBodyText,
+        });
+        updateChatStatus(chatId, 'run', text.slice(0, 140));
+        this.broadcast({ type: 'message-added', chatId, message: row, ts: Date.now() });
+        this.broadcast({ type: 'session-status', chatId, status: 'running', ts: Date.now() });
+      },
       onHostUpdate: (patch: Partial<HostChatInfo>) => {
         if (!isDbOpen()) return;
         const current = getChat(chatId);

@@ -437,7 +437,8 @@ export function registerChatHandlers(): void {
     const chat = getChat(chatId);
     await AgentHost.dispose(chatId);
     // A deleted chat has no use for its session or its slot on the host.
-    if (chat?.host) {
+    // A bot's session is the bot's, not this chat's: it runs on.
+    if (chat?.host && !chat.host.botId) {
       const host = getHost(chat.host.hostId);
       if (host) {
         await endHostSession(host, chatId).catch(() => undefined);
