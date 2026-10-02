@@ -5,13 +5,14 @@ import { startPopbotMcpServer, type ChatSummary, type PopbotMcpServer, type Popb
 
 const chat = (id: string, name: string, caller: string | null): ChatSummary => ({
   id, name, status: 'idle', agent: 'claude', repoId: 'app', branch: null, ticket: null, pr: null,
-  cloud: false, closed: false, lastActiveAt: 1, isCaller: id === caller,
+  cloud: false, host: null, closed: false, lastActiveAt: 1, isCaller: id === caller,
 });
 
 const calls: Array<{ tool: string; input: unknown; caller: string | null }> = [];
 const handlers: PopbotToolHandlers = {
   listChats: (input, caller) => { calls.push({ tool: 'list_chats', input, caller }); return [chat('chat_a', 'A', caller), chat('chat_b', 'B', caller)]; },
-  createChat: async (input, caller) => { calls.push({ tool: 'create_chat', input, caller }); return { chat: chat('chat_new', input.name, caller) }; },
+  listHosts: async () => [{ id: 'host_1', name: 'benscomfypc', openChats: 1, reachable: true, version: '0.2.0', claude: true, codex: true, repos: [{ id: 'popbot', defaultBase: 'main', mode: 'slots', slotCount: 4 }] }],
+  createChat: async (input, caller) => { calls.push({ tool: 'create_chat', input, caller }); return { chat: { ...chat('chat_new', input.name, caller), host: input.host ?? null } }; },
   closeChat: async (input, caller) => (input.chatId === caller ? { error: 'you cannot close the chat you are running in' } : { ok: true, chatId: input.chatId }),
   reopenChat: async (input, caller) => ({ chat: chat(input.chatId, 'R', caller) }),
   sendToChat: async (input) => ({ outcome: 'replied', reply: `echo: ${input.text}`, entries: 1 }),
@@ -38,7 +39,7 @@ describe('popbot MCP server over Streamable HTTP', () => {
     const client = await connect('chat_a');
     const { tools } = await client.listTools();
     expect(tools.map((t) => t.name).sort()).toEqual([
-      'close_chat', 'create_chat', 'get_chat_transcript', 'go_to_message', 'list_chats', 'list_refs',
+      'close_chat', 'create_chat', 'get_chat_transcript', 'go_to_message', 'list_chats', 'list_hosts', 'list_refs',
       'open_ticket_chat', 'reopen_chat', 'search_chats', 'send_to_chat', 'start_code_review',
     ]);
     const send = tools.find((t) => t.name === 'send_to_chat')!;
@@ -56,6 +57,20 @@ describe('popbot MCP server over Streamable HTTP', () => {
     const created = await client.callTool({ name: 'create_chat', arguments: { name: 'New' } });
     expect(JSON.parse((created.content as Array<{ text: string }>)[0].text)).toMatchObject({ chat: { id: 'chat_new', name: 'New' } });
     expect(calls.at(-1)).toMatchObject({ input: { name: 'New', workspace: 'repo-root' } });
+    await client.close();
+  });
+
+  it('lists hosts, filters chats by host, and creates a chat on one', async () => {
+    const client = await connect('chat_a');
+    const hosts = await client.callTool({ name: 'list_hosts', arguments: {} });
+    expect(JSON.parse((hosts.content as Array<{ text: string }>)[0].text)).toMatchObject([{ name: 'benscomfypc', reachable: true, repos: [{ id: 'popbot' }] }]);
+
+    await client.callTool({ name: 'list_chats', arguments: { host: 'benscomfypc' } });
+    expect(calls.at(-1)).toMatchObject({ tool: 'list_chats', input: { includeClosed: false, host: 'benscomfypc' } });
+
+    const created = await client.callTool({ name: 'create_chat', arguments: { name: 'Remote', host: 'benscomfypc', repoId: 'popbot', workspace: 'slot' } });
+    expect(JSON.parse((created.content as Array<{ text: string }>)[0].text)).toMatchObject({ chat: { name: 'Remote', host: 'benscomfypc' } });
+    expect(calls.at(-1)).toMatchObject({ input: { host: 'benscomfypc', repoId: 'popbot', workspace: 'slot' } });
     await client.close();
   });
 

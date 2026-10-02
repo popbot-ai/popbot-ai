@@ -19,6 +19,8 @@ import type {
   HostApproveBody,
   HostFrame,
   HostInfo,
+  HostMcpRequest,
+  HostMcpResponse,
   HostRules,
   HostSendBody,
   HostSpawnBody,
@@ -36,8 +38,9 @@ const SEQ_FLUSH_MS = 1_500;
 
 export const RemoteBackend: AgentBackend = {
   id: 'remote',
-  // What the host's CLI has. The popbot MCP and editor MCPs are on this
-  // machine's localhost, which the host cannot reach.
+  // What the host's CLI has. Editor MCPs are on this machine's localhost,
+  // which the host cannot reach; the popbot MCP is relayed over the
+  // chat's stream instead (see onMcpRequest), outside this flag.
   capabilities: { skills: true, memory: true, subAgents: true, mcpHttp: false },
   spawn(opts: SpawnOpts): AgentSession {
     if (!opts.remote) throw new Error('RemoteBackend.spawn: remote options are required');
@@ -117,7 +120,7 @@ class RemoteSession implements AgentSession {
       this.host,
       'POST',
       `/v1/chats/${encodeURIComponent(this.chatId)}/spawn`,
-      { ...this.body, rules: this.remote.rules() } satisfies HostSpawnBody,
+      { ...this.body, rules: this.remote.rules(), popbotMcp: this.remote.popbotMcpUrl() !== null } satisfies HostSpawnBody,
       60_000,
     );
     this.cwd = spawned.cwd;
@@ -182,8 +185,37 @@ class RemoteSession implements AgentSession {
         this.cwd = frame.cwd;
         this.remote.onHostUpdate({ cwd: frame.cwd });
         break;
+      case 'mcp-request':
+        void this.onMcpRequest(frame.id, frame.request);
+        break;
       default:
         break;
+    }
+  }
+
+  /** The agent called a popbot tool: run the call on the local server,
+   *  as this chat — whatever chat id the host had in its URL — and post
+   *  the answer back. */
+  private async onMcpRequest(id: string, request: HostMcpRequest): Promise<void> {
+    const url = this.remote.popbotMcpUrl();
+    let answer: Omit<HostMcpResponse, 'id'>;
+    if (!url) {
+      answer = mcpError(503, 'PopBot tools are switched off in Preferences ▸ Agents');
+    } else {
+      try {
+        const res = await fetch(url, { method: 'POST', headers: request.headers, body: request.body });
+        answer = { status: res.status, contentType: res.headers.get('content-type'), body: await res.text() };
+      } catch (err) {
+        answer = mcpError(502, err instanceof Error ? err.message : String(err));
+      }
+    }
+    try {
+      await hostRequest(this.host, 'POST', `/v1/chats/${encodeURIComponent(this.chatId)}/mcp-response`, {
+        id,
+        ...answer,
+      } satisfies HostMcpResponse);
+    } catch (err) {
+      dlog('remote.mcp.answer-failed', { chatId: this.chatId, id, error: err instanceof Error ? err.message : String(err) });
     }
   }
 
@@ -290,4 +322,14 @@ class RemoteSession implements AgentSession {
   isAlive(): boolean {
     return this.alive && !this.disposed;
   }
+}
+
+/** A JSON-RPC error the agent's MCP client can read, for a call that
+ *  never reached the popbot server. */
+function mcpError(status: number, message: string): Omit<HostMcpResponse, 'id'> {
+  return {
+    status,
+    contentType: 'application/json',
+    body: JSON.stringify({ jsonrpc: '2.0', error: { code: -32603, message }, id: null }),
+  };
 }

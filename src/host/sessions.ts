@@ -5,12 +5,21 @@
  * disconnect). The host persists nothing else — the transcript is the
  * desktop's.
  */
+import { randomUUID } from 'node:crypto';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { AgentEvent, PermissionDecision, PermissionRule } from '@shared/agent';
 import { resolvePermissionRules } from '@shared/agent';
 import type { PickedAttachment } from '@shared/ipc';
-import type { HostFrame, HostRules, HostSendBody, HostSpawnBody, HostSpawnResult } from '@shared/hostProtocol';
+import type {
+  HostFrame,
+  HostMcpRequest,
+  HostMcpResponse,
+  HostRules,
+  HostSendBody,
+  HostSpawnBody,
+  HostSpawnResult,
+} from '@shared/hostProtocol';
 import { ClaudeBackend } from '../main/agents/ClaudeBackend';
 import { CodexBackend } from '../main/agents/CodexBackend';
 import type { AgentSession } from '../main/agents/types';
@@ -20,6 +29,11 @@ import type { HostWorkspaces } from './workspaces';
 
 /** Frames kept per chat. A long turn is a few thousand at most. */
 const LOG_CAP = 20_000;
+/** How long a popbot MCP call waits for the desktop: send_to_chat's
+ *  longest wait (30 minutes) and some room. */
+const MCP_RELAY_TIMEOUT_MS = 35 * 60_000;
+
+type McpAnswer = Omit<HostMcpResponse, 'id'>;
 
 /** A frame before its seq is assigned (Omit over a union would collapse
  *  it to the common keys, so it is spelled out per kind). */
@@ -32,10 +46,13 @@ interface LiveChat {
   frames: HostFrame[];
   seq: number;
   listeners: Set<(frame: HostFrame) => void>;
+  /** popbot MCP calls the desktop has not answered, by frame id. */
+  mcpPending: Map<string, (answer: McpAnswer) => void>;
 }
 
 export class HostSessions {
   private readonly chats = new Map<string, LiveChat>();
+  private mcpUrlFor: ((chatId: string) => string) | null = null;
 
   constructor(
     private readonly config: HostConfig,
@@ -49,6 +66,11 @@ export class HostSessions {
 
   get(chatId: string): LiveChat | undefined {
     return this.chats.get(chatId);
+  }
+
+  /** Where agents reach the popbot relay (see mcpRelay.ts). */
+  useMcpRelay(urlFor: (chatId: string) => string): void {
+    this.mcpUrlFor = urlFor;
   }
 
   /** Start (or restart) the chat's session. A live one is disposed first. */
@@ -68,12 +90,14 @@ export class HostSessions {
       frames: prior?.frames ?? [],
       seq: prior?.seq ?? 0,
       listeners: prior?.listeners ?? new Set(),
+      mcpPending: prior?.mcpPending ?? new Map(),
     };
     this.chats.set(chatId, live);
     // Frames of this session start after this seq.
     const startSeq = live.seq;
     const backend = body.agent === 'codex' ? CodexBackend : ClaudeBackend;
     const isCodex = body.agent === 'codex';
+    const popbotMcp = body.popbotMcp && this.mcpUrlFor ? this.mcpUrlFor(chatId) : null;
     live.session = backend.spawn({
       chatId,
       history: [],
@@ -85,12 +109,13 @@ export class HostSessions {
       codexReasoningEffort: isCodex ? body.codexReasoningEffort ?? null : null,
       pathToClaudeCodeExecutable: this.cli.claude,
       pathToCodexExecutable: this.cli.codex,
+      ...(popbotMcp ? { mcpServers: { popbot: { type: 'http' as const, url: popbotMcp } } } : {}),
       onEvent: (event: AgentEvent) => this.push(chatId, { kind: 'event', event }),
       onSessionId: (sessionId) => this.push(chatId, { kind: 'session-id', sessionId }),
       resolveRule: (tool) => resolveHostRule(this.chats.get(chatId)?.rules, tool),
     });
     this.push(chatId, { kind: 'spawned', cwd });
-    dlog('host.spawn', { chatId, agent: body.agent, cwd, kind: workspace.kind, slotId: workspace.slotId, resume: body.sessionId ?? null, startSeq });
+    dlog('host.spawn', { chatId, agent: body.agent, cwd, kind: workspace.kind, slotId: workspace.slotId, resume: body.sessionId ?? null, startSeq, popbotMcp: !!popbotMcp });
     return { cwd, seq: startSeq, workspace };
   }
 
@@ -120,6 +145,35 @@ export class HostSessions {
     this.must(chatId).rules = normalizeRules(rules);
   }
 
+  /** Send the agent's popbot MCP call up the chat's stream and wait for
+   *  the desktop's answer. A desktop that is away gets it on replay. */
+  relayMcp(chatId: string, request: HostMcpRequest, signal: AbortSignal): Promise<McpAnswer> {
+    const live = this.must(chatId);
+    const id = randomUUID();
+    if (signal.aborted) return Promise.reject(new Error('the agent hung up'));
+    return new Promise<McpAnswer>((resolve, reject) => {
+      const settle = (): void => {
+        live.mcpPending.delete(id);
+        clearTimeout(timer);
+        signal.removeEventListener('abort', onAbort);
+      };
+      const onAbort = (): void => { settle(); reject(new Error('the agent hung up')); };
+      const timer = setTimeout(() => { settle(); reject(new Error('the desktop did not answer in time')); }, MCP_RELAY_TIMEOUT_MS);
+      signal.addEventListener('abort', onAbort, { once: true });
+      live.mcpPending.set(id, (answer) => { settle(); resolve(answer); });
+      this.push(chatId, { kind: 'mcp-request', id, request });
+    });
+  }
+
+  /** The desktop's answer to an `mcp-request`; false when nobody waits
+   *  for it any more (answered already, or the agent hung up). */
+  answerMcp(chatId: string, response: HostMcpResponse): boolean {
+    const waiter = this.chats.get(chatId)?.mcpPending.get(response.id);
+    if (!waiter) return false;
+    waiter({ status: response.status, contentType: response.contentType, body: response.body });
+    return true;
+  }
+
   async dispose(chatId: string): Promise<void> {
     const live = this.chats.get(chatId);
     if (!live) return;
@@ -136,7 +190,12 @@ export class HostSessions {
   /** Subscribe to a chat's frames: first the log after `after`, then live. */
   subscribe(chatId: string, after: number, listener: (frame: HostFrame) => void): () => void {
     const live = this.must(chatId);
-    for (const f of live.frames) if (f.seq > after) listener(f);
+    for (const f of live.frames) {
+      if (f.seq <= after) continue;
+      // An answered call must not run twice on the desktop.
+      if (f.kind === 'mcp-request' && !live.mcpPending.has(f.id)) continue;
+      listener(f);
+    }
     live.listeners.add(listener);
     if (!live.session.isAlive()) listener({ seq: live.seq + 1, kind: 'dead' });
     return () => { live.listeners.delete(listener); };

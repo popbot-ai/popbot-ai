@@ -1818,6 +1818,7 @@ class AgentHostImpl {
         chat: getChatPermissionRules(chatId),
         global: getSetting<PermissionRule[]>('permissions.rules') ?? [],
       }),
+      popbotMcpUrl: () => popbotMcpUrlForChat(chatId),
       languageDirective: languageDirective(),
       onHostUpdate: (patch: Partial<HostChatInfo>) => {
         if (!isDbOpen()) return;

@@ -137,6 +137,9 @@ export interface RemoteSpawnOpts {
   /** The desktop's current permission rules, sent to the host at spawn
    *  and after every decision (which may have added one). */
   rules(): HostRules;
+  /** This chat's URL on the local popbot MCP server — the host relays
+   *  the agent's calls here. Null when the tools are off. */
+  popbotMcpUrl(): string | null;
   /** The "respond in the user's language" sentence for the preamble
    *  (empty for English). */
   languageDirective: string;

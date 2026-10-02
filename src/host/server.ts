@@ -11,6 +11,7 @@ import {
   type HostApproveBody,
   type HostFrame,
   type HostInfo,
+  type HostMcpResponse,
   type HostRepo,
   type HostRules,
   type HostSendBody,
@@ -168,6 +169,13 @@ export function createHostServer(opts: {
         case 'rules':
           sessions.setRules(chatId, body.rules as HostRules | undefined);
           return json(res, 200, { ok: true });
+        case 'mcp-response': {
+          const b = body as unknown as HostMcpResponse;
+          if (typeof b.id !== 'string' || typeof b.status !== 'number' || typeof b.body !== 'string') {
+            return json(res, 400, { error: 'id, status and body required' });
+          }
+          return json(res, 200, { ok: sessions.answerMcp(chatId, b) });
+        }
         case 'dispose':
           await sessions.dispose(chatId);
           return json(res, 200, { ok: true });

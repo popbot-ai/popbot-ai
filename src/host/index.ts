@@ -11,6 +11,7 @@
 import { resolveCliPath } from '../main/agents/resolveCli';
 import { dlog } from '../main/diagLog';
 import { resolveConfig } from './config';
+import { startMcpRelay } from './mcpRelay';
 import { createHostServer } from './server';
 import { HostSessions } from './sessions';
 import { HostWorkspaces } from './workspaces';
@@ -39,6 +40,8 @@ async function main(): Promise<void> {
   const workspaces = new HostWorkspaces(config);
   workspaces.load();
   const sessions = new HostSessions(config, cli, workspaces);
+  const mcpRelay = await startMcpRelay((chatId, request, signal) => sessions.relayMcp(chatId, request, signal));
+  sessions.useMcpRelay(mcpRelay.urlFor);
   const server = createHostServer({ config, version: VERSION, configPath: path, sessions, workspaces, cli });
   server.listen(config.port, config.bind, () => {
     process.stdout.write(
@@ -55,6 +58,7 @@ async function main(): Promise<void> {
   const shutdown = async (): Promise<void> => {
     server.close();
     await sessions.disposeAll();
+    await mcpRelay.close();
     process.exit(0);
   };
   process.on('SIGINT', () => void shutdown());

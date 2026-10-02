@@ -34,10 +34,27 @@ export interface ChatSummary {
   ticket: string | null;
   pr: number | null;
   cloud: boolean;
+  /** The PopBot host the chat runs on; null for this computer. */
+  host: string | null;
   closed: boolean;
   lastActiveAt: number;
   /** The chat the tool call came from. */
   isCaller: boolean;
+}
+
+/** A host from Preferences ▸ Hosts, as it answered just now. */
+export interface HostSummary {
+  id: string;
+  name: string;
+  /** Open chats on it, as this computer has them. */
+  openChats: number;
+  reachable: boolean;
+  /** Why it could not be reached. */
+  error?: string;
+  version?: string;
+  claude?: boolean;
+  codex?: boolean;
+  repos?: Array<{ id: string; defaultBase: string; mode: 'slots' | 'ephemeral'; slotCount: number }>;
 }
 
 export type ToolFailure = { error: string };
@@ -45,9 +62,10 @@ export type ToolFailure = { error: string };
 /** Everything the tools do, as plain functions. `caller` is the chat id
  *  the request came from (null for a request with no chat, e.g. tests). */
 export interface PopbotToolHandlers {
-  listChats(input: { includeClosed: boolean }, caller: string | null): ChatSummary[];
+  listChats(input: { includeClosed: boolean; host?: string }, caller: string | null): ChatSummary[] | ToolFailure;
+  listHosts(caller: string | null): Promise<HostSummary[]>;
   createChat(
-    input: { name: string; repoId?: string; workspace: 'slot' | 'repo-root' | 'cloud'; baseBranch?: string; branch?: string; agent?: 'claude' | 'codex'; firstMessage?: string },
+    input: { name: string; host?: string; repoId?: string; workspace: 'slot' | 'repo-root' | 'cloud'; baseBranch?: string; branch?: string; agent?: 'claude' | 'codex'; firstMessage?: string },
     caller: string | null,
   ): Promise<{ chat: ChatSummary } | ToolFailure>;
   closeChat(input: { chatId: string; keepChanges: boolean }, caller: string | null): Promise<{ ok: true; chatId: string } | ToolFailure>;
@@ -95,17 +113,28 @@ export function registerPopbotTools(server: McpServer, h: PopbotToolHandlers, ca
   server.registerTool('list_chats', {
     title: 'List chats',
     annotations: { readOnlyHint: true, openWorldHint: false },
-    description: 'PopBot chats: id, name, status (idle/run/wait/err), agent, repo, branch, ticket, PR, whether it is a cloud chat, and which one is you (isCaller). Closed (archived) chats are included on request.',
-    inputSchema: { includeClosed: z.boolean().default(false).describe('Also list closed/archived chats') },
-  }, async ({ includeClosed }) => guarded(() => h.listChats({ includeClosed }, caller)));
+    description: 'PopBot chats: id, name, status (idle/run/wait/err), agent, repo, branch, ticket, PR, whether it is a cloud chat, the PopBot host it runs on (null: this computer), and which one is you (isCaller). Closed (archived) chats are included on request.',
+    inputSchema: {
+      includeClosed: z.boolean().default(false).describe('Also list closed/archived chats'),
+      host: z.string().optional().describe('Only the chats on this PopBot host (a name or id from list_hosts), or "local" for this computer\'s'),
+    },
+  }, async ({ includeClosed, host }) => guarded(() => h.listChats({ includeClosed, ...(host ? { host } : {}) }, caller)));
+
+  server.registerTool('list_hosts', {
+    title: 'List hosts',
+    annotations: { readOnlyHint: true, openWorldHint: false },
+    description: 'The PopBot hosts — other machines running popbot-host that chats can run on (see create_chat\'s host; list_chats with host lists the chats on one). Each is asked now: whether it is reachable, its version, whether it has Claude and Codex, its repositories (ids to pass as create_chat\'s repoId with that host), and how many open chats run there.',
+    inputSchema: {},
+  }, async () => guarded(() => h.listHosts(caller)));
 
   server.registerTool('create_chat', {
     title: 'Create a chat',
     annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
-    description: 'Create a new PopBot chat with its own agent. workspace "slot" gives it a fresh git worktree on a new branch off baseBranch; "repo-root" runs it at the repository root with no branch; "cloud" runs it on Anthropic Managed Agents in a cloud sandbox that keeps working after PopBot quits (Claude only; needs an API key in Preferences). Optionally send it a first message right away (it runs in the background — use send_to_chat to wait for an answer).',
+    description: 'Create a new PopBot chat with its own agent. workspace "slot" gives it a fresh git worktree on a new branch off baseBranch; "repo-root" runs it at the repository root with no branch; "cloud" runs it on Anthropic Managed Agents in a cloud sandbox that keeps working after PopBot quits (Claude only; needs an API key in Preferences). With host, the chat runs on that PopBot host instead of this computer, in one of the host\'s repositories (a worktree for "slot", the root for "repo-root") or, with no repoId, a scratch folder there. Optionally send it a first message right away (it runs in the background — use send_to_chat to wait for an answer).',
     inputSchema: {
       name: z.string().min(1).describe('Chat name (also seeds the branch name for a slot chat)'),
-      repoId: z.string().optional().describe('Repository id from list_chats / PopBot Preferences; defaults to the last one used'),
+      host: z.string().optional().describe('Run on this PopBot host — a name or id from list_hosts. Default: this computer'),
+      repoId: z.string().optional().describe('Repository id from list_chats / PopBot Preferences, or with host one of list_hosts\' repos for it; defaults to the last one used (none with host: a scratch folder)'),
       workspace: z.enum(['slot', 'repo-root', 'cloud']).default('repo-root'),
       baseBranch: z.string().optional().describe('Slot chats: the branch to start from (default: the repo default base)'),
       branch: z.string().optional().describe('Slot chats: the branch name to create (default: derived from the name)'),

@@ -16,7 +16,9 @@ import { type CrossChatOrigin,
   normalizeClaudeModel,
   normalizeCodexModel,
   type ChatRecord,
+  type HostRecord,
 } from '@shared/persistence';
+import type { HostWorkspaceKind } from '@shared/hostProtocol';
 import { DEFAULT_SOURCE_CONTROL, SOURCE_CONTROL_PROVIDERS } from '@shared/sourceControl';
 import {
   DEFAULT_START_CL_REVIEW_TEMPLATE,
@@ -25,16 +27,18 @@ import {
   expandTemplate,
 } from '@shared/templates';
 import { AgentHost } from '../agents/AgentHost';
+import { probeHost } from '../agents/hostClient';
 import { dlog } from '../diagLog';
 import { closeChatWithWorkspace, createChatWithWorkspace, reopenChatWithWorkspace } from '../ipc/chats';
 import { getChat, listChatRefs, listClosedChats, listOpenChats } from '../persistence/chats';
+import { listHosts } from '../persistence/hosts';
 import { getMessage, listMessages } from '../persistence/messages';
 import { getRepo, listRepos } from '../persistence/repos';
 import { getSetting } from '../persistence/settings';
 import { getReviewByNumber } from '../reviews';
 import { getSourceControlProvider } from '../scm';
 import { activeTicketSource } from '../tickets/registry';
-import type { ChatSummary, PopbotToolHandlers, ToolFailure } from './server';
+import type { ChatSummary, HostSummary, PopbotToolHandlers, ToolFailure } from './server';
 import { searchTranscripts } from '../search/transcriptSearch';
 import { renderTranscript, transcriptEntries } from './transcript';
 
@@ -50,11 +54,13 @@ function summarize(chat: ChatRecord, caller: string | null, closed: boolean): Ch
     name: chat.name,
     status: chat.status,
     agent: chat.agent,
-    repoId: chat.repoId,
+    // A host chat's repo is on the host; the local row holds a placeholder.
+    repoId: chat.host?.repoId ?? chat.repoId,
     branch: chat.branch,
     ticket: chat.ticket,
     pr: chat.pr,
     cloud: !!chat.cloud,
+    host: chat.host?.hostName ?? null,
     closed,
     lastActiveAt: chat.lastActiveAt,
     isCaller: chat.id === caller,
@@ -159,46 +165,115 @@ function changed(chatId: string, reason: 'created' | 'closed' | 'reopened'): voi
   AgentHost.emit({ type: 'chats-changed', chatId, reason, ts: Date.now() });
 }
 
+type CreateChatToolInput = Parameters<PopbotToolHandlers['createChat']>[0];
+
+function newChatAgent(input: CreateChatToolInput): Pick<CreateChatInput, 'agent' | 'claudeModel' | 'claudeReasoningEffort' | 'codexModel' | 'codexReasoningEffort'> {
+  return { ...agentDefaults('general'), ...(input.agent ? { agent: input.agent } : {}) };
+}
+
+async function createHere(input: CreateChatToolInput): Promise<CreateChatResult | ToolFailure> {
+  const repoId = input.repoId?.trim() || lastRepoId();
+  const repo = getRepo(repoId);
+  if (!repo) {
+    const known = listRepos().map((r) => r.id).join(', ') || 'none configured';
+    return fail(`unknown repository "${repoId}" (known: ${known})`);
+  }
+  const name = input.name.trim();
+  const base: CreateChatInput = { name, type: 'lite', repoId, ...newChatAgent(input) };
+  if (input.workspace === 'cloud') {
+    return createChatWithWorkspace({ ...base, agent: 'claude', cloud: true });
+  }
+  if (input.workspace === 'slot') {
+    const isPerforce = (repo.scm ?? 'git') === 'perforce';
+    const branch = input.branch?.trim() || `${await branchUsername()}/${slugify(name) || 'chat'}`;
+    return createChatWithWorkspace({
+      ...base,
+      allocateSlot: true,
+      branch,
+      baseBranch: isPerforce ? 'latest' : (input.baseBranch?.trim() || repo.defaultBase || 'main'),
+    });
+  }
+  return createChatWithWorkspace(base);
+}
+
+/** A chat on a PopBot host: in one of its repos (a worktree for "slot",
+ *  the root for "repo-root") or, with no repo, a scratch folder there.
+ *  The host checks the repo when it makes the workspace. */
+async function createOnHost(input: CreateChatToolInput, hostRef: string): Promise<CreateChatResult | ToolFailure> {
+  if (input.workspace === 'cloud') return fail('a chat runs on a host or in the cloud, not both');
+  const host = findHost(hostRef);
+  if (!host) return unknownHost(hostRef);
+  const name = input.name.trim();
+  const repoId = input.repoId?.trim() || null;
+  const kind: HostWorkspaceKind = !repoId ? 'scratch' : input.workspace === 'slot' ? 'worktree' : 'root';
+  return createChatWithWorkspace({
+    name,
+    type: 'lite',
+    ...newChatAgent(input),
+    host: {
+      hostId: host.id,
+      repoId,
+      kind,
+      branch: kind === 'worktree' ? (input.branch?.trim() || `${await branchUsername()}/${slugify(name) || 'chat'}`) : null,
+      baseBranch: input.baseBranch?.trim() || null,
+    },
+  });
+}
+
+/** A host by id or name, ignoring case. */
+function findHost(ref: string): HostRecord | null {
+  const want = ref.trim().toLowerCase();
+  return listHosts().find((h) => h.id.toLowerCase() === want || h.name.toLowerCase() === want) ?? null;
+}
+
+function unknownHost(ref: string): ToolFailure {
+  const known = listHosts().map((h) => h.name).join(', ') || 'none configured';
+  return fail(`unknown host "${ref}" (known: ${known}; add hosts in PopBot Preferences ▸ Hosts)`);
+}
+
 export function createPopbotToolHandlers(): PopbotToolHandlers {
   return {
-    listChats({ includeClosed }, caller) {
-      const open = listOpenChats().map((c) => summarize(c, caller, false));
-      const closed = includeClosed ? listClosedChats(200).map((c) => summarize(c, caller, true)) : [];
+    listChats({ includeClosed, host }, caller) {
+      let keep = (_c: ChatRecord): boolean => true;
+      if (host?.trim().toLowerCase() === 'local') {
+        keep = (c) => !c.host;
+      } else if (host) {
+        const record = findHost(host);
+        if (!record) return unknownHost(host);
+        keep = (c) => c.host?.hostId === record.id;
+      }
+      const open = listOpenChats().filter(keep).map((c) => summarize(c, caller, false));
+      const closed = includeClosed ? listClosedChats(200).filter(keep).map((c) => summarize(c, caller, true)) : [];
       return [...open, ...closed];
     },
 
+    async listHosts() {
+      const open = listOpenChats();
+      return Promise.all(listHosts().map(async (host): Promise<HostSummary> => {
+        const openChats = open.filter((c) => c.host?.hostId === host.id).length;
+        try {
+          const info = await probeHost(host);
+          return {
+            id: host.id,
+            name: host.name,
+            openChats,
+            reachable: true,
+            version: info.version,
+            claude: info.claude.ok,
+            codex: info.codex.ok,
+            repos: info.repos.map((r) => ({ id: r.id, defaultBase: r.defaultBase, mode: r.mode, slotCount: r.slotCount })),
+          };
+        } catch (err) {
+          return { id: host.id, name: host.name, openChats, reachable: false, error: err instanceof Error ? err.message : String(err) };
+        }
+      }));
+    },
+
     async createChat(input, caller) {
-      const repoId = input.repoId?.trim() || lastRepoId();
-      const repo = getRepo(repoId);
-      if (!repo) {
-        const known = listRepos().map((r) => r.id).join(', ') || 'none configured';
-        return fail(`unknown repository "${repoId}" (known: ${known})`);
-      }
-      const name = input.name.trim();
-      const base: CreateChatInput = {
-        name,
-        type: 'lite',
-        repoId,
-        ...agentDefaults('general'),
-        ...(input.agent ? { agent: input.agent } : {}),
-      };
-      let result: CreateChatResult;
-      if (input.workspace === 'cloud') {
-        result = await createChatWithWorkspace({ ...base, agent: 'claude', cloud: true });
-      } else if (input.workspace === 'slot') {
-        const isPerforce = (repo.scm ?? 'git') === 'perforce';
-        const branch = input.branch?.trim() || `${await branchUsername()}/${slugify(name) || 'chat'}`;
-        result = await createChatWithWorkspace({
-          ...base,
-          allocateSlot: true,
-          branch,
-          baseBranch: isPerforce ? 'latest' : (input.baseBranch?.trim() || repo.defaultBase || 'main'),
-        });
-      } else {
-        result = await createChatWithWorkspace(base);
-      }
+      const result = input.host ? await createOnHost(input, input.host) : await createHere(input);
+      if ('error' in result) return result;
       if (!result.ok) return fail(describeCreateFailure(result));
-      dlog('mcp.popbot.create', { by: caller, chatId: result.chat.id, workspace: input.workspace });
+      dlog('mcp.popbot.create', { by: caller, chatId: result.chat.id, workspace: input.workspace, host: result.chat.host?.hostName ?? null });
       changed(result.chat.id, 'created');
       if (input.firstMessage?.trim()) sendInBackground(result.chat.id, input.firstMessage.trim());
       return { chat: summarize(result.chat, caller, false) };

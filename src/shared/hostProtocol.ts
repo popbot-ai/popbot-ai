@@ -19,7 +19,14 @@
  *   POST /v1/chats/:chatId/approve         { permissionId, decision }
  *   POST /v1/chats/:chatId/stop | compact | dispose
  *   POST /v1/chats/:chatId/rules           { rules }
+ *   POST /v1/chats/:chatId/mcp-response    HostMcpResponse
  *   GET  /v1/chats/:chatId/events?after=N  SSE of HostFrame, replaying seq > N
+ *
+ * The agent's popbot MCP calls go the other way: the host serves a
+ * stand-in endpoint on its own localhost, sends each request up the
+ * chat's event stream as an `mcp-request` frame, and the desktop runs it
+ * against its real popbot server and posts the answer back — so the
+ * host never needs a route to the desktop.
  */
 import type { AgentEvent, PermissionDecision, PermissionRule } from './agent';
 import type {
@@ -104,6 +111,9 @@ export interface HostSpawnBody {
   /** Where the agent runs. Absent: the host's scratch directory. A
    *  workspace the chat already holds is reused. */
   workspace?: HostWorkspaceRequest | null;
+  /** Give the agent the desktop's popbot tools, relayed over the chat's
+   *  event stream. An older desktop leaves it out and gets none. */
+  popbotMcp?: boolean;
 }
 
 /** Permission rules as the desktop keeps them: the chat's own rules
@@ -139,11 +149,34 @@ export interface HostApproveBody {
   decision: PermissionDecision;
 }
 
+/** An MCP Streamable HTTP request the agent made to its popbot server.
+ *  The desktop replays it against its own server under the chat's own
+ *  id — the host does not get to say which chat is calling. */
+export interface HostMcpRequest {
+  /** Always POST: the relay answers anything else itself. */
+  method: 'POST';
+  /** The MCP-relevant ones: accept, content-type, mcp-protocol-version,
+   *  mcp-session-id. */
+  headers: Record<string, string>;
+  body: string;
+}
+
+export interface HostMcpResponse {
+  /** The `mcp-request` frame's id. */
+  id: string;
+  status: number;
+  contentType: string | null;
+  body: string;
+}
+
 /** One entry of a chat's event log on the host. `seq` is per chat and
  *  climbs by one; a desktop reconnects with the last seq it applied. */
 export type HostFrame =
   | { seq: number; kind: 'event'; event: AgentEvent }
   | { seq: number; kind: 'session-id'; sessionId: string }
   | { seq: number; kind: 'spawned'; cwd: string }
+  /** The agent is waiting on this popbot MCP call; answer with
+   *  `mcp-response`. A replay leaves out the ones already answered. */
+  | { seq: number; kind: 'mcp-request'; id: string; request: HostMcpRequest }
   /** The backend session is gone (its query ended); spawn again to go on. */
   | { seq: number; kind: 'dead' };
