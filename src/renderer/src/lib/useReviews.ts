@@ -34,7 +34,12 @@ const keyOf = (r: ReviewItem): string => `${r.scm}:${r.number}`;
  * stays quiet.
  */
 const alertSigOf = (r: ReviewItem): string =>
-  `${r.flags.reReview ? `rr:${r.updatedAt}` : 'x'}`;
+  // Keyed on the head COMMIT, not updatedAt. updatedAt moves on any PR
+  // activity at all — a comment, a label, one of coderabbitai's reviews
+  // — so an updatedAt key re-alerted (and, in rapid mode, re-nudged the
+  // agent) on PRs where not a line had changed. The head SHA moves only
+  // when someone actually pushes.
+  `${r.flags.reReview ? `rr:${r.headSha ?? r.updatedAt}` : 'x'}`;
 
 /**
  * Polls each review-capable provider on its OWN interval and merges the

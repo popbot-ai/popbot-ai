@@ -47,6 +47,8 @@ import {
 } from '@shared/persistence';
 import type { SourceControlProviderId } from '@shared/sourceControl';
 import {
+  DEFAULT_MAX_PER_AUTHOR,
+  MAX_MAX_PER_AUTHOR,
   DEFAULT_REVIEW_SCOPE,
   providerIdForReviewSystem,
   reviewInScope,
@@ -79,6 +81,7 @@ import {
   DEFAULT_PUSH_DRAFT_PR_TEMPLATE,
   DEFAULT_PUSH_PR_TEMPLATE,
   DEFAULT_REBASE_BASE_TEMPLATE,
+  DEFAULT_RAPID_RE_REVIEW_TEMPLATE,
   DEFAULT_RE_REVIEW_TEMPLATE,
   DEFAULT_START_CODE_REVIEW_TEMPLATE,
   DEFAULT_START_TICKET_TEMPLATE,
@@ -2127,6 +2130,8 @@ interface TemplatesSettings {
   startTicket?: string;
   startCodeReview?: string;
   reReview?: string;
+  /** The one-liner sent automatically in RAPID RE-REVIEW mode. */
+  rapidReReview?: string;
   commitAi?: string;
   pushPr?: string;
   pushDraftPr?: string;
@@ -2173,6 +2178,13 @@ const CHAT_TEMPLATE_FIELDS: TemplateField[] = [
     fallback: DEFAULT_RE_REVIEW_TEMPLATE,
     vars: CODE_REVIEW_TEMPLATE_VARS,
     rows: 10,
+  },
+  {
+    key: 'rapidReReview',
+    labelKey: 'prefs.templates.chat.rapidReReview.label',
+    fallback: DEFAULT_RAPID_RE_REVIEW_TEMPLATE,
+    vars: CODE_REVIEW_TEMPLATE_VARS,
+    rows: 3,
   },
 ];
 
@@ -2420,6 +2432,8 @@ interface ReviewsSettings {
   vettedAuthors?: string[];
   /** Show unvetted outside contributors at all. */
   includeOutside?: boolean;
+  /** Cap on optional (not-addressed-to-me) PRs shown per author. */
+  maxPerAuthor?: number;
   /** How wide a net the Reviews panel casts — see ReviewScope. */
   scope?: ReviewScope;
 }
@@ -2457,6 +2471,7 @@ function PrefsReviews(): JSX.Element {
   const [team, setTeam] = useState(() => listToLines(initial.teamMembers));
   const [vetted, setVetted] = useState(() => listToLines(initial.vettedAuthors));
   const [includeOutside, setIncludeOutside] = useState(initial.includeOutside === true);
+  const [maxPerAuthor, setMaxPerAuthor] = useState(initial.maxPerAuthor ?? DEFAULT_MAX_PER_AUTHOR);
   const [searchDays, setSearchDays] = useState(initialSearch.recentDays ?? DEFAULT_SEARCH_DAYS);
   /** Pinned reviews the just-saved rules would now exclude, awaiting the
    *  user's yes/no. `kept` is the pin list to write on confirm. */
@@ -2479,6 +2494,7 @@ function PrefsReviews(): JSX.Element {
     setTeam(listToLines(initial.teamMembers));
     setVetted(listToLines(initial.vettedAuthors));
     setIncludeOutside(initial.includeOutside === true);
+    setMaxPerAuthor(initial.maxPerAuthor ?? DEFAULT_MAX_PER_AUTHOR);
     setSearchDays(initialSearch.recentDays ?? DEFAULT_SEARCH_DAYS);
     // Persisted values are read at hydration time only; re-running on
     // every change would fight the user's in-progress edits.
@@ -2494,6 +2510,7 @@ function PrefsReviews(): JSX.Element {
     team: string[];
     vetted: string[];
     includeOutside: boolean;
+    maxPerAuthor: number;
     searchDays: number;
   }
   const commit = useAutoCommit<ReviewsDraft>({
@@ -2504,6 +2521,7 @@ function PrefsReviews(): JSX.Element {
       team: linesToList(team),
       vetted: linesToList(vetted),
       includeOutside,
+      maxPerAuthor,
       searchDays,
     }),
     saved: () => ({
@@ -2513,6 +2531,7 @@ function PrefsReviews(): JSX.Element {
       team: initial.teamMembers ?? [],
       vetted: initial.vettedAuthors ?? [],
       includeOutside: initial.includeOutside === true,
+      maxPerAuthor: initial.maxPerAuthor ?? DEFAULT_MAX_PER_AUTHOR,
       searchDays: initialSearch.recentDays ?? DEFAULT_SEARCH_DAYS,
     }),
     write: async (next) => {
@@ -2531,6 +2550,7 @@ function PrefsReviews(): JSX.Element {
         teamMembers: next.team,
         vettedAuthors: next.vetted,
         includeOutside: next.includeOutside,
+        maxPerAuthor: next.maxPerAuthor,
       } satisfies ReviewsSettings);
       if (next.searchDays !== (initialSearch.recentDays ?? DEFAULT_SEARCH_DAYS)) {
         await set('panela.search', {
@@ -2677,6 +2697,27 @@ function PrefsReviews(): JSX.Element {
           <span className="pref-radio-desc">{t('prefs.reviews.includeOutside.desc')}</span>
         </span>
       </label>
+
+      <h4 className="pref-subhead" style={{ marginTop: 18 }}>{t('prefs.reviews.maxPerAuthor.title')}</h4>
+      <p className="pref-section-desc" style={{ marginBottom: 8 }}>
+        {t('prefs.reviews.maxPerAuthor.desc')}
+      </p>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
+        <input
+          className="pref-input mono narrow"
+          type="number"
+          min={1}
+          max={MAX_MAX_PER_AUTHOR}
+          value={maxPerAuthor}
+          onChange={(e) => setMaxPerAuthor(
+            Math.max(1, Math.min(MAX_MAX_PER_AUTHOR, Number(e.target.value) || DEFAULT_MAX_PER_AUTHOR)),
+          )}
+          onBlur={() => void commit()}
+          onKeyDown={(e) => { if (e.key === 'Enter') void commit(); }}
+          style={{ width: 80 }}
+        />
+        <span style={{ color: 'var(--fg-3)', fontSize: 12 }}>{t('prefs.reviews.maxPerAuthor.unit')}</span>
+      </div>
 
       <h4 className="pref-subhead" style={{ marginTop: 18 }}>{t('prefs.reviews.ignoreTitle.title')}</h4>
       <textarea

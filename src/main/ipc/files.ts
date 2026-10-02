@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { basename, dirname, extname, isAbsolute, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { IpcChannel, type PickedAttachment } from '@shared/ipc';
 import { pruneExpiredChatAttachments } from '../attachments/store';
 import { getChat } from '../persistence/chats';
@@ -184,6 +185,55 @@ export function registerFilesHandlers(): void {
       if (!existsSync(p)) return { ok: false, error: `File not found: ${p}` };
       try {
         await shell.openExternal(editorUrlFor(p, lineNum));
+        return { ok: true };
+      } catch (err) {
+        return { ok: false, error: (err as Error).message };
+      }
+    },
+  );
+
+  /**
+   * Reveal a path in the OS file manager — Finder on macOS, Explorer on
+   * Windows, the desktop's file manager on Linux.
+   *
+   * A directory opens; a file opens its containing folder with the file
+   * selected. Same path resolution as FilesOpenInEditor (relative refs
+   * against the chat's workspace, `:line` and `#L42` anchors stripped),
+   * because an agent writes a path the same way whichever it means.
+   */
+  ipcMain.handle(
+    IpcChannel.FilesRevealInFolder,
+    async (
+      _e,
+      chatId: string | null,
+      rawPath: string,
+    ): Promise<{ ok: true } | { ok: false; error: string }> => {
+      if (!rawPath || typeof rawPath !== 'string') return { ok: false, error: 'No path.' };
+      let p = rawPath.trim();
+      // Agents hand out `file://` URLs as often as bare paths; both mean
+      // the same thing here. decodeURI so a path with spaces (%20)
+      // resolves to the real file rather than a miss.
+      if (/^file:\/\//i.test(p)) {
+        try { p = fileURLToPath(p); } catch { return { ok: false, error: `Bad file URL: ${p}` }; }
+      }
+      const hash = /^(.*)#L\d+(?:-L?\d+)?$/.exec(p);
+      if (hash) p = hash[1];
+      const lineRef = /^(.+?):(\d+)(?::\d+)?$/.exec(p);
+      if (lineRef && !existsSync(p)) p = lineRef[1];
+      if (!isAbsolute(p)) {
+        const cwd = resolveChatCwd(chatId);
+        if (!cwd) return { ok: false, error: `No workspace to resolve relative path: ${p}` };
+        p = join(cwd, p);
+      }
+      if (!existsSync(p)) return { ok: false, error: `Not found: ${p}` };
+      try {
+        if (statSync(p).isDirectory()) {
+          // openPath returns a non-empty string on failure rather than throwing.
+          const err = await shell.openPath(p);
+          if (err) return { ok: false, error: err };
+        } else {
+          shell.showItemInFolder(p);
+        }
         return { ok: true };
       } catch (err) {
         return { ok: false, error: (err as Error).message };

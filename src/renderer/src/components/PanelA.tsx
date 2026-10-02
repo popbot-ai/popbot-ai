@@ -2,8 +2,12 @@ import { Fragment, useCallback, useEffect, useLayoutEffect, useRef, useState } f
 import { createPortal } from 'react-dom';
 import type { LinearIssueDto, LinearWorkflowStateDto } from '@shared/linear';
 import {
+  isRapidReReview,
   mergePinnedReviews,
   providerIdForReviewSystem,
+  RAPID_RE_REVIEW_SETTING,
+  toggleRapidReReview,
+  type RapidReReviewMap,
   REVIEW_TIER_ORDER,
   type ReviewTier,
   type PinnedReview,
@@ -48,7 +52,11 @@ function reviewTooltip(r: ReviewItem, t: Translator): string {
 }
 
 /** Section headings for the three review piles. */
-const REVIEW_TIER_LABEL: Record<ReviewTier, MessageKey> = {
+/** Section keys: the tiers, plus the synthetic re-review band on top. */
+type ReviewGroupKey = ReviewTier | 'rereview';
+
+const REVIEW_TIER_LABEL: Record<ReviewGroupKey, MessageKey> = {
+  rereview: 'reviews.tier.rereview',
   direct: 'reviews.tier.direct',
   team: 'reviews.tier.team',
   org: 'reviews.tier.org',
@@ -204,13 +212,34 @@ export function PanelA({
   // here; re-pull immediately. Skips the initial mount, which already
   // has a fetch of its own in flight.
   const { get: getAppSetting, set: setAppSetting, loading: settingsLoading } = useSettings();
-  const reviewScope = getAppSetting<{ scope?: string }>('reviews', {})?.scope;
-  const knownScope = useRef<string | undefined>(reviewScope);
+  //
+  // Watches EVERY setting that main applies at fetch time, not just the
+  // scope: tiering and filtering happen in the main process, so a team
+  // or mute-list edit changes nothing on screen until the list is
+  // re-pulled. Without this, adding someone to your team in Preferences
+  // would appear to do nothing until the next poll.
+  const reviewCfg = getAppSetting<{
+    scope?: string;
+    teamMembers?: string[];
+    vettedAuthors?: string[];
+    includeOutside?: boolean;
+    ignoreTitlePatterns?: string[];
+    ignoreAuthors?: string[];
+  }>('reviews', {});
+  const reviewCfgSig = JSON.stringify([
+    reviewCfg?.scope,
+    reviewCfg?.teamMembers,
+    reviewCfg?.vettedAuthors,
+    reviewCfg?.includeOutside,
+    reviewCfg?.ignoreTitlePatterns,
+    reviewCfg?.ignoreAuthors,
+  ]);
+  const knownCfg = useRef<string>(reviewCfgSig);
   useEffect(() => {
-    if (settingsLoading || knownScope.current === reviewScope) return;
-    knownScope.current = reviewScope;
+    if (settingsLoading || knownCfg.current === reviewCfgSig) return;
+    knownCfg.current = reviewCfgSig;
     refreshReviews();
-  }, [reviewScope, settingsLoading, refreshReviews]);
+  }, [reviewCfgSig, settingsLoading, refreshReviews]);
 
   // Persistent set of PR numbers the user has explicitly told us to
   // ignore. They get filtered out of the Reviews tab on render. Loaded
@@ -253,9 +282,11 @@ export function PanelA({
   // seen", not a restart. If the author pushes again, updatedAt moves
   // past the stored value and the chip is back.
   const [dismissedReReviews, setDismissedReReviews] = useState<Record<number, string>>({});
-  const dismissReReview = useCallback((prNumber: number, updatedAt: string) => {
+  /** `stamp` is the head commit SHA — dismissal is per-commit, so only a
+   *  real push can bring the chip back. */
+  const dismissReReview = useCallback((prNumber: number, stamp: string) => {
     setDismissedReReviews((prev) => (
-      prev[prNumber] === updatedAt ? prev : { ...prev, [prNumber]: updatedAt }
+      prev[prNumber] === stamp ? prev : { ...prev, [prNumber]: stamp }
     ));
   }, []);
   useEffect(() => {
@@ -469,6 +500,29 @@ export function PanelA({
   // Two actions: "Open web page" (opens the URL we already know) and
   // "Ignore" (drops the item from this view permanently). Held at
   // PanelA level so a single click-outside listener dismisses it.
+  const rapidMap = getAppSetting<RapidReReviewMap>(RAPID_RE_REVIEW_SETTING, {});
+  const teamMembers = getAppSetting<{ teamMembers?: string[] }>('reviews', {})?.teamMembers ?? [];
+  /**
+   * Add or remove a PR author from your team, straight from the row.
+   *
+   * Writes the same `reviews.teamMembers` list Preferences edits, then
+   * forces a refresh: tiering happens in main at fetch time, so without
+   * the re-pull the author would stay in whatever section they were in
+   * until the next poll — making the action look like it did nothing.
+   */
+  const toggleTeamMember = useCallback(async (author: string) => {
+    if (!author) return;
+    const current = getAppSetting<Record<string, unknown>>('reviews', {}) ?? {};
+    const list = Array.isArray(current.teamMembers) ? (current.teamMembers as string[]) : [];
+    const lc = author.toLowerCase();
+    const next = list.some((m) => m.trim().toLowerCase() === lc)
+      ? list.filter((m) => m.trim().toLowerCase() !== lc)
+      : [...list, author];
+    // No explicit refresh here: writing the setting trips the
+    // config-change effect above, which re-pulls once. Doing both would
+    // fire two fetches for one click.
+    await setAppSetting('reviews', { ...current, teamMembers: next });
+  }, [getAppSetting, setAppSetting]);
   const [rowMenu, setRowMenu] = useState<{
     x: number;
     y: number;
@@ -480,6 +534,11 @@ export function PanelA({
      *  context-menu slot but mean different things, so this flag selects
      *  the right icon + label. */
     isUnpin?: boolean;
+    /** Review rows only: flip RAPID RE-REVIEW for this PR. Undefined on
+     *  ticket rows, which have no PR to attach the mode to. */
+    rapid?: { on: boolean; toggle: () => void };
+    /** Review rows only: add/remove this PR's author from your team. */
+    team?: { author: string; onTeam: boolean; toggle: () => void };
   } | null>(null);
   useEffect(() => {
     if (!rowMenu) return;
@@ -537,7 +596,9 @@ export function PanelA({
   //   - the "Mark all seen" button (clears both pools for everything
   //     currently in view).
   // The row's `flags.reReview` decides which signal counts: for a
-  // re-review row, we look at `dismissedReReviews[N] === r.updatedAt`;
+  // re-review row, we look at `dismissedReReviews[N] === r.headSha`;
+  // keyed on the commit, so a comment or a bot review can't resurface a
+  // chip you already dealt with — only a real push can;
   // for everything else, the legacy seenReviews set.
   //
   // Counts walk the *visible* list (same filter chain the panel
@@ -598,7 +659,7 @@ export function PanelA({
   const unseenReviews = seenReviews
     ? visibleReviewsList.reduce((n, r) => {
         const acked = r.flags.reReview
-          ? dismissedReReviews[r.number] === r.updatedAt
+          ? dismissedReReviews[r.number] === (r.headSha ?? r.updatedAt)
           : seenReviews.has(r.number);
         return n + (acked ? 0 : 1);
       }, 0)
@@ -896,6 +957,7 @@ export function PanelA({
           <ReviewList
             status={mergedReviewsStatus}
             activeOnly={activeOnly}
+            rapidMap={rapidMap}
             onSpawn={(r) => { onSpawnFromReview(r); void pinPr(r.number, r.scm); }}
             onOpenPrefs={onOpenPrefs}
             reviewChats={reviewChats}
@@ -910,9 +972,9 @@ export function PanelA({
             // Marking-seen here is what makes the tab badge tick down
             // when the user clicks the chip on a row that was also
             // flagged as NEW from a prior tick.
-            isReReviewDismissed={(r) => dismissedReReviews[r.number] === r.updatedAt}
+            isReReviewDismissed={(r) => dismissedReReviews[r.number] === (r.headSha ?? r.updatedAt)}
             onReReview={(r) => {
-              dismissReReview(r.number, r.updatedAt);
+              dismissReReview(r.number, r.headSha ?? r.updatedAt);
               markOneReviewSeen(r.number);
               onReReview?.(r);
             }}
@@ -924,6 +986,22 @@ export function PanelA({
                 ? () => unpinPr(review.number, review.scm)
                 : () => void ignorePr(review.number),
               isUnpin: pinnedPrNumbers.some((p) => p.scm === review.scm && p.number === review.number),
+              team: review.author
+                ? {
+                    author: review.author,
+                    onTeam: teamMembers.some(
+                      (m) => m.trim().toLowerCase() === review.author.toLowerCase(),
+                    ),
+                    toggle: () => void toggleTeamMember(review.author),
+                  }
+                : undefined,
+              rapid: {
+                on: isRapidReReview(rapidMap, review.number),
+                toggle: () => void setAppSetting(
+                  RAPID_RE_REVIEW_SETTING,
+                  toggleRapidReReview(rapidMap, review.number),
+                ),
+              },
             })}
           />
         )}
@@ -985,6 +1063,33 @@ export function PanelA({
               }}
             >
               <i className="fa-solid fa-arrow-up-right-from-square" /> {t('panelA.menu.openWebPage')}
+            </button>
+          )}
+          {rowMenu.team && (
+            <button
+              className="git-menu-item"
+              onClick={() => {
+                rowMenu.team?.toggle();
+                setRowMenu(null);
+              }}
+            >
+              <i className={`fa-solid ${rowMenu.team.onTeam ? 'fa-user-minus' : 'fa-user-plus'}`} />
+              &nbsp;{t(
+                rowMenu.team.onTeam ? 'reviews.menu.removeFromTeam' : 'reviews.menu.addToTeam',
+                { author: rowMenu.team.author },
+              )}
+            </button>
+          )}
+          {rowMenu.rapid && (
+            <button
+              className="git-menu-item"
+              onClick={() => {
+                rowMenu.rapid?.toggle();
+                setRowMenu(null);
+              }}
+            >
+              <i className={`fa-solid ${rowMenu.rapid.on ? 'fa-check' : 'fa-bolt'}`} />
+              &nbsp;{t('reviews.menu.rapidOn')}
             </button>
           )}
           <button
@@ -1055,6 +1160,8 @@ interface ReviewListProps {
   /** Collapse the list to just the reviews you're actively on (pinned,
    *  which includes anything you've reviewed). */
   activeOnly?: boolean;
+  /** PR number → rapid-re-review mode, for the green RAPID pill. */
+  rapidMap?: RapidReReviewMap;
   /** Whether a PR row should render with the NEW chip. */
   isNew?: (n: number) => boolean;
   /** Click handler for the NEW chip — dismisses just that row. */
@@ -1174,6 +1281,7 @@ function ReviewList({
   reviewChats,
   ignoredPrs,
   activeOnly,
+  rapidMap,
   isNew,
   onMarkSeen,
   isReReviewDismissed,
@@ -1227,23 +1335,33 @@ function ReviewList({
   // alone isn't enough — with hundreds of rows the one PR that names
   // you personally is invisible if it merely sits at the top of an
   // undifferentiated list.
-  const groups = REVIEW_TIER_ORDER
-    .map((tier) => ({
-      tier,
-      // Active first within the category — EXCEPT in "Waiting on you",
-      // where sinking an unattended direct ask below ones you've already
-      // picked up defeats the point of the section.
-      rows: visibleReviews
-        .filter((r) => (r.tier ?? 'org') === tier)
-        .sort((a, b) => {
-          if (tier === 'direct') return 0;
-          // A re-review counts as active alongside a pin: it's work you
-          // already started that has come back to you.
-          const active = (r: ReviewItem): number => Number(!!r.pinned || !!r.flags.reReview);
-          return active(b) - active(a);
-        }),
-    }))
-    .filter((g) => g.rows.length > 0);
+  // Re-reviews come out of the tiers entirely and sit at the very top.
+  // A PR you already reviewed that the author has since pushed to is the
+  // most actionable thing in the panel — it's half-finished work with
+  // someone waiting on you — and burying it under whichever tier its
+  // author happens to fall into is how review rounds stall.
+  //
+  // RAPID ones are excluded: they get nudged automatically, so hoisting
+  // them would fill the top of the panel with work already in progress.
+  const isHoistedReReview = (r: ReviewItem): boolean =>
+    !!r.flags.reReview && !isRapidReReview(rapidMap, r.number);
+  const reReviewRows = visibleReviews.filter(isHoistedReReview);
+  const groups: Array<{ tier: ReviewGroupKey; rows: ReviewItem[] }> = [
+    ...(reReviewRows.length > 0
+      ? [{ tier: 'rereview' as const, rows: reReviewRows }]
+      : []),
+    ...REVIEW_TIER_ORDER
+      .map((tier) => ({
+        tier: tier as ReviewGroupKey,
+        // Active first within the category — EXCEPT in "Waiting on you",
+        // where sinking an unattended direct ask below ones you've
+        // already picked up defeats the point of the section.
+        rows: visibleReviews
+          .filter((r) => (r.tier ?? 'org') === tier && !isHoistedReReview(r))
+          .sort((a, b) => (tier === 'direct' ? 0 : Number(!!b.pinned) - Number(!!a.pinned))),
+      }))
+      .filter((g) => g.rows.length > 0),
+  ];
   return (
     <>
       {groups.map((g) => (
@@ -1272,6 +1390,7 @@ function ReviewList({
             key={r.number}
             review={r}
             linked={linked}
+            rapid={isRapidReReview(rapidMap, r.number)}
             onClick={onClick}
             avatarColor={avatarColor}
             linkedTitle={linkedTitle}
@@ -1289,9 +1408,11 @@ function ReviewList({
   );
 }
 
-function ReviewRow({ review: r, linked, onClick, avatarColor, linkedTitle, isNew, isReReviewDismissed, onMarkSeen, onReReview, onContextMenu }: {
+function ReviewRow({ review: r, linked, rapid, onClick, avatarColor, linkedTitle, isNew, isReReviewDismissed, onMarkSeen, onReReview, onContextMenu }: {
   review: ReviewItem;
   linked: { open: boolean; focused: boolean } | undefined;
+  /** RAPID RE-REVIEW is on for this PR. */
+  rapid?: boolean;
   onClick: () => void;
   avatarColor: (s: string) => string;
   linkedTitle: string;
@@ -1412,6 +1533,11 @@ function ReviewRow({ review: r, linked, onClick, avatarColor, linkedTitle, isNew
                   {t('reviews.row.noReviewsLabel')}
                   <i className="fa-solid fa-arrow-up-right-from-square pill-ext" aria-hidden />
                 </button>
+              )}
+              {rapid && (
+                <span className="pill rapid" title={t('reviews.row.rapidPillTitle')}>
+                  <i className="fa-solid fa-bolt" aria-hidden /> {t('reviews.row.rapidPill')}
+                </span>
               )}
               {r.isDraft && <span className="pill muted">{t('reviews.row.draft')}</span>}
               {/* Open-in-browser is now exposed via right-click → "Open

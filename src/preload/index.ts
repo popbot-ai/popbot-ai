@@ -90,6 +90,8 @@ const api: PopBotApi = {
       ipcRenderer.invoke(IpcChannel.FilesOpenAttachment, path),
     openInEditor: (chatId: string | null, path: string, line?: number) =>
       ipcRenderer.invoke(IpcChannel.FilesOpenInEditor, chatId, path, line),
+    revealInFolder: (chatId: string | null, path: string) =>
+      ipcRenderer.invoke(IpcChannel.FilesRevealInFolder, chatId, path),
     pickDirectory: (opts?: { title?: string; defaultPath?: string }) =>
       ipcRenderer.invoke(IpcChannel.FilesPickDirectory, opts),
   },

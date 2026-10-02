@@ -1650,6 +1650,30 @@ input, textarea { font: inherit; color: inherit; background: none; border: 0; ou
   scroll-behavior: smooth;
   user-select: text;
 }
+
+/* Only the agent's and user's PROSE should end up on the clipboard.
+ *
+ * `.col-body { user-select: text }` overrides the global
+ * `body { user-select: none }`, and it cascades into every descendant —
+ * including buttons, pills, chips, avatars and icon glyphs. A drag that
+ * crossed any of them swept their labels into the selection too, so a
+ * copy came back looking like the whole visible chat rather than what
+ * was highlighted. Verified with a real drag + clipboard read: before
+ * this rule a p1->p2 drag copied "PILL\nSECOND message…", after it
+ * copies "SECOND message…".
+ *
+ * Icons are the worst offenders: Font Awesome renders its glyph as
+ * ::before content, which serializes into the clipboard as a private-use
+ * codepoint — invisible garbage in whatever you paste into. */
+.col-body button,
+.col-body .pill,
+.col-body .avatar,
+.col-body .dot,
+.col-body [aria-hidden='true'],
+.col-body i[class*='fa-'] {
+  user-select: none;
+  -webkit-user-select: none;
+}
 /* Force any direct child of col-body to respect the column width so
    nothing it contains can push a horizontal scrollbar back into
    existence. Min-width:0 lets flex children shrink below their
@@ -5258,6 +5282,15 @@ input.input.mono, select.input.mono { font-family: var(--font-mono); font-size: 
   color: var(--fg-1);
   font-size: var(--fs-sm);
   font-weight: 600;
+}
+
+/* RAPID RE-REVIEW marker on a review row. Green because it's a mode
+   that's working FOR you in the background, not a warning. */
+.pill.rapid {
+  color: var(--st-done);
+  background: var(--st-done-bg);
+  border-color: rgba(63, 178, 127, 0.45);
+  letter-spacing: 0.05em;
 }
 
 /* Pills that navigate. Same look as a static pill, but clickable and

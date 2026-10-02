@@ -96,6 +96,20 @@ Before / alongside posting, **call out red flags in this chat** — anything I s
 
 When done, reply with a one-line verdict + the top 1-3 red flags (or "none" if there really aren't any).`;
 
+/**
+ * RAPID RE-REVIEW — the opt-in, per-chat fast path.
+ *
+ * Deliberately tiny. The full re-review template re-establishes context
+ * from scratch every round, which is the right thing for an occasional
+ * re-request but far too heavy when an author is iterating and rounds
+ * start to stack up. In a chat that already reviewed this PR the context
+ * is still there; all the agent needs is a nudge and the freedom to
+ * decide how deep to go based on what actually landed.
+ */
+export const DEFAULT_RAPID_RE_REVIEW_TEMPLATE =
+  'RAPID RE-REVIEW: Check the latest commit for fixes to the remaining issues, '
+  + 'or re-review if larger changes are pushed.';
+
 export const DEFAULT_RE_REVIEW_TEMPLATE = `The author pushed fixes to PR **#\${prnum}: \${prtitle}** (branch \`\${branch}\`) and re-requested your review.
 
 **Use the \`review-pr\` skill again, this time scoped to the new commits since your previous review.** Don't re-review the whole PR — focus on what changed.

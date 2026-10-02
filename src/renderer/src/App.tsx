@@ -30,7 +30,10 @@ import {
   type AgentCreateConfig,
   type AgentEffortDefaultsSettings,
 } from './components/AgentCreateControls';
-import { DEFAULT_RE_REVIEW_TEMPLATE, DEFAULT_START_CL_REVIEW_TEMPLATE, DEFAULT_START_CODE_REVIEW_TEMPLATE, DEFAULT_START_TICKET_TEMPLATE, expandTemplate } from '@shared/templates';
+import {
+  RE_REVIEWED_SHA_SETTING,
+  type ReReviewedShaMap, isRapidReReview, RAPID_RE_REVIEW_SETTING, type RapidReReviewMap } from '@shared/reviews';
+import { DEFAULT_RAPID_RE_REVIEW_TEMPLATE, DEFAULT_RE_REVIEW_TEMPLATE, DEFAULT_START_CL_REVIEW_TEMPLATE, DEFAULT_START_CODE_REVIEW_TEMPLATE, DEFAULT_START_TICKET_TEMPLATE, expandTemplate } from '@shared/templates';
 import { DEFAULT_SOURCE_CONTROL, SOURCE_CONTROL_PROVIDERS } from '@shared/sourceControl';
 import type { SourceControlProviderId } from '@shared/sourceControl';
 import type { ReviewItem } from '@shared/reviews';
@@ -956,7 +959,20 @@ export default function App(): JSX.Element {
    *  When no existing chat exists (you've never reviewed this PR via
    *  PopBot), fall back to the standard new-PR-chat flow so the user
    *  still gets a usable starting point. */
+  /**
+   * Mark this PR's current head as handled. Re-review won't fire again
+   * until the author pushes a different commit — so a review you've
+   * already picked up stops nagging, no matter how long it then sits.
+   */
+  const markReReviewHandled = useCallback((r: ReviewItem) => {
+    if (!r.headSha) return;
+    const map = getSetting<ReReviewedShaMap>(RE_REVIEWED_SHA_SETTING, {}) ?? {};
+    if (map[String(r.number)] === r.headSha) return;
+    void setAppSetting(RE_REVIEWED_SHA_SETTING, { ...map, [String(r.number)]: r.headSha });
+  }, [getSetting, setAppSetting]);
+
   const handleReReview = async (r: ReviewItem): Promise<void> => {
+    markReReviewHandled(r);
     const existing =
       chats.find((c) => c.pr === r.number) ??
       closedChats.find((c) => c.pr === r.number);
@@ -1168,7 +1184,43 @@ export default function App(): JSX.Element {
   // separately; this just covers "a PR you didn't see before
   // appeared in your review queue."
   const onNewReviews = useCallback((fresh: ReviewItem[]) => {
+    const rapidMap = getSetting<RapidReReviewMap>(RAPID_RE_REVIEW_SETTING, {});
     for (const r of fresh) {
+      // RAPID RE-REVIEW: the author pushed onto a review this chat is
+      // already deep in, and the user has opted that review into the
+      // fast path. Nudge the chat straight away with a one-liner rather
+      // than waiting for them to click the badge — the whole point is to
+      // keep a stacking review round moving.
+      //
+      // `fresh` fires on the re-review TRANSITION (see alertSigOf in
+      // useReviews), so this is naturally once per push, not per poll.
+      if (r.flags.reReview && isRapidReReview(rapidMap, r.number)) {
+        // Only chats that are actually open. A closed chat was closed
+        // deliberately; silently reopening it to run a review would be
+        // the app taking a liberty it hasn't been given.
+        const live = chats.find((c) => c.pr === r.number);
+        if (live) {
+          const tmpl = (
+            getSetting<{ rapidReReview?: string }>('templates', {})?.rapidReReview
+            ?? DEFAULT_RAPID_RE_REVIEW_TEMPLATE
+          ).trim();
+          if (tmpl) {
+            markReReviewHandled(r);
+            void window.popbot.agent.send({
+              chatId: live.id,
+              text: expandTemplate(tmpl, {
+                prnum: r.number,
+                prtitle: r.title,
+                branch: r.headRefName,
+                slot: '',
+              }),
+            });
+          }
+          // Handled — it's already being worked, so don't also fire a
+          // "re-review requested" notification asking them to do it.
+          continue;
+        }
+      }
       // Re-reviews dispatch as their own event so they aren't dedup-
       // suppressed by the original "new PR" notification (which would
       // share `review:N`). They're also high-urgency unconditionally
@@ -1191,7 +1243,7 @@ export default function App(): JSX.Element {
         dedupKey: isReReview ? `review:${r.number}:rereview` : `review:${r.number}`,
       });
     }
-  }, [t]);
+  }, [t, chats, getSetting]);
 
   // Native macOS app menu → "About PopBot" opens our custom dialog.
   useEffect(() => window.popbot.updates.onShowAbout(() => setAboutOpen(true)), []);

@@ -31,6 +31,12 @@ import { hotkey } from '../lib/hotkeys';
 import { LiveChatBody } from './LiveChatBody';
 import { useAppsRunning } from '../lib/useAppsRunning';
 import { useSettings } from '../lib/useSettings';
+import {
+  isRapidReReview,
+  RAPID_RE_REVIEW_SETTING,
+  toggleRapidReReview,
+  type RapidReReviewMap,
+} from '@shared/reviews';
 import { LinearStateIcon, isPausedState, PAUSED_COLOR } from '../lib/linearIcons';
 import { colAccentStyle } from '../lib/repoColor';
 import { ReviewAvatar } from './ReviewAvatar';
@@ -267,7 +273,8 @@ export function ChatColumn({
 
   const agent = chat.agent || 'claude';
   // Codex only measures its context window over the app-server connection.
-  const { get: getAppSetting } = useSettings();
+  const { get: getAppSetting, set: setAppSetting } = useSettings();
+  const rapidMap = getAppSetting<RapidReReviewMap>(RAPID_RE_REVIEW_SETTING, {});
   const usageReported =
     agent !== 'codex' || codexUsesAppServer(getAppSetting<CodexSettings>(CODEX_SETTINGS_KEY));
   const selectedModelValue = agent === 'codex'
@@ -661,6 +668,27 @@ export function ChatColumn({
           style={{ top: menu.top, right: menu.right }}
           onMouseDown={(e) => e.stopPropagation()}
         >
+          {chat.pr != null && (
+            <button
+              type="button"
+              className="chat-menu-item"
+              role="menuitem"
+              title={t('chatSettings.rapidReReviewDesc')}
+              onClick={() => {
+                setMenu(null);
+                void setAppSetting(
+                  RAPID_RE_REVIEW_SETTING,
+                  toggleRapidReReview(rapidMap, chat.pr!),
+                );
+              }}
+            >
+              <i
+                className={`fa-solid ${isRapidReReview(rapidMap, chat.pr) ? 'fa-check' : 'fa-bolt'}`}
+                aria-hidden="true"
+              />
+              {t('chatSettings.rapidReReview')}
+            </button>
+          )}
           {!chat.cloud && !chat.host && (
             <>
               <button
