@@ -173,59 +173,93 @@ export async function endHostSession(host: HostAddress, chatId: string): Promise
  * the connection fails; the caller decides whether to come back with
  * the last seq it saw.
  */
+/** The host pings every 15 s (SSE_PING_MS in src/host/server.ts). This
+ *  long without a byte, the stream is dead — usually because the network
+ *  changed under it (a laptop leaving the office), which kills the TCP
+ *  connection without telling either end. Left to fetch, that is only
+ *  noticed after its 5-minute body timeout, and everything the agent
+ *  says in between waits on the host. */
+const STREAM_SILENCE_MS = 45_000;
+/** How long the host has to answer the request for the stream at all. */
+const STREAM_CONNECT_MS = 20_000;
+
 export async function readHostEvents(
   host: HostAddress,
   chatId: string,
   after: number,
   signal: AbortSignal,
   onFrame: (frame: HostFrame) => void,
+  /** Tests shorten the silence allowed. */
+  silenceMs = STREAM_SILENCE_MS,
 ): Promise<void> {
-  let res: Response;
+  // Our own abort, for silence; the caller's still ends it as before.
+  const ctl = new AbortController();
+  const onOuterAbort = (): void => ctl.abort();
+  signal.addEventListener('abort', onOuterAbort, { once: true });
+  let silent = false;
+  let watchdog: ReturnType<typeof setTimeout> | null = null;
+  const arm = (ms: number): void => {
+    if (watchdog) clearTimeout(watchdog);
+    watchdog = setTimeout(() => { silent = true; ctl.abort(); }, ms);
+  };
+  const stalled = (): HostRequestError =>
+    new HostRequestError(0, `${host.name}: no word from the host for ${Math.round(silenceMs / 1000)} s; reconnecting`);
   try {
-    res = await fetch(`${baseUrl(host.url)}/v1/chats/${encodeURIComponent(chatId)}/events?after=${after}`, {
-      headers: { Authorization: `Bearer ${host.token}`, Accept: 'text/event-stream' },
-      signal,
-    });
-  } catch (err) {
-    throw new HostRequestError(0, `${host.name}: ${describeFetchError(err)}`);
-  }
-  if (!res.ok || !res.body) {
-    throw new HostRequestError(res.status, `${host.name}: events ${res.status} ${res.statusText}`);
-  }
-  const reader = res.body.getReader();
-  const decoder = new TextDecoder();
-  let buffer = '';
-  for (;;) {
-    let chunk: Awaited<ReturnType<typeof reader.read>>;
+    let res: Response;
+    arm(STREAM_CONNECT_MS);
     try {
-      chunk = await reader.read();
+      res = await fetch(`${baseUrl(host.url)}/v1/chats/${encodeURIComponent(chatId)}/events?after=${after}`, {
+        headers: { Authorization: `Bearer ${host.token}`, Accept: 'text/event-stream' },
+        signal: ctl.signal,
+      });
     } catch (err) {
-      if (signal.aborted) return;
+      if (silent) throw new HostRequestError(0, `${host.name}: timed out opening the event stream`);
       throw new HostRequestError(0, `${host.name}: ${describeFetchError(err)}`);
     }
-    if (chunk.done) return;
-    buffer += decoder.decode(chunk.value, { stream: true });
-    let idx = buffer.indexOf('\n\n');
-    while (idx >= 0) {
-      const block = buffer.slice(0, idx);
-      buffer = buffer.slice(idx + 2);
-      idx = buffer.indexOf('\n\n');
-      // Comment lines (`: ping`) carry no data.
-      const data = block
-        .split('\n')
-        .filter((l) => l.startsWith('data:'))
-        .map((l) => l.slice(5).trimStart())
-        .join('\n');
-      if (!data) continue;
-      let frame: HostFrame;
-      try {
-        frame = JSON.parse(data) as HostFrame;
-      } catch {
-        dlog('host.frame.bad', { chatId, host: host.name, len: data.length });
-        continue;
-      }
-      onFrame(frame);
+    if (!res.ok || !res.body) {
+      throw new HostRequestError(res.status, `${host.name}: events ${res.status} ${res.statusText}`);
     }
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+    for (;;) {
+      arm(silenceMs);
+      let chunk: Awaited<ReturnType<typeof reader.read>>;
+      try {
+        chunk = await reader.read();
+      } catch (err) {
+        if (silent) throw stalled();
+        if (signal.aborted) return;
+        throw new HostRequestError(0, `${host.name}: ${describeFetchError(err)}`);
+      }
+      if (chunk.done) return;
+      buffer += decoder.decode(chunk.value, { stream: true });
+      let idx = buffer.indexOf('\n\n');
+      while (idx >= 0) {
+        const block = buffer.slice(0, idx);
+        buffer = buffer.slice(idx + 2);
+        idx = buffer.indexOf('\n\n');
+        // Comment lines (`: ping`) carry no data — they only keep the
+        // watchdog above from firing.
+        const data = block
+          .split('\n')
+          .filter((l) => l.startsWith('data:'))
+          .map((l) => l.slice(5).trimStart())
+          .join('\n');
+        if (!data) continue;
+        let frame: HostFrame;
+        try {
+          frame = JSON.parse(data) as HostFrame;
+        } catch {
+          dlog('host.frame.bad', { chatId, host: host.name, len: data.length });
+          continue;
+        }
+        onFrame(frame);
+      }
+    }
+  } finally {
+    if (watchdog) clearTimeout(watchdog);
+    signal.removeEventListener('abort', onOuterAbort);
   }
 }
 
