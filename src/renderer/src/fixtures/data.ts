@@ -56,6 +56,9 @@ export interface Chat {
   /** Review chats: the PR author's login — shown as their avatar in
    *  place of the repo dot. */
   prAuthor?: string | null;
+  /** Bot chats: the bot's picture (null: none yet), shown in place of
+   *  the repo dot. Absent for every other chat. */
+  botAvatar?: string | null;
   agent?: 'claude' | 'codex';
   /** Workspace slot held by this chat (1-based), or null if none. */
   slotId?: number | null;

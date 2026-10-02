@@ -14,7 +14,7 @@ import type { HostBotInfo, HostBotInput } from '@shared/hostProtocol';
 import { RAW_CHAT_REPO_ID, type ChatRecord, type HostRecord } from '@shared/persistence';
 import { AgentHost } from '../agents/AgentHost';
 import { hostBotAction, killHostBot, probeHost, saveHostBot } from '../agents/hostClient';
-import { closeChat, createChat, deleteChat, getChat, listClosedChats, listOpenChats, renameChat } from '../persistence/chats';
+import { closeChat, createChat, deleteChat, getChat, listClosedChats, listOpenChats, renameChat, setChatHost } from '../persistence/chats';
 import { getHost, listHosts } from '../persistence/hosts';
 import { isDbOpen } from '../persistence/db';
 import { dlog } from '../diagLog';
@@ -97,6 +97,13 @@ function ensureBotChat(host: HostRecord, bot: HostBotInfo): ChatRecord | null {
       return null;
     }
     if (existing.name !== bot.name) renameChat(existing.id, bot.name);
+    // Its picture rides on the chat, for the column and thumbnail.
+    if (existing.host && (existing.host.botAvatar ?? null) !== (bot.avatar ?? null)) {
+      setChatHost(existing.id, { ...existing.host, botAvatar: bot.avatar ?? null });
+      const fresh = getChat(existing.id);
+      if (fresh) AgentHost.emit({ type: 'chat-updated', chatId: fresh.id, chat: fresh, ts: Date.now() });
+      return fresh;
+    }
     return existing;
   }
   const chat = createChat({
@@ -116,6 +123,7 @@ function ensureBotChat(host: HostRecord, bot: HostBotInfo): ChatRecord | null {
       cwd: null,
       lastSeq: 0,
       botId: bot.id,
+      botAvatar: bot.avatar ?? null,
     },
   });
   closeChat(chat.id);
