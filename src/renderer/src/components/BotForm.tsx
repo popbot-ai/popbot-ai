@@ -56,6 +56,35 @@ function thumbnail(file: File): Promise<string> {
   });
 }
 
+/** A comma-separated list that keeps what is typed — a trailing comma,
+ *  spaces — while handing the parsed list up as it changes. */
+function ListField({ value, placeholder, onChange, onCommit }: {
+  value: string[];
+  placeholder: string;
+  onChange: (list: string[]) => void;
+  onCommit: () => void;
+}): JSX.Element {
+  const parse = (text: string): string[] => text.split(',').map((p) => p.trim()).filter(Boolean);
+  const [text, setText] = useState(value.join(', '));
+  // A change from outside (not this field's typing) replaces the text.
+  const joined = value.join('\u0000');
+  useEffect(() => {
+    if (parse(text).join('\u0000') !== joined) setText(value.join(', '));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [joined]);
+  return (
+    <input
+      className="input"
+      type="text"
+      value={text}
+      placeholder={placeholder}
+      onChange={(e) => { setText(e.target.value); onChange(parse(e.target.value)); }}
+      onBlur={onCommit}
+      onKeyDown={(e) => { if (e.key === 'Enter') onCommit(); }}
+    />
+  );
+}
+
 /** The talks-to list as typed: names or ids, separated by commas. */
 function parsePeers(text: string): string[] {
   return [...new Set(text.split(',').map((p) => p.trim()).filter(Boolean))];
@@ -79,7 +108,10 @@ export function BotForm({ hosts, editing, onClose, onSaved }: BotFormProps): JSX
   const [avatar, setAvatar] = useState<string | null>(editing?.bot.avatar ?? null);
   const fileRef = useRef<HTMLInputElement | null>(null);
   const [githubToken, setGithubToken] = useState('');
-  const [triggers, setTriggers] = useState<BotTrigger[]>(editing?.bot.triggers ?? []);
+  // A host from before teams sends GitHub triggers without one.
+  const [triggers, setTriggers] = useState<BotTrigger[]>(
+    () => (editing?.bot.triggers ?? []).map((tr) => (tr.kind === 'github' ? { ...tr, team: tr.team ?? '' } : tr)),
+  );
   const [peersText, setPeersText] = useState((editing?.bot.peers ?? []).join(', '));
   const [addOpen, setAddOpen] = useState(false);
   const [verdict, setVerdict] = useState<Verdict>(null);
@@ -155,7 +187,7 @@ export function BotForm({ hosts, editing, onClose, onSaved }: BotFormProps): JSX
 
   const addTrigger = (kind: BotTrigger['kind']): void => {
     const trigger: BotTrigger = kind === 'github'
-      ? { id: newTriggerId(), kind: 'github', repo: null, labels: [], pollSeconds: DEFAULT_GITHUB_POLL_SECONDS }
+      ? { id: newTriggerId(), kind: 'github', repo: null, labels: [], team: '', pollSeconds: DEFAULT_GITHUB_POLL_SECONDS }
       : { id: newTriggerId(), kind: 'cron', schedule: '0 9 * * 1-5', message: '' };
     setTriggers((prev) => [...prev, trigger]);
     setAddOpen(false);
@@ -292,7 +324,7 @@ export function BotForm({ hosts, editing, onClose, onSaved }: BotFormProps): JSX
               className="input"
               type="text"
               value={githubLogin}
-              placeholder="webreviewer-bot"
+              placeholder={t('bots.form.githubLoginPlaceholder')}
               onChange={(e) => setGithubLogin(e.target.value)}
               onBlur={() => void apply()}
               onKeyDown={(e) => { if (e.key === 'Enter') void apply(); }}
@@ -389,14 +421,31 @@ export function BotForm({ hosts, editing, onClose, onSaved }: BotFormProps): JSX
                   </div>
                   <div className="field">
                     <label>{t('bots.trigger.labels')}</label>
+                    <ListField
+                      value={trigger.labels}
+                      placeholder={t('bots.trigger.labelsPlaceholder')}
+                      onChange={(labels) => setTrigger(trigger.id, { ...trigger, labels })}
+                      onCommit={() => void apply()}
+                    />
+                  </div>
+                  <div className="field">
+                    <label>{t('bots.trigger.team')}</label>
                     <input
                       className="input"
                       type="text"
-                      value={trigger.labels.join(', ')}
-                      placeholder="website-review, website-shepherd"
-                      onChange={(e) => setTrigger(trigger.id, { ...trigger, labels: e.target.value.split(',').map((l) => l.trim()).filter(Boolean) })}
+                      value={trigger.team}
+                      placeholder={t('bots.trigger.teamPlaceholder')}
+                      onChange={(e) => setTrigger(trigger.id, { ...trigger, team: e.target.value })}
                       onBlur={() => void apply()}
+                      onKeyDown={(e) => { if (e.key === 'Enter') void apply(); }}
                     />
+                  </div>
+                  <div className={`bot-form-hint indented${trigger.team.trim() ? '' : ' warn'}`}>
+                    {trigger.team.trim()
+                      ? trigger.team.split(',').some((p) => p.trim() === '*')
+                        ? t('bots.trigger.teamAnyone')
+                        : t('bots.trigger.teamHint')
+                      : t('bots.trigger.teamBlank')}
                   </div>
                   <div className="field">
                     <label>{t('bots.trigger.every')}</label>

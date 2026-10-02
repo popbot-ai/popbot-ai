@@ -15,6 +15,7 @@ import {
   type HostRepo,
 } from '@shared/hostProtocol';
 import { CLAUDE_MODELS, CLAUDE_REASONING_EFFORTS } from '@shared/persistence';
+import { teamSpecProblems } from '@shared/botTeams';
 import { cronProblem } from './cron';
 
 export interface HostConfig {
@@ -111,6 +112,8 @@ function normalizeTrigger(t: unknown, i: number): BotTrigger | null {
         ? raw.repo.trim().replace(/^https?:\/\/github\.com\//, '').replace(/(\.git)?\/*$/, '')
         : null,
       labels: Array.isArray(raw.labels) ? raw.labels.map((l) => String(l).trim()).filter(Boolean) : [],
+      // Absent in an older config: no one, until it is set.
+      team: typeof raw.team === 'string' ? raw.team.trim() : '',
       pollSeconds: Math.max(MIN_GITHUB_POLL_SECONDS, poll || DEFAULT_GITHUB_POLL_SECONDS),
     };
   }
@@ -155,6 +158,10 @@ export function upsertBot(config: HostConfig, configPath: string, id: string | n
   for (const t of next.triggers) {
     if (t.kind === 'github' && t.labels.length === 0) throw new Error('a GitHub trigger needs at least one label');
     if (t.kind === 'github' && !t.repo && !next.repoId) throw new Error('a GitHub trigger needs a repository (owner/name), or give the bot a repo');
+    if (t.kind === 'github') {
+      const bad = teamSpecProblems(t.team);
+      if (bad.length) throw new Error(`"${bad.join('", "')}" is not a team: use a team name, org/team, org/* or *`);
+    }
     if (t.kind === 'cron') {
       const why = cronProblem(t.schedule);
       if (why) throw new Error(`schedule "${t.schedule}": ${why}`);

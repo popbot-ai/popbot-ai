@@ -12,7 +12,7 @@ export function githubWakeLine(pr: { number: number; title: string; author: stri
 export function githubWakeText(repo: string, trigger: Pick<GithubTrigger, 'labels'>, lines: string[], gone: string[]): string {
   return (
     `GitHub — ${repo}, open pull requests labeled ${trigger.labels.join(' or ')}:\n\n${lines.join('\n')}` +
-    (gone.length ? `\n\nNo longer open or labeled: ${gone.map((n) => `#${n}`).join(', ')}.` : '')
+    (gone.length ? `\n\nNo longer open, labeled, or by the team: ${gone.map((n) => `#${n}`).join(', ')}.` : '')
   );
 }
 

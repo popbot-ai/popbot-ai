@@ -170,6 +170,11 @@ export interface GithubTrigger {
   /** `owner/name`; empty: the bot repo's GitHub origin. */
   repo: string | null;
   labels: string[];
+  /** Whose pull requests count: teams (`org/team`), orgs, or `*`, comma
+   *  separated. Empty matches no one — the repositories are public, and
+   *  a stranger's pull request must never reach a bot that pushes code.
+   *  See shared/botTeams.ts. */
+  team: string;
   /** Seconds between looks. */
   pollSeconds: number;
 }
