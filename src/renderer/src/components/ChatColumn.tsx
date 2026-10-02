@@ -29,6 +29,7 @@ import { SignInDialog } from './SignInDialog';
 import type { Readiness } from '../lib/useReadiness';
 import { hotkey } from '../lib/hotkeys';
 import { LiveChatBody } from './LiveChatBody';
+import { BotChatDialogs, BotChatMenuItems } from './BotChatMenu';
 import { useAppsRunning } from '../lib/useAppsRunning';
 import { useSettings } from '../lib/useSettings';
 import {
@@ -310,6 +311,10 @@ export function ChatColumn({
   // else. Anchored under its button; closes on outside click / scroll /
   // Escape like the gauge menu.
   const [menu, setMenu] = useState<{ top: number; right: number } | null>(null);
+  // A bot's chat gets the bot's commands instead (BotChatMenu.tsx).
+  const isBot = !!chat.host?.botId;
+  const [botDialog, setBotDialog] = useState<'edit' | 'kill' | null>(null);
+  const botError = (message: string): void => { alert(message); };
   useEffect(() => {
     if (!menu) return;
     const close = (): void => setMenu(null);
@@ -668,6 +673,10 @@ export function ChatColumn({
           style={{ top: menu.top, right: menu.right }}
           onMouseDown={(e) => e.stopPropagation()}
         >
+          {isBot ? (
+            <BotChatMenuItems chat={chat} open={!!menu} onPick={() => setMenu(null)} onDialog={setBotDialog} onError={botError} />
+          ) : (
+          <>
           {chat.pr != null && (
             <button
               type="button"
@@ -777,8 +786,11 @@ export function ChatColumn({
             <i className="fa-solid fa-gear" aria-hidden="true" />
             {t('chat.col.settingsTitle')}
           </button>
+          </>
+          )}
         </div>
       )}
+      {isBot && <BotChatDialogs chat={chat} dialog={botDialog} onClose={() => setBotDialog(null)} onError={botError} />}
       <div className="runtime-strip">
         <SlotAppButtons worktreePath={chat.worktreePath ?? null} chatId={chat.id} onOpenPrefs={onOpenPrefs} />
         {/* Both chips render side-by-side when applicable so the user

@@ -812,6 +812,10 @@ function MessageRowImpl({ message, renderAsQuestion, chain, isStale, consumed, q
     if (message.kind === 'system' && body.text.toLowerCase().startsWith('fork:')) {
       return <ChatForkRow text={body.text.replace(/^fork:\s*/i, '')} />;
     }
+    // A bot's lifecycle (a reset): a quiet line, like a notice.
+    if (message.kind === 'system' && body.text.toLowerCase().startsWith('bot:')) {
+      return <SystemNoticeRow text={body.text.replace(/^bot:\s*/i, '')} />;
+    }
     if (message.kind === 'system' && body.text.toLowerCase().startsWith('cloud:')) {
       return <CloudRow text={body.text.replace(/^cloud:\s*/i, '')} />;
     }

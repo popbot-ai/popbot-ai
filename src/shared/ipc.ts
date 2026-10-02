@@ -1174,7 +1174,7 @@ export interface PopBotApi {
     save(hostId: string, botId: string | null, input: HostBotInput): Promise<BotResult<{ bot: HostBotInfo }>>;
     /** Stop it and remove it from its host, with its chat here. */
     kill(hostId: string, botId: string): Promise<BotResult<object>>;
-    action(hostId: string, botId: string, action: 'wake' | 'pause' | 'resume'): Promise<BotResult<object>>;
+    action(hostId: string, botId: string, action: 'wake' | 'pause' | 'resume' | 'reset'): Promise<BotResult<object>>;
     /** The bot's chat record, made if missing, for the renderer to open
      *  as a column like any chat. */
     open(hostId: string, botId: string): Promise<BotResult<{ chat: ChatRecord }>>;

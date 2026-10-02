@@ -213,9 +213,9 @@ export function registerBotsHandlers(): void {
       return {};
     }));
 
-  ipcMain.handle(IpcChannel.BotsAction, (_e, hostId: string, botId: string, action: 'wake' | 'pause' | 'resume') =>
+  ipcMain.handle(IpcChannel.BotsAction, (_e, hostId: string, botId: string, action: 'wake' | 'pause' | 'resume' | 'reset') =>
     guarded(async () => {
-      if (action !== 'wake' && action !== 'pause' && action !== 'resume') throw new Error(`no action "${String(action)}"`);
+      if (!['wake', 'pause', 'resume', 'reset'].includes(action)) throw new Error(`no action "${String(action)}"`);
       await hostBotAction(hostOr(hostId), botId, action);
       await refresh();
       return {};

@@ -25,7 +25,7 @@
  *   POST /v1/bots                          HostBotInput → HostBotInfo  (a new bot)
  *   PUT  /v1/bots/:id                      HostBotInput → HostBotInfo  (rewrites the config)
  *   DELETE /v1/bots/:id                    → { ok }
- *   POST /v1/bots/:id/wake | pause | resume → { ok }
+ *   POST /v1/bots/:id/wake | pause | resume | reset → { ok }
  *
  * A bot's chat is an ordinary chat on this wire, under `botChatId(id)`:
  * the desktop attaches to it like any other. Only who drives it differs

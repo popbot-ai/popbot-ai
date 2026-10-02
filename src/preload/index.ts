@@ -274,7 +274,7 @@ const api: PopBotApi = {
     list: (refresh?: boolean) => ipcRenderer.invoke(IpcChannel.BotsList, refresh === true),
     save: (hostId: string, botId: string | null, input: HostBotInput) => ipcRenderer.invoke(IpcChannel.BotsSave, hostId, botId, input),
     kill: (hostId: string, botId: string) => ipcRenderer.invoke(IpcChannel.BotsKill, hostId, botId),
-    action: (hostId: string, botId: string, action: 'wake' | 'pause' | 'resume') => ipcRenderer.invoke(IpcChannel.BotsAction, hostId, botId, action),
+    action: (hostId: string, botId: string, action: 'wake' | 'pause' | 'resume' | 'reset') => ipcRenderer.invoke(IpcChannel.BotsAction, hostId, botId, action),
     open: (hostId: string, botId: string) => ipcRenderer.invoke(IpcChannel.BotsOpen, hostId, botId),
   },
   updates: {
