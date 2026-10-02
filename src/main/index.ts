@@ -75,6 +75,7 @@ import { registerHostsHandlers } from './ipc/hosts';
 import { startSlackPoller, stopSlackPoller } from './slack/poll';
 import { pruneOlderThan } from './persistence/notifications';
 import { purgePersistedDiagnostics } from './persistence/messages';
+import { pruneOldToolResults } from './persistence/toolBodyPrune';
 import { attachWebContents as attachTermWindow, disposeAll as disposeAllPtys } from './term/ptyManager';
 import { startPopbotMcp, stopPopbotMcp } from './mcp/registry';
 import { createPopbotToolHandlers } from './mcp/popbotTools';
@@ -553,6 +554,29 @@ void app.whenReady().then(async () => {
   // catches rows written by an older build the user rolled back to.
   const purged = purgePersistedDiagnostics();
   if (purged > 0) dlog('messages.diagnostics-purged', { count: purged });
+
+  // Tool-result retention. Old `tool` messages keep their call and a
+  // readable head of their output; the rest of the text goes. Deferred a
+  // few seconds so it never competes with window creation, then repeated
+  // daily for installs that stay open for weeks.
+  //
+  // This is the sweep that keeps the database from growing without
+  // bound: on a real install, tool results were 1.27 GB of body and,
+  // because FTS indexes them, several GB more of index.
+  const TOOL_PRUNE_EVERY_MS = 24 * 60 * 60 * 1000;
+  const sweepToolResults = (): void => {
+    try {
+      const r = pruneOldToolResults();
+      if (r.trimmed > 0) {
+        console.log(`tool-result retention: trimmed ${r.trimmed} results, freed ~${(r.bytesFreed / 1e6).toFixed(0)} MB`);
+      }
+    } catch (err) {
+      // Never let maintenance take the app down with it.
+      dlog('messages.tool-prune.failed', { error: (err as Error).message });
+    }
+  };
+  setTimeout(sweepToolResults, 8_000).unref?.();
+  setInterval(sweepToolResults, TOOL_PRUNE_EVERY_MS).unref?.();
   const win = createMainWindow();
   attachTermWindow(win.webContents);
   startAutoUpdater();

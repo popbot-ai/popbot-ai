@@ -533,6 +533,33 @@ export interface ChatAttachment {
 
 /** Retained chat attachments are copied into PopBot's userData store and
  *  swept after this many days. Configurable in Preferences → Runtime. */
+/**
+ * Tool-result retention. Old `tool` messages keep their call and a
+ * readable head of their output; the rest is dropped by a daily sweep.
+ *
+ * This is the main defence against unbounded database growth. Measured
+ * on a real install: 177,290 `tool` rows held 1.44 GB, 1.27 GB of it in
+ * `result`, and because the FTS trigger indexes that field it was stored
+ * twice more in the search index.
+ */
+export interface ToolRetentionSettings {
+  /** Days before a tool result is shortened. */
+  resultTtlDays?: number;
+  /** False keeps every byte forever. */
+  pruneResults?: boolean;
+}
+
+export const DEFAULT_TOOL_RESULT_TTL_DAYS = 20;
+export const TOOL_RESULT_TTL_DAYS_MIN = 1;
+export const TOOL_RESULT_TTL_DAYS_MAX = 3650;
+
+export function clampToolResultTtlDays(days: number | undefined | null): number {
+  if (typeof days !== 'number' || !Number.isFinite(days)) return DEFAULT_TOOL_RESULT_TTL_DAYS;
+  const n = Math.floor(days);
+  if (!n) return DEFAULT_TOOL_RESULT_TTL_DAYS;
+  return Math.max(TOOL_RESULT_TTL_DAYS_MIN, Math.min(TOOL_RESULT_TTL_DAYS_MAX, n));
+}
+
 export const ATTACHMENT_TTL_DAYS_DEFAULT = 60;
 export const ATTACHMENT_TTL_DAYS_MIN = 1;
 export const ATTACHMENT_TTL_DAYS_MAX = 365;

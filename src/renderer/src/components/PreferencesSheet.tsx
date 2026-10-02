@@ -33,6 +33,9 @@ import {
   codexUsesAppServer,
   type CodexSettings,
   clampAttachmentTtlDays,
+  clampToolResultTtlDays,
+  DEFAULT_TOOL_RESULT_TTL_DAYS,
+  type ToolRetentionSettings,
   clampMaxChangedFiles,
   MAX_CHANGED_FILES_DEFAULT,
   MAX_CHANGED_FILES_MAX,
@@ -1035,13 +1038,28 @@ function PrefsAttachments(): JSX.Element {
   const savedDays = clampAttachmentTtlDays(initial.ttlDays ?? ATTACHMENT_TTL_DAYS_DEFAULT);
   const [days, setDays] = useState<number>(savedDays);
 
+  // Tool-result retention lives in its own settings key but belongs on
+  // this panel: both are "how long do we keep bulk we can't reconstruct".
+  const tool = get<ToolRetentionSettings>('toolRetention', {}) ?? {};
+  const savedToolDays = clampToolResultTtlDays(tool.resultTtlDays ?? DEFAULT_TOOL_RESULT_TTL_DAYS);
+  const savedToolOn = tool.pruneResults !== false;
+  const [toolDays, setToolDays] = useState<number>(savedToolDays);
+  const [toolOn, setToolOn] = useState<boolean>(savedToolOn);
+
   // Sync once useSettings finishes loading — same pattern as PrefsApps:
   // the first render captures the default before the saved value lands.
   useEffect(() => { setDays(savedDays); }, [savedDays]);
+  useEffect(() => { setToolDays(savedToolDays); }, [savedToolDays]);
+  useEffect(() => { setToolOn(savedToolOn); }, [savedToolOn]);
   const commit = useAutoCommit<AttachmentsSettings>({
     draft: () => ({ ttlDays: clampAttachmentTtlDays(days) }),
     saved: () => ({ ttlDays: savedDays }),
     write: (next) => set('attachments', next),
+  });
+  const commitTool = useAutoCommit<ToolRetentionSettings>({
+    draft: () => ({ resultTtlDays: clampToolResultTtlDays(toolDays), pruneResults: toolOn }),
+    saved: () => ({ resultTtlDays: savedToolDays, pruneResults: savedToolOn }),
+    write: (next) => set('toolRetention', next),
   });
 
   if (loading) return <div className="pref-section"><h3>{t('prefs.runtime.title')}</h3></div>;
@@ -1076,6 +1094,41 @@ function PrefsAttachments(): JSX.Element {
                 if (Number.isFinite(n)) setDays(n);
               }}
               onBlur={() => { setDays(clampAttachmentTtlDays(days)); void commit(); }}
+              onKeyDown={blurOnEnter}
+              style={{ width: 90 }}
+            />
+            <span style={{ color: 'var(--fg-3)', fontSize: 12 }}>{t('common.days')}</span>
+          </div>
+        </div>
+
+        <div className="pref-row">
+          <div className="pref-label">
+            <div className="pref-label-title">{t('prefs.runtime.toolResults.title')}</div>
+            <div className="pref-label-desc">
+              {t('prefs.runtime.toolResults.desc', { default: DEFAULT_TOOL_RESULT_TTL_DAYS })}
+            </div>
+          </div>
+          <div className="pref-control" style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <label className="pref-radio" style={{ gap: 6, marginRight: 4 }}>
+              <input
+                type="checkbox"
+                checked={toolOn}
+                onChange={(e) => { setToolOn(e.target.checked); void commitTool({ pruneResults: e.target.checked }); }}
+              />
+              <span className="pref-radio-label">{t('prefs.runtime.toolResults.enable')}</span>
+            </label>
+            <input
+              type="number"
+              className="pref-input mono"
+              min={1}
+              max={3650}
+              disabled={!toolOn}
+              value={toolDays}
+              onChange={(e) => {
+                const n = parseInt(e.target.value, 10);
+                if (Number.isFinite(n)) setToolDays(n);
+              }}
+              onBlur={() => { setToolDays(clampToolResultTtlDays(toolDays)); void commitTool(); }}
               onKeyDown={blurOnEnter}
               style={{ width: 90 }}
             />

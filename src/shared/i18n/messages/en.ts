@@ -1062,6 +1062,10 @@ export const en = {
   'prefs.runtime.keepFor.title': 'Keep attachments for',
   'prefs.runtime.keepFor.desc':
     'Default {default} days (range {min}–{max}). Lower it to reclaim disk sooner; raise it to keep history longer.',
+  'prefs.runtime.toolResults.title': 'Keep full tool output for',
+  'prefs.runtime.toolResults.desc':
+    'Tool results are the bulk of the database — a long Bash or Read result can be megabytes, and the search index stores it again. After this many days (default {default}) a daily sweep keeps the call and the first couple of KB of output and drops the rest. Nothing is deleted; no result inside the window is touched.',
+  'prefs.runtime.toolResults.enable': 'Trim old output',
 
   // Preferences — Integrations: ticket source / game engine.
   'prefs.integ.ticketSource.title': 'Ticket source',
