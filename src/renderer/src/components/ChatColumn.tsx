@@ -41,6 +41,7 @@ import {
 import { LinearStateIcon, isPausedState, PAUSED_COLOR } from '../lib/linearIcons';
 import { colAccentStyle } from '../lib/repoColor';
 import { ReviewAvatar } from './ReviewAvatar';
+import { BotAvatar } from './BotAvatar';
 import { useTranslation } from '../lib/i18n';
 import type { MessageKey, Translator } from '@shared/i18n';
 import { engineEnabled, engineMeta, type GameEngineId, type GameEnginesSettings } from '@shared/gameEngine';
@@ -616,9 +617,11 @@ export function ChatColumn({
               and thumbnail strip so the three lists are read-equivalent.
               Inherits `--col-accent` from the col element. A review
               chat shows its PR author's avatar instead, as those do. */}
-          {chat.prAuthor
-            ? <ReviewAvatar author={chat.prAuthor} className="col-name-dot" title={`${chat.prAuthor} · ${repoTitle}`} />
-            : <span className="col-name-dot" aria-hidden="true" title={repoTitle} />}
+          {chat.host?.botId
+            ? <BotAvatar avatar={chat.host.botAvatar} className="col-name-dot" title={chat.name} />
+            : chat.prAuthor
+              ? <ReviewAvatar author={chat.prAuthor} className="col-name-dot" title={`${chat.prAuthor} · ${repoTitle}`} />
+              : <span className="col-name-dot" aria-hidden="true" title={repoTitle} />}
           {renaming ? (
             <input
               className="col-title-input"

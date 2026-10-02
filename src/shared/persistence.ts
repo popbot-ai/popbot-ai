@@ -276,6 +276,9 @@ export interface HostChatInfo {
   /** This chat is a bot's (see HostBot): its host drives it, it lives
    *  in the Bots tab, and closing it only stops showing it. */
   botId?: string | null;
+  /** The bot's picture (a data: URL), copied from its host so the chat
+   *  wears it even while the host is off. */
+  botAvatar?: string | null;
 }
 
 export interface CloudChatInfo {

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, type DragEvent, type MouseEvent } from 'react';
 import { colAccentStyle } from '../lib/repoColor';
 import { ReviewAvatar } from './ReviewAvatar';
+import { BotAvatar } from './BotAvatar';
 import type {
   MessageBodyPermission,
   MessageBodyText,
@@ -226,9 +227,11 @@ export function MonitorCard({
         // The stripe: status glyph, the name running down, the working
         // blinker — enough to find and click the chat.
         <div className="mon-thin">
-          {chat.prAuthor
-            ? <ReviewAvatar author={chat.prAuthor} className={`mon-glyph status-${chat.status}`} />
-            : <span className={`mon-glyph status-${chat.status}`}>{glyph}</span>}
+          {chat.botAvatar !== undefined
+            ? <BotAvatar avatar={chat.botAvatar} className={`mon-glyph status-${chat.status}`} />
+            : chat.prAuthor
+              ? <ReviewAvatar author={chat.prAuthor} className={`mon-glyph status-${chat.status}`} />
+              : <span className={`mon-glyph status-${chat.status}`}>{glyph}</span>}
           <span className="mon-thin-name">{chat.name}</span>
           {attention && <span className="mon-thin-attn" data-kind={attention.toLowerCase()} title={t(ATTENTION_LABEL_KEY[attention])} />}
           {chat.status === 'run' && <span className="mon-thin-cursor" />}
@@ -243,9 +246,11 @@ export function MonitorCard({
       <div className="mon-head">
         {/* A review chat wears its PR author's face where the repo dot
             goes — the quickest way to find whose review this is. */}
-        {chat.prAuthor
-          ? <ReviewAvatar author={chat.prAuthor} className={`mon-glyph status-${chat.status}`} />
-          : <span className={`mon-glyph status-${chat.status}`}>{glyph}</span>}
+        {chat.botAvatar !== undefined
+          ? <BotAvatar avatar={chat.botAvatar} className={`mon-glyph status-${chat.status}`} />
+          : chat.prAuthor
+            ? <ReviewAvatar author={chat.prAuthor} className={`mon-glyph status-${chat.status}`} />
+            : <span className={`mon-glyph status-${chat.status}`}>{glyph}</span>}
         <span className="mon-name" title={chat.name}>{chat.name}</span>
         <span
           className="mon-tok"

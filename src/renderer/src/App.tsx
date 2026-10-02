@@ -91,6 +91,7 @@ function chatRecordToFixture(c: ChatRecord, t: Translator): ChatFixture {
     ticket: c.ticket ?? undefined,
     pr: c.pr ?? undefined,
     prAuthor: c.prAuthor,
+    ...(c.host?.botId ? { botAvatar: c.host.botAvatar ?? null } : {}),
     agent: c.agent,
     slotId: c.slotId,
     worktreePath: c.worktreePath,
