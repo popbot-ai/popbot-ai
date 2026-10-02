@@ -76,6 +76,20 @@ async function main(): Promise<void> {
   process.on('SIGTERM', () => void shutdown());
 }
 
+// A crash says why before the process goes: the service layer restarts
+// it (scripts/install-host-service.ps1), and the log is the only place
+// the reason survives.
+process.on('uncaughtException', (err) => {
+  dlog('host.crash', { error: err instanceof Error ? err.stack ?? err.message : String(err) });
+  process.stderr.write(`popbot-host: crashed: ${err instanceof Error ? err.stack ?? err.message : String(err)}\n`);
+  process.exit(1);
+});
+// A promise nobody awaited failing is logged, not fatal: one bot's bad
+// turn must not take every chat on the host down with it.
+process.on('unhandledRejection', (reason) => {
+  dlog('host.unhandled-rejection', { error: reason instanceof Error ? reason.stack ?? reason.message : String(reason) });
+});
+
 main().catch((err) => {
   process.stderr.write(`popbot-host: ${err instanceof Error ? err.message : String(err)}\n`);
   process.exit(1);
