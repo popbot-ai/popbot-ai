@@ -18,6 +18,10 @@ import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import {
   BOT_AUTHOR,
+  RE_REVIEWED_SHA_SETTING,
+  type ReReviewedShaMap,
+  DEFAULT_MAX_PER_AUTHOR,
+  MAX_MAX_PER_AUTHOR,
   needsReview,
   REVIEW_TIER_ORDER,
   reviewIsIgnored,
@@ -27,7 +31,8 @@ import {
   type ListReviewsResult,
   type ReviewItem,
 } from '@shared/reviews';
-import { getSetting } from '../persistence/settings';
+import { getSetting, setSetting } from '../persistence/settings';
+import { dlog } from '../diagLog';
 import { listClosedChats, listOpenChats } from '../persistence/chats';
 import { lastUserMessageAtByChat } from '../persistence/messages';
 import { findAcrossRepos } from './findAcrossRepos';
@@ -48,6 +53,8 @@ interface ReviewsSettings {
   /** Your team's GitHub logins (Preferences ▸ Code reviews). PRs they
    *  AUTHOR get their own tier, above the general pile. */
   teamMembers?: string[];
+  /** Cap on optional (not-addressed-to-me) PRs shown per author. */
+  maxPerAuthor?: number;
   /** Outside contributors you've vetted — treated as colleagues rather
    *  than as drive-by open-source contributions. */
   vettedAuthors?: string[];
@@ -251,6 +258,14 @@ function engagedAtFor(pr: GhPr, me: string, chatAt: Map<number, number>): number
   );
 }
 
+/** Have YOU reviewed this PR? */
+function hasMyReview(pr: GhPr, me: string): boolean {
+  if (!me) return false;
+  return (pr.latestReviews?.nodes ?? []).some(
+    (n) => n?.author?.login?.toLowerCase() === me.toLowerCase(),
+  );
+}
+
 /** Logins named directly on a PR (team requests have no login). */
 function directReviewers(pr: GhPr): string[] {
   return (pr.reviewRequests?.nodes ?? [])
@@ -271,15 +286,15 @@ async function headCommitDates(
   cwd: string,
   repo: string,
   numbers: number[],
-): Promise<Map<number, string>> {
-  const out = new Map<number, string>();
+): Promise<Map<number, { date: string; sha: string }>> {
+  const out = new Map<number, { date: string; sha: string }>();
   const [owner, name] = repo.split('/');
   if (!owner || !name || numbers.length === 0) return out;
   const CHUNK = 25;
   for (let i = 0; i < numbers.length; i += CHUNK) {
     const batch = numbers.slice(i, i + CHUNK);
     const fields = batch
-      .map((n) => `p${n}: pullRequest(number: ${n}) { number commits(last: 1) { nodes { commit { committedDate } } } }`)
+      .map((n) => `p${n}: pullRequest(number: ${n}) { number commits(last: 1) { nodes { commit { oid committedDate } } } }`)
       .join('\n        ');
     const query = `query { repository(owner: "${owner}", name: "${name}") {\n        ${fields}\n      } }`;
     try {
@@ -288,12 +303,19 @@ async function headCommitDates(
         maxBuffer: 4 * 1024 * 1024,
       });
       const parsed = JSON.parse(stdout) as {
-        data?: { repository?: Record<string, { number?: number; commits?: { nodes?: Array<{ commit?: { committedDate?: string } }> } } | null> };
+        data?: {
+          repository?: Record<string, {
+            number?: number;
+            commits?: { nodes?: Array<{ commit?: { oid?: string; committedDate?: string } }> };
+          } | null>;
+        };
       };
       for (const node of Object.values(parsed.data?.repository ?? {})) {
         const num = node?.number;
-        const date = node?.commits?.nodes?.[0]?.commit?.committedDate;
-        if (typeof num === 'number' && date) out.set(num, date);
+        const head = node?.commits?.nodes?.[0]?.commit;
+        if (typeof num === 'number' && head?.committedDate) {
+          out.set(num, { date: head.committedDate, sha: head.oid ?? '' });
+        }
       }
     } catch {
       // A failed head-commit lookup only costs us re-review detection on
@@ -323,22 +345,71 @@ async function headCommitDates(
 async function markReReviews(items: ReviewItem[], cwd: string): Promise<void> {
   const engaged = items.filter((r) => (r.engagedAt ?? 0) > 0);
   if (engaged.length === 0) return;
-  const byRepo = new Map<string, number[]>();
+  // Group the ROWS by repo, not just their numbers. PR numbers are only
+  // unique within a repo, and `headCommitDates` returns a number-keyed
+  // map — so applying one repo's results to every engaged row let
+  // ComfyUI #1234's head date decide ComfyUI_frontend #1234's
+  // re-review state. That mis-flags PRs nobody has touched, and hides
+  // real pushes just as easily.
+  const byRepo = new Map<string, ReviewItem[]>();
   for (const r of engaged) {
     // url is https://github.com/<owner>/<name>/pull/<n>
     const m = /github\.com\/([^/]+)\/([^/]+)\/pull\//.exec(r.url);
     if (!m) continue;
     const key = `${m[1]}/${m[2]}`;
-    byRepo.set(key, [...(byRepo.get(key) ?? []), r.number]);
+    byRepo.set(key, [...(byRepo.get(key) ?? []), r]);
   }
-  for (const [repo, numbers] of byRepo) {
-    const heads = await headCommitDates(cwd, repo, numbers);
-    for (const r of engaged) {
+  // Two stages, because the cheap signal isn't trustworthy on its own:
+  //
+  //   1. The timestamp moved  → MAYBE something was pushed. Dates lie:
+  //      a rebase rewrites committedDate on commits you already read,
+  //      and engagement time shifts whenever the chat is touched.
+  //   2. The head SHA differs from the one on record → CONFIRMED. A
+  //      different commit is a different commit; nothing else to argue
+  //      with.
+  //
+  // The record is seeded the first time we see an engaged PR that looks
+  // unchanged, so from then on every verdict is SHA-based. It's also
+  // written when a re-review is actually initiated (renderer side), so
+  // acting on a push closes it out for that exact commit however long
+  // the author then sits on it.
+  const acted = getSetting<ReReviewedShaMap>(RE_REVIEWED_SHA_SETTING) ?? {};
+  const nextActed: ReReviewedShaMap = { ...acted };
+  let ledgerChanged = false;
+  for (const [repo, rows] of byRepo) {
+    const heads = await headCommitDates(cwd, repo, rows.map((r) => r.number));
+    for (const r of rows) {
       const head = heads.get(r.number);
       if (!head) continue;
-      if (new Date(head).getTime() > (r.engagedAt ?? 0)) r.flags.reReview = true;
+      r.headSha = head.sha;
+      const key = String(r.number);
+      const known = acted[key];
+      if (!head.sha) continue;
+      if (!known) {
+        // No baseline: RECORD, don't flag.
+        //
+        // The timestamp used to raise the flag here, and that was the
+        // bug behind "constantly getting re-reviews where nothing
+        // changed". Flagging on the timestamp never wrote a baseline, so
+        // the next poll found no baseline again, compared the same two
+        // fixed numbers, and flagged again — forever. And the comparison
+        // itself is unsound at scale: engagement time is often a chat's
+        // lastActiveAt, which sits behind a head commit the review
+        // already covered.
+        //
+        // A SHA is the only thing that can prove a change, so it's the
+        // only thing allowed to raise the flag. Cost: a push that landed
+        // before this PR was first seen is missed once. Self-correcting,
+        // and vastly better than crying wolf every minute.
+        nextActed[key] = head.sha;
+        ledgerChanged = true;
+        continue;
+      }
+      // Stage 2: a different commit than the one on record. Confirmed.
+      if (known !== head.sha) r.flags.reReview = true;
     }
   }
+  if (ledgerChanged) setSetting(RE_REVIEWED_SHA_SETTING, nextActed);
 }
 
 /** `owner/name` for the repo at `cwd`, cached. Needed because GraphQL
@@ -378,11 +449,28 @@ async function reposQualifier(paths: string[]): Promise<string> {
  */
 async function ghPrSearch(qualifier: string, search: string, cwd: string): Promise<GhPr[]> {
   const q = `${qualifier} ${search}`;
-  const { stdout } = await execFileP(
-    'gh',
-    ['api', 'graphql', '-f', `query=${SEARCH_GQL}`, '-F', `q=${q}`],
-    { cwd, maxBuffer: 4 * 1024 * 1024 },
-  );
+  // GitHub 502s on these searches intermittently — measured, not
+  // theorised: the same query that fails will succeed moments later.
+  // One cheap retry turns a blank bucket (and so a visibly shorter
+  // review list for a whole poll cycle) into a slightly slower refresh.
+  let stdout = '';
+  for (let attempt = 0; ; attempt += 1) {
+    try {
+      ({ stdout } = await execFileP(
+        'gh',
+        ['api', 'graphql', '-f', `query=${SEARCH_GQL}`, '-F', `q=${q}`],
+        { cwd, maxBuffer: 4 * 1024 * 1024 },
+      ));
+      break;
+    } catch (err) {
+      const text = String((err as { stderr?: string }).stderr ?? (err as Error).message ?? '');
+      const transient = /HTTP (50\d|429)|bad gateway|timeout|ETIMEDOUT|ECONNRESET/i.test(text);
+      if (attempt >= 1 || !transient) throw err;
+      await new Promise((r) => setTimeout(r, 1500));
+    }
+  }
+  {
+  }
   const parsed = JSON.parse(stdout) as GqlSearchResponse;
   const nodes = parsed.data?.search?.nodes ?? [];
   // type: ISSUE search can include issues; non-PR nodes come back as
@@ -611,7 +699,16 @@ export async function listPendingReviews(paths: string[]): Promise<ListReviewsRe
     // whether or not the PR happens to be pinned.
     const settled = await Promise.allSettled([
       ghPrSearch(qualifier, 'is:pr is:open review-requested:@me -reviewed-by:@me -author:@me', cwd),
-      ghPrSearch(qualifier, 'is:pr is:open review-requested:@me reviewed-by:@me -author:@me', cwd),
+      // Every open PR you've reviewed — NOT just ones that still carry a
+      // live review request. The narrower `review-requested:@me
+      // reviewed-by:@me` matched 0 of your 30 reviewed PRs, because a
+      // team request is usually gone by the time you've reviewed. That
+      // made re-review detection blind to every one of them: a PR can't
+      // be spotted as "they pushed since you looked" if it never enters
+      // the queue. These are filtered straight back out by the
+      // humanReviewed rule unless they ARE a re-review, so this widens
+      // detection without widening the list.
+      ghPrSearch(qualifier, 'is:pr is:open reviewed-by:@me -author:@me', cwd),
       ghPrSearch(qualifier, 'is:pr is:open review:none -is:draft -reviewed-by:@me -author:@me', cwd),
       ghPrSearch(qualifier, 'is:pr is:open reviewed-by:@me -review-requested:@me -author:@me', cwd),
     ]);
@@ -629,12 +726,6 @@ export async function listPendingReviews(paths: string[]): Promise<ListReviewsRe
   // team one, and to spot commits pushed after YOUR review.
   const me = await ghLogin(cwd).catch(() => '');
   const chatAt = chatEngagementByPr();
-
-  // Explicit "Re-request review" clicks. Kept aside so the final pass
-  // can honour them only when the request names YOU — the bucket also
-  // matches team requests, which aren't an ask for a second look from
-  // you specifically.
-  const reRequested = new Set(requestedReReview.map((pr) => pr.number));
 
   const byNumber = new Map<number, ReviewItem>();
   const upsert = (
@@ -669,6 +760,7 @@ export async function listPendingReviews(paths: string[]): Promise<ListReviewsRe
       requestedLogins: directReviewers(pr),
       approved: pr.reviewDecision === 'APPROVED',
       humanReviewed: hasHumanReview(pr),
+      reviewedByMe: hasMyReview(pr, me),
       engagedAt: engagedAtFor(pr, me, chatAt),
       flags: {
         requestedReviewer: flag === 'requestedReviewer' || flag === 'reReview',
@@ -730,7 +822,15 @@ export async function listPendingReviews(paths: string[]): Promise<ListReviewsRe
           // asking until you submit a review — which is also what makes
           // it leave this bucket. Pushes without the click are caught by
           // phase two above.
-          reReview: r.flags.reReview || (direct && reRequested.has(r.number)),
+          // Phase two (head commit vs when you last engaged) is the ONLY
+          // source of truth. There used to be an `|| (direct &&
+          // reRequested.has(...))` clause here, from when that bucket
+          // meant "re-requested after my review". Widening it to
+          // `reviewed-by:@me` turned it into "I have ever reviewed
+          // this", which tagged RE-REVIEW permanently on any PR that
+          // named you and that you'd reviewed — whether or not a single
+          // commit had landed since.
+          reReview: r.flags.reReview,
         },
       };
     })
@@ -738,6 +838,12 @@ export async function listPendingReviews(paths: string[]): Promise<ListReviewsRe
       // Named personally? Nothing filters it out. A direct ask always
       // reaches you, whatever the rules say.
       if (r.tier === 'direct') return true;
+      // Neither does a re-review. You already engaged with this PR and
+      // the author has pushed since — that outranks every heuristic
+      // here, including the mute list, the outside-contributor gate and
+      // the draft/bot check. Whatever the author's relationship to you,
+      // if you reviewed it and they changed it, you see it.
+      if (r.flags.reReview) return true;
       if (reviewIsIgnored(r, { ignoreTitlePatterns: ignorePatterns, ignoreAuthors })) return false;
       // Outside contributions are opt-in. Vetted authors were promoted
       // to 'org' above, so this only drops genuine strangers.
@@ -747,16 +853,19 @@ export async function listPendingReviews(paths: string[]): Promise<ListReviewsRe
       // even just comment — it's been picked up and drops off. Only a
       // direct request is exempt: someone else reviewing doesn't
       // discharge an ask addressed to you.
-      // …unless the human who reviewed it was YOU and the author has
-      // pushed since. That's not "someone picked it up", that's your
-      // own in-flight review coming back around.
-      if (r.humanReviewed && !r.flags.reReview) return false;
-      // Age out anything gone quiet for a week. A re-review is exempt:
-      // the author pushed fixes and re-asked, so the clock restarts on
-      // intent, not on the PR's age.
-      if (!r.flags.reReview && Date.now() - new Date(r.updatedAt).getTime() > STALE_REVIEW_MS) {
-        return false;
-      }
+      // Someone else reviewing means it's been picked up and is no
+      // longer yours to find. YOU reviewing means the opposite: you
+      // picked it up, so it stays in front of you until it merges,
+      // closes, or you dismiss it — whether or not they've pushed since.
+      if (r.humanReviewed && !r.reviewedByMe) return false;
+      // You picked it up, so it's yours until it lands. Nothing below
+      // applies: not staleness (an in-progress review going quiet is the
+      // author's turn, not a reason to forget it), not approval, not the
+      // draft check. It leaves when the PR merges or closes — or when
+      // you dismiss it.
+      if (r.reviewedByMe) return true;
+      // Age out anything else gone quiet for a week.
+      if (Date.now() - new Date(r.updatedAt).getTime() > STALE_REVIEW_MS) return false;
       if (r.tier === 'team') return needsReview(r);
       // Everyone else clears a higher bar: actually reviewable, nobody
       // has signed off yet, and it hasn't been abandoned.
@@ -772,7 +881,7 @@ export async function listPendingReviews(paths: string[]): Promise<ListReviewsRe
       // so counting reviews would hide ~128 PRs no human has read.
       // Colleagues outside your team, and vetted outsiders, clear a
       // slightly higher bar: nobody has signed off yet.
-      if (r.approved && !r.flags.reReview) return false;
+      if (r.approved) return false;
       return needsReview(r);
     })
     .sort((a, b) => {
@@ -780,5 +889,44 @@ export async function listPendingReviews(paths: string[]): Promise<ListReviewsRe
       if (byTier !== 0) return byTier;
       return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
     });
-  return { ok: true, reviews };
+
+  // Per-author cap on OPTIONAL work. A single prolific author can push
+  // 15-20 open PRs; showing all of them buries everyone else's and makes
+  // the panel read as noise. Their most recent few are a fair sample of
+  // "someone should look at this" — the rest add nothing you'd act on.
+  //
+  // Applied last, after the sort, so "most recent" is what survives.
+  // Exempt: anything addressed to you by name, and any re-review — those
+  // are obligations, not a sample.
+  const cap = Math.max(
+    1,
+    Math.min(MAX_MAX_PER_AUTHOR, reviewsSettings?.maxPerAuthor ?? DEFAULT_MAX_PER_AUTHOR),
+  );
+  const perAuthor = new Map<string, number>();
+  const capped = reviews.filter((r) => {
+    // Only UNREVIEWED work is sampled. The cap exists to ration the
+    // shared backlog — PRs sitting with nobody on them, which every
+    // engineer should be picking off. Anything addressed to you, any
+    // re-review, and anything a human has already looked at is not part
+    // of that pile and never consumes one of an author's slots.
+    if (r.tier === 'direct' || r.flags.reReview || r.humanReviewed || r.reviewedByMe) return true;
+    const key = r.author.toLowerCase();
+    const n = (perAuthor.get(key) ?? 0) + 1;
+    perAuthor.set(key, n);
+    return n <= cap;
+  });
+  // One line per fetch, so "did my team edit actually take?" is
+  // answerable from the log instead of by inference. Cheap: once per
+  // poll, no payload.
+  dlog('reviews.list', {
+    fetched: byNumber.size,
+    shown: capped.length,
+    team,
+    cap,
+    byTier: capped.reduce<Record<string, number>>((acc, r) => {
+      acc[r.tier] = (acc[r.tier] ?? 0) + 1;
+      return acc;
+    }, {}),
+  });
+  return { ok: true, reviews: capped };
 }

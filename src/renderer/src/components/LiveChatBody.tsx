@@ -21,8 +21,32 @@ const FILE_EXT_RE =
 function isFileHref(href: string): boolean {
   const h = href.trim();
   if (!h || h.startsWith('#') || h.startsWith('//')) return false;
-  if (/^[a-z][a-z0-9+.-]*:/i.test(h)) return false; // has a URL scheme (http:, mailto:, …)
+  // `file://` IS a filesystem reference — the most explicit one an agent
+  // can write. The scheme test below used to reject it along with http:
+  // and mailto:, so every `file://` link an agent produced fell through
+  // to window.open() and did nothing. That's the "their links don't
+  // work" report.
+  if (/^file:\/\//i.test(h)) return true;
+  if (/^[a-z][a-z0-9+.-]*:/i.test(h)) return false; // other URL scheme (http:, mailto:, …)
   return h.includes('/') || FILE_EXT_RE.test(h) || /\.\w{1,8}(:\d+)?$/.test(h);
+}
+
+/** Does this reference name a directory rather than a file? Trailing
+ *  slash, or a last segment with no extension. Main re-checks with stat
+ *  — this only decides which affordance to advertise in the tooltip. */
+function looksLikeFolder(href: string): boolean {
+  const h = href.trim().replace(/^file:\/\//i, '').split(/[#?]/)[0];
+  if (h.endsWith('/')) return true;
+  const last = h.split('/').pop() ?? '';
+  return last.length > 0 && !/\.\w{1,8}$/.test(last);
+}
+
+/** Reveal a path in Finder / Explorer. A folder opens; a file opens its
+ *  containing folder with the file selected. */
+function revealFileRef(chatId: string | null, ref: string): void {
+  void window.popbot.files.revealInFolder(chatId, ref).then((res) => {
+    if (!res.ok) console.warn('files.revealInFolder failed', res.error);
+  });
 }
 
 /** Does a bare inline-code token look like a file reference worth
@@ -56,8 +80,20 @@ const MarkdownAnchor: NonNullable<Components['a']> = ({ href, children, ...props
         {...props}
         className={['file-link', props.className].filter(Boolean).join(' ')}
         href={href}
-        title={t('chat.editor.openInEditor', { href })}
-        onClick={(e) => { e.preventDefault(); openFileRef(chatId, href); }}
+        title={t(
+          looksLikeFolder(href) ? 'chat.fs.openFolder' : 'chat.fs.revealFile',
+          { href },
+        )}
+        // A markdown LINK to a path means "here is a place on disk" —
+        // show it in Finder / Explorer. (An inline-code file token still
+        // opens in the editor; that's the jump-to-source affordance, and
+        // the two are deliberately different.) Alt/Option opens it in
+        // the editor instead, for a file.
+        onClick={(e) => {
+          e.preventDefault();
+          if (e.altKey && !looksLikeFolder(href)) openFileRef(chatId, href);
+          else revealFileRef(chatId, href);
+        }}
       >
         {children}
       </a>

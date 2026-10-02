@@ -82,6 +82,13 @@ export interface ReviewItem {
    *  of any kind — so it's been picked up, and is no longer unreviewed
    *  work looking for an owner. */
   humanReviewed?: boolean;
+  /** YOU have reviewed it — it's in progress, yours until it lands.
+   *  Distinct from humanReviewed: someone ELSE reviewing means it's been
+   *  picked up by them and is no longer yours to find. */
+  reviewedByMe?: boolean;
+  /** Head commit SHA, so a re-review can be marked as handled for this
+   *  exact commit and not re-fire until the branch moves. */
+  headSha?: string;
   /** When you last engaged with this PR (your GitHub review, or the last
    *  time you touched its chat), as epoch ms. 0 when never. Drives
    *  re-review detection. */
@@ -110,6 +117,57 @@ export interface ReviewItem {
      *  fresh work event so the user can't miss it. */
     reReview: boolean;
   };
+}
+
+/**
+ * RAPID RE-REVIEW mode — a per-review opt-in.
+ *
+ * Keyed by PR number, not chat id: the mode belongs to the review, so it
+ * survives closing and reopening the chat, and both surfaces that toggle
+ * it (the chat menu and the review row's context menu) already have the
+ * PR number in hand.
+ */
+/**
+ * How many OPTIONAL reviews to show per author.
+ *
+ * "Optional" = not addressed to you by name and not a re-review: work
+ * any engineer could pick up. One prolific author can otherwise fill the
+ * panel with 15–20 PRs, which reads as noise rather than as a queue, so
+ * only their most recent few are shown. Reviews aimed at you personally,
+ * and re-reviews, are never capped.
+ */
+export const DEFAULT_MAX_PER_AUTHOR = 3;
+export const MAX_MAX_PER_AUTHOR = 50;
+
+export const RAPID_RE_REVIEW_SETTING = 'reviews.rapidByPr';
+
+/**
+ * PR number → the head SHA a re-review was last initiated for.
+ *
+ * Once you've acted on a push, that exact commit is done with: the flag
+ * stays off until the SHA changes again. A SHA is the honest signal
+ * here — timestamps drift under rebases (which rewrite committedDate)
+ * and under anything that touches the chat, so a time-based gate can
+ * re-fire on a PR nobody has changed.
+ */
+export const RE_REVIEWED_SHA_SETTING = 'reviews.reReviewedSha';
+export type ReReviewedShaMap = Record<string, string>;
+export type RapidReReviewMap = Record<string, boolean>;
+
+export function isRapidReReview(map: RapidReReviewMap | undefined, prNumber: number): boolean {
+  return map?.[String(prNumber)] === true;
+}
+
+/** Flip rapid mode for one PR, returning the map to persist. */
+export function toggleRapidReReview(
+  map: RapidReReviewMap | undefined,
+  prNumber: number,
+): RapidReReviewMap {
+  const next: RapidReReviewMap = { ...(map ?? {}) };
+  const key = String(prNumber);
+  if (next[key]) delete next[key];
+  else next[key] = true;
+  return next;
 }
 
 /** A user-pinned review, as persisted under the `panela.pinned.prs`

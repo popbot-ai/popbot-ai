@@ -166,6 +166,9 @@ export const IpcChannel = {
   /** Open a file referenced in chat in the configured external editor.
    *  Relative paths resolve against the chat's cwd. */
   FilesOpenInEditor: 'pb:files:open-in-editor',
+  /** Reveal a path in Finder / Explorer. Directory opens; file opens
+   *  its containing folder with the file selected. */
+  FilesRevealInFolder: 'pb:files:reveal-in-folder',
   /** Open a native directory picker. Returns the absolute path or null
    *  on cancel. Used by the New Repo wizard to browse for the source
    *  clone instead of typing the path. */
@@ -806,6 +809,14 @@ export interface PopBotApi {
       chatId: string | null,
       path: string,
       line?: number,
+    ): Promise<{ ok: true } | { ok: false; error: string }>;
+    /** Reveal a path in Finder / Explorer. A directory opens; a file
+     *  opens its containing folder with the file selected. Accepts
+     *  bare paths and `file://` URLs; relative paths resolve against
+     *  the chat's cwd. */
+    revealInFolder(
+      chatId: string | null,
+      path: string,
     ): Promise<{ ok: true } | { ok: false; error: string }>;
     /** Native directory picker. `defaultPath` seeds where the dialog
      *  opens (existing path or its parent if it doesn't exist; falls

@@ -612,6 +612,8 @@ export const en = {
   // Live chat body (LiveChatBody.tsx).
   // ---------------------------------------------------------------------------
   'chat.editor.openInEditor': 'Open {href} in editor',
+  'chat.fs.revealFile': 'Show in Finder: {href}  (⌥-click to open in editor)',
+  'chat.fs.openFolder': 'Open folder in Finder: {href}',
   'chat.transcript.loading': 'Loading transcript…',
   'chat.transcript.empty': 'New chat. Type a message below to start.',
   'chat.window.olderHidden': '{count} earlier message — scroll up to load',
@@ -1200,10 +1202,24 @@ export const en = {
   'reviews.empty.noActive': 'Nothing active. Pin a review, or start one \u2014 reviewing pins it.',
   'reviews.row.requestedReviewerOpenTitle': 'You are named on this review \u2014 click to open it',
   'reviews.row.noReviewsOpenTitle': 'Nobody has reviewed this yet \u2014 click to open it',
+  'prefs.templates.chat.rapidReReview.label': 'Rapid re-review nudge (sent automatically in rapid mode)',
+  'chatSettings.rapidReReview': 'Rapid re-review',
+  'chatSettings.rapidReReviewDesc':
+    'When the author pushes, nudge this chat to check the new commits instead of waiting for you. For review chats that are going through several rounds.',
+  'reviews.row.rapidPill': 'RAPID',
+  'reviews.row.rapidPillTitle': 'Rapid re-review is on — new pushes nudge the chat automatically',
+  'reviews.menu.addToTeam': 'Add {author} to my team',
+  'reviews.menu.removeFromTeam': 'Remove {author} from my team',
+  'reviews.menu.rapidOn': 'Rapid re-review',
+  'reviews.tier.rereview': 'Re-review · they pushed',
   'reviews.tier.direct': 'Waiting on you',
   'reviews.tier.team': 'Your team',
   'reviews.tier.org': 'Comfy team',
   'reviews.tier.external': 'Outside contributors',
+  'prefs.reviews.maxPerAuthor.title': 'Optional reviews shown per author',
+  'prefs.reviews.maxPerAuthor.desc':
+    'One author with 20 open PRs shouldn\u2019t fill the panel. Only their most recent few optional reviews are shown \u2014 anything naming you personally, and every re-review, ignores this limit.',
+  'prefs.reviews.maxPerAuthor.unit': 'per author',
   'prefs.reviews.vetted.title': 'Vetted outside contributors (one login per line)',
   'prefs.reviews.vetted.desc':
     'Outside contributors you trust. Their PRs are grouped with the Comfy team rather than treated as drive-by contributions.',
