@@ -6242,6 +6242,8 @@ textarea.input.bot-form-prompt {
   margin: 14px 0 6px; color: var(--fg-2); font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em;
 }
 .bot-form-hint { font-size: 11.5px; color: var(--fg-3); margin-bottom: 8px; }
+.bot-form-hint.indented { margin: -1px 0 6px 122px; line-height: 1.45; }
+.bot-form-hint.warn { color: var(--st-wait); }
 .bot-trigger {
   border: 1px solid var(--line-2); border-radius: 6px; background: var(--bg-2);
   padding: 6px 12px 10px; margin-bottom: 10px;
