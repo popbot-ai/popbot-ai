@@ -109,9 +109,12 @@ describe('bots on a host', () => {
     expect(JSON.parse(await say(client, 'web-shepherd', 'hi'))).toEqual({ error: 'no bot "web-shepherd"' });
     expect(JSON.parse(await say(client, 'nobody', 'hi'))).toEqual({ error: 'no bot "nobody"' });
 
-    // On its list. The edit restarts its session with orders naming it.
-    bots.save('web-reviewer', { name: 'Web Reviewer', peers: ['web-shepherd'] });
-    await vi.waitFor(() => expect(spawned.get(botChatId('web-reviewer'))?.appendSystemPrompt).toContain('may message, whenever you like: "web-shepherd"'));
+    // On its list, a typo too. Its orders never name the list: list_bots
+    // is the only way it learns of a bot.
+    const before = spawned.get(botChatId('web-reviewer'));
+    bots.save('web-reviewer', { name: 'Web Reviewer', peers: ['web-shepherd', 'web-shepard'] });
+    await vi.waitFor(() => expect(spawned.get(botChatId('web-reviewer'))).not.toBe(before));
+    expect(spawned.get(botChatId('web-reviewer'))?.appendSystemPrompt).not.toMatch(/web-shep/);
     expect(await listed()).toEqual(['web-shepherd']);
     // By name or id.
     expect(JSON.parse(await say(client, 'Web Shepherd', 'Review is up on #12.'))).toEqual({ ok: true });
@@ -174,7 +177,7 @@ describe('bots on a host', () => {
     expect(config.bots.map((b) => b.id)).toEqual(['web-reviewer']);
     // Its name stays on the reviewer's list — set with its config — but a
     // bot that is not running does not exist for it.
-    expect(bots.bot('web-reviewer')?.peers).toEqual(['web-shepherd']);
+    expect(bots.bot('web-reviewer')?.peers).toEqual(['web-shepherd', 'web-shepard']);
     expect(bots.peersOf('web-reviewer')).toEqual([]);
     expect(await bots.message('web-reviewer', 'web-shepherd', 'hi')).toEqual({ error: 'no bot "web-shepherd"' });
   });

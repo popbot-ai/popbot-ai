@@ -706,10 +706,10 @@ function charter(bot: HostBot, hostName: string): string {
       `sub-agent (the Task tool) with everything it needs: what to work on, what changed, and your orders below. Keep only its summary. ` +
       `One at a time: sub-agents share your checkout. What you remember of a pull request is what you said about it here and what is on ` +
       `GitHub; read its history there when you need more. When a wake needs nothing from you, say so in one line.`,
-    (bot.peers.length
-      ? `Bots you may message, whenever you like: ${bot.peers.map((p) => `"${p}"`).join(', ')}. list_bots shows which of them are running now and what ` +
-        'they are doing; one that is not running does not exist for you until it is. '
-      : 'You message no other bots of your own accord. ') +
+    // Its list is not named here: list_bots is the only way it learns of
+    // a bot, and it shows only the running ones it may message — so a
+    // bot cannot tell one it may not message from one that never was.
+    `Other bots: list_bots shows the bots you may message, and message_bot reaches them whenever you like. ` +
       `A bot that messages you, you may answer with message_bot. A message does not wait for an answer. ` +
       `People's PopBot chats may message you too. When one can be answered its message gives a reply id: answer it, once, with reply_to_chat. ` +
       `That is the only way to reach a chat — you cannot start a conversation with one.`,
