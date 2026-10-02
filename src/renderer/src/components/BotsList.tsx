@@ -142,7 +142,7 @@ export function BotsList({ onOpen, focusedChatId }: BotsListProps): JSX.Element 
                       <div className="name">{bot.name}</div>
                       <div className="meta-line">
                         <span className="pill muted">{t(`bots.state.${state}`)}</span>
-                        {bot.githubLogin && <span className="branch">@{bot.githubLogin}</span>}
+                        {bot.githubLogin && <span className="bot-login">@{bot.githubLogin}</span>}
                         <span style={{ flex: 1 }} />
                         {bot.watching.length > 0 && (
                           <button

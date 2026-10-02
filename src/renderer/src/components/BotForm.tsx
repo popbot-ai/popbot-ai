@@ -14,6 +14,7 @@ import { BOT_TEMPLATES } from '@shared/botTemplates';
 import { exampleWakeText } from '@shared/botTriggers';
 import { useTranslation } from '../lib/i18n';
 import { ConfirmDialog } from './ConfirmDialog';
+import { IconSelect } from './IconSelect';
 
 interface BotFormProps {
   hosts: BotHostListing[];
@@ -182,10 +183,18 @@ export function BotForm({ hosts, editing, onClose, onSaved }: BotFormProps): JSX
             {editing ? (
               <span className="bot-form-static">{host?.hostName ?? editing.hostId}</span>
             ) : (
-              <select className="input" value={hostId} onChange={(e) => { setHostId(e.target.value); setRepoId(''); }}>
-                {reachable.length === 0 && <option value="">{t('bots.form.noHosts')}</option>}
-                {reachable.map((h) => <option key={h.hostId} value={h.hostId}>{h.hostName}</option>)}
-              </select>
+              <IconSelect
+                block
+                value={hostId}
+                placeholder={t('bots.form.noHosts')}
+                onChange={(id) => { setHostId(id); setRepoId(''); }}
+                options={hosts.map((h) => ({
+                  id: h.hostId,
+                  label: h.hostName,
+                  icon: <i className={`fa-solid fa-server tracker-dd-ico-fa host-ico${h.reachable ? '' : ' off'}`} />,
+                  ...(h.reachable ? {} : { detail: t('bots.hostOff'), disabled: true }),
+                }))}
+              />
             )}
           </div>
           <div className="field">
@@ -262,19 +271,25 @@ export function BotForm({ hosts, editing, onClose, onSaved }: BotFormProps): JSX
           </div>
           <div className="field">
             <label>{t('bots.form.repo')}</label>
-            <select
-              className="input"
+            <IconSelect
+              block
               value={repoId}
-              onChange={(e) => { setRepoId(e.target.value); void apply({ repoId: e.target.value || null }); }}
-            >
-              <option value="">{t('bots.form.noRepo')}</option>
-              {(host?.repos ?? []).map((r) => <option key={r.id} value={r.id}>{r.id}</option>)}
-            </select>
+              onChange={(id) => { setRepoId(id); void apply({ repoId: id || null }); }}
+              options={[
+                { id: '', label: t('bots.form.noRepo'), icon: <i className="fa-regular fa-folder tracker-dd-ico-fa" /> },
+                ...(host?.repos ?? []).map((r) => ({
+                  id: r.id,
+                  label: r.id,
+                  icon: <i className="fa-solid fa-code-branch tracker-dd-ico-fa" />,
+                  detail: r.defaultBase,
+                })),
+              ]}
+            />
           </div>
           <div className="field">
             <label>{t('bots.form.githubLogin')}</label>
             <input
-              className="input mono"
+              className="input"
               type="text"
               value={githubLogin}
               placeholder="webreviewer-bot"
@@ -286,7 +301,7 @@ export function BotForm({ hosts, editing, onClose, onSaved }: BotFormProps): JSX
           <div className="field">
             <label>{t('bots.form.email')}</label>
             <input
-              className="input mono"
+              className="input"
               type="email"
               value={email}
               // Empty: the account's GitHub noreply address, which the host uses.
@@ -299,7 +314,7 @@ export function BotForm({ hosts, editing, onClose, onSaved }: BotFormProps): JSX
           <div className="field">
             <label>{t('bots.form.githubToken')}</label>
             <input
-              className="input mono"
+              className="input"
               type="password"
               value={githubToken}
               placeholder={editing?.bot.hasToken ? t('bots.form.tokenSet') : t('bots.form.tokenPlaceholder')}
@@ -312,7 +327,7 @@ export function BotForm({ hosts, editing, onClose, onSaved }: BotFormProps): JSX
           <div className="field">
             <label>{t('bots.form.talksTo')}</label>
             <input
-              className="input mono"
+              className="input"
               type="text"
               value={peersText}
               placeholder={t('bots.form.talksToPlaceholder')}
@@ -364,7 +379,7 @@ export function BotForm({ hosts, editing, onClose, onSaved }: BotFormProps): JSX
                   <div className="field">
                     <label>{t('bots.trigger.repo')}</label>
                     <input
-                      className="input mono"
+                      className="input"
                       type="text"
                       value={trigger.repo ?? ''}
                       placeholder={repoId ? t('bots.trigger.repoFromBot') : 'owner/name'}
@@ -375,7 +390,7 @@ export function BotForm({ hosts, editing, onClose, onSaved }: BotFormProps): JSX
                   <div className="field">
                     <label>{t('bots.trigger.labels')}</label>
                     <input
-                      className="input mono"
+                      className="input"
                       type="text"
                       value={trigger.labels.join(', ')}
                       placeholder="website-review, website-shepherd"
@@ -387,7 +402,7 @@ export function BotForm({ hosts, editing, onClose, onSaved }: BotFormProps): JSX
                     <label>{t('bots.trigger.every')}</label>
                     <div className="bot-trigger-inline">
                       <input
-                        className="input mono"
+                        className="input"
                         type="number"
                         min={15}
                         value={trigger.pollSeconds}
@@ -403,7 +418,7 @@ export function BotForm({ hosts, editing, onClose, onSaved }: BotFormProps): JSX
                   <div className="field">
                     <label>{t('bots.trigger.schedule')}</label>
                     <input
-                      className="input mono"
+                      className="input"
                       type="text"
                       value={trigger.schedule}
                       placeholder="0 9 * * 1-5"

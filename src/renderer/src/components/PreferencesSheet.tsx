@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom';
 import { hotkey } from '../lib/hotkeys';
 import { useTranslation } from '../lib/i18n';
+import { IconSelect, type SelectChoice } from './IconSelect';
 import { LOCALES, type Locale, type MessageKey } from '@shared/i18n';
 import linearIcon from '../assets/notif/linear.png';
 import jiraIcon from '../assets/notif/jira.png';
@@ -1140,7 +1141,6 @@ function PrefsAttachments(): JSX.Element {
   );
 }
 
-interface SelectChoice { id: string; label: string; icon: ReactNode }
 
 /** Issue trackers selectable as the ticket source. Each has its own config
  *  form below; capabilities (status changes, project scoping, etc.) are
@@ -1161,112 +1161,6 @@ const ENGINE_ICON: Record<GameEngineId, ReactNode> = {
 /** Custom (non-native) dropdown — square panels + an icon per option,
  *  which a native <select> can't render. Used for the ticket-source and
  *  game-engine selectors. */
-function IconSelect({ value, onChange, options }: { value: string; onChange: (v: string) => void; options: SelectChoice[] }): JSX.Element {
-  const [open, setOpen] = useState(false);
-  // Which option the keyboard cursor is on while the menu is open.
-  const [active, setActive] = useState(0);
-  const ref = useRef<HTMLDivElement | null>(null);
-  const btnRef = useRef<HTMLButtonElement | null>(null);
-  const itemRefs = useRef<Array<HTMLButtonElement | null>>([]);
-  const currentIndex = Math.max(0, options.findIndex((t) => t.id === value));
-  const current = options[currentIndex] ?? options[0];
-
-  useEffect(() => {
-    if (!open) return;
-    const onDown = (e: globalThis.MouseEvent): void => {
-      if (!ref.current?.contains(e.target as Node)) setOpen(false);
-    };
-    // Capture-phase Escape so it closes only this dropdown without also
-    // bubbling to a parent modal / global hotkeys (same approach as
-    // BaseBranchPicker in BaseBranchDialog).
-    const onKey = (e: KeyboardEvent): void => {
-      if (e.key === 'Escape') { e.stopPropagation(); setOpen(false); btnRef.current?.focus(); }
-    };
-    window.addEventListener('mousedown', onDown);
-    window.addEventListener('keydown', onKey, true);
-    return () => {
-      window.removeEventListener('mousedown', onDown);
-      window.removeEventListener('keydown', onKey, true);
-    };
-  }, [open]);
-
-  // Each time we open, start the cursor on the current selection.
-  useEffect(() => { if (open) setActive(currentIndex); }, [open, currentIndex]);
-
-  // Move DOM focus to the active option so screen readers announce it and
-  // keyboard users see a real focus ring while arrowing through the menu.
-  useEffect(() => { if (open) itemRefs.current[active]?.focus(); }, [open, active]);
-
-  const choose = (i: number): void => {
-    const opt = options[i];
-    if (opt) onChange(opt.id);
-    setOpen(false);
-    btnRef.current?.focus();
-  };
-
-  // Arrow/Enter/Space while focus is within the component. Escape is
-  // handled by the capture-phase listener above so it can't leak to a
-  // parent.
-  const onKeyDown = (e: React.KeyboardEvent): void => {
-    switch (e.key) {
-      case 'ArrowDown':
-        e.preventDefault();
-        if (!open) setOpen(true);
-        else setActive((i) => (i + 1) % options.length);
-        break;
-      case 'ArrowUp':
-        e.preventDefault();
-        if (!open) setOpen(true);
-        else setActive((i) => (i - 1 + options.length) % options.length);
-        break;
-      case 'Enter':
-      case ' ':
-        e.preventDefault();
-        if (!open) setOpen(true);
-        else choose(active);
-        break;
-      default:
-        break;
-    }
-  };
-
-  return (
-    <div className="tracker-dd" ref={ref} onKeyDown={onKeyDown}>
-      <button
-        ref={btnRef}
-        type="button"
-        className="tracker-dd-btn"
-        onClick={() => setOpen((o) => !o)}
-        aria-haspopup="listbox"
-        aria-expanded={open}
-      >
-        {current.icon}
-        <span>{current.label}</span>
-        <i className="fa-solid fa-chevron-down tracker-dd-caret" />
-      </button>
-      {open && (
-        <div className="tracker-dd-menu" role="listbox">
-          {options.map((t, i) => (
-            <button
-              key={t.id}
-              ref={(el) => { itemRefs.current[i] = el; }}
-              type="button"
-              className={`tracker-dd-item${t.id === value ? ' selected' : ''}${i === active ? ' active' : ''}`}
-              role="option"
-              aria-selected={t.id === value}
-              onClick={() => choose(i)}
-              onMouseEnter={() => setActive(i)}
-            >
-              {t.icon}
-              <span>{t.label}</span>
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
 function PrefsIntegrations({ onLinearChanged }: { onLinearChanged?: () => void }): JSX.Element {
   const { t } = useTranslation();
   const { get, set, remove, loading } = useSettings();
