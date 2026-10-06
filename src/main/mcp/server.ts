@@ -73,6 +73,27 @@ export interface BotSummary {
   lastError: string | null;
 }
 
+/** A file transfer, as the tools report it. */
+export interface FileTransferSummary {
+  transferId: string;
+  from: string;
+  fromPath: string;
+  to: string;
+  /** The chats at either end, by name. */
+  fromChat: string | null;
+  toChat: string;
+  /** Where it lands on `to` — always under ~/popbot/sent_files. */
+  destPath: string | null;
+  state: 'offered' | 'declined' | 'expired' | 'starting' | 'sending' | 'verifying' | 'done' | 'failed' | 'cancelled';
+  bytes: number;
+  size: number;
+  percent: number;
+  /** Times it has had to resume after a dropped connection, plus one. */
+  attempt: number;
+  sha256: string | null;
+  error: string | null;
+}
+
 export type ToolFailure = { error: string };
 
 /** Everything the tools do, as plain functions. `caller` is the chat id
@@ -107,6 +128,12 @@ export interface PopbotToolHandlers {
   listRefs(caller: string | null): ChatRefs;
   /** Show a message in the app: focus its chat, scroll to the row. */
   goToMessage(input: { chatId: string; messageId: string }, caller: string | null): { ok: true } | ToolFailure;
+  /** Offer a file to a chat on another machine (src/main/transfer/). */
+  transferFile(input: { path: string; toChat: string; message?: string; from?: string }, caller: string | null): Promise<FileTransferSummary | ToolFailure>;
+  acceptFileTransfer(input: { transferId: string; waitSeconds: number }, caller: string | null): Promise<FileTransferSummary | ToolFailure>;
+  declineFileTransfer(input: { transferId: string; reason?: string }, caller: string | null): Promise<FileTransferSummary | ToolFailure>;
+  getFileTransfer(input: { transferId: string; waitSeconds: number }, caller: string | null): Promise<FileTransferSummary | ToolFailure>;
+  cancelFileTransfer(input: { transferId: string }, caller: string | null): Promise<FileTransferSummary | ToolFailure>;
   /** Bots: chats can see them and talk to them — not make, pause or
    *  kill them (a person does that, in the Bots tab). */
   listBots(input: { host?: string }, caller: string | null): Promise<BotSummary[] | ToolFailure>;
@@ -286,6 +313,55 @@ export function registerPopbotTools(server: McpServer, h: PopbotToolHandlers, ca
       messageId: z.string(),
     },
   }, async (input) => guarded(() => h.goToMessage(input, caller)));
+
+  server.registerTool('transfer_file', {
+    title: 'Offer a file to a chat on another machine',
+    annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
+    description: 'Offer a file to another chat\'s agent on another machine (this computer or a PopBot host — list_chats shows where each chat runs). Nothing moves yet: that agent is told what you are offering, with your message, and accepts (accept_file_transfer) or declines. Accepted, it goes to ~/popbot/sent_files on that chat\'s machine — any size: streamed, resumed after a dropped connection, verified by SHA-256 — and that agent is told where it landed. You are told if it is declined, fails, or goes unanswered for an hour. Returns the transferId; get_file_transfer follows it.',
+    inputSchema: {
+      path: z.string().describe('The file, on the machine you run on (or `from`): absolute, or starting with ~'),
+      toChat: z.string().describe('The chat id whose agent the file is for'),
+      message: z.string().optional().describe('What the file is, and why you are sending it'),
+      from: z.string().optional().describe('The machine the file is on, when not yours: "this computer" or a host name'),
+    },
+  }, async (input) => guarded(() => h.transferFile(input, caller)));
+
+  server.registerTool('accept_file_transfer', {
+    title: 'Accept a file offered to you',
+    annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
+    description: 'Take a file another chat offered you (its message gave the transferId). It goes to ~/popbot/sent_files on the machine you run on, under its own name (numbered if that name is taken). Waits up to waitSeconds for it to arrive; you are also told when it has.',
+    inputSchema: {
+      transferId: z.string(),
+      waitSeconds: z.number().int().min(0).max(50).default(20),
+    },
+  }, async (input) => guarded(() => h.acceptFileTransfer(input, caller)));
+
+  server.registerTool('decline_file_transfer', {
+    title: 'Decline a file offered to you',
+    annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
+    description: 'Turn down a file another chat offered you. The sender is told, with your reason.',
+    inputSchema: {
+      transferId: z.string(),
+      reason: z.string().optional(),
+    },
+  }, async (input) => guarded(() => h.declineFileTransfer(input, caller)));
+
+  server.registerTool('get_file_transfer', {
+    title: 'Check on a file transfer',
+    annotations: { readOnlyHint: true, openWorldHint: false },
+    description: 'Where a file transfer stands: offered (waiting for the other agent), moving (bytes sent, resuming after a drop), or done — where it landed and its SHA-256 — or why not. While it moves, waits up to waitSeconds for it to finish.',
+    inputSchema: {
+      transferId: z.string(),
+      waitSeconds: z.number().int().min(0).max(50).default(20),
+    },
+  }, async (input) => guarded(() => h.getFileTransfer(input, caller)));
+
+  server.registerTool('cancel_file_transfer', {
+    title: 'Cancel a file transfer',
+    annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
+    description: 'Withdraw an offer, or stop a transfer that is moving. What had arrived is thrown away; nothing already in sent_files is touched. Either chat may.',
+    inputSchema: { transferId: z.string() },
+  }, async (input) => guarded(() => h.cancelFileTransfer(input, caller)));
 
 
 }

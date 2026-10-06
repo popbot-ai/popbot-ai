@@ -28,6 +28,11 @@
  *   PUT  /v1/bots/:id                      HostBotInput → HostBotInfo  (rewrites the config)
  *   DELETE /v1/bots/:id                    → { ok }
  *   POST /v1/bots/:id/wake | pause | resume | reset → { ok }
+ *   GET  /v1/files/stat?path=&hash=1       → FileStat  (a file transfer — see src/main/transfer/)
+ *   GET  /v1/files/read?path=&offset=N     → the bytes from N on, streamed
+ *   PUT  /v1/files/write?path=&offset=N    body streamed into <path>.popbot-part from N → { partSize }
+ *   POST /v1/files/commit                  { path, size, sha256, overwrite } → { path, size, sha256 }
+ *   POST /v1/files/abort                   { path } → { ok }
  *
  * A bot's chat is an ordinary chat on this wire, under `botChatId(id)`:
  * the desktop attaches to it like any other. Only who drives it differs
@@ -227,6 +232,20 @@ export interface BotWatchedPr {
 /** A bot to make or change, from a desktop. `githubToken` absent keeps
  *  the stored one; an empty string clears it. */
 export type HostBotInput = Partial<Omit<HostBot, 'id'>> & { name: string };
+
+/** A file on a machine, as a transfer sees it (src/main/transfer/). */
+export interface FileStat {
+  /** The path, absolute, as the machine resolved it (`~` expanded). */
+  path: string;
+  exists: boolean;
+  isFile: boolean;
+  size: number;
+  mtimeMs: number;
+  /** Bytes of an unfinished transfer to this path already there. */
+  partSize: number;
+  /** Present when asked for (`hash=1`). */
+  sha256?: string;
+}
 
 /** A bot's chat id, the same on the host and every desktop. */
 export function botChatId(botId: string): string {

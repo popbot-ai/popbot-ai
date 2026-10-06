@@ -27,7 +27,20 @@ const handlers: PopbotToolHandlers = {
     githubLogin: 'webreviewer-bot', triggers: [{ github: 'Comfy-Org/website', labels: ['website-review'] }], watching: [], lastError: null,
   }],
   messageBot: async (input, caller) => { calls.push({ tool: 'message_bot', input, caller }); return { outcome: 'sent', reply: '', entries: 0, chatId: 'chat_bot_webreviewer' }; },
+  transferFile: async (input, caller) => { calls.push({ tool: 'transfer_file', input, caller }); return transfer('offered'); },
+  acceptFileTransfer: async () => transfer('done'),
+  declineFileTransfer: async () => transfer('declined'),
+  getFileTransfer: async () => transfer('sending'),
+  cancelFileTransfer: async () => transfer('cancelled'),
 };
+
+function transfer(state: 'offered' | 'done' | 'declined' | 'sending' | 'cancelled') {
+  return {
+    transferId: 'xfer_1', from: 'this computer', fromPath: '/tmp/model.bin', to: 'Bens PC', fromChat: 'A', toChat: 'B',
+    destPath: state === 'done' ? 'C:\\Users\\b\\popbot\\sent_files\\model.bin' : null, state, bytes: 0, size: 10, percent: 0, attempt: 1,
+    sha256: null, error: null,
+  };
+}
 
 describe('popbot MCP server over Streamable HTTP', () => {
   let server: PopbotMcpServer;
@@ -44,9 +57,17 @@ describe('popbot MCP server over Streamable HTTP', () => {
     const client = await connect('chat_a');
     const { tools } = await client.listTools();
     expect(tools.map((t) => t.name).sort()).toEqual([
-      'close_chat', 'create_chat', 'get_chat_transcript', 'go_to_message', 'list_bots', 'list_chats', 'list_hosts', 'list_refs',
-      'message_bot', 'open_ticket_chat', 'reopen_chat', 'search_chats', 'send_to_chat', 'start_code_review',
+      'accept_file_transfer', 'cancel_file_transfer', 'close_chat', 'create_chat', 'decline_file_transfer',
+      'get_chat_transcript', 'get_file_transfer', 'go_to_message', 'list_bots', 'list_chats', 'list_hosts', 'list_refs',
+      'message_bot', 'open_ticket_chat', 'reopen_chat', 'search_chats', 'send_to_chat', 'start_code_review', 'transfer_file',
     ]);
+    // A file is offered to a chat: transfer_file has no destination of its own.
+    const offer = tools.find((t) => t.name === 'transfer_file')!;
+    expect(Object.keys((offer.inputSchema as { properties: Record<string, unknown> }).properties).sort()).toEqual(['from', 'message', 'path', 'toChat']);
+    // Codex runs only tools marked non-destructive under its `never` policy.
+    for (const name of ['transfer_file', 'accept_file_transfer', 'decline_file_transfer', 'cancel_file_transfer']) {
+      expect(tools.find((t) => t.name === name)?.annotations?.destructiveHint).toBe(false);
+    }
     // Chats see bots and talk to them; making, pausing and killing them is a person's.
     expect(tools.map((t) => t.name).filter((n) => /bot/.test(n)).sort()).toEqual(['list_bots', 'message_bot']);
     const send = tools.find((t) => t.name === 'send_to_chat')!;
