@@ -806,7 +806,7 @@ function HostCard({
       ? t('prefs.hosts.error', { error: probe.error ?? '' })
       : probe.state === 'ok' && probe.info
         ? t('prefs.hosts.ok', {
-            version: probe.info.version,
+            version: probe.info.commit ? `${probe.info.version} · ${probe.info.commit}` : probe.info.version,
             platform: probe.info.platform,
             claude: yesNo(probe.info.claude.ok),
             codex: yesNo(probe.info.codex.ok),

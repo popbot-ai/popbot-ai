@@ -16,6 +16,8 @@ import { HostBots } from './bots';
 import { startMcpRelay } from './mcpRelay';
 import { createHostServer } from './server';
 import { HostSessions } from './sessions';
+import { hostRepoRoot, startSelfUpdate } from './selfUpdate';
+import { execFileSync } from 'node:child_process';
 import { HostWorkspaces } from './workspaces';
 
 declare const __POPBOT_HOST_VERSION__: string | undefined;
@@ -49,10 +51,30 @@ async function main(): Promise<void> {
   sessions.useBots(bots);
   const botMcp = await startBotMcp(bots, VERSION);
   bots.useMcp(botMcp.urlFor);
-  const server = createHostServer({ config, version: VERSION, configPath: path, sessions, workspaces, bots, cli });
+  // The commit it runs, when it runs from a checkout.
+  const repoRoot = hostRepoRoot(__filename);
+  let commit: string | null = null;
+  try {
+    if (repoRoot) commit = execFileSync('git', ['-C', repoRoot, 'rev-parse', '--short', 'HEAD'], { encoding: 'utf8' }).trim();
+  } catch {
+    commit = null;
+  }
+  const server = createHostServer({ config, version: VERSION, commit, configPath: path, sessions, workspaces, bots, cli });
+  // A host that just updated itself starts while the old one may still be
+  // letting go of the port: try again for a few seconds.
+  let listenTries = 0;
+  server.on('error', (err: NodeJS.ErrnoException) => {
+    if (err.code === 'EADDRINUSE' && listenTries < 20) {
+      listenTries += 1;
+      setTimeout(() => server.listen(config.port, config.bind), 500);
+      return;
+    }
+    process.stderr.write(`popbot-host: ${err.message}\n`);
+    process.exit(1);
+  });
   server.listen(config.port, config.bind, () => {
     process.stdout.write(
-      `popbot-host ${VERSION} listening on http://${config.bind}:${config.port} as "${config.name}"\n` +
+      `popbot-host ${VERSION}${commit ? ` (${commit})` : ''} listening on http://${config.bind}:${config.port} as "${config.name}"\n` +
       // A first start made the token: say it once so `docker logs` (or
       // the terminal) has what PopBot needs.
       (created ? `  token:  ${config.token}\n` : '') +
@@ -61,8 +83,24 @@ async function main(): Promise<void> {
       `  bots:   ${config.bots.map((b) => `${b.id}${b.enabled ? '' : ' (paused)'}`).join(', ') || '(none)'}\n` +
       `  config: ${path}\n`,
     );
-    dlog('host.listening', { bind: config.bind, port: config.port, repos: config.repos.length, bots: config.bots.length });
+    dlog('host.listening', { bind: config.bind, port: config.port, repos: config.repos.length, bots: config.bots.length, commit });
     bots.start();
+  });
+  // Follow the PopBot branch it was built from (selfUpdate.ts).
+  startSelfUpdate(config.autoUpdate, __filename, {
+    idle: () => sessions.allIdle(),
+    shutdown: async () => {
+      // Desktops' event streams never end on their own: drop them (they
+      // reconnect to the new build) so closing does not wait forever.
+      await new Promise<void>((resolve) => {
+        server.close(() => resolve());
+        server.closeAllConnections?.();
+      });
+      bots.stop();
+      await sessions.disposeAll();
+      await mcpRelay.close();
+      await botMcp.close();
+    },
   });
   const shutdown = async (): Promise<void> => {
     server.close();

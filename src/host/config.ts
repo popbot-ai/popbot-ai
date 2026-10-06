@@ -17,6 +17,7 @@ import {
 import { CLAUDE_MODELS, CLAUDE_REASONING_EFFORTS } from '@shared/persistence';
 import { teamSpecProblems } from '@shared/botTeams';
 import { cronProblem } from './cron';
+import { DEFAULT_AUTO_UPDATE, type AutoUpdateConfig } from './selfUpdate';
 
 export interface HostConfig {
   /** Address to bind. Localhost by default: reach it over an SSH tunnel. */
@@ -31,6 +32,9 @@ export interface HostConfig {
   repos: HostRepo[];
   /** Chats this host runs on its own, woken by triggers. See bots.ts. */
   bots: HostBot[];
+  /** Pull, rebuild and restart when the PopBot branch it runs moves on
+   *  GitHub. See selfUpdate.ts. */
+  autoUpdate: AutoUpdateConfig;
 }
 
 export const DEFAULT_CONFIG_PATH = join(homedir(), '.popbot-host', 'config.json');
@@ -44,6 +48,7 @@ export function defaultConfig(): HostConfig {
     workspacesDir: join(homedir(), '.popbot-host', 'workspaces'),
     repos: [],
     bots: [],
+    autoUpdate: { ...DEFAULT_AUTO_UPDATE },
   };
 }
 
@@ -62,11 +67,21 @@ export function loadConfig(path: string): HostConfig {
     name: typeof raw.name === 'string' && raw.name ? raw.name : base.name,
     workspacesDir: typeof raw.workspacesDir === 'string' && raw.workspacesDir ? resolve(raw.workspacesDir) : base.workspacesDir,
     repos,
+    autoUpdate: normalizeAutoUpdate(raw.autoUpdate),
     bots: Array.isArray(raw.bots)
       ? raw.bots
           .filter((b): b is HostBot => !!b && typeof b.id === 'string' && BOT_ID_RE.test(b.id))
           .map((b) => normalizeBot(b))
       : [],
+  };
+}
+
+function normalizeAutoUpdate(raw: unknown): AutoUpdateConfig {
+  const r = (raw && typeof raw === 'object' ? raw : {}) as Partial<AutoUpdateConfig>;
+  return {
+    enabled: r.enabled !== false,
+    branch: typeof r.branch === 'string' && r.branch.trim() ? r.branch.trim() : DEFAULT_AUTO_UPDATE.branch,
+    intervalMinutes: typeof r.intervalMinutes === 'number' && r.intervalMinutes >= 1 ? r.intervalMinutes : DEFAULT_AUTO_UPDATE.intervalMinutes,
   };
 }
 

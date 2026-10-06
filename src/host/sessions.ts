@@ -130,6 +130,11 @@ export class HostSessions {
     return live?.busy ? live.lastAsk : null;
   }
 
+  /** No chat here — bot or not — is in the middle of a turn. */
+  allIdle(): boolean {
+    return [...this.chats.values()].every((c) => !c.busy || !c.session.isAlive());
+  }
+
   /** Alive, and not in the middle of a turn. */
   isIdle(chatId: string): boolean {
     const live = this.chats.get(chatId);

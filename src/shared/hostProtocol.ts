@@ -101,6 +101,9 @@ export interface HostInfo {
   protocol: number;
   name: string;
   version: string;
+  /** The PopBot commit it runs (short), when it runs from a checkout —
+   *  so a desktop can see whether it has caught up with a push. */
+  commit?: string | null;
   platform: string;
   claude: { ok: boolean; path: string | null };
   codex: { ok: boolean; path: string | null };

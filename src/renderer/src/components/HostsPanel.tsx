@@ -97,7 +97,7 @@ export function HostsPanel({
           : [];
         return { repoId: r.id, prefix: r.slotPrefix, count: r.slotCount, mode: r.mode, slots };
       }));
-      return { id: h.id, name: h.name, local: false, state: 'ok', version: probe.info.version, pools, chats: mine, openCount: mine.length };
+      return { id: h.id, name: h.name, local: false, state: 'ok', version: probe.info.commit ? `${probe.info.version} · ${probe.info.commit}` : probe.info.version, pools, chats: mine, openCount: mine.length };
     }));
     return [local, ...remote];
   }, [t]);

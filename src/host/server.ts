@@ -36,6 +36,8 @@ const SSE_PING_MS = 15_000;
 export function createHostServer(opts: {
   config: HostConfig;
   version: string;
+  /** The PopBot commit it runs, when it runs from a checkout. */
+  commit?: string | null;
   /** Where the config lives, for edits from the desktop. */
   configPath: string;
   sessions: HostSessions;
@@ -114,6 +116,7 @@ export function createHostServer(opts: {
         protocol: HOST_PROTOCOL_VERSION,
         name: config.name,
         version: opts.version,
+        commit: opts.commit ?? null,
         platform: process.platform,
         claude: { ok: !!opts.cli.claude, path: opts.cli.claude },
         codex: { ok: !!opts.cli.codex, path: opts.cli.codex },
