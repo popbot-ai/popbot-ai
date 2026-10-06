@@ -76,9 +76,15 @@ const BOT_ID_RE = /^[A-Za-z0-9_-]+$/;
 const AVATAR_RE = /^data:image\/(png|jpeg|webp|gif);base64,[A-Za-z0-9+/=]+$/;
 const MAX_AVATAR_CHARS = 256 * 1024;
 
+const BOT_FIELDS = [
+  'id', 'name', 'prompt', 'repoId', 'triggers', 'peers', 'githubLogin', 'githubToken', 'githubTokenEnv',
+  'gitName', 'email', 'avatar', 'claudeModel', 'claudeReasoningEffort', 'enabled',
+] as const;
+
 export function normalizeBot(b: Partial<HostBot> & { id: string }): HostBot {
   const str = (v: unknown): string | null => (typeof v === 'string' && v.trim() ? v.trim() : null);
   return {
+    ...unknownFields(b as Record<string, unknown>, BOT_FIELDS),
     id: b.id,
     name: str(b.name) ?? b.id,
     prompt: typeof b.prompt === 'string' ? b.prompt : '',
@@ -99,6 +105,17 @@ export function normalizeBot(b: Partial<HostBot> & { id: string }): HostBot {
   };
 }
 
+/** Fields this build does not know, kept as they are. A host older or
+ *  newer than the desktop (or the config) must not drop what it doesn't
+ *  understand: an older host once silently dropped a trigger's team, and
+ *  a newer one then read that as "no one". */
+function unknownFields(raw: Record<string, unknown>, known: readonly string[]): Record<string, unknown> {
+  return Object.fromEntries(Object.entries(raw).filter(([k]) => !known.includes(k)));
+}
+
+const GITHUB_TRIGGER_FIELDS = ['id', 'kind', 'repo', 'labels', 'team', 'pollSeconds'] as const;
+const CRON_TRIGGER_FIELDS = ['id', 'kind', 'schedule', 'message'] as const;
+
 function normalizeTrigger(t: unknown, i: number): BotTrigger | null {
   if (!t || typeof t !== 'object') return null;
   const raw = t as Record<string, unknown>;
@@ -106,6 +123,7 @@ function normalizeTrigger(t: unknown, i: number): BotTrigger | null {
   if (raw.kind === 'github') {
     const poll = typeof raw.pollSeconds === 'number' ? Math.floor(raw.pollSeconds) : DEFAULT_GITHUB_POLL_SECONDS;
     return {
+      ...unknownFields(raw, GITHUB_TRIGGER_FIELDS),
       id,
       kind: 'github',
       repo: typeof raw.repo === 'string' && raw.repo.trim()
@@ -119,6 +137,7 @@ function normalizeTrigger(t: unknown, i: number): BotTrigger | null {
   }
   if (raw.kind === 'cron') {
     return {
+      ...unknownFields(raw, CRON_TRIGGER_FIELDS),
       id,
       kind: 'cron',
       schedule: typeof raw.schedule === 'string' ? raw.schedule.trim() : '',
@@ -143,9 +162,19 @@ export function upsertBot(config: HostConfig, configPath: string, id: string | n
   if (id && !existing) throw new Error(`no bot "${id}" on this host`);
   const name = (input.name ?? existing?.name ?? '').trim();
   if (!name) throw new Error('a bot needs a name');
+  // A trigger sent without a field it had keeps that field: a desktop
+  // older than the field doesn't know to send it, and leaving it out must
+  // not clear it (only an explicit value does). Matched by trigger id.
+  const triggers = Array.isArray(input.triggers)
+    ? input.triggers.map((t) => {
+        const prior = existing?.triggers.find((p) => p.id === t?.id && p.kind === t?.kind);
+        return prior ? { ...prior, ...t } : t;
+      })
+    : input.triggers;
   const next = normalizeBot({
     ...existing,
     ...input,
+    ...(triggers ? { triggers } : {}),
     githubToken: input.githubToken === undefined ? existing?.githubToken ?? null : input.githubToken,
     name,
     id: existing?.id ?? botIdFor(config, name),
