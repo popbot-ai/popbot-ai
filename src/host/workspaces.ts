@@ -32,6 +32,7 @@ import {
   ensureSlotWorktree,
   ephemeralWorktreeSlug,
   findLatestStashRef,
+  movedChatStashName,
   newChatStashName,
   parkSlot,
   parkingBranch,
@@ -155,6 +156,17 @@ export class HostWorkspaces {
     return null;
   }
 
+  /** The repository of the checkout a chat holds (a slot or an
+   *  ephemeral worktree), for packing its work when it moves. */
+  heldRepo(chatId: string): HostRepo | null {
+    const e = this.state.ephemeral[chatId];
+    if (e) return this.repo(e.repoId);
+    for (const [repoId, slots] of Object.entries(this.state.slots)) {
+      if (Object.values(slots).some((h) => h.chatId === chatId)) return this.repo(repoId);
+    }
+    return null;
+  }
+
   /** Give the chat the workspace it asks for, or the one it already
    *  holds. Serialized so allocations never race. */
   ensure(chatId: string, req: HostWorkspaceRequest | null | undefined): Promise<HostWorkspaceResult> {
@@ -239,13 +251,16 @@ export class HostWorkspaces {
   /** Park the chat's slot (or remove its ephemeral worktree). The
    *  branch stays in the repository; dirty work is stashed under the
    *  chat's name or discarded. Nothing held is fine. */
-  release(chatId: string, stash: boolean): Promise<{ released: boolean }> {
-    const run = this.chain.then(() => this.releaseNow(chatId, stash));
+  release(chatId: string, stash: boolean, opts: { moved?: boolean } = {}): Promise<{ released: boolean }> {
+    const run = this.chain.then(() => this.releaseNow(chatId, stash, opts.moved === true));
     this.chain = run.catch(() => undefined);
     return run;
   }
 
-  private async releaseNow(chatId: string, stash: boolean): Promise<{ released: boolean }> {
+  private async releaseNow(chatId: string, stash: boolean, moved: boolean): Promise<{ released: boolean }> {
+    // A chat that moved away took its work; its stash here is a backup
+    // that a later reopen must not pop.
+    const stashMessage = moved ? movedChatStashName(chatId) : newChatStashName(chatId);
     const current = this.held(chatId);
     if (!current) return { released: false };
     const repoId = current.kind === 'ephemeral'
@@ -255,11 +270,11 @@ export class HostWorkspaces {
     try {
       if (current.kind === 'slot' && current.slotId != null && repo) {
         const parkBranch = parkingBranch(repo.id, current.slotId);
-        await parkSlot({ worktreePath: current.cwd, parkBranch, stash, discard: !stash, stashMessage: newChatStashName(chatId) });
+        await parkSlot({ worktreePath: current.cwd, parkBranch, stash, discard: !stash, stashMessage });
         refreshParkBranchInBackground({ worktreePath: current.cwd, parkBranch, baseBranch: repo.defaultBase || 'main' });
         delete this.state.slots[repo.id][String(current.slotId)];
       } else if (current.kind === 'ephemeral' && repo) {
-        await removeChatWorktree({ repoPath: repo.path, worktreePath: current.cwd, stash, discard: !stash, stashMessage: newChatStashName(chatId) });
+        await removeChatWorktree({ repoPath: repo.path, worktreePath: current.cwd, stash, discard: !stash, stashMessage });
         delete this.state.ephemeral[chatId];
       }
     } finally {

@@ -27,6 +27,7 @@ import {
   type SaveHostInput,
   type SendMessageInput,
   type UpdateRepoInput,
+  type MoveChatTarget,
 } from '@shared/ipc';
 
 const api: PopBotApi = {
@@ -269,6 +270,10 @@ const api: PopBotApi = {
     saveRepo: (hostId: string, repo: Partial<HostRepo> & { id: string }) => ipcRenderer.invoke(IpcChannel.HostsSaveRepo, hostId, repo),
     removeRepo: (hostId: string, repoId: string) => ipcRenderer.invoke(IpcChannel.HostsRemoveRepo, hostId, repoId),
     shutdown: (chatId: string) => ipcRenderer.invoke(IpcChannel.HostsShutdown, chatId),
+  },
+  chatMove: {
+    move: (chatId: string, target: MoveChatTarget, opts?: { withoutRepo?: boolean }) =>
+      ipcRenderer.invoke(IpcChannel.ChatsMove, chatId, target, opts ?? {}),
   },
   bots: {
     list: (refresh?: boolean) => ipcRenderer.invoke(IpcChannel.BotsList, refresh === true),

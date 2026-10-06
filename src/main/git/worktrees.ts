@@ -364,6 +364,14 @@ export function newChatStashName(chatId: string): string {
   return `${chatStashPrefix(chatId)}${new Date().toISOString()}`;
 }
 
+/** The stash a checkout keeps when its chat MOVES to another machine. A
+ *  backup only: the work went with the chat, so — unlike a closed chat's
+ *  stash — reopening never pops it (it doesn't start with
+ *  {@link chatStashPrefix}). */
+export function movedChatStashName(chatId: string): string {
+  return `popbot/moved/chat_${chatId}/${new Date().toISOString()}`;
+}
+
 /**
  * Find the most recent stash whose message starts with `prefix`.
  * Returns the `stash@{N}` ref or null. Stashes are listed newest first,

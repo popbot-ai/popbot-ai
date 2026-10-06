@@ -59,7 +59,7 @@ import { RAW_CHAT_REPO_ID, type RepoRecord } from '@shared/persistence';
  *  Detect either and re-attach ALL of the repo's shado clones via one elevated
  *  `shado remount` before allocating — otherwise the next slot op fails on the
  *  dead mount. No-op for non-slot repos, off-Windows, or slots already up. */
-async function ensureSlotsMounted(repo: RepoRecord): Promise<void> {
+export async function ensureSlotsMounted(repo: RepoRecord): Promise<void> {
   if (repo.mode !== 'slots' || process.platform !== 'win32') return;
   const baseName = repo.scm === 'perforce' ? repo.p4?.shadoBase : repo.id;
   if (!baseName) return;
@@ -131,7 +131,7 @@ export async function reconnectSlots(): Promise<{ ok: boolean; error?: string }>
  *  to 'app' so legacy callers + pre-multi-repo installs keep
  *  working unchanged. Returns null if the repo row was deleted (chat
  *  is detached — caller must surface that). */
-function resolveRepo(repoId?: string | null): RepoRecord | null {
+export function resolveRepo(repoId?: string | null): RepoRecord | null {
   return getRepo(repoId?.trim() || 'app');
 }
 
@@ -155,7 +155,7 @@ function forkBranchName(sourceBranch: string): string {
   }
 }
 
-function ephemeralPathFor(opts: {
+export function ephemeralPathFor(opts: {
   scm: SourceControlProvider;
   worktreesDir: string;
   ticket: string | null;

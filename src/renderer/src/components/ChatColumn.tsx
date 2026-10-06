@@ -30,6 +30,7 @@ import type { Readiness } from '../lib/useReadiness';
 import { hotkey } from '../lib/hotkeys';
 import { LiveChatBody } from './LiveChatBody';
 import { BotChatDialogs, BotChatMenuItems } from './BotChatMenu';
+import { MoveChatDialog } from './MoveChatDialog';
 import { useAppsRunning } from '../lib/useAppsRunning';
 import { useSettings } from '../lib/useSettings';
 import {
@@ -315,6 +316,7 @@ export function ChatColumn({
   // A bot's chat gets the bot's commands instead (BotChatMenu.tsx).
   const isBot = !!chat.host?.botId;
   const [botDialog, setBotDialog] = useState<'edit' | 'kill' | null>(null);
+  const [moving, setMoving] = useState(false);
   const botError = (message: string): void => { alert(message); };
   useEffect(() => {
     if (!menu) return;
@@ -768,6 +770,19 @@ export function ChatColumn({
               </button>
             </>
           )}
+          {!chat.cloud && (
+            <button
+              type="button"
+              className="chat-menu-item"
+              role="menuitem"
+              disabled={chat.status === 'run'}
+              title={chat.status === 'run' ? t('chat.move.runningHint') : t('chat.move.menuTooltip')}
+              onClick={() => { setMenu(null); setMoving(true); }}
+            >
+              <i className="fa-solid fa-truck-arrow-right" aria-hidden="true" />
+              {t('chat.move.menu')}
+            </button>
+          )}
           {chat.host && (
             <button
               type="button"
@@ -794,6 +809,7 @@ export function ChatColumn({
         </div>
       )}
       {isBot && <BotChatDialogs chat={chat} dialog={botDialog} onClose={() => setBotDialog(null)} onError={botError} />}
+      {moving && <MoveChatDialog chat={chat} onClose={() => setMoving(false)} />}
       <div className="runtime-strip">
         <SlotAppButtons worktreePath={chat.worktreePath ?? null} chatId={chat.id} onOpenPrefs={onOpenPrefs} />
         {/* Both chips render side-by-side when applicable so the user
