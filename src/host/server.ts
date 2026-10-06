@@ -25,6 +25,7 @@ import { dlog } from '../main/diagLog';
 import type { HostBots } from './bots';
 import { removeRepo, upsertRepo, type HostConfig } from './config';
 import { listBranches } from './git';
+import { FileOpError, abortPart, commitPart, readFileFrom, statFile, writePartFrom } from '../main/transfer/fileOps';
 import { applyWorkChanges, packWork, unpackBranch } from '../main/git/moveWork';
 import { HostError, HostSessions } from './sessions';
 import { HostWorkspaceError, type HostWorkspaces } from './workspaces';
@@ -122,6 +123,52 @@ export function createHostServer(opts: {
         bots: bots.list(),
       };
       return json(res, 200, info);
+    }
+
+    // A file transfer to or from this machine (src/main/transfer/). Reads
+    // and writes stream: a file of any size passes through without being
+    // held in memory.
+    if (parts[1] === 'files' && parts.length === 3) {
+      const action = parts[2];
+      const path = url.searchParams.get('path') ?? '';
+      const offset = Number(url.searchParams.get('offset') ?? '0');
+      try {
+        if (req.method === 'GET' && action === 'stat') {
+          return json(res, 200, await statFile(path, { hash: url.searchParams.get('hash') === '1' }));
+        }
+        if (req.method === 'GET' && action === 'read') {
+          const { stream, size } = await readFileFrom(path, offset);
+          res.writeHead(200, {
+            'Content-Type': 'application/octet-stream',
+            'Content-Length': String(size - offset),
+            'X-File-Size': String(size),
+          });
+          res.on('close', () => stream.destroy());
+          stream.on('error', () => res.destroy());
+          stream.pipe(res);
+          return;
+        }
+        if (req.method === 'PUT' && action === 'write') {
+          return json(res, 200, await writePartFrom(path, offset, req));
+        }
+        if (req.method === 'POST' && action === 'commit') {
+          const b = (await readJson(req)) as { path?: unknown; size?: unknown; sha256?: unknown; overwrite?: unknown };
+          if (typeof b.path !== 'string' || typeof b.size !== 'number' || typeof b.sha256 !== 'string') {
+            return json(res, 400, { error: 'path, size and sha256 required' });
+          }
+          return json(res, 200, await commitPart(b.path, { size: b.size, sha256: b.sha256, overwrite: b.overwrite === true }));
+        }
+        if (req.method === 'POST' && action === 'abort') {
+          const b = (await readJson(req)) as { path?: unknown };
+          if (typeof b.path !== 'string') return json(res, 400, { error: 'path required' });
+          await abortPart(b.path);
+          return json(res, 200, { ok: true });
+        }
+      } catch (err) {
+        if (err instanceof FileOpError) return json(res, err.status, { error: err.message });
+        throw err;
+      }
+      return json(res, 404, { error: 'not found' });
     }
 
     if (parts[1] === 'bots') {

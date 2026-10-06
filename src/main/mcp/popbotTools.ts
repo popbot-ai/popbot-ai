@@ -39,7 +39,17 @@ import { getSetting } from '../persistence/settings';
 import { getReviewByNumber } from '../reviews';
 import { getSourceControlProvider } from '../scm';
 import { activeTicketSource } from '../tickets/registry';
-import type { BotSummary, ChatSummary, HostSummary, PopbotToolHandlers, ToolFailure } from './server';
+import type { BotSummary, ChatSummary, FileTransferSummary, HostSummary, PopbotToolHandlers, ToolFailure } from './server';
+import {
+  acceptFileTransfer,
+  cancelFileTransfer,
+  declineFileTransfer,
+  fileName,
+  getFileTransfer,
+  offerFileTransfer,
+  whenFinished,
+  type FileTransferInfo,
+} from '../transfer/jobs';
 import { botChat, botListings } from '../ipc/bots';
 import { searchTranscripts } from '../search/transcriptSearch';
 import { renderTranscript, transcriptEntries } from './transcript';
@@ -231,6 +241,76 @@ function findHost(ref: string): HostRecord | null {
 function unknownHost(ref: string): ToolFailure {
   const known = listHosts().map((h) => h.name).join(', ') || 'none configured';
   return fail(`unknown host "${ref}" (known: ${known}; add hosts in PopBot Preferences ▸ Hosts)`);
+}
+
+// ---- File transfers (transfer_file and friends; src/main/transfer/).
+
+/** The machine a chat runs on, as the transfer tools name machines. */
+function machineOfChat(chat: ChatRecord | null): string {
+  return chat?.host?.hostName ?? 'this computer';
+}
+
+function humanSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  const units = ['KB', 'MB', 'GB', 'TB'];
+  let n = bytes / 1024;
+  let i = 0;
+  while (n >= 1024 && i < units.length - 1) {
+    n /= 1024;
+    i += 1;
+  }
+  return `${n.toFixed(n < 10 ? 1 : 0)} ${units[i]}`;
+}
+
+function transferSummary(t: FileTransferInfo): FileTransferSummary {
+  return {
+    transferId: t.id,
+    from: t.from,
+    fromPath: t.fromPath,
+    to: t.to,
+    fromChat: t.fromChatId ? getChat(t.fromChatId)?.name ?? t.fromChatId : null,
+    toChat: getChat(t.toChatId)?.name ?? t.toChatId,
+    destPath: t.destPath,
+    state: t.phase,
+    bytes: t.done,
+    size: t.size,
+    percent: t.size > 0 ? Math.floor((t.done * 100) / t.size) : t.phase === 'done' ? 100 : 0,
+    attempt: t.attempt,
+    sha256: t.sha256,
+    error: t.error,
+  };
+}
+
+/** A note to a chat about a transfer, attributed to the chat at the other end. */
+function tellChat(chatId: string | null, text: string, fromChatId: string | null): void {
+  if (!chatId || !getChat(chatId)) return;
+  const from = fromChatId ? getChat(fromChatId) : null;
+  sendInBackground(chatId, text, { chatId: from?.id ?? 'popbot', chatName: from?.name ?? 'PopBot', waiting: false });
+}
+
+/** Transfers whose arrival the recipient already saw in its accept call. */
+const arrivalSeen = new Set<string>();
+
+/** Tell each end how a transfer ended. Declines are told by the decline
+ *  itself (with its reason); lapsed offers by the expiry. */
+function followTransfer(id: string): void {
+  void whenFinished(id).then((t) => {
+    if (!t) return;
+    const name = fileName(t.fromPath);
+    const toName = getChat(t.toChatId)?.name ?? t.toChatId;
+    if (t.phase === 'done') {
+      if (!arrivalSeen.delete(t.id)) {
+        tellChat(t.toChatId, `The file "${name}" has arrived: ${t.destPath} (${humanSize(t.size)}, SHA-256 ${t.sha256}).`, t.fromChatId);
+      }
+      tellChat(t.fromChatId, `"${name}" was delivered to chat "${toName}" — ${t.destPath} on ${t.to}.`, t.toChatId);
+    } else if (t.phase === 'failed') {
+      tellChat(t.fromChatId, `Sending "${name}" to chat "${toName}" failed: ${t.error}`, t.toChatId);
+      tellChat(t.toChatId, `The file "${name}" did not arrive: ${t.error}`, t.fromChatId);
+    } else if (t.phase === 'cancelled') {
+      tellChat(t.fromChatId, `The transfer of "${name}" to chat "${toName}" was cancelled.`, t.toChatId);
+      tellChat(t.toChatId, `The transfer of "${name}" was cancelled.`, t.fromChatId);
+    }
+  });
 }
 
 export function createPopbotToolHandlers(): PopbotToolHandlers {
@@ -500,6 +580,58 @@ export function createPopbotToolHandlers(): PopbotToolHandlers {
 
     listRefs() {
       return listChatRefs();
+    },
+
+    async transferFile({ path, toChat, message, from }, caller) {
+      const target = getChat(toChat);
+      if (!target) return fail(`no chat ${toChat}`);
+      if (target.id === caller) return fail('that is your own chat');
+      if (target.host?.botId) return fail(`${target.name} is a bot, and bots cannot accept files yet`);
+      if (target.cloud) return fail(`${target.name} runs in the cloud, which files cannot be sent to`);
+      if (!isOpen(target.id)) return fail(`chat ${target.name} is closed; reopen it first`);
+      const sender = caller ? getChat(caller) : null;
+      const offer = await offerFileTransfer(
+        { from: from ?? machineOfChat(sender), fromPath: path, to: machineOfChat(target), fromChatId: caller, toChatId: target.id },
+        (lapsed) => tellChat(caller, `Nobody accepted "${fileName(lapsed.fromPath)}" within an hour, so the offer to chat "${target.name}" lapsed.`, target.id),
+      );
+      followTransfer(offer.id);
+      tellChat(
+        target.id,
+        `I'm offering you a file from ${offer.from}: "${fileName(offer.fromPath)}" (${humanSize(offer.size)}).` +
+          (message?.trim() ? `\n\n${message.trim()}` : '') +
+          `\n\nTo take it — into ~/popbot/sent_files on ${offer.to}, where you run — call the popbot tool accept_file_transfer with transferId "${offer.id}". ` +
+          'To turn it down, decline_file_transfer. The offer lapses in an hour.',
+        caller,
+      );
+      dlog('mcp.popbot.transferFile', { by: caller, to: target.id, id: offer.id, size: offer.size });
+      return transferSummary(offer);
+    },
+
+    async acceptFileTransfer({ transferId, waitSeconds }, caller) {
+      await acceptFileTransfer(transferId, caller);
+      const t = await getFileTransfer(transferId, waitSeconds * 1000);
+      if (!t) return fail(`no transfer ${transferId}`);
+      if (t.phase === 'done') arrivalSeen.add(t.id);
+      return transferSummary(t);
+    },
+
+    async declineFileTransfer({ transferId, reason }, caller) {
+      const t = declineFileTransfer(transferId, caller);
+      tellChat(
+        t.fromChatId,
+        `Chat "${getChat(t.toChatId)?.name ?? t.toChatId}" declined "${fileName(t.fromPath)}"${reason?.trim() ? `: ${reason.trim()}` : '.'}`,
+        t.toChatId,
+      );
+      return transferSummary(t);
+    },
+
+    async getFileTransfer({ transferId, waitSeconds }) {
+      const t = await getFileTransfer(transferId, waitSeconds * 1000);
+      return t ? transferSummary(t) : fail(`no transfer ${transferId}`);
+    },
+
+    async cancelFileTransfer({ transferId }, caller) {
+      return transferSummary(cancelFileTransfer(transferId, caller));
     },
 
     goToMessage({ chatId, messageId }, caller) {
