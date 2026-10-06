@@ -16,7 +16,7 @@ import { HostBots } from './bots';
 import { startMcpRelay } from './mcpRelay';
 import { createHostServer } from './server';
 import { HostSessions } from './sessions';
-import { hostRepoRoot, startSelfUpdate } from './selfUpdate';
+import { HostUpdater, hostRepoRoot } from './selfUpdate';
 import { execFileSync } from 'node:child_process';
 import { HostWorkspaces } from './workspaces';
 
@@ -59,7 +59,14 @@ async function main(): Promise<void> {
   } catch {
     commit = null;
   }
-  const server = createHostServer({ config, version: VERSION, commit, configPath: path, sessions, workspaces, bots, cli });
+  // Moves to its desktop's version when asked (selfUpdate.ts); its hooks
+  // reach the server, made just below.
+  let shutdownForUpdate: () => Promise<void> = async () => undefined;
+  const updater = new HostUpdater(config.autoUpdate, __filename, {
+    idle: () => sessions.allIdle(),
+    shutdown: () => shutdownForUpdate(),
+  });
+  const server = createHostServer({ config, version: VERSION, commit, updater, configPath: path, sessions, workspaces, bots, cli });
   // A host that just updated itself starts while the old one may still be
   // letting go of the port: try again for a few seconds.
   let listenTries = 0;
@@ -86,22 +93,18 @@ async function main(): Promise<void> {
     dlog('host.listening', { bind: config.bind, port: config.port, repos: config.repos.length, bots: config.bots.length, commit });
     bots.start();
   });
-  // Follow the PopBot branch it was built from (selfUpdate.ts).
-  startSelfUpdate(config.autoUpdate, __filename, {
-    idle: () => sessions.allIdle(),
-    shutdown: async () => {
-      // Desktops' event streams never end on their own: drop them (they
-      // reconnect to the new build) so closing does not wait forever.
-      await new Promise<void>((resolve) => {
-        server.close(() => resolve());
-        server.closeAllConnections?.();
-      });
-      bots.stop();
-      await sessions.disposeAll();
-      await mcpRelay.close();
-      await botMcp.close();
-    },
-  });
+  shutdownForUpdate = async () => {
+    // Desktops' event streams never end on their own: drop them (they
+    // reconnect to the new build) so closing does not wait forever.
+    await new Promise<void>((resolve) => {
+      server.close(() => resolve());
+      server.closeAllConnections?.();
+    });
+    bots.stop();
+    await sessions.disposeAll();
+    await mcpRelay.close();
+    await botMcp.close();
+  };
   const shutdown = async (): Promise<void> => {
     server.close();
     bots.stop();

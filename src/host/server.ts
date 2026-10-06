@@ -23,6 +23,7 @@ import {
 } from '@shared/hostProtocol';
 import { dlog } from '../main/diagLog';
 import type { HostBots } from './bots';
+import type { HostUpdater } from './selfUpdate';
 import { removeRepo, upsertRepo, type HostConfig } from './config';
 import { listBranches } from './git';
 import { applyWorkChanges, packWork, unpackBranch } from '../main/git/moveWork';
@@ -38,6 +39,8 @@ export function createHostServer(opts: {
   version: string;
   /** The PopBot commit it runs, when it runs from a checkout. */
   commit?: string | null;
+  /** Moves it to a desktop's version on request. */
+  updater?: HostUpdater;
   /** Where the config lives, for edits from the desktop. */
   configPath: string;
   sessions: HostSessions;
@@ -117,6 +120,7 @@ export function createHostServer(opts: {
         name: config.name,
         version: opts.version,
         commit: opts.commit ?? null,
+        update: opts.updater?.status(),
         platform: process.platform,
         claude: { ok: !!opts.cli.claude, path: opts.cli.claude },
         codex: { ok: !!opts.cli.codex, path: opts.cli.codex },
@@ -125,6 +129,13 @@ export function createHostServer(opts: {
         bots: bots.list(),
       };
       return json(res, 200, info);
+    }
+
+    if (req.method === 'POST' && parts[1] === 'update' && parts.length === 2) {
+      const body = (await readJson(req)) as { commit?: unknown };
+      if (typeof body.commit !== 'string') return json(res, 400, { error: 'commit required' });
+      if (!opts.updater) return json(res, 200, { result: 'refused', reason: 'this host cannot update itself', state: { phase: 'off' } });
+      return json(res, 200, await opts.updater.request(body.commit));
     }
 
     if (parts[1] === 'bots') {

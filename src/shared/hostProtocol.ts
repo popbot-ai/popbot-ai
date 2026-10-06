@@ -28,6 +28,7 @@
  *   PUT  /v1/bots/:id                      HostBotInput → HostBotInfo  (rewrites the config)
  *   DELETE /v1/bots/:id                    → { ok }
  *   POST /v1/bots/:id/wake | pause | resume | reset → { ok }
+ *   POST /v1/update                        { commit } → HostUpdateAnswer  (move to the desktop's version)
  *
  * A bot's chat is an ordinary chat on this wire, under `botChatId(id)`:
  * the desktop attaches to it like any other. Only who drives it differs
@@ -101,9 +102,11 @@ export interface HostInfo {
   protocol: number;
   name: string;
   version: string;
-  /** The PopBot commit it runs (short), when it runs from a checkout —
-   *  so a desktop can see whether it has caught up with a push. */
+  /** The PopBot commit it runs (short), when it runs from a checkout. A
+   *  desktop on another commit asks it to move (POST /v1/update). */
   commit?: string | null;
+  /** Where a requested update stands. */
+  update?: HostUpdateState;
   platform: string;
   claude: { ok: boolean; path: string | null };
   codex: { ok: boolean; path: string | null };
@@ -230,6 +233,20 @@ export interface BotWatchedPr {
 /** A bot to make or change, from a desktop. `githubToken` absent keeps
  *  the stored one; an empty string clears it. */
 export type HostBotInput = Partial<Omit<HostBot, 'id'>> & { name: string };
+
+/** Where a host's update stands (src/host/selfUpdate.ts). */
+export interface HostUpdateState {
+  phase: 'idle' | 'updating' | 'waiting-for-idle' | 'failed' | 'off';
+  to?: string;
+  error?: string;
+}
+
+/** The answer to POST /v1/update. */
+export interface HostUpdateAnswer {
+  result: 'current' | 'updating' | 'refused' | 'busy';
+  reason?: string;
+  state: HostUpdateState;
+}
 
 /** A bot's chat id, the same on the host and every desktop. */
 export function botChatId(botId: string): string {

@@ -3,7 +3,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { checkForUpdate, hostRepoRoot } from './selfUpdate';
+import { hostRepoRoot, planUpdate } from './selfUpdate';
 
 vi.mock('../main/diagLog', () => ({ dlog: () => undefined }));
 
@@ -17,7 +17,7 @@ function git(cwd: string, ...args: string[]): string {
 }
 
 /** GitHub (a bare repo), a developer's clone that pushes, and a host's clone. */
-function world(): { dev: string; host: string } {
+function world(): { dev: string; host: string; first: string } {
   const root = mkdtempSync(join(tmpdir(), 'popbot-selfupdate-'));
   dirs.push(root);
   const remote = join(root, 'github.git');
@@ -31,52 +31,55 @@ function world(): { dev: string; host: string } {
   git(dev, 'push', 'origin', 'HEAD:main');
   const host = join(root, 'host');
   git(root, 'clone', remote, host);
-  return { dev, host };
+  return { dev, host, first: git(dev, 'rev-parse', 'HEAD') };
 }
 
-function push(dev: string, file: string, content: string): string {
+function commit(dev: string, file: string, content: string, branch = 'main'): string {
   writeFileSync(join(dev, file), content);
   git(dev, 'add', '.');
   git(dev, 'commit', '-m', `change ${file}`);
-  git(dev, 'push', 'origin', 'HEAD:main');
+  git(dev, 'push', 'origin', `HEAD:${branch}`);
   return git(dev, 'rev-parse', 'HEAD');
 }
 
-describe('a host keeping itself current with GitHub', () => {
-  it('has nothing to do when it already runs the latest commit', async () => {
-    const { host } = world();
-    expect(await checkForUpdate(host, 'main')).toEqual({ action: 'none' });
+describe("a host moving to its desktop's version", () => {
+  it('has nothing to do on the same commit, short or long', async () => {
+    const { host, first } = world();
+    expect(await planUpdate(host, first)).toEqual({ action: 'none' });
+    expect(await planUpdate(host, first.slice(0, 7))).toEqual({ action: 'none' });
   });
 
-  it('takes a pushed commit, and knows whether dependencies changed', async () => {
+  it('fast-forwards to a newer commit on its branch, and knows whether dependencies changed', async () => {
     const { dev, host } = world();
-    const to = push(dev, 'app.ts', 'v2\n');
-    expect(await checkForUpdate(host, 'main')).toMatchObject({ action: 'update', to, depsChanged: false });
-    push(dev, 'package.json', '{"name":"popbot","version":"2"}\n');
-    expect(await checkForUpdate(host, 'main')).toMatchObject({ action: 'update', depsChanged: true });
+    const v2 = commit(dev, 'app.ts', 'v2\n');
+    expect(await planUpdate(host, v2.slice(0, 7))).toMatchObject({ action: 'update', to: v2, fastForward: true, depsChanged: false });
+    const v3 = commit(dev, 'package.json', '{"name":"popbot","version":"3"}\n');
+    expect(await planUpdate(host, v3)).toMatchObject({ action: 'update', to: v3, depsChanged: true });
   });
 
-  it('leaves a checkout alone that someone is working in, or that is elsewhere', async () => {
+  it("goes to an older commit or another branch's by checking it out — the desktop's version is the right one", async () => {
+    const { dev, host, first } = world();
+    const v2 = commit(dev, 'app.ts', 'v2\n');
+    git(host, 'pull', '--quiet');
+    expect(await planUpdate(host, first)).toMatchObject({ action: 'update', to: first, fastForward: false });
+    git(dev, 'switch', '-c', 'feat/x', first);
+    const feat = commit(dev, 'app.ts', 'feature\n', 'feat/x');
+    expect(await planUpdate(host, feat)).toMatchObject({ action: 'update', to: feat, fastForward: false });
+    expect(v2).not.toBe(feat);
+  });
+
+  it('refuses a checkout someone is working in, and a commit GitHub does not have', async () => {
     const { dev, host } = world();
-    push(dev, 'app.ts', 'v2\n');
+    const v2 = commit(dev, 'app.ts', 'v2\n');
     writeFileSync(join(host, 'app.ts'), 'edited on the host\n');
-    expect(await checkForUpdate(host, 'main')).toEqual({ action: 'skip', reason: 'the checkout has uncommitted changes' });
+    expect(await planUpdate(host, v2)).toEqual({ action: 'skip', reason: 'the checkout has uncommitted changes' });
     git(host, 'checkout', '--', 'app.ts');
     // An untracked file (a build output, a log) is not someone's work.
     mkdirSync(join(host, 'dist-host'));
     writeFileSync(join(host, 'dist-host', 'popbot-host.cjs'), '// built\n');
-    expect((await checkForUpdate(host, 'main')).action).toBe('update');
-    git(host, 'switch', '-c', 'experiment');
-    expect(await checkForUpdate(host, 'main')).toMatchObject({ action: 'skip', reason: expect.stringContaining('"experiment"') });
-  });
-
-  it('does not take a commit that is not a fast-forward', async () => {
-    const { dev, host } = world();
-    push(dev, 'app.ts', 'v2\n');
-    writeFileSync(join(host, 'local.ts'), 'a local commit\n');
-    git(host, 'add', '.');
-    git(host, 'commit', '-m', 'local');
-    expect(await checkForUpdate(host, 'main')).toEqual({ action: 'skip', reason: 'the checkout has diverged from origin/main' });
+    expect((await planUpdate(host, v2)).action).toBe('update');
+    expect(await planUpdate(host, 'abcdef1234567')).toMatchObject({ action: 'skip', reason: expect.stringContaining('not on GitHub') });
+    expect(await planUpdate(host, 'not-a-sha')).toMatchObject({ action: 'skip' });
   });
 
   it('finds the repository it was built from', () => {

@@ -32,8 +32,7 @@ export interface HostConfig {
   repos: HostRepo[];
   /** Chats this host runs on its own, woken by triggers. See bots.ts. */
   bots: HostBot[];
-  /** Pull, rebuild and restart when the PopBot branch it runs moves on
-   *  GitHub. See selfUpdate.ts. */
+  /** Move to its desktop's PopBot version when asked. See selfUpdate.ts. */
   autoUpdate: AutoUpdateConfig;
 }
 
@@ -78,11 +77,7 @@ export function loadConfig(path: string): HostConfig {
 
 function normalizeAutoUpdate(raw: unknown): AutoUpdateConfig {
   const r = (raw && typeof raw === 'object' ? raw : {}) as Partial<AutoUpdateConfig>;
-  return {
-    enabled: r.enabled !== false,
-    branch: typeof r.branch === 'string' && r.branch.trim() ? r.branch.trim() : DEFAULT_AUTO_UPDATE.branch,
-    intervalMinutes: typeof r.intervalMinutes === 'number' && r.intervalMinutes >= 1 ? r.intervalMinutes : DEFAULT_AUTO_UPDATE.intervalMinutes,
-  };
+  return { enabled: r.enabled === undefined ? DEFAULT_AUTO_UPDATE.enabled : r.enabled !== false };
 }
 
 const BOT_ID_RE = /^[A-Za-z0-9_-]+$/;

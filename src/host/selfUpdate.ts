@@ -1,24 +1,27 @@
 /**
- * A host keeps itself current with the PopBot repository it was built
- * from: when the branch it runs (main, usually) moves on GitHub, it pulls,
- * rebuilds itself and restarts — so a push reaches every host without
- * anyone at the machine.
+ * A host runs the PopBot version its desktop runs. The desktop compares its
+ * own commit with each host's (HostInfo.commit) and, when they differ, asks
+ * the host to move to its commit (POST /v1/update). The host then:
  *
- * Every few minutes it compares its checkout with the remote branch. A
- * newer commit is taken only when the checkout is clean (no edits to
- * tracked files), on that branch, and a fast-forward away. Then:
- * `git merge --ff-only`, `npm ci` if package.json or the lockfile changed,
- * `npm run build:host`, and a restart — once no chat or bot is mid-turn
- * (or after RESTART_WAIT_MS at the latest). A failed step keeps the old
- * build running and that commit is not tried again.
+ *   - fetches the commit (git is assumed installed; the commit has to be
+ *     on GitHub),
+ *   - moves its checkout to it — a fast-forward of its branch when the
+ *     commit is ahead on it, else a checkout of the commit itself,
+ *   - runs `npm ci` if package.json or the lockfile differ,
+ *   - runs `npm run build:host`,
+ *   - and restarts into the new build once no chat or bot is mid-turn (or
+ *     after RESTART_WAIT_MS at the latest).
  *
- * Off when the host does not run from a git checkout (the container
- * image), or with `"autoUpdate": { "enabled": false }` in its config.
+ * A checkout with uncommitted changes to tracked files is left alone, and
+ * a failed step keeps the old build running. Off when the host does not run
+ * from a git checkout (the container image), or with
+ * `"autoUpdate": { "enabled": false }` in its config.
  */
 import { execFile, spawn } from 'node:child_process';
 import { existsSync, mkdirSync, openSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
+import type { HostUpdateAnswer, HostUpdateState } from '@shared/hostProtocol';
 import { dlog } from '../main/diagLog';
 
 /** Longest a pending restart waits for running turns to end. */
@@ -26,18 +29,18 @@ const RESTART_WAIT_MS = 30 * 60_000;
 const IDLE_CHECK_MS = 30_000;
 
 export interface AutoUpdateConfig {
+  /** Accept a desktop's request to move to its version. */
   enabled: boolean;
-  /** The branch it follows. */
-  branch: string;
-  intervalMinutes: number;
 }
 
-export const DEFAULT_AUTO_UPDATE: AutoUpdateConfig = { enabled: true, branch: 'main', intervalMinutes: 5 };
+export const DEFAULT_AUTO_UPDATE: AutoUpdateConfig = { enabled: true };
 
-export type UpdateCheck =
+export type UpdatePlan =
   | { action: 'none' }
   | { action: 'skip'; reason: string }
-  | { action: 'update'; from: string; to: string; depsChanged: boolean };
+  | { action: 'update'; from: string; to: string; fastForward: boolean; depsChanged: boolean };
+
+export type UpdateState = HostUpdateState;
 
 function run(cmd: string, args: string[], cwd: string, timeoutMs = 120_000): Promise<string> {
   return new Promise((resolvePromise, reject) => {
@@ -58,26 +61,30 @@ export function hostRepoRoot(bundlePath: string): string | null {
   return existsSync(join(root, '.git')) && existsSync(join(root, 'package.json')) ? root : null;
 }
 
-/** Is there a newer commit to take, and may it be taken? */
-export async function checkForUpdate(repo: string, branch: string): Promise<UpdateCheck> {
-  const current = await git(repo, 'rev-parse', '--abbrev-ref', 'HEAD');
-  if (current !== branch) return { action: 'skip', reason: `the checkout is on "${current}", not "${branch}"` };
+/** What moving the checkout to `target` takes, and whether it may. */
+export async function planUpdate(repo: string, target: string): Promise<UpdatePlan> {
+  if (!/^[0-9a-f]{7,40}$/i.test(target)) return { action: 'skip', reason: `"${target}" is not a commit` };
+  const from = await git(repo, 'rev-parse', 'HEAD');
+  if (from.startsWith(target.toLowerCase())) return { action: 'none' };
   const dirty = await git(repo, 'status', '--porcelain', '--untracked-files=no');
   if (dirty) return { action: 'skip', reason: 'the checkout has uncommitted changes' };
-  await git(repo, 'fetch', '--quiet', 'origin', branch);
-  const from = await git(repo, 'rev-parse', 'HEAD');
-  const to = await git(repo, 'rev-parse', `origin/${branch}`);
-  if (from === to) return { action: 'none' };
-  const fastForward = await git(repo, 'merge-base', '--is-ancestor', from, to).then(() => true, () => false);
-  if (!fastForward) return { action: 'skip', reason: `the checkout has diverged from origin/${branch}` };
+  const have = (): Promise<boolean> => git(repo, 'cat-file', '-e', `${target}^{commit}`).then(() => true, () => false);
+  if (!(await have())) await git(repo, 'fetch', '--quiet', 'origin').catch(() => undefined);
+  if (!(await have())) await git(repo, 'fetch', '--quiet', 'origin', target).catch(() => undefined);
+  if (!(await have())) return { action: 'skip', reason: `commit ${target.slice(0, 7)} is not on GitHub (not pushed yet?)` };
+  const to = await git(repo, 'rev-parse', `${target}^{commit}`);
+  if (to === from) return { action: 'none' };
+  const onBranch = (await git(repo, 'rev-parse', '--abbrev-ref', 'HEAD')) !== 'HEAD';
+  const ahead = await git(repo, 'merge-base', '--is-ancestor', from, to).then(() => true, () => false);
   const changed = await git(repo, 'diff', '--name-only', from, to, '--', 'package.json', 'package-lock.json');
-  return { action: 'update', from, to, depsChanged: changed.length > 0 };
+  return { action: 'update', from, to, fastForward: onBranch && ahead, depsChanged: changed.length > 0 };
 }
 
-/** Take the update: fast-forward, dependencies if they changed, rebuild. */
-export async function applyUpdate(repo: string, branch: string, check: Extract<UpdateCheck, { action: 'update' }>): Promise<void> {
-  await git(repo, 'merge', '--ff-only', `origin/${branch}`);
-  if (check.depsChanged) await run('npm', ['ci', '--no-audit', '--no-fund'], repo, 15 * 60_000);
+/** Move the checkout, update dependencies if they changed, rebuild. */
+export async function applyUpdate(repo: string, plan: Extract<UpdatePlan, { action: 'update' }>): Promise<void> {
+  if (plan.fastForward) await git(repo, 'merge', '--ff-only', plan.to);
+  else await git(repo, 'checkout', '--quiet', '--detach', plan.to);
+  if (plan.depsChanged) await run('npm', ['ci', '--no-audit', '--no-fund'], repo, 15 * 60_000);
   await run('npm', ['run', 'build:host'], repo, 10 * 60_000);
 }
 
@@ -88,63 +95,54 @@ export interface SelfUpdateHooks {
   shutdown(): Promise<void>;
 }
 
-/** Start following the branch. Returns a stop function. */
-export function startSelfUpdate(config: AutoUpdateConfig, bundlePath: string, hooks: SelfUpdateHooks): () => void {
-  const repo = hostRepoRoot(bundlePath);
-  if (!config.enabled) {
-    dlog('host.update.off', { why: 'disabled in config' });
-    return () => undefined;
-  }
-  if (!repo) {
-    dlog('host.update.off', { why: 'not running from a git checkout', bundlePath });
-    return () => undefined;
-  }
-  let stopped = false;
-  let busy = false;
-  let lastSkip = '';
-  const failed = new Set<string>();
-  let timer: ReturnType<typeof setTimeout> | null = null;
+/** Takes a desktop's requests to move to its version. */
+export class HostUpdater {
+  private readonly repo: string | null;
+  private state: UpdateState;
 
-  const schedule = (ms: number): void => {
-    if (stopped) return;
-    timer = setTimeout(() => void tick(), ms);
-    timer.unref?.();
-  };
+  constructor(private readonly config: AutoUpdateConfig, private readonly bundlePath: string, private readonly hooks: SelfUpdateHooks) {
+    this.repo = hostRepoRoot(bundlePath);
+    this.state = { phase: config.enabled && this.repo ? 'idle' : 'off' };
+  }
 
-  const tick = async (): Promise<void> => {
-    if (busy || stopped) return;
-    busy = true;
+  status(): UpdateState {
+    return { ...this.state };
+  }
+
+  /** Move to `target`. Answers at once; the work goes on behind. */
+  async request(target: string): Promise<HostUpdateAnswer> {
+    if (!this.config.enabled) return { result: 'refused', reason: 'updates are off in this host\'s config', state: this.status() };
+    if (!this.repo) return { result: 'refused', reason: 'this host does not run from a git checkout', state: this.status() };
+    if (this.state.phase === 'updating' || this.state.phase === 'waiting-for-idle') return { result: 'busy', state: this.status() };
+    let plan: UpdatePlan;
     try {
-      const check = await checkForUpdate(repo, config.branch);
-      if (check.action === 'skip') {
-        if (check.reason !== lastSkip) dlog('host.update.skip', { reason: check.reason });
-        lastSkip = check.reason;
-      } else if (check.action === 'update' && !failed.has(check.to)) {
-        dlog('host.update.begin', { from: check.from.slice(0, 7), to: check.to.slice(0, 7), depsChanged: check.depsChanged });
-        try {
-          await applyUpdate(repo, config.branch, check);
-        } catch (err) {
-          failed.add(check.to);
-          dlog('host.update.failed', { to: check.to.slice(0, 7), error: err instanceof Error ? err.message : String(err) });
-          return;
-        }
-        dlog('host.update.built', { to: check.to.slice(0, 7) });
-        await restartWhenIdle(bundlePath, hooks);
-        return;
-      }
+      plan = await planUpdate(this.repo, target);
     } catch (err) {
-      dlog('host.update.check-failed', { error: err instanceof Error ? err.message : String(err) });
-    } finally {
-      busy = false;
+      return { result: 'refused', reason: err instanceof Error ? err.message : String(err), state: this.status() };
     }
-    schedule(config.intervalMinutes * 60_000);
-  };
+    if (plan.action === 'none') return { result: 'current', state: this.status() };
+    if (plan.action === 'skip') {
+      dlog('host.update.refused', { to: target, reason: plan.reason });
+      return { result: 'refused', reason: plan.reason, state: this.status() };
+    }
+    this.state = { phase: 'updating', to: plan.to };
+    dlog('host.update.begin', { from: plan.from.slice(0, 7), to: plan.to.slice(0, 7), fastForward: plan.fastForward, depsChanged: plan.depsChanged });
+    void this.run(plan);
+    return { result: 'updating', state: this.status() };
+  }
 
-  schedule(60_000);
-  return () => {
-    stopped = true;
-    if (timer) clearTimeout(timer);
-  };
+  private async run(plan: Extract<UpdatePlan, { action: 'update' }>): Promise<void> {
+    try {
+      await applyUpdate(this.repo!, plan);
+    } catch (err) {
+      this.state = { phase: 'failed', to: plan.to, error: err instanceof Error ? err.message : String(err) };
+      dlog('host.update.failed', { to: plan.to.slice(0, 7), error: this.state.error });
+      return;
+    }
+    dlog('host.update.built', { to: plan.to.slice(0, 7) });
+    this.state = { phase: 'waiting-for-idle', to: plan.to };
+    await restartWhenIdle(this.bundlePath, this.hooks);
+  }
 }
 
 /** Wait for running turns to end (up to RESTART_WAIT_MS), then hand over
