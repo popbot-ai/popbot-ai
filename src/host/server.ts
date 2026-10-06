@@ -10,6 +10,8 @@ import {
   HOST_PROTOCOL_VERSION,
   type HostApproveBody,
   type HostBotInput,
+  type HostPackBody,
+  type HostUnpackBody,
   type HostFrame,
   type HostInfo,
   type HostMcpResponse,
@@ -23,6 +25,7 @@ import { dlog } from '../main/diagLog';
 import type { HostBots } from './bots';
 import { removeRepo, upsertRepo, type HostConfig } from './config';
 import { listBranches } from './git';
+import { applyWorkChanges, packWork, unpackBranch } from '../main/git/moveWork';
 import { HostError, HostSessions } from './sessions';
 import { HostWorkspaceError, type HostWorkspaces } from './workspaces';
 
@@ -219,10 +222,53 @@ export function createHostServer(opts: {
           return json(res, 200, { ok: true });
         case 'workspace':
           return json(res, 200, await workspaces.ensure(chatId, body as unknown as HostWorkspaceRequest));
+        case 'pack': {
+          // A chat moving away: its work, packed. The session goes first so
+          // nothing changes the checkout while it is read.
+          const b = body as HostPackBody;
+          await sessions.dispose(chatId);
+          const held = workspaces.held(chatId);
+          const heldRepo = workspaces.heldRepo(chatId);
+          try {
+            if (held?.branch && heldRepo) {
+              return json(res, 200, { work: await packWork(held.cwd, held.branch, { withChanges: true }) });
+            }
+            const repo = config.repos.find((r) => r.id === b.repoId);
+            if (repo && b.branch) return json(res, 200, { work: await packWork(repo.path, b.branch, { withChanges: false }) });
+          } catch (err) {
+            throw new HostError(409, err instanceof Error ? err.message : String(err));
+          }
+          return json(res, 200, { work: null });
+        }
+        case 'unpack': {
+          // A chat moving here: its branch put in place, a checkout made,
+          // its uncommitted changes laid on top. Undone if any step fails.
+          const b = body as unknown as HostUnpackBody;
+          if (!b.workspace || typeof b.workspace !== 'object') return json(res, 400, { error: 'workspace required' });
+          const repo = config.repos.find((r) => r.id === b.workspace.repoId);
+          if (b.work) {
+            if (!repo) return json(res, 404, { error: `no repo "${b.workspace.repoId ?? ''}" on this host` });
+            try {
+              await unpackBranch(repo.path, b.work);
+            } catch (err) {
+              throw new HostError(409, err instanceof Error ? err.message : String(err));
+            }
+          }
+          const ws = await workspaces.ensure(chatId, b.workspace);
+          if (b.work?.patchBase64) {
+            try {
+              await applyWorkChanges(ws.cwd, b.work);
+            } catch (err) {
+              await workspaces.release(chatId, false).catch(() => undefined);
+              throw new HostError(409, err instanceof Error ? err.message : String(err));
+            }
+          }
+          return json(res, 200, ws);
+        }
         case 'release':
           // A process still running in the worktree would fight the park.
           await sessions.dispose(chatId);
-          return json(res, 200, await workspaces.release(chatId, body.stash === true));
+          return json(res, 200, await workspaces.release(chatId, body.stash === true, { moved: body.moved === true }));
         default:
           return json(res, 404, { error: 'not found' });
       }

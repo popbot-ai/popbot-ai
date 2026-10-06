@@ -152,8 +152,8 @@ export async function ensureHostWorkspace(host: HostAddress, chatId: string, req
 /** Park the chat's slot or remove its ephemeral worktree (the host
  *  ends the session first). Dirty work is stashed under the chat's
  *  name when `stash`, else discarded. */
-export async function releaseHostWorkspace(host: HostAddress, chatId: string, stash: boolean): Promise<void> {
-  await hostRequest(host, 'POST', `/v1/chats/${encodeURIComponent(chatId)}/release`, { stash }, 120_000);
+export async function releaseHostWorkspace(host: HostAddress, chatId: string, stash: boolean, opts: { moved?: boolean } = {}): Promise<void> {
+  await hostRequest(host, 'POST', `/v1/chats/${encodeURIComponent(chatId)}/release`, { stash, moved: opts.moved === true }, 120_000);
 }
 
 /** End a chat's session on its host. A host that has no session for

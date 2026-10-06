@@ -312,6 +312,9 @@ export const IpcChannel = {
 
   /** Bots (the Bots tab): chats a host runs on its own, woken by
    *  triggers. They live in each host's config; see src/host/bots.ts. */
+  /** Move a chat to another machine — a host, or this computer. */
+  ChatsMove: 'pb:chats:move',
+
   BotsList: 'pb:bots:list',
   BotsSave: 'pb:bots:save',
   BotsKill: 'pb:bots:kill',
@@ -708,6 +711,17 @@ export interface CloudStatus {
 
 /** What a host answered to a probe: its info, or why it could not be reached. */
 export type HostProbeResult = { ok: true; info: HostInfo } | { ok: false; error: string };
+
+/** Where a chat can move: this computer, or a host. */
+export type MoveChatTarget = { kind: 'local' } | { kind: 'host'; hostId: string };
+
+/** A move's outcome. `no-matching-repo`: nothing moved — there is no
+ *  repository of the chat's repository's name there; ask, and move again
+ *  with `withoutRepo` to go without one (its work stays where it was). */
+export type MoveChatResult =
+  | { ok: true; chat: ChatRecord }
+  | { ok: false; reason: 'no-matching-repo'; repo: string; from: string; to: string; branch: string | null }
+  | { ok: false; reason?: undefined; error: string };
 
 /** One host's bots, for the Bots tab. */
 export interface BotHostListing {
@@ -1166,6 +1180,11 @@ export interface PopBotApi {
     /** End the chat's session on its host. The next message starts a
      *  new one there, resuming the same conversation. */
     shutdown(chatId: string): Promise<void>;
+  };
+  chatMove: {
+    /** Move a chat — its conversation, branch and uncommitted work — to
+     *  another machine. See src/main/ipc/moveChat.ts. */
+    move(chatId: string, target: MoveChatTarget, opts?: { withoutRepo?: boolean }): Promise<MoveChatResult>;
   };
   bots: {
     /** Every host's bots. `refresh` asks the hosts again first. */

@@ -14,6 +14,8 @@
  *   DELETE /v1/repos/:id                   → { ok }
  *   POST /v1/chats/:chatId/workspace       HostWorkspaceRequest → HostWorkspaceResult
  *   POST /v1/chats/:chatId/release         { stash } → { released }  (parks the slot / removes the worktree)
+ *   POST /v1/chats/:chatId/pack            HostPackBody → { work: PackedWork | null }  (a chat moving away)
+ *   POST /v1/chats/:chatId/unpack          HostUnpackBody → HostWorkspaceResult  (a chat moving here)
  *   POST /v1/chats/:chatId/spawn           HostSpawnBody → { cwd, seq }
  *   POST /v1/chats/:chatId/send            HostSendBody
  *   POST /v1/chats/:chatId/approve         { permissionId, decision }
@@ -263,6 +265,36 @@ export interface HostSpawnResult {
   cwd: string;
   seq: number;
   workspace: HostWorkspaceResult;
+}
+
+/** A chat's work, packed to move between machines (src/main/git/moveWork.ts). */
+export interface PackedWork {
+  branch: string;
+  /** The branch's tip commit. */
+  head: string;
+  /** The commits no remote has, as a git bundle (base64); null when the
+   *  tip is already on a remote, so the other side fetches it. */
+  bundleBase64: string | null;
+  /** Uncommitted changes, untracked files included, as a binary patch
+   *  against `head` (base64); null when the checkout was clean or there
+   *  is no checkout to read. */
+  patchBase64: string | null;
+}
+
+/** Pack a chat's work to move it off this host (see git/moveWork.ts):
+ *  from the checkout it holds, with its uncommitted changes, or — when
+ *  it holds none — the branch's commits from the repository. */
+export interface HostPackBody {
+  repoId?: string | null;
+  branch?: string | null;
+}
+
+/** Give a chat moving here its workspace, with its work in it: the
+ *  branch put in place from the packed commits, a checkout made as the
+ *  repo is configured, the uncommitted changes laid on top. */
+export interface HostUnpackBody {
+  workspace: HostWorkspaceRequest;
+  work: PackedWork | null;
 }
 
 export interface HostAttachment {

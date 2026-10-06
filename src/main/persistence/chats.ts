@@ -525,6 +525,27 @@ export function listChatRefs(): ChatRefs {
 }
 
 /** Cloud chats: record the session the chat drives (or clear it). */
+/**
+ * Put a chat somewhere else — another host, or this computer — in one
+ * write: its repository and checkout here (or none), its host info (or
+ * none), and its native sessions cleared, since those live on the machine
+ * it left. With no session the next message carries the conversation so
+ * far (AgentHost's provider bridge), so the agent picks up where it was.
+ */
+export function relocateChat(
+  id: string,
+  to: { repoId: string; slotId: number | null; worktreePath: string | null; host: HostChatInfo | null; branch: string | null },
+): void {
+  db()
+    .prepare(
+      `UPDATE chats SET repo_id = ?, slot_id = ?, worktree_path = ?, host = ?, branch = ?,
+         session_id = NULL, codex_thread_id = NULL, claude_context_at = 0, codex_context_at = 0,
+         last_active_at = ?
+       WHERE id = ?`,
+    )
+    .run(to.repoId, to.slotId, to.worktreePath ?? '', to.host ? JSON.stringify(to.host) : null, to.branch, Date.now(), id);
+}
+
 export function setChatCloud(id: string, cloud: CloudChatInfo | null): void {
   db()
     .prepare('UPDATE chats SET cloud = ?, last_active_at = ? WHERE id = ?')

@@ -270,6 +270,23 @@ export const en = {
   // ---------------------------------------------------------------------------
   // Panel B — chat list (PanelB.tsx).
   // ---------------------------------------------------------------------------
+  'chat.move.menu': 'Move to…',
+  'chat.move.menuTooltip': 'Run this chat on another machine — its conversation, branch and uncommitted changes go with it',
+  'chat.move.runningHint': 'The agent is working — stop it, or let it finish, before moving the chat',
+  'chat.move.title': 'Move “{name}”',
+  'chat.move.from': 'Now on',
+  'chat.move.to': 'Move to',
+  'chat.move.local': 'This computer',
+  'chat.move.localInline': 'this computer',
+  'chat.move.nowhere': 'No other machine to move it to. Add a host in Preferences ▸ Hosts.',
+  'chat.move.explain': 'Its conversation, branch and uncommitted changes go with it, into the repository of the same name there; the checkout it leaves keeps a stash of its work. Its next message starts a fresh session there, primed with this conversation.',
+  'chat.move.ignoredWarning': "The checkout on {from} is closed after the move, the way closing a chat closes it, with its work stashed there as a backup. Commits, changes and new files go with the chat; files git ignores — build output, node_modules, .env files, local databases — neither move nor go in the stash, and are lost with the checkout.",
+  'chat.move.moving': 'Moving…',
+  'chat.move.button': 'Move',
+  'chat.move.noRepoTitle': 'No repository named “{repo}” on {to}',
+  'chat.move.noRepo': 'Move the chat to {to} without a repository?',
+  'chat.move.noRepoBranch': 'Move the chat to {to} without a repository? Its work stays on {from}, on branch “{branch}”, with its uncommitted changes stashed.',
+  'chat.move.withoutRepo': 'Move without it',
   'panelB.tab.chats': 'Chats',
   'panelB.tab.bots': 'Bots',
   'bots.noHosts': 'Bots run on a PopBot host. Add one in Preferences ▸ Hosts.',
