@@ -30,9 +30,9 @@ export const CLAUDE_MODELS = [
   'claude-fable-5',
   'claude-fable-5-1',
 ] as const;
-export const CODEX_MODELS = ['gpt-5.6-sol', 'gpt-5.6-terra', 'gpt-5.6-luna', 'gpt-6-astra'] as const;
+export const CODEX_MODELS = ['gpt-6.1-sol', 'gpt-5.6-terra', 'gpt-5.6-luna', 'gpt-6-astra'] as const;
 export const DEFAULT_CLAUDE_MODEL = 'claude-opus-5' as const;
-export const DEFAULT_CODEX_MODEL = 'gpt-5.6-sol' as const;
+export const DEFAULT_CODEX_MODEL = 'gpt-6.1-sol' as const;
 export const DEFAULT_CLAUDE_REASONING_EFFORT = 'high' as const;
 export const DEFAULT_CODEX_REASONING_EFFORT = 'medium' as const;
 
@@ -56,7 +56,7 @@ export const CLAUDE_MODEL_LABELS: Record<ClaudeModelId, string> = {
   'claude-fable-5-1': 'Claude Fable 5.1',
 };
 export const CODEX_MODEL_LABELS: Record<CodexModelId, string> = {
-  'gpt-5.6-sol': 'GPT-5.6 Sol',
+  'gpt-6.1-sol': 'GPT-6.1 Sol',
   'gpt-5.6-terra': 'GPT-5.6 Terra',
   'gpt-5.6-luna': 'GPT-5.6 Luna',
   'gpt-6-astra': 'GPT-6 Astra',
@@ -95,29 +95,37 @@ const RETIRED_CODEX_MODELS: Record<string, CodexModelId> = {
   'gpt-5.5': 'gpt-5.6-terra',
 };
 
+/** Every Sol before the current one (GPT-5.6 Sol, GPT-6 Sol, …): Sol is
+ *  one line that supersedes itself, like Opus, so its chats move up to
+ *  the current Sol quietly. A different tier on the same line (a
+ *  `-sol-pro`, say) does not match. */
+const PRIOR_SOL = /^gpt-[0-9.]+-sol$/;
+
 /** Codex counterpart of {@link normalizeClaudeModel}. */
 export function normalizeCodexModel(value: string | null | undefined): CodexModelId {
   if (CODEX_MODELS.includes(value as CodexModelId)) return value as CodexModelId;
   if (typeof value === 'string' && value in RETIRED_CODEX_MODELS) {
     return RETIRED_CODEX_MODELS[value];
   }
+  if (typeof value === 'string' && PRIOR_SOL.test(value)) return 'gpt-6.1-sol';
   return DEFAULT_CODEX_MODEL;
 }
 
 /** Reasoning efforts each Codex model accepts, per the model catalog in
- *  the Codex CLI the SDK bundles (0.153.x). Two things vary:
+ *  the Codex CLI the SDK bundles (0.160.x):
  *
- *  - The floor. `none` (the API's `minimal`) exists on the GPT-5.6 line
- *    but GPT-6 Astra rejects it at the API layer — Astra starts at `low`.
+ *  - The floor is `low` everywhere. `none` (the API's `minimal`) is gone
+ *    from every model in this catalog, so a saved `none` moves up to
+ *    `low` (see {@link closestReasoningEffort}).
  *  - The ceiling. `ultra` — maximum reasoning plus automatic task
- *    delegation — is the newest top rung on Sol, Terra and Astra; Luna
- *    caps at `max`.
+ *    delegation — is the top rung on Sol, Terra and Astra; Luna caps at
+ *    `max`.
  *
  *  Claude models all take the full {@link CLAUDE_REASONING_EFFORTS} ladder. */
 const CODEX_MODEL_REASONING_EFFORTS: Record<CodexModelId, readonly CodexReasoningEffort[]> = {
-  'gpt-5.6-sol': ['none', 'low', 'medium', 'high', 'xhigh', 'max', 'ultra'],
-  'gpt-5.6-terra': ['none', 'low', 'medium', 'high', 'xhigh', 'max', 'ultra'],
-  'gpt-5.6-luna': ['none', 'low', 'medium', 'high', 'xhigh', 'max'],
+  'gpt-6.1-sol': ['low', 'medium', 'high', 'xhigh', 'max', 'ultra'],
+  'gpt-5.6-terra': ['low', 'medium', 'high', 'xhigh', 'max', 'ultra'],
+  'gpt-5.6-luna': ['low', 'medium', 'high', 'xhigh', 'max'],
   'gpt-6-astra': ['low', 'medium', 'high', 'xhigh', 'max', 'ultra'],
 };
 

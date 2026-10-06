@@ -398,6 +398,19 @@ const SCHEMA = [
   );
   ALTER TABLE chats ADD COLUMN host TEXT;
   `,
+  // v27 — GPT-6.1 Sol replaces GPT-5.6 Sol. Chats on any earlier Sol move
+  // to it (normalizeCodexModel already reads them that way; this makes
+  // the stored rows and saved defaults say so too), and the `none`
+  // reasoning level, which no model in the Codex 0.160 catalog accepts,
+  // becomes `low`.
+  `
+  UPDATE chats SET codex_model = 'gpt-6.1-sol'
+    WHERE codex_model GLOB 'gpt-*-sol' AND codex_model <> 'gpt-6.1-sol';
+  UPDATE chats SET codex_reasoning_effort = 'low'
+    WHERE codex_reasoning_effort IN ('none', 'minimal');
+  UPDATE settings SET value = replace(replace(value, '"gpt-5.6-sol"', '"gpt-6.1-sol"'), '"gpt-6-sol"', '"gpt-6.1-sol"')
+    WHERE value LIKE '%gpt-5.6-sol%' OR value LIKE '%gpt-6-sol%';
+  `,
 ];
 
 export function initDb(): Database.Database {

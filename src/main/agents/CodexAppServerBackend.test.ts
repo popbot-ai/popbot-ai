@@ -86,7 +86,7 @@ function harness(over: Partial<SpawnOpts> = {}) {
       chatId: 'chat_1',
       history: [],
       cwd: '/work',
-      codexModel: 'gpt-5.6-sol',
+      codexModel: 'gpt-6.1-sol',
       codexReasoningEffort: 'high',
       onEvent: (e) => events.push(e),
       onSessionId: (id) => sessionIds.push(id),
@@ -116,7 +116,7 @@ describe('Codex app-server session', () => {
     expect(h.server.methods()).toEqual(['initialize', 'initialized', 'thread/start', 'turn/start']);
     const start = h.server.last('thread/start').params!;
     expect(start).toMatchObject({
-      model: 'gpt-5.6-sol',
+      model: 'gpt-6.1-sol',
       cwd: '/work',
       approvalPolicy: 'never',
       // No rule allows writes, so the policy fails closed.
@@ -140,7 +140,7 @@ describe('Codex app-server session', () => {
     await flush();
     expect(h.server.methods()).toContain('thread/resume');
     expect(h.server.methods()).not.toContain('thread/start');
-    expect(h.server.last('thread/resume').params).toMatchObject({ threadId: 'thread-old', model: 'gpt-5.6-sol' });
+    expect(h.server.last('thread/resume').params).toMatchObject({ threadId: 'thread-old', model: 'gpt-6.1-sol' });
     expect(h.server.last('turn/start').params).toMatchObject({ threadId: 'thread-old' });
   });
 
