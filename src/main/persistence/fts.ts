@@ -179,3 +179,41 @@ export function searchMessagesSql(opts: {
 
 /** Chats with at least one matching message — for the archive search box. */
 export const CHATS_WITH_MATCH_SQL = 'SELECT DISTINCT chat_id FROM messages_fts WHERE messages_fts MATCH ?';
+
+/**
+ * The chat list's search: chats whose name, ticket, branch or latest
+ * message contains the text, plus any whose transcript does. Ranked by
+ * where the text was found — the name first, then the ticket or branch,
+ * then the latest message, then only somewhere in the transcript — and
+ * within each, open chats before closed ones, then the most recent.
+ *
+ * The ranking matters because transcript matches are many (a word like
+ * "bill" is in hundreds of chats that once touched billing): ordered by
+ * recency alone they buried the chat actually named for it.
+ */
+export function searchChatsQuery(
+  query: string,
+  limit: number,
+  select: { columns: string; from: string },
+): { sql: string; params: unknown[] } | null {
+  const q = query.trim();
+  if (!q) return null;
+  const like = `%${q}%`;
+  const match = ftsQueryFor(q);
+  const sql = `SELECT ${select.columns} ${select.from}
+    WHERE c.deleted_at IS NULL
+      AND (c.name LIKE ? OR c.ticket LIKE ? OR c.branch LIKE ? OR c.snippet LIKE ?
+           ${match ? `OR c.id IN (${CHATS_WITH_MATCH_SQL})` : ''})
+    ORDER BY CASE
+        WHEN c.name LIKE ? THEN 0
+        WHEN c.ticket LIKE ? OR c.branch LIKE ? THEN 1
+        WHEN c.snippet LIKE ? THEN 2
+        ELSE 3
+      END,
+      (c.closed_at IS NULL) DESC, c.last_active_at DESC
+    LIMIT ?`;
+  return {
+    sql,
+    params: [like, like, like, like, ...(match ? [match] : []), like, like, like, like, limit],
+  };
+}
