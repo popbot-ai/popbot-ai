@@ -23,7 +23,7 @@ import {
 import type { ChatStatus } from '@shared/domain';
 import type { ChatRefs } from '@shared/ipc';
 import { db } from './db';
-import { CHATS_WITH_MATCH_SQL, ftsQueryFor } from './fts';
+import { searchChatsQuery } from './fts';
 
 /** Joined chat + repo row. The `repo_*` columns come from a LEFT JOIN
  *  on `repos`, so they're nullable for chats whose repo_id no longer
@@ -298,24 +298,11 @@ export function allocateSlotPreferring(maxCount: number, prefer?: number | null)
  *  open chats first, then closed. Tiny LIKE search — fine for the
  *  hundreds-of-chats range; we'll move to FTS5 if we ever need it. */
 export function searchChats(query: string, limit = 50): ChatRecord[] {
-  const q = query.trim();
-  if (!q) return [];
-  const like = `%${q}%`;
-  // Name / ticket / branch / snippet as before, plus any chat whose
-  // transcript contains the text (the FTS index; see fts.ts) — so the
-  // archive search finds the chat you remember a line of.
-  const match = ftsQueryFor(q);
-  const rows = db()
-    .prepare<unknown[], ChatRow>(
-      `SELECT ${CHAT_COLUMNS} ${CHAT_FROM}
-        WHERE c.deleted_at IS NULL
-          AND (c.name LIKE ? OR c.ticket LIKE ? OR c.branch LIKE ? OR c.snippet LIKE ?
-               ${match ? `OR c.id IN (${CHATS_WITH_MATCH_SQL})` : ''})
-        ORDER BY (c.closed_at IS NULL) DESC, c.last_active_at DESC
-        LIMIT ?`,
-    )
-    .all(like, like, like, like, ...(match ? [match] : []), limit);
-  return rows.map(rowToRecord);
+  // Name / ticket / branch / snippet, plus any chat whose transcript
+  // contains the text (the FTS index) — name matches first. See fts.ts.
+  const built = searchChatsQuery(query, limit, { columns: CHAT_COLUMNS, from: CHAT_FROM });
+  if (!built) return [];
+  return db().prepare<unknown[], ChatRow>(built.sql).all(...built.params).map(rowToRecord);
 }
 
 export function getChat(id: string): ChatRecord | null {
