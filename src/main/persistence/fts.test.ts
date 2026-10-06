@@ -39,7 +39,9 @@ let DatabaseSync: (new (path: string) => {
   prepare(sql: string): { all(...params: unknown[]): Array<Record<string, unknown>>; run(...params: unknown[]): unknown };
 }) | null = null;
 try {
-  DatabaseSync = (await import('node:sqlite')).DatabaseSync as unknown as typeof DatabaseSync;
+  // By name: the project's Node types predate node:sqlite.
+  const sqliteModule = 'node:sqlite';
+  DatabaseSync = ((await import(/* @vite-ignore */ sqliteModule)) as { DatabaseSync: unknown }).DatabaseSync as typeof DatabaseSync;
 } catch {
   DatabaseSync = null;
 }
