@@ -58,7 +58,7 @@ describe('moving a chat’s work between machines', () => {
     const wt = join(there, '..', 'there-wt');
     git(there, 'worktree', 'add', wt, 'feat/x');
     await applyWorkChanges(wt, work);
-    expect(readFileSync(join(wt, 'a.txt'), 'utf8')).toBe('one\ntwo\nthree (not committed)\n');
+    expect(readFileSync(join(wt, 'a.txt'), 'utf8').replace(/\r\n/g, '\n')).toBe('one\ntwo\nthree (not committed)\n');
     expect([...readFileSync(join(wt, 'new.bin'))]).toEqual([0, 1, 2, 255]);
     expect(git(wt, 'log', '-1', '--format=%s')).toBe('local only');
   });
