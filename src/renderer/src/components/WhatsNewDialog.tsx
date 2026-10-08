@@ -30,11 +30,11 @@ export function WhatsNewDialog({ version, onClose }: WhatsNewDialogProps): JSX.E
         </div>
         <div className="modal-body about-body">
           <div className="whatsnew-feature">
-            <h3><i className="fa-solid fa-server" aria-hidden /> {t('whatsNew.f1.h')}</h3>
+            <h3><i className="fa-solid fa-robot" aria-hidden /> {t('whatsNew.f1.h')}</h3>
             <p>{t('whatsNew.f1.p')}</p>
           </div>
           <div className="whatsnew-feature">
-            <h3><i className="fa-solid fa-cloud" aria-hidden /> {t('whatsNew.f2.h')}</h3>
+            <h3><i className="fa-solid fa-right-left" aria-hidden /> {t('whatsNew.f2.h')}</h3>
             <p>{t('whatsNew.f2.p')}</p>
           </div>
           <div className="whatsnew-feature">

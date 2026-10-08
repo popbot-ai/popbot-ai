@@ -1427,15 +1427,15 @@ export const ptBR = {
   'prefs.repos.wizard.agentCwd.desc': 'Caminho sob a raiz do espaço de trabalho onde o agente inicia (/ = a própria raiz). Um subcaminho como /depot/PopBotGame permite que o Claude descubra ali os .claude/skills do repositório.',
   // --- What's-new popup (WhatsNewDialog.tsx) — update each release ---
   'whatsNew.title': 'Novidades do PopBot',
-  'whatsNew.f1.h': 'Rode chats em outras máquinas',
+  'whatsNew.f1.h': 'Bots de plantão',
   'whatsNew.f1.p':
-    'Adicione um host em Preferências ▸ Hosts — qualquer máquina rodando o popbot-host, ou o contêiner publicado — e escolha-o em Executar em ao criar um chat. O agente, suas ferramentas e o checkout ficam lá, no pool de slots do host; a transcrição, a busca e as configurações ficam aqui. Uma aba Hosts mostra os slots e chats de cada máquina.',
-  'whatsNew.f2.h': 'Chats na nuvem com Anthropic Managed Agents',
+    'Abra a aba Bots ao lado de Chats e dê a um bot um nome, uma máquina e suas ordens. Ele vive naquele host, continua trabalhando com seu computador desligado e acorda com gatilhos: um pull request do GitHub (por rótulo, de membros de uma equipe que você indicar) ou um agendamento. Cada bot tem identidade própria no GitHub, e-mail e imagem, pode mandar mensagens aos bots que você permitir e responde quando seus chats perguntam algo.',
+  'whatsNew.f2.h': 'Mova chats e arquivos entre máquinas',
   'whatsNew.f2.p':
-    'Ligue o chip Cloud e o chat roda num sandbox na nuvem da Anthropic cobrado na sua chave de API: clona seu branch do GitHub, faz push de volta, continua trabalhando depois que o PopBot fecha e se atualiza quando você volta. Só Encerrar chat na nuvem o termina.',
-  'whatsNew.f3.h': 'Claude Opus 5.5 e muito mais',
+    'Mova um chat para outra máquina pelo menu ☰: commits não enviados e alterações não commitadas vão junto, e o repositório é encontrado pelo nome. Os agentes também podem enviar um arquivo de qualquer tamanho a um chat em outra máquina — o agente de lá precisa aceitá-lo, ele chega em ~/popbot/sent_files e uma conexão que cai retoma de onde parou.',
+  'whatsNew.f3.h': 'GPT-6.1 Sol e mais',
   'whatsNew.f3.p':
-    'O Opus 5.5 está no seletor de modelos como opção; seus padrões não mudam. Agentes comandam o PopBot pelas próprias ferramentas e trocam mensagens com atribuição clara, a busca de texto completo cobre todos os chats, chamadas de ferramentas desenham uma linha do tempo, chats podem ser bifurcados, você faz login de dentro do app e as configurações se salvam sozinhas — sem botões Salvar.',
+    'O GPT-6.1 Sol substitui o GPT-5.6 Sol, e os chats no 5.6 Sol passam para ele sozinhos (requer Codex CLI 0.160 ou mais recente). A busca encontra primeiro os nomes dos chats, a barra esquerda se recolhe com ⌘B (Ctrl+B) e os chats em hosts se reconectam sozinhos após uma troca de rede.',
   'whatsNew.gotIt': 'Entendi',
   // --- Auto-update prompts (persisted via the notification system) ---
   'app.update.restartAction': 'Reiniciar e instalar',

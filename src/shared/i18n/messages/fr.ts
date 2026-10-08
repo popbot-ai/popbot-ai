@@ -1435,15 +1435,15 @@ export const fr = {
   'prefs.repos.wizard.agentCwd.desc': 'Chemin sous la racine de l’espace de travail où l’agent démarre (/ = la racine elle-même). Un sous-chemin comme /depot/PopBotGame permet à Claude d’y découvrir les .claude/skills du dépôt.',
   // --- What's-new popup (WhatsNewDialog.tsx) — update each release ---
   'whatsNew.title': 'Nouveautés de PopBot',
-  'whatsNew.f1.h': 'Exécutez des conversations sur d’autres machines',
+  'whatsNew.f1.h': 'Des bots qui veillent',
   'whatsNew.f1.p':
-    'Ajoutez un hôte dans Préférences ▸ Hôtes — n’importe quelle machine qui fait tourner popbot-host, ou le conteneur publié — et choisissez-le sous Exécuter sur à la création d’une conversation. L’agent, ses outils et le checkout vivent là-bas, dans le pool de slots de l’hôte ; la transcription, la recherche et les réglages restent ici. Un onglet Hôtes montre les slots et conversations de chaque machine.',
-  'whatsNew.f2.h': 'Conversations cloud sur Anthropic Managed Agents',
+    'Ouvrez l’onglet Bots à côté de Conversations et donnez à un bot un nom, une machine et ses consignes. Il vit sur cet hôte, continue de travailler ordinateur éteint et se réveille sur des déclencheurs : une pull request GitHub (par label, venant des membres d’une équipe que vous nommez) ou un horaire. Chaque bot a sa propre identité GitHub, son e-mail et son image, peut écrire aux bots que vous autorisez et répond quand vos conversations lui posent une question.',
+  'whatsNew.f2.h': 'Déplacez conversations et fichiers d’une machine à l’autre',
   'whatsNew.f2.p':
-    'Activez la puce Cloud et la conversation s’exécute dans un bac à sable cloud Anthropic facturé sur votre clé API : elle clone votre branche depuis GitHub, y pousse ses commits, continue après la fermeture de PopBot et rattrape le retard à votre retour. Seul Arrêter la conversation cloud y met fin.',
-  'whatsNew.f3.h': 'Claude Opus 5.5, et bien plus',
+    'Déplacez une conversation vers une autre machine depuis son menu ☰ : les commits non poussés et les modifications non commitées suivent, et le dépôt est retrouvé par son nom. Les agents peuvent aussi envoyer un fichier de n’importe quelle taille à une conversation sur une autre machine — l’agent d’en face doit l’accepter, il arrive dans ~/popbot/sent_files, et une connexion coupée reprend là où elle s’était arrêtée.',
+  'whatsNew.f3.h': 'GPT-6.1 Sol, et plus encore',
   'whatsNew.f3.p':
-    'Opus 5.5 est dans le sélecteur de modèles en option ; vos réglages par défaut ne changent pas. Les agents pilotent PopBot avec ses propres outils et s’écrivent avec une attribution claire, la recherche plein texte couvre toutes les conversations, les appels d’outils dessinent une chronologie, les conversations se dupliquent, vous vous connectez depuis l’application, et les réglages s’enregistrent d’eux-mêmes — sans bouton Enregistrer.',
+    'GPT-6.1 Sol remplace GPT-5.6 Sol, et les conversations en 5.6 Sol y passent d’elles-mêmes (il faut Codex CLI 0.160 ou plus récent). La recherche trouve d’abord les noms des conversations, la barre de gauche se replie avec ⌘B (Ctrl+B), et les conversations sur un hôte se reconnectent seules après un changement de réseau.',
   'whatsNew.gotIt': 'Compris',
   // --- Auto-update prompts (persisted via the notification system) ---
   'app.update.restartAction': 'Redémarrer et installer',

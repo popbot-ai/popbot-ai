@@ -1428,15 +1428,15 @@ export const pl = {
   'language.systemNote': 'Nowe okna i menu aplikacji również będą używać tego języka.',
   // --- What's-new popup (WhatsNewDialog.tsx) — update each release ---
   'whatsNew.title': 'Co nowego w PopBot',
-  'whatsNew.f1.h': 'Uruchamiaj czaty na innych maszynach',
+  'whatsNew.f1.h': 'Boty, które pilnują',
   'whatsNew.f1.p':
-    'Dodaj host w Ustawieniach ▸ Hosty – dowolną maszynę z popbot-host albo opublikowany kontener – i wybierz go w polu Uruchom na przy tworzeniu czatu. Agent, jego narzędzia i checkout działają tam, w puli slotów hosta; transkrypcja, wyszukiwanie i ustawienia zostają tutaj. Zakładka Hosty pokazuje sloty i czaty każdej maszyny.',
-  'whatsNew.f2.h': 'Czaty w chmurze na Anthropic Managed Agents',
+    'Otwórz kartę Boty obok Czatów i nadaj botowi nazwę, maszynę i polecenia. Żyje na tym hoście, pracuje dalej przy wyłączonym komputerze i budzi się na wyzwalacze: pull request na GitHubie (według etykiety, od członków wskazanego zespołu) albo harmonogram. Każdy bot ma własną tożsamość GitHub, e-mail i obrazek, może pisać do dozwolonych botów i odpowiada, gdy czaty o coś go zapytają.',
+  'whatsNew.f2.h': 'Przenoś czaty i pliki między maszynami',
   'whatsNew.f2.p':
-    'Włącz chip Cloud, a czat działa w chmurowym sandboksie Anthropic rozliczanym z Twojego klucza API: klonuje Twoją gałąź z GitHuba, wypycha do niej zmiany, pracuje dalej po zamknięciu PopBota i nadrabia zaległości po Twoim powrocie. Kończy go tylko Zakończ czat w chmurze.',
-  'whatsNew.f3.h': 'Claude Opus 5.5 i dużo więcej',
+    'Przenieś czat na inną maszynę z jego menu ☰: niewypchnięte commity i niezatwierdzone zmiany jadą razem z nim, a repozytorium jest dopasowywane po nazwie. Agenci mogą też wysłać plik dowolnego rozmiaru do czatu na innej maszynie — tamtejszy agent musi go przyjąć, plik trafia do ~/popbot/sent_files, a zerwane połączenie wznawia się od miejsca, w którym stanęło.',
+  'whatsNew.f3.h': 'GPT-6.1 Sol i więcej',
   'whatsNew.f3.p':
-    'Opus 5.5 jest w wyborze modeli jako opcja; Twoje domyślne ustawienia się nie zmieniają. Agenci sterują PopBotem własnymi narzędziami i piszą do siebie z czytelnym nadawcą, wyszukiwanie pełnotekstowe obejmuje każdy czat, wywołania narzędzi rysują oś czasu, czaty można rozgałęziać, logujesz się z aplikacji, a ustawienia zapisują się same – bez przycisków Zapisz.',
+    'GPT-6.1 Sol zastępuje GPT-5.6 Sol, a czaty na 5.6 Sol przechodzą na niego same (wymaga Codex CLI 0.160 lub nowszego). Wyszukiwanie najpierw znajduje nazwy czatów, lewy pasek chowa się skrótem ⌘B (Ctrl+B), a czaty na hostach same łączą się ponownie po zmianie sieci.',
   'whatsNew.gotIt': 'Rozumiem',
   // --- Auto-update prompts (persisted via the notification system) ---
   'app.update.restartAction': 'Uruchom ponownie i zainstaluj',
