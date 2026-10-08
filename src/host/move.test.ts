@@ -86,7 +86,7 @@ describe('a chat moving onto a host and off again', () => {
     expect(ws.kind).toBe('ephemeral');
     expect(ws.branch).toBe('feat/hero');
     expect(readFileSync(join(ws.cwd, 'page.txt'), 'utf8').replace(/\r\n/g, '\n')).toBe('v2 — not committed\n');
-    expect(readFileSync(join(ws.cwd, 'notes.md'), 'utf8')).toBe('scratch notes\n');
+    expect(readFileSync(join(ws.cwd, 'notes.md'), 'utf8').replace(/\r\n/g, '\n')).toBe('scratch notes\n');
     expect(git(ws.cwd, 'log', '-1', '--format=%s')).toBe('hero copy');
   });
 

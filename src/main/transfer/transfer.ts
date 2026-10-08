@@ -203,6 +203,8 @@ export async function runTransfer(
         await to.write(toPath, offset, stream.pipe(counter));
       } finally {
         signal?.removeEventListener('abort', onAbort);
+        // A failed upload leaves the source open (pipe() never closes it).
+        stream.destroy();
       }
     } catch (err) {
       if (cancelled()) break;
