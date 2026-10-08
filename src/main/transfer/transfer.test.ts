@@ -82,7 +82,7 @@ describe('moving a file between machines', () => {
   }, 60_000);
   afterAll(() => {
     for (const c of closers.splice(0)) c();
-    rmSync(root, { recursive: true, force: true });
+    rmSync(root, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 });
   });
 
   it('carries a large file this computer → host → host → this computer, unchanged', async () => {

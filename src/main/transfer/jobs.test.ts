@@ -43,7 +43,7 @@ describe('a file offered from one chat to another', () => {
   });
   afterAll(() => {
     for (const c of closers.splice(0)) c();
-    rmSync(home, { recursive: true, force: true });
+    rmSync(home, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 });
   });
 
   it('moves nothing until the receiving chat accepts — and only it may', async () => {

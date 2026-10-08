@@ -71,6 +71,11 @@ export function hostEndpoint(host: { name: string; url: string; token: string })
       else if (typeof body === 'string') req.end(body);
       else {
         body.on('error', (err) => req.destroy(err));
+        // pipe() leaves the source open when the request dies mid-upload —
+        // close it, or every dropped connection leaks the file handle.
+        req.on('close', () => {
+          if (!body.readableEnded) body.destroy();
+        });
         body.pipe(req);
       }
     });
