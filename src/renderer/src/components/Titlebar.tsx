@@ -57,6 +57,9 @@ interface TitlebarProps {
   /** Current open/closed state of the right git sidebar. */
   gitPanelOpen?: boolean;
   onToggleGitPanel?: () => void;
+  /** The left bar (work queues + chats) is showing; the button folds it. */
+  leftBarOpen?: boolean;
+  onToggleLeftBar?: () => void;
   /** Open the transcript search panel (menu bar View ▸ Search Chats…). */
   onSearchChats?: () => void;
   /** Fired when the user clicks any action on a notification in the
@@ -78,6 +81,8 @@ export function Titlebar({
   dialupActive,
   gitPanelOpen,
   onToggleGitPanel,
+  leftBarOpen,
+  onToggleLeftBar,
   onNotificationAction,
   centerFly,
   onSearchChats,
@@ -115,6 +120,15 @@ export function Titlebar({
         onAction={onNotificationAction ?? (() => undefined)}
         pulseOnArrival={centerFly ?? false}
       />
+      {onToggleLeftBar && (
+        <button
+          title={t(leftBarOpen ? 'titlebar.hideLeftBar' : 'titlebar.showLeftBar', { shortcut: isMac ? '⌘B' : 'Ctrl+B' })}
+          onClick={onToggleLeftBar}
+          className={leftBarOpen ? 'titlebar-btn-active' : ''}
+        >
+          <i className="fa-solid fa-table-columns" />
+        </button>
+      )}
       {onToggleGitPanel && (
         <button
           title={gitPanelOpen ? t('titlebar.hideGitPanel') : t('titlebar.showGitPanel')}

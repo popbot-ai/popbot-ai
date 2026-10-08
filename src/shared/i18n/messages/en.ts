@@ -108,15 +108,15 @@ export const en = {
   // one or two headline features. Keys stay stable; only the copy changes.
   // ---------------------------------------------------------------------------
   'whatsNew.title': 'What’s new in PopBot',
-  'whatsNew.f1.h': 'Run chats on other machines',
+  'whatsNew.f1.h': 'Bots that keep watch',
   'whatsNew.f1.p':
-    'Add a host in Preferences ▸ Hosts — any box running popbot-host, or the published container — and pick it under Run on when you start a chat. The agent, its tools and the checkout live there, in the host’s own slot pool; the transcript, search and settings stay here. A Hosts tab shows every machine’s slots and chats.',
-  'whatsNew.f2.h': 'Cloud chats on Anthropic Managed Agents',
+    'Open the Bots tab beside Chats and give a bot a name, a machine and its orders. It lives on that host, keeps working with your computer off, and wakes on triggers: a GitHub pull request (by label, from members of a team you name) or a schedule. Each bot has its own GitHub identity, email and picture, can message the bots you allow, and answers when your chats ask it something.',
+  'whatsNew.f2.h': 'Move chats and files between machines',
   'whatsNew.f2.p':
-    'Switch on the Cloud chip and the chat runs in an Anthropic cloud sandbox billed to your API key: it clones your branch from GitHub, pushes back to it, keeps working after PopBot quits, and catches up when you return. Shut down cloud chat is the only thing that ends it.',
-  'whatsNew.f3.h': 'Claude Opus 5.5, and a lot more',
+    'Move a chat to another machine from its ☰ menu: unpushed commits and uncommitted changes travel with it, and the repository is matched by name. Agents can also send a file of any size to a chat on another machine — the agent there has to accept it, it lands in ~/popbot/sent_files, and a dropped connection picks up where it stopped.',
+  'whatsNew.f3.h': 'GPT-6.1 Sol, and more',
   'whatsNew.f3.p':
-    'Opus 5.5 is in the model picker as an opt-in; your defaults do not change. Agents drive PopBot through its own tools and message each other with clear attribution, full-text search covers every chat, tool calls draw a timeline, chats can be forked, you sign in from inside the app, and settings save themselves — no Save buttons.',
+    'GPT-6.1 Sol replaces GPT-5.6 Sol, and chats on 5.6 Sol move to it on their own (it needs Codex CLI 0.160 or newer). Chat search finds chat names first, the left bar folds away with ⌘B (Ctrl+B), and host chats reconnect by themselves after a network change.',
   'whatsNew.gotIt': 'Got it',
 
   // ---------------------------------------------------------------------------
@@ -530,6 +530,8 @@ export const en = {
   'titlebar.win.close': 'Close',
   'titlebar.driftTitle': 'Drift detected',
   'titlebar.capacityTitle': 'Capacity needed',
+  'titlebar.hideLeftBar': 'Hide the left bar ({shortcut})',
+  'titlebar.showLeftBar': 'Show the left bar ({shortcut})',
   'titlebar.hideGitPanel': 'Hide git panel',
   'titlebar.showGitPanel': 'Show git panel',
   'titlebar.preferencesTitle': 'Preferences {shortcut}',

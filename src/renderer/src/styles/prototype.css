@@ -273,6 +273,9 @@ input, textarea { font: inherit; color: inherit; background: none; border: 0; ou
   gap: 0;
 }
 .left { grid-area: left; display: flex; flex-direction: column; border-right: 1px solid var(--line-1); min-width: 220px; }
+/* Folded away (⌘B / the title-bar button): no width, no border — but still
+   mounted, so its panels keep polling and keep their state. */
+.left.collapsed { display: none; }
 .center { grid-area: center; display: flex; flex-direction: column; min-width: 0; min-height: 0; }
 
 /* Lighter "chrome" surface for the side panels (left work-queue/chat

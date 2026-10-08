@@ -1411,15 +1411,15 @@ export const zhCN = {
   'prefs.repos.wizard.agentCwd.desc': '代理启动所在的工作区根目录下的路径（/ 表示根目录本身）。设为 /depot/PopBotGame 之类的子路径可让 Claude 找到仓库中提交的 .claude/skills。',
   // --- What's-new popup (WhatsNewDialog.tsx) — update each release ---
   'whatsNew.title': 'PopBot 新功能',
-  'whatsNew.f1.h': '在其他机器上运行对话',
+  'whatsNew.f1.h': '会值守的机器人',
   'whatsNew.f1.p':
-    '在偏好设置 ▸ 主机中添加主机（任何运行 popbot-host 的机器，或已发布的容器），新建对话时在“运行位置”中选择它。智能体、工具和检出在主机自己的卡槽池中运行；对话记录、搜索和设置留在这里。主机标签显示每台机器的卡槽和对话。',
-  'whatsNew.f2.h': 'Anthropic Managed Agents 云端对话',
+    '打开“对话”旁边的“机器人”标签页，给机器人起个名字、选一台机器、写下指令。它驻留在那台主机上，你的电脑关机也照常工作，并由触发器唤醒：GitHub 拉取请求（按标签筛选，且来自你指定团队的成员）或定时计划。每个机器人都有自己的 GitHub 身份、邮箱和头像，可以给你允许的机器人发消息，并在你的对话向它提问时作答。',
+  'whatsNew.f2.h': '在机器之间移动对话和文件',
   'whatsNew.f2.p':
-    '打开 Cloud 标记，对话就在按你的 API 密钥计费的 Anthropic 云沙箱中运行：从 GitHub 克隆你的分支并推送回去，PopBot 退出后继续工作，回来时补上错过的内容。只有“关闭云端对话”才会结束它。',
-  'whatsNew.f3.h': 'Claude Opus 5.5，以及更多',
+    '从对话的 ☰ 菜单把它移到另一台机器：未推送的提交和未提交的更改会一并带走，仓库按名称匹配。智能体还能把任意大小的文件发给另一台机器上的对话——对方的智能体必须接受，文件会存入 ~/popbot/sent_files，连接中断后会从断点继续。',
+  'whatsNew.f3.h': 'GPT-6.1 Sol 及更多',
   'whatsNew.f3.p':
-    'Opus 5.5 已加入模型选择器，按需选用；默认设置不变。智能体通过 PopBot 自己的工具驱动 PopBot，并带着清晰的来源互相发消息；全文搜索覆盖所有对话，工具调用绘制时间线，对话可以分叉，可在应用内登录，设置自动保存——没有保存按钮。',
+    'GPT-6.1 Sol 取代 GPT-5.6 Sol，使用 5.6 Sol 的对话会自动切换过去（需要 Codex CLI 0.160 或更新版本）。对话搜索优先匹配对话名称，左侧栏可用 ⌘B（Ctrl+B）收起，主机上的对话在网络切换后会自动重连。',
   'whatsNew.gotIt': '知道了',
   // --- Auto-update prompts (persisted via the notification system) ---
   'app.update.restartAction': '重启并安装',

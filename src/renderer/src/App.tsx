@@ -258,12 +258,17 @@ export default function App(): JSX.Element {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [settingsLoading]);
   const [gitPanelOpen, setGitPanelOpen] = useState<boolean>(false);
+  // The left bar (work queues + chat list) folds away to give the chat
+  // columns the whole width. Its panels stay mounted while hidden, so
+  // their polls and state carry on.
+  const [leftBarOpen, setLeftBarOpen] = useState<boolean>(true);
   // Hydrate sidebar state once settings have loaded; remembers last
   // open/closed across restarts.
   useEffect(() => {
     if (settingsLoading) return;
-    const ui = getSetting<{ gitPanelOpen?: boolean; gitPanelWidth?: number }>('ui', {});
+    const ui = getSetting<{ gitPanelOpen?: boolean; gitPanelWidth?: number; leftBarOpen?: boolean }>('ui', {});
     if (ui?.gitPanelOpen) setGitPanelOpen(true);
+    if (ui?.leftBarOpen === false) setLeftBarOpen(false);
     if (typeof ui?.gitPanelWidth === 'number' && ui.gitPanelWidth > 0) {
       setColRight(Math.max(240, Math.min(720, ui.gitPanelWidth)));
     }
@@ -277,6 +282,17 @@ export default function App(): JSX.Element {
       void setAppSetting('ui', {
         ...(getSetting<Record<string, unknown>>('ui', {}) ?? {}),
         gitPanelOpen: next,
+      });
+      return next;
+    });
+  }, [getSetting, setAppSetting]);
+
+  const toggleLeftBar = useCallback(() => {
+    setLeftBarOpen((prev) => {
+      const next = !prev;
+      void setAppSetting('ui', {
+        ...(getSetting<Record<string, unknown>>('ui', {}) ?? {}),
+        leftBarOpen: next,
       });
       return next;
     });
@@ -1452,6 +1468,19 @@ export default function App(): JSX.Element {
     return () => document.removeEventListener('keydown', onKey);
   }, []);
 
+  // Cmd-B (Ctrl-B elsewhere) folds the left bar away and back — anywhere,
+  // the chat box included: it has no bold for the shortcut to clash with.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent): void => {
+      if (e.key !== 'b' && e.key !== 'B') return;
+      if (!(e.metaKey || e.ctrlKey) || e.altKey || e.shiftKey) return;
+      e.preventDefault();
+      toggleLeftBar();
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [toggleLeftBar]);
+
   // Cmd-K (Ctrl-K elsewhere) → "+ new chat" — the same flow as the
   // thumbnail bar's "+" button. We skip the shortcut while focus is on
   // a text input / textarea / contentEditable so it doesn't intercept
@@ -1505,8 +1534,10 @@ export default function App(): JSX.Element {
       ? 'error'
       : 'prompt';
 
+  // What the left bar takes: its width, or nothing while it is folded away.
+  const leftWidth = leftBarOpen ? colWidth : 0;
   const workspaceStyle: ColumnLayoutVars = {
-    '--col-left': colWidth + 'px',
+    '--col-left': leftWidth + 'px',
     '--row-bottom': bottomHeight + 'px',
     ...(gitPanelOpen ? { '--col-right': colRight + 'px' } : {}),
   };
@@ -1538,6 +1569,8 @@ export default function App(): JSX.Element {
         onOpenAbout={() => setAboutOpen(true)}
         gitPanelOpen={gitPanelOpen}
         onToggleGitPanel={toggleGitPanel}
+        leftBarOpen={leftBarOpen}
+        onToggleLeftBar={toggleLeftBar}
         onNotificationAction={routeAction}
         centerFly={centerFly}
       />
@@ -1547,7 +1580,7 @@ export default function App(): JSX.Element {
         style={workspaceStyle}
       >
         <div
-          className="left"
+          className={`left${leftBarOpen ? '' : ' collapsed'}`}
           ref={leftRef}
           style={{ '--panel-a-h': `${(panelAFraction * 100).toFixed(2)}%` } as CSSProperties}
         >
@@ -1608,7 +1641,7 @@ export default function App(): JSX.Element {
           ref={resizeHRef}
           className="resize-h"
           onMouseDown={startResizeH}
-          style={{ position: 'absolute', left: colWidth, top: 40, bottom: 0, width: 4, zIndex: 10 }}
+          style={{ position: 'absolute', left: colWidth, top: 40, bottom: 0, width: 4, zIndex: 10, display: leftBarOpen ? undefined : 'none' }}
         />
 
         <div className="center">
@@ -1747,7 +1780,7 @@ export default function App(): JSX.Element {
           onMouseDown={startResizeV}
           style={{
             position: 'absolute',
-            left: colWidth + 4,
+            left: leftWidth + (leftBarOpen ? 4 : 0),
             right: gitPanelOpen ? colRight : 0,
             bottom: bottomHeight,
             height: 4,
@@ -1798,7 +1831,7 @@ export default function App(): JSX.Element {
               className="diff-overlay-backdrop"
               onMouseDown={closeDiff}
               style={{
-                left: colWidth,
+                left: leftWidth,
                 right: gitPanelOpen ? colRight : 0,
               }}
             />

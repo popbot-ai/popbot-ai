@@ -1431,15 +1431,15 @@ export const it = {
   'language.systemNote': 'Anche le nuove finestre e il menu dell’app usano questa lingua.',
   // --- What's-new popup (WhatsNewDialog.tsx) — update each release ---
   'whatsNew.title': 'Novità di PopBot',
-  'whatsNew.f1.h': 'Esegui chat su altre macchine',
+  'whatsNew.f1.h': 'Bot che fanno la guardia',
   'whatsNew.f1.p':
-    'Aggiungi un host in Preferenze ▸ Host — qualsiasi macchina con popbot-host, o il container pubblicato — e sceglilo in Esegui su quando crei una chat. Agente, strumenti e checkout stanno lì, nel pool di slot dell’host; trascrizione, ricerca e impostazioni restano qui. Una scheda Host mostra slot e chat di ogni macchina.',
-  'whatsNew.f2.h': 'Chat cloud su Anthropic Managed Agents',
+    'Apri la scheda Bot accanto a Chat e dai a un bot un nome, una macchina e i suoi ordini. Vive su quell’host, continua a lavorare a computer spento e si sveglia con dei trigger: una pull request GitHub (per etichetta, dai membri di un team che indichi) o una pianificazione. Ogni bot ha la sua identità GitHub, email e immagine, può scrivere ai bot che consenti e risponde quando le tue chat gli chiedono qualcosa.',
+  'whatsNew.f2.h': 'Sposta chat e file tra macchine',
   'whatsNew.f2.p':
-    'Attiva il chip Cloud e la chat gira in una sandbox cloud di Anthropic addebitata alla tua chiave API: clona il tuo branch da GitHub, vi fa push, continua a lavorare dopo la chiusura di PopBot e recupera tutto al tuo ritorno. Solo Arresta la chat cloud la termina.',
-  'whatsNew.f3.h': 'Claude Opus 5.5 e molto altro',
+    'Sposta una chat su un’altra macchina dal suo menu ☰: i commit non inviati e le modifiche non salvate la seguono, e il repository viene abbinato per nome. Gli agenti possono anche inviare un file di qualsiasi dimensione a una chat su un’altra macchina: l’agente dall’altra parte deve accettarlo, arriva in ~/popbot/sent_files e una connessione caduta riprende da dove si era fermata.',
+  'whatsNew.f3.h': 'GPT-6.1 Sol, e altro',
   'whatsNew.f3.p':
-    'Opus 5.5 è nel selettore dei modelli come opzione; i tuoi predefiniti non cambiano. Gli agenti guidano PopBot con i suoi strumenti e si scrivono con attribuzione chiara, la ricerca full-text copre ogni chat, le chiamate agli strumenti disegnano una timeline, le chat si possono biforcare, accedi dall’app e le impostazioni si salvano da sole: niente pulsanti Salva.',
+    'GPT-6.1 Sol sostituisce GPT-5.6 Sol, e le chat su 5.6 Sol passano da sole al nuovo modello (serve Codex CLI 0.160 o successivo). La ricerca trova prima i nomi delle chat, la barra sinistra si chiude con ⌘B (Ctrl+B) e le chat sugli host si riconnettono da sole dopo un cambio di rete.',
   'whatsNew.gotIt': 'Capito',
   // --- Auto-update prompts (persisted via the notification system) ---
   'app.update.restartAction': 'Riavvia e installa',

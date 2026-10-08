@@ -1426,15 +1426,15 @@ export const de = {
   'prefs.repos.wizard.agentCwd.desc': 'Pfad unter dem Arbeitsbereich-Stammverzeichnis, in dem der Agent startet (/ = das Stammverzeichnis selbst). Ein Unterpfad wie /depot/PopBotGame lässt Claude dort eingecheckte .claude/skills finden.',
   // --- What's-new popup (WhatsNewDialog.tsx) — update each release ---
   'whatsNew.title': 'Neu in PopBot',
-  'whatsNew.f1.h': 'Chats auf anderen Rechnern ausführen',
+  'whatsNew.f1.h': 'Bots, die Wache halten',
   'whatsNew.f1.p':
-    'Füge unter Einstellungen ▸ Hosts einen Host hinzu – jede Maschine mit popbot-host oder den veröffentlichten Container – und wähle ihn beim Anlegen eines Chats unter Ausführen auf. Agent, Tools und Checkout laufen dort im eigenen Slot-Pool des Hosts; Transkript, Suche und Einstellungen bleiben hier. Ein Tab Hosts zeigt die Slots und Chats jeder Maschine.',
-  'whatsNew.f2.h': 'Cloud-Chats auf Anthropic Managed Agents',
+    'Öffne den Tab Bots neben Chats und gib einem Bot einen Namen, einen Rechner und seinen Auftrag. Er lebt auf diesem Host, arbeitet weiter, wenn dein Computer aus ist, und wird durch Auslöser geweckt: einen GitHub-Pull-Request (nach Label, von Mitgliedern eines Teams, das du angibst) oder einen Zeitplan. Jeder Bot hat eine eigene GitHub-Identität, E-Mail und ein Bild, kann den Bots schreiben, die du erlaubst, und antwortet, wenn deine Chats ihn etwas fragen.',
+  'whatsNew.f2.h': 'Chats und Dateien zwischen Rechnern verschieben',
   'whatsNew.f2.p':
-    'Schalte den Cloud-Chip ein, und der Chat läuft in einer Anthropic-Cloud-Sandbox, abgerechnet über deinen API-Key: Er klont deinen Branch von GitHub, pusht dorthin zurück, arbeitet nach dem Beenden von PopBot weiter und holt bei deiner Rückkehr alles nach. Nur Cloud-Chat beenden beendet ihn.',
-  'whatsNew.f3.h': 'Claude Opus 5.5 und vieles mehr',
+    'Verschiebe einen Chat über sein ☰-Menü auf einen anderen Rechner: Nicht gepushte Commits und nicht committete Änderungen ziehen mit, und das Repository wird über den Namen zugeordnet. Agents können auch Dateien jeder Größe an einen Chat auf einem anderen Rechner senden – der Agent dort muss sie annehmen, sie landen in ~/popbot/sent_files, und eine abgebrochene Verbindung setzt dort wieder an, wo sie stand.',
+  'whatsNew.f3.h': 'GPT-6.1 Sol und mehr',
   'whatsNew.f3.p':
-    'Opus 5.5 steht als Opt-in im Modell-Picker; deine Standards ändern sich nicht. Agents steuern PopBot über eigene Tools und schreiben einander mit klarer Absenderangabe, die Volltextsuche durchsucht jeden Chat, Tool-Aufrufe zeichnen eine Zeitleiste, Chats lassen sich abzweigen, du meldest dich in der App an, und Einstellungen speichern sich selbst – keine Speichern-Buttons.',
+    'GPT-6.1 Sol ersetzt GPT-5.6 Sol, und Chats auf 5.6 Sol wechseln von selbst dorthin (dafür braucht es Codex CLI 0.160 oder neuer). Die Chatsuche findet zuerst Chatnamen, die linke Leiste lässt sich mit ⌘B (Strg+B) einklappen, und Host-Chats verbinden sich nach einem Netzwechsel von selbst neu.',
   'whatsNew.gotIt': 'Verstanden',
   // --- Auto-update prompts (persisted via the notification system) ---
   'app.update.restartAction': 'Neu starten und installieren',

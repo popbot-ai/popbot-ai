@@ -1412,15 +1412,15 @@ export const ko = {
   'prefs.repos.wizard.agentCwd.desc': '에이전트가 시작하는 작업 공간 루트 아래 경로입니다(/ = 루트 자체). /depot/PopBotGame 같은 하위 경로로 지정하면 저장소에 커밋된 .claude/skills를 Claude가 찾을 수 있습니다.',
   // --- What's-new popup (WhatsNewDialog.tsx) — update each release ---
   'whatsNew.title': 'PopBot의 새로운 기능',
-  'whatsNew.f1.h': '다른 컴퓨터에서 채팅 실행',
+  'whatsNew.f1.h': '지켜보는 봇',
   'whatsNew.f1.p':
-    '환경설정 ▸ 호스트에 호스트(popbot-host를 실행하는 컴퓨터 또는 공개된 컨테이너)를 추가하고, 채팅을 만들 때 실행 위치에서 고르세요. 에이전트, 도구, 체크아웃은 그 호스트의 슬롯 풀에서 실행되고 대화 기록, 검색, 설정은 여기에 남습니다. 호스트 탭은 각 컴퓨터의 슬롯과 채팅을 보여 줍니다.',
-  'whatsNew.f2.h': 'Anthropic Managed Agents 클라우드 채팅',
+    '채팅 옆의 봇 탭을 열고 봇에 이름, 컴퓨터, 지시를 지정하세요. 봇은 그 호스트에서 살며 내 컴퓨터가 꺼져 있어도 계속 일하고, 트리거로 깨어납니다: GitHub 풀 리퀘스트(라벨별, 지정한 팀 멤버의 것) 또는 일정. 각 봇은 자체 GitHub 계정, 이메일, 사진을 가지며, 허용한 봇에게 메시지를 보낼 수 있고, 채팅이 무언가를 물으면 답합니다.',
+  'whatsNew.f2.h': '채팅과 파일을 컴퓨터 간에 이동',
   'whatsNew.f2.p':
-    'Cloud 칩을 켜면 채팅이 API 키로 과금되는 Anthropic 클라우드 샌드박스에서 실행됩니다. GitHub에서 브랜치를 클론해 다시 푸시하고, PopBot을 종료해도 계속 작동하며, 돌아오면 놓친 내용을 따라잡습니다. 클라우드 채팅 종료만이 이를 끝냅니다.',
-  'whatsNew.f3.h': 'Claude Opus 5.5, 그리고 더 많은 것',
+    '☰ 메뉴에서 채팅을 다른 컴퓨터로 옮길 수 있습니다. 푸시하지 않은 커밋과 커밋하지 않은 변경도 함께 옮겨지고, 저장소는 이름으로 맞춥니다. 에이전트는 다른 컴퓨터의 채팅에 크기 제한 없이 파일을 보낼 수도 있습니다. 받는 쪽 에이전트가 수락해야 하며, 파일은 ~/popbot/sent_files에 도착하고, 연결이 끊겨도 멈춘 곳부터 이어집니다.',
+  'whatsNew.f3.h': 'GPT-6.1 Sol 외',
   'whatsNew.f3.p':
-    'Opus 5.5가 모델 선택기에 옵션으로 추가되었습니다. 기본값은 바뀌지 않습니다. 에이전트가 PopBot 자체 도구로 PopBot을 조작하고 출처를 명확히 밝히며 서로 메시지를 보내고, 전체 텍스트 검색이 모든 채팅을 다루며, 도구 호출이 타임라인을 그리고, 채팅을 포크할 수 있고, 앱 안에서 로그인하며, 설정은 저장 버튼 없이 저절로 저장됩니다.',
+    'GPT-6.1 Sol이 GPT-5.6 Sol을 대체하며, 5.6 Sol 채팅은 자동으로 옮겨집니다(Codex CLI 0.160 이상 필요). 채팅 검색은 채팅 이름을 먼저 찾고, 왼쪽 막대는 ⌘B(Ctrl+B)로 접을 수 있으며, 호스트 채팅은 네트워크가 바뀐 뒤 스스로 다시 연결됩니다.',
   'whatsNew.gotIt': '확인',
   // --- Auto-update prompts (persisted via the notification system) ---
   'app.update.restartAction': '다시 시작하고 설치',
