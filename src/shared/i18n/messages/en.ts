@@ -530,6 +530,8 @@ export const en = {
   'titlebar.win.close': 'Close',
   'titlebar.driftTitle': 'Drift detected',
   'titlebar.capacityTitle': 'Capacity needed',
+  'titlebar.hideLeftBar': 'Hide the left bar ({shortcut})',
+  'titlebar.showLeftBar': 'Show the left bar ({shortcut})',
   'titlebar.hideGitPanel': 'Hide git panel',
   'titlebar.showGitPanel': 'Show git panel',
   'titlebar.preferencesTitle': 'Preferences {shortcut}',
