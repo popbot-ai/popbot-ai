@@ -90,6 +90,27 @@ describe('a chat moving onto a host and off again', () => {
     expect(git(ws.cwd, 'log', '-1', '--format=%s')).toBe('hero copy');
   });
 
+  it('forks it on the host: a checkout of its own on a new branch, the work in it, the original untouched', async () => {
+    const original = await post<HostWorkspaceResult>('/v1/chats/chat_move/workspace', { kind: 'worktree', repoId: 'site', branch: 'feat/hero' });
+    const { work } = await post<{ work: PackedWork | null }>('/v1/chats/chat_move/pack', { keepSession: true });
+    // The commits are in this repository already: no bundle, just the tip
+    // and the uncommitted changes, under the fork's branch.
+    const ws = await post<HostWorkspaceResult>('/v1/chats/chat_fork/unpack', {
+      workspace: { kind: 'worktree', repoId: 'site', branch: 'feat/hero-fork', baseBranch: 'main' },
+      work: { ...work!, branch: 'feat/hero-fork', bundleBase64: null },
+    });
+    expect(ws.cwd).not.toBe(original.cwd);
+    expect(ws.branch).toBe('feat/hero-fork');
+    expect(git(ws.cwd, 'log', '-1', '--format=%s')).toBe('hero copy');
+    expect(readFileSync(join(ws.cwd, 'page.txt'), 'utf8').replace(/\r\n/g, '\n')).toBe('v2 — not committed\n');
+    expect(readFileSync(join(ws.cwd, 'notes.md'), 'utf8').replace(/\r\n/g, '\n')).toBe('scratch notes\n');
+
+    writeFileSync(join(ws.cwd, 'page.txt'), 'the fork goes its own way\n');
+    expect(readFileSync(join(original.cwd, 'page.txt'), 'utf8').replace(/\r\n/g, '\n')).toBe('v2 — not committed\n');
+    expect(git(original.cwd, 'branch', '--show-current')).toBe('feat/hero');
+    await post('/v1/chats/chat_fork/release', { stash: false });
+  });
+
   it('packs it back up from that checkout, more work included, and releases it with a stash a reopen will not pop', async () => {
     const held = await post<HostWorkspaceResult>('/v1/chats/chat_move/workspace', { kind: 'worktree', repoId: 'site', branch: 'feat/hero' });
     writeFileSync(join(held.cwd, 'notes.md'), 'scratch notes\nmore, written on the host\n');

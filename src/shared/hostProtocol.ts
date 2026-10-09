@@ -14,7 +14,7 @@
  *   DELETE /v1/repos/:id                   → { ok }
  *   POST /v1/chats/:chatId/workspace       HostWorkspaceRequest → HostWorkspaceResult
  *   POST /v1/chats/:chatId/release         { stash } → { released }  (parks the slot / removes the worktree)
- *   POST /v1/chats/:chatId/pack            HostPackBody → { work: PackedWork | null }  (a chat moving away)
+ *   POST /v1/chats/:chatId/pack            HostPackBody → { work: PackedWork | null }  (a chat moving away, or forked)
  *   POST /v1/chats/:chatId/unpack          HostUnpackBody → HostWorkspaceResult  (a chat moving here)
  *   POST /v1/chats/:chatId/spawn           HostSpawnBody → { cwd, seq }
  *   POST /v1/chats/:chatId/send            HostSendBody
@@ -306,6 +306,10 @@ export interface PackedWork {
 export interface HostPackBody {
   repoId?: string | null;
   branch?: string | null;
+  /** The chat is being forked, not moved: read its work and leave its
+   *  session running. (A host that predates this stops the session, which
+   *  only costs it a restart on its next message.) */
+  keepSession?: boolean;
 }
 
 /** Give a chat moving here its workspace, with its work in it: the
