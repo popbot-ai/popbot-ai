@@ -17,8 +17,14 @@ import { dlog } from '../main/diagLog';
 export interface RosterChat {
   id: string;
   name: string;
-  /** Closed on the desktop: listed only on request, never woken. */
+  /** Closed: listed only on request, never woken. */
   open: boolean;
+  /** Who last opened or closed it — the desktop, or the host's own tools
+   *  while it could not be reached (a change the desktop then applies). */
+  changedBy: 'desktop' | 'host';
+  changedAt: number;
+  /** Made by the host's own tools: a desktop adopts it when it is back. */
+  createdByHost: boolean;
   /** How the desktop last started it. */
   body: HostSpawnBody;
   /** The native session to resume — the latest the agent reported. */
@@ -47,14 +53,20 @@ export class ChatRoster {
     return [...this.chats.values()];
   }
 
-  /** The desktop started it: remember how, so the host can again. */
-  spawned(chatId: string, body: HostSpawnBody): void {
+  /** It was started — by the desktop, or by the host waking it: remember
+   *  how, so the host can again. */
+  spawned(chatId: string, body: HostSpawnBody, by: 'desktop' | 'host' = 'desktop'): void {
     if (!SAFE_ID.test(chatId)) return;
     const prior = this.chats.get(chatId);
+    // The host wakes only open chats, and leaves who opened it as it was.
+    const keep = by === 'host' && prior;
     this.put({
       id: chatId,
       name: body.chatName?.trim() || prior?.name || chatId,
       open: true,
+      changedBy: keep ? prior.changedBy : 'desktop',
+      changedAt: keep ? prior.changedAt : prior?.open === false ? Date.now() : prior?.changedAt ?? Date.now(),
+      createdByHost: prior?.createdByHost ?? false,
       body: { ...body, sessionId: null },
       // The desktop's choice, a fresh one included; the agent reports
       // the id it settles on (sessionId below).
@@ -74,6 +86,29 @@ export class ChatRoster {
     if (chat && Date.now() - chat.lastActiveAt > 60_000) this.put({ ...chat, lastActiveAt: Date.now() });
   }
 
+  /** A chat the host's own tools made, while no desktop could be reached. */
+  created(chatId: string, body: HostSpawnBody): RosterChat {
+    const chat: RosterChat = {
+      id: chatId,
+      name: body.chatName?.trim() || chatId,
+      open: true,
+      changedBy: 'host',
+      changedAt: Date.now(),
+      createdByHost: true,
+      body: { ...body, sessionId: null },
+      sessionId: null,
+      lastActiveAt: Date.now(),
+    };
+    this.put(chat);
+    return chat;
+  }
+
+  /** The host's own tools closed or reopened it. */
+  setOpen(chatId: string, open: boolean): void {
+    const chat = this.chats.get(chatId);
+    if (chat && chat.open !== open) this.put({ ...chat, open, changedBy: 'host', changedAt: Date.now() });
+  }
+
   meta(chatId: string, meta: HostChatMeta): void {
     const chat = this.chats.get(chatId);
     if (!chat) return;
@@ -86,7 +121,8 @@ export class ChatRoster {
     this.put({
       ...chat,
       ...(typeof meta.name === 'string' && meta.name.trim() ? { name: meta.name.trim() } : {}),
-      ...(typeof meta.open === 'boolean' ? { open: meta.open } : {}),
+      // The desktop has it now, whoever changed it last.
+      ...(typeof meta.open === 'boolean' ? { open: meta.open, changedBy: 'desktop' as const, changedAt: Date.now() } : {}),
     });
   }
 
@@ -110,8 +146,15 @@ export class ChatRoster {
       const path = join(this.dir, id, 'chat.json');
       if (!existsSync(path)) continue;
       try {
-        const chat = JSON.parse(readFileSync(path, 'utf8')) as RosterChat;
-        if (chat && chat.id === id && chat.body && typeof chat.name === 'string') this.chats.set(id, chat);
+        const chat = JSON.parse(readFileSync(path, 'utf8')) as Partial<RosterChat>;
+        if (!chat || chat.id !== id || !chat.body || typeof chat.name !== 'string') continue;
+        this.chats.set(id, {
+          ...(chat as RosterChat),
+          open: chat.open !== false,
+          changedBy: chat.changedBy === 'host' ? 'host' : 'desktop',
+          changedAt: typeof chat.changedAt === 'number' ? chat.changedAt : 0,
+          createdByHost: chat.createdByHost === true,
+        });
       } catch (err) {
         dlog('host.roster.read-failed', { chatId: id, error: err instanceof Error ? err.message : String(err) });
       }

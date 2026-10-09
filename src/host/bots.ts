@@ -346,6 +346,11 @@ export class HostBots implements BotHooks {
 
   // ── BotHooks ────────────────────────────────────────────────────────
 
+  logPathFor(chatId: string): string | null {
+    const bot = this.config.bots.find((b) => botChatId(b.id) === chatId);
+    return bot ? join(this.dir(bot.id), 'events.jsonl') : null;
+  }
+
   spawnFor(chatId: string): BotSpawn | null {
     const bot = this.config.bots.find((b) => botChatId(b.id) === chatId);
     if (!bot) return null;

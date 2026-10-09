@@ -18,6 +18,7 @@ import { hostBotAction, killHostBot, probeHost, saveHostBot } from '../agents/ho
 import { closeChat, createChat, deleteChat, getChat, listClosedChats, listOpenChats, renameChat, setChatHost } from '../persistence/chats';
 import { getHost, listHosts } from '../persistence/hosts';
 import { isDbOpen } from '../persistence/db';
+import { syncHostChats } from './hostChatSync';
 import { dlog } from '../diagLog';
 
 /** How often the hosts are asked about their bots. */
@@ -60,6 +61,9 @@ async function refreshNow(): Promise<void> {
         const chat = ensureBotChat(host, bot);
         if (chat) void follow(chat.id);
       }
+      // What the host's own tools did while this app was away: chats made,
+      // closed or reopened there.
+      if (info.roster) await syncHostChats(host, info.roster).catch((err: unknown) => dlog('hostsync.failed', { host: host.name, error: message(err) }));
       // An open chat on the host that went on without this app — another
       // chat there messaged it while this app was away — is followed too,
       // so its transcript here catches up without anyone opening it.

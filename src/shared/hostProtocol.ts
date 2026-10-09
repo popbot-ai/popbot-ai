@@ -113,6 +113,10 @@ export interface HostInfo {
   repos: HostRepo[];
   /** Chats with a live session on the host, for a desktop that comes back. */
   chats: Array<{ chatId: string; alive: boolean; lastSeq: number }>;
+  /** Every ordinary chat the host knows, as its own tools left it — what a
+   *  desktop that was away adopts: chats made, closed or reopened on the
+   *  host meanwhile. An older host leaves it out. */
+  roster?: HostRosterChat[];
   /** The bots this host runs. An older host leaves it out. */
   bots?: HostBotInfo[];
 }
@@ -272,6 +276,31 @@ export interface HostSpawnBody {
   chatName?: string | null;
 }
 
+/** A chat as the host remembers it (src/host/chatRoster.ts). */
+export interface HostRosterChat {
+  chatId: string;
+  name: string;
+  open: boolean;
+  /** Who last opened or closed it: a desktop, or the host's own tools
+   *  while no desktop could be reached — a change a desktop applies. */
+  changedBy: 'desktop' | 'host';
+  changedAt: number;
+  /** Made by the host's own tools; a desktop that has never seen it
+   *  adopts it. */
+  createdByHost: boolean;
+  agent: AgentBackendId;
+  claudeModel: ClaudeModelId | null;
+  claudeReasoningEffort: ClaudeReasoningEffort | null;
+  codexModel: CodexModelId | null;
+  codexReasoningEffort: CodexReasoningEffort | null;
+  kind: 'worktree' | 'root' | 'scratch';
+  repoId: string | null;
+  branch: string | null;
+  baseBranch: string | null;
+  slotId: number | null;
+  cwd: string | null;
+}
+
 /** What the desktop tells a host about a chat it runs, so the host's own
  *  popbot tools (used while the desktop is away) show it as it is: its
  *  name, whether it is open — a closed chat is not woken — and that it
@@ -388,5 +417,8 @@ export type HostFrame =
    *  desktop that issued the id delivers it, once: now, or when it next
    *  reads this log. */
   | { seq: number; kind: 'reply'; replyId: string; text: string }
+  /** What a desktop sent the agent, kept so the host's own transcript
+   *  tools have both sides. A desktop has it already and skips it. */
+  | { seq: number; kind: 'user'; text: string; ts: number }
   /** The backend session is gone (its query ended); spawn again to go on. */
   | { seq: number; kind: 'dead' };

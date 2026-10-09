@@ -15,6 +15,7 @@ import type { PickedAttachment } from '@shared/ipc';
 import type {
   HostChatMeta,
   HostFrame,
+  HostRosterChat,
   HostMcpRequest,
   HostMcpResponse,
   HostRules,
@@ -36,6 +37,9 @@ const LOG_CAP = 20_000;
 /** How long a popbot MCP call waits for the desktop: send_to_chat's
  *  longest wait (30 minutes) and some room. */
 const MCP_RELAY_TIMEOUT_MS = 35 * 60_000;
+/** A desktop heard from this recently is taken to be there: it asks for
+ *  /v1/info every 30 seconds while it runs. */
+const DESKTOP_SEEN_MS = 75_000;
 
 type McpAnswer = Omit<HostMcpResponse, 'id'>;
 
@@ -69,6 +73,8 @@ export interface BotSpawn {
 export interface BotHooks {
   /** The bot whose chat this is, or null for an ordinary chat. */
   spawnFor(chatId: string): BotSpawn | null;
+  /** Where a bot's chat keeps its event log; null for any other chat. */
+  logPathFor(chatId: string): string | null;
   /** The chat's turn ended — or its session did. */
   idle(chatId: string): void;
 }
@@ -90,6 +96,8 @@ interface LiveChat {
   taps: Set<(frame: HostFrame) => void>;
   /** popbot MCP calls the desktop has not answered, by frame id. */
   mcpPending: Map<string, (answer: McpAnswer) => void>;
+  /** Of those, the ones a desktop has been handed (live or on replay). */
+  mcpClaimed: Set<string>;
   /** Frames kept for replay. */
   cap: number;
   /** The log on disk. */
@@ -109,6 +117,8 @@ export class HostSessions {
   private bots: BotHooks | null = null;
   /** The ordinary chats this host runs, remembered across restarts. */
   readonly roster: ChatRoster;
+  /** When a desktop last called this host. */
+  private desktopAt = 0;
 
   constructor(
     private readonly config: HostConfig,
@@ -158,6 +168,67 @@ export class HostSessions {
     return (this.chats.get(chatId)?.listeners.size ?? 0) > 0;
   }
 
+  /** A desktop called (any request to this host's API). */
+  noteDesktop(): void {
+    this.desktopAt = Date.now();
+  }
+
+  /** A desktop is there: reading some chat now, or heard from lately. */
+  desktopReachable(): boolean {
+    if (Date.now() - this.desktopAt < DESKTOP_SEEN_MS) return true;
+    for (const live of this.chats.values()) if (live.listeners.size > 0) return true;
+    return false;
+  }
+
+  /** Every ordinary chat the host knows, for a desktop to sync with. */
+  rosterInfo(): HostRosterChat[] {
+    return this.roster.list().map((c) => {
+      const held = this.workspaces.held(c.id);
+      const isCodex = c.body.agent === 'codex';
+      const want = c.body.workspace;
+      return {
+        chatId: c.id,
+        name: c.name,
+        open: c.open,
+        changedBy: c.changedBy,
+        changedAt: c.changedAt,
+        createdByHost: c.createdByHost,
+        agent: c.body.agent,
+        claudeModel: isCodex ? null : c.body.claudeModel ?? null,
+        claudeReasoningEffort: isCodex ? null : c.body.claudeReasoningEffort ?? null,
+        codexModel: isCodex ? c.body.codexModel ?? null : null,
+        codexReasoningEffort: isCodex ? c.body.codexReasoningEffort ?? null : null,
+        kind: !want || want.kind === 'scratch' || !want.repoId ? 'scratch' : want.kind === 'root' ? 'root' : 'worktree',
+        repoId: want?.repoId ?? null,
+        branch: held?.branch ?? want?.branch ?? null,
+        baseBranch: want?.baseBranch ?? null,
+        slotId: held?.slotId ?? null,
+        cwd: held?.cwd ?? null,
+      };
+    });
+  }
+
+  /** The chat's event log — live, or read from disk when its session is
+   *  not running. Null for a chat this host does not know. */
+  framesOf(chatId: string): HostFrame[] | null {
+    const live = this.chats.get(chatId);
+    if (live) return live.frames;
+    const bot = this.bots?.logPathFor(chatId) ?? null;
+    const path = bot ?? (this.roster.get(chatId) ? this.roster.logPath(chatId) : null);
+    return path ? FrameLog.read(path) : null;
+  }
+
+  /** The host's own tools closed a chat (no desktop could be reached):
+   *  its session ends, it is not woken, and the desktop is told when back. */
+  async closeByHost(chatId: string): Promise<void> {
+    await this.dispose(chatId);
+    this.roster.setOpen(chatId, false);
+  }
+
+  reopenByHost(chatId: string): void {
+    this.roster.setOpen(chatId, true);
+  }
+
   /** The desktop renamed, closed, reopened or let go of a chat. */
   setMeta(chatId: string, meta: HostChatMeta): void {
     this.roster.meta(chatId, meta);
@@ -173,7 +244,7 @@ export class HostSessions {
     const known = this.roster.get(chatId);
     if (!known) throw new HostError(404, `no chat ${chatId} on this host`);
     if (!known.open) throw new HostError(409, `"${known.name}" is closed`);
-    await this.spawn(chatId, { ...known.body, sessionId: known.sessionId });
+    await this.spawn(chatId, { ...known.body, sessionId: known.sessionId }, 'host');
   }
 
   /** Watch the chat's frames from now on, as the host itself. */
@@ -189,13 +260,13 @@ export class HostSessions {
   }
 
   /** Start (or restart) the chat's session. A live one is disposed first. */
-  async spawn(chatId: string, body: HostSpawnBody): Promise<HostSpawnResult> {
+  async spawn(chatId: string, body: HostSpawnBody, by: 'desktop' | 'host' = 'desktop'): Promise<HostSpawnResult> {
     const prior = this.chats.get(chatId);
     if (prior) {
       await prior.session.dispose().catch(() => undefined);
     }
     const bot = this.bots?.spawnFor(chatId) ?? null;
-    if (!bot) this.roster.spawned(chatId, body);
+    if (!bot) this.roster.spawned(chatId, body, by);
     const workspace = bot
       ? { cwd: await bot.cwd(), kind: 'root' as const, slotId: null, branch: null }
       : await this.workspaces.ensure(chatId, body.workspace);
@@ -218,6 +289,7 @@ export class HostSessions {
       listeners: prior?.listeners ?? new Set(),
       taps: prior?.taps ?? new Set(),
       mcpPending: prior?.mcpPending ?? new Map(),
+      mcpClaimed: prior?.mcpClaimed ?? new Set(),
       cap: bot ? bot.logCap : LOG_CAP,
       log: prior?.log ?? opened?.log ?? null,
       busy: false,
@@ -302,6 +374,7 @@ export class HostSessions {
     live.busy = true;
     live.lastAsk = body.text;
     this.roster.touch(chatId);
+    this.push(chatId, { kind: 'user', text: body.text, ts: Date.now() });
     await live.session.sendUser(body.text, attachments);
     this.noteAlive(chatId);
   }
@@ -331,15 +404,34 @@ export class HostSessions {
   /** Send the agent's popbot MCP call up the chat's stream and wait for
    *  the desktop's answer. A desktop that is away gets it on replay. */
   relayMcp(chatId: string, request: HostMcpRequest, signal: AbortSignal): Promise<McpAnswer> {
+    return this.relay(chatId, request, signal, {}) as Promise<McpAnswer>;
+  }
+
+  /** The same, but a call no desktop has picked up within `ms` is
+   *  withdrawn and resolves null — for the host to answer itself. */
+  relayMcpOrWithdraw(chatId: string, request: HostMcpRequest, signal: AbortSignal, ms: number): Promise<McpAnswer | null> {
+    return this.relay(chatId, request, signal, { unclaimedAfterMs: ms });
+  }
+
+  private relay(chatId: string, request: HostMcpRequest, signal: AbortSignal, opts: { unclaimedAfterMs?: number }): Promise<McpAnswer | null> {
     const live = this.must(chatId);
     const id = randomUUID();
     if (signal.aborted) return Promise.reject(new Error('the agent hung up'));
-    return new Promise<McpAnswer>((resolve, reject) => {
+    return new Promise<McpAnswer | null>((resolve, reject) => {
       const settle = (): void => {
         live.mcpPending.delete(id);
+        live.mcpClaimed.delete(id);
         clearTimeout(timer);
+        if (unclaimed) clearTimeout(unclaimed);
         signal.removeEventListener('abort', onAbort);
       };
+      const unclaimed = opts.unclaimedAfterMs
+        ? setTimeout(() => {
+            if (live.mcpClaimed.has(id)) return;
+            settle();
+            resolve(null);
+          }, opts.unclaimedAfterMs)
+        : null;
       const onAbort = (): void => { settle(); reject(new Error('the agent hung up')); };
       const timer = setTimeout(() => { settle(); reject(new Error('the desktop did not answer in time')); }, MCP_RELAY_TIMEOUT_MS);
       signal.addEventListener('abort', onAbort, { once: true });
@@ -379,6 +471,7 @@ export class HostSessions {
       if (f.seq <= after) continue;
       // An answered call must not run twice on the desktop.
       if (f.kind === 'mcp-request' && !live.mcpPending.has(f.id)) continue;
+      if (f.kind === 'mcp-request') live.mcpClaimed.add(f.id);
       listener(f);
     }
     live.listeners.add(listener);
@@ -394,6 +487,7 @@ export class HostSessions {
     live.frames.push(full);
     if (live.frames.length > live.cap) live.frames.splice(0, live.frames.length - live.cap);
     live.log?.append(full, live.frames);
+    if (full.kind === 'mcp-request' && live.listeners.size > 0) live.mcpClaimed.add(full.id);
     for (const l of live.listeners) l(full);
     for (const t of live.taps) {
       try { t(full); } catch { /* a watcher's bug must not stop the log */ }
