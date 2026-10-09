@@ -108,6 +108,8 @@ export function createHostServer(opts: {
   const handle = async (req: IncomingMessage, res: ServerResponse): Promise<void> => {
     const url = new URL(req.url ?? '/', 'http://host');
     if (!authorized(req)) return json(res, 401, { error: 'unauthorized' });
+    // A desktop is around: the chats' popbot calls go to it first.
+    sessions.noteDesktop();
     const parts = url.pathname.split('/').filter(Boolean);
     if (parts[0] !== 'v1') return json(res, 404, { error: 'not found' });
 
@@ -121,6 +123,7 @@ export function createHostServer(opts: {
         codex: { ok: !!opts.cli.codex, path: opts.cli.codex },
         repos: config.repos,
         chats: sessions.list(),
+        roster: sessions.rosterInfo(),
         bots: bots.list(),
       };
       return json(res, 200, info);

@@ -118,9 +118,9 @@ describe("a host's chats with no desktop connected", () => {
   });
 
   it('says what needs the desktop', async () => {
-    const res = await call('chat_alpha', 'get_chat_transcript', { chatId: 'chat_beta' });
+    const res = await call('chat_alpha', 'start_code_review', { prNumber: 12 });
     expect(res.isError).toBe(true);
-    expect(res.text).toMatch(/needs PopBot's desktop.*send_to_chat/);
+    expect(res.text).toMatch(/needs PopBot's desktop.*chat tools/);
   });
 
   it('does not wake a chat the desktop closed', async () => {
@@ -158,6 +158,69 @@ describe("a host's chats with no desktop connected", () => {
     expect(await answer).toMatchObject({ status: 200, body: '"from the desktop"' });
     off();
     expect(sessions.desktopAttached('chat_alpha')).toBe(false);
+  });
+
+  it('reads a chat as the host has it — both sides, without the desktop\'s preamble', async () => {
+    await sessions.send('chat_beta', { text: '[System] Starting up on the host "winbox".\n\nhello from the desktop' });
+    await vi.waitFor(() => expect(sessions.isBusy('chat_beta')).toBe(false));
+    const res = await call('chat_alpha', 'get_chat_transcript', { chatId: 'Beta (renamed)' });
+    const out = JSON.parse(res.text) as { chatId: string; text: string };
+    expect(out.chatId).toBe('chat_beta');
+    expect(out.text).toContain('(from Alpha) what is the build status?');
+    expect(out.text).toContain('echo: what is the build status?');
+    expect(out.text).toContain('user @');
+    expect(out.text).toContain('hello from the desktop');
+    expect(out.text).not.toContain('[System]');
+  });
+
+  it('searches the chats on the host', async () => {
+    const res = await call('chat_alpha', 'search_chats', { query: 'build status', allChats: true });
+    const { matches } = JSON.parse(res.text) as { matches: Array<{ chatId: string; match: string }> };
+    expect(matches.length).toBeGreaterThan(0);
+    expect(matches.every((m) => m.chatId === 'chat_beta' && m.match === 'build status')).toBe(true);
+    const words = JSON.parse((await call('chat_alpha', 'search_chats', { query: 'status build', allChats: true, mode: 'fts' })).text) as { matches: unknown[] };
+    expect(words.matches.length).toBeGreaterThan(0);
+  });
+
+  it('makes a chat on the host, for the desktop to adopt, and sends it a first message', async () => {
+    const res = await call('chat_alpha', 'create_chat', { name: 'Gamma', firstMessage: 'start on the docs' });
+    const { chat } = JSON.parse(res.text) as { chat: { id: string; name: string; host: string } };
+    expect(chat).toMatchObject({ name: 'Gamma', host: 'winbox' });
+    await vi.waitFor(() => expect(sent.get(chat.id)?.at(-1)).toContain('start on the docs'));
+    expect(sessions.rosterInfo().find((r) => r.chatId === chat.id)).toMatchObject({ createdByHost: true, open: true, changedBy: 'host', kind: 'scratch' });
+  });
+
+  it('closes and reopens a chat on the host, and says so to the desktop', async () => {
+    expect(JSON.parse((await call('chat_beta', 'close_chat', { chatId: 'chat_alpha' })).text)).toMatchObject({ ok: true });
+    expect(sessions.get('chat_alpha')).toBeUndefined();
+    expect(sessions.rosterInfo().find((r) => r.chatId === 'chat_alpha')).toMatchObject({ open: false, changedBy: 'host' });
+    const reopened = JSON.parse((await call('chat_beta', 'reopen_chat', { chatId: 'chat_alpha' })).text) as { chat: { closed: boolean } };
+    expect(reopened.chat.closed).toBe(false);
+    // The desktop settles it: the state is its own again.
+    sessions.setMeta('chat_alpha', { open: true });
+    expect(sessions.rosterInfo().find((r) => r.chatId === 'chat_alpha')).toMatchObject({ open: true, changedBy: 'desktop' });
+    await sessions.wake('chat_alpha');
+  });
+
+  it('asks a desktop it has heard from first, and answers itself when none picks the call up', async () => {
+    const route = popbotRoute(sessions, local.urlFor, { waitMs: 150 });
+    const headers = { accept: 'application/json, text/event-stream', 'content-type': 'application/json' };
+    const call = { jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: 'list_chats', arguments: {} } };
+    sessions.noteDesktop();
+    const before = sessions.get('chat_alpha')!.seq;
+    const started = Date.now();
+    const answer = await route('chat_alpha', { method: 'POST', headers, body: JSON.stringify(call) }, new AbortController().signal);
+    expect(Date.now() - started).toBeGreaterThanOrEqual(140);
+    expect(answer.status).toBe(200);
+    expect(answer.body).toContain('Alpha');
+    // It was offered to the desktop first, in the chat's log.
+    expect(sessions.get('chat_alpha')!.frames.some((f) => f.seq > before && f.kind === 'mcp-request')).toBe(true);
+    // The protocol's own requests never wait.
+    const init = { jsonrpc: '2.0', id: 2, method: 'initialize', params: { protocolVersion: '2025-06-18', capabilities: {}, clientInfo: { name: 't', version: '1' } } };
+    const quick = Date.now();
+    const initAnswer = await route('chat_alpha', { method: 'POST', headers, body: JSON.stringify(init) }, new AbortController().signal);
+    expect(initAnswer.status).toBe(200);
+    expect(Date.now() - quick).toBeLessThan(140);
   });
 
   it('remembers its chats across a restart, and wakes one to deliver a message', async () => {

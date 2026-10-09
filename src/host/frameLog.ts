@@ -45,6 +45,26 @@ export class FrameLog {
     return { log, frames, seq };
   }
 
+  /** The frames at `path`, read only — a chat's history for the host's
+   *  own transcript tools, when its session is not running. */
+  static read(path: string): HostFrame[] {
+    if (!existsSync(path)) return [];
+    const frames: HostFrame[] = [];
+    try {
+      for (const line of readFileSync(path, 'utf8').split('\n')) {
+        if (!line) continue;
+        try {
+          frames.push(JSON.parse(line) as HostFrame);
+        } catch {
+          // torn line
+        }
+      }
+    } catch {
+      return [];
+    }
+    return frames;
+  }
+
   append(frame: HostFrame, kept: HostFrame[]): void {
     try {
       mkdirSync(dirname(this.path), { recursive: true });

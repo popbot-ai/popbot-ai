@@ -1,16 +1,20 @@
 /**
- * The host's own popbot tools, for its chats while no desktop is
- * connected. A chat's popbot calls normally go up its event stream to the
- * desktop (mcpRelay.ts), which knows every chat everywhere. With no
- * desktop reading the stream they come here instead, so the chats on a
- * working host can always see and talk to each other, and to its bots:
+ * The host's own popbot tools: the fallback for its chats while the
+ * desktop cannot be reached. A chat's popbot calls go to the desktop
+ * (mcpRelay.ts, popbotRoute), which knows every chat everywhere; when it
+ * cannot be reached they come here instead, so the chats on a working
+ * host can always see and talk to each other, and to its bots:
  *
- *   list_chats, send_to_chat   this host's chats (sessions.ts › roster)
- *   list_bots, message_bot     this host's bots
- *   list_hosts, list_refs      this host only
+ *   list_chats, send_to_chat            this host's chats (sessions.ts › roster)
+ *   get_chat_transcript, search_chats   from their event logs (hostTranscript.ts)
+ *   create_chat, close_chat, reopen_chat   on this host; the desktop adopts
+ *                                       them when it is back (HostInfo.roster)
+ *   list_bots, message_bot              this host's bots
+ *   list_hosts, list_refs               this host only
  *
- * Everything else — transcripts, search, making and closing chats, file
- * transfers — needs the desktop, and says so.
+ * The rest — code reviews and ticket chats (the desktop's settings),
+ * showing a message (its window), file transfers (it carries them) —
+ * needs the desktop, and says so.
  *
  * The same tools as the desktop's server, registered by the same code
  * (src/main/mcp/server.ts), so an agent sees one tool list whichever end
@@ -18,13 +22,17 @@
  * and its transcript on the desktop catches up when the desktop next
  * reads that log.
  */
-import type { HostFrame, HostRepo } from '@shared/hostProtocol';
+import { randomUUID } from 'node:crypto';
+import type { HostFrame, HostRepo, HostSpawnBody, HostWorkspaceRequest } from '@shared/hostProtocol';
+import type { TranscriptSearchHit } from '@shared/ipc';
 import type { BotSummary, ChatSummary, PopbotToolHandlers, ToolFailure } from '../main/mcp/server';
 import { attributeCrossChatMessage } from '../main/mcp/crossChat';
+import { renderTranscript, searchTranscript } from '../main/mcp/transcript';
 import { dlog } from '../main/diagLog';
-import { forwardMcp, type McpRelayFn } from './mcpRelay';
 import type { HostBots } from './bots';
 import type { RosterChat } from './chatRoster';
+import { frameEntries } from './hostTranscript';
+import { forwardMcp, type McpRelayFn } from './mcpRelay';
 import type { HostSessions } from './sessions';
 import type { HostWorkspaces } from './workspaces';
 
@@ -40,14 +48,42 @@ export interface LocalPopbotDeps {
   bots: HostBots;
 }
 
-/** Where a chat's popbot call goes: up its stream to the desktop when
- *  one is reading it, else to the host's own server (`localUrlFor`). */
-export function popbotRoute(sessions: HostSessions, localUrlFor: (chatId: string) => string): McpRelayFn {
-  return (chatId, request, signal) => (
-    sessions.desktopAttached(chatId)
-      ? sessions.relayMcp(chatId, request, signal)
-      : forwardMcp(localUrlFor(chatId), request, signal)
-  );
+/**
+ * Where a chat's popbot call goes. The desktop answers whenever it can:
+ * when it is reading the chat's stream, at once; when it is around but
+ * not reading this chat, the call goes in the log and the desktop picks
+ * it up as it follows a chat that moved on (its 30-second host check).
+ * The host's own server (`localUrlFor`) is the fallback — no desktop to
+ * be reached, or none picked the call up within `waitMs`.
+ *
+ * Only tool calls wait. The protocol's own requests (initialize, the tool
+ * list) get the same answer from either end, and an agent connecting its
+ * tools must not wait on a desktop that may not come.
+ */
+export function popbotRoute(
+  sessions: HostSessions,
+  localUrlFor: (chatId: string) => string,
+  opts: { waitMs?: number } = {},
+): McpRelayFn {
+  const waitMs = opts.waitMs ?? 45_000;
+  return async (chatId, request, signal) => {
+    if (sessions.desktopAttached(chatId)) return sessions.relayMcp(chatId, request, signal);
+    if (sessions.desktopReachable() && isToolCall(request.body)) {
+      const answer = await sessions.relayMcpOrWithdraw(chatId, request, signal, waitMs);
+      if (answer) return answer;
+      dlog('host.popbot.fallback', { chatId, waitedMs: waitMs });
+    }
+    return forwardMcp(localUrlFor(chatId), request, signal);
+  };
+}
+
+function isToolCall(body: string): boolean {
+  try {
+    const msg = JSON.parse(body) as { method?: unknown } | unknown[];
+    return !Array.isArray(msg) && msg?.method === 'tools/call';
+  } catch {
+    return false;
+  }
 }
 
 export function localPopbotHandlers(d: LocalPopbotDeps): PopbotToolHandlers {
@@ -56,7 +92,7 @@ export function localPopbotHandlers(d: LocalPopbotDeps): PopbotToolHandlers {
   const away = (what: string): ToolFailure =>
     fail(
       `${what} needs PopBot's desktop, which is not connected to ${d.hostName} right now. ` +
-      'Until it is back, list_chats, send_to_chat, list_bots and message_bot work for the chats and bots on this host.',
+      'Until it is back, the chat tools (list, message, transcripts, search, create, close, reopen) and the bot tools work for the chats and bots on this host.',
     );
   const isThisHost = (host: string): boolean => {
     const h = host.trim().toLowerCase();
@@ -83,6 +119,12 @@ export function localPopbotHandlers(d: LocalPopbotDeps): PopbotToolHandlers {
       lastActiveAt: c.lastActiveAt,
       isCaller: c.id === caller,
     };
+  };
+
+  /** A bot's chat on this host, by the bot's id or name. */
+  const botChat = (ref: string): string | null => {
+    const key = ref.trim().toLowerCase();
+    return bots.list().find((b) => b.chatId === ref || b.id.toLowerCase() === key || b.name.toLowerCase() === key)?.chatId ?? null;
   };
 
   /** A chat on this host by id, or by its exact name. */
@@ -194,13 +236,113 @@ export function localPopbotHandlers(d: LocalPopbotDeps): PopbotToolHandlers {
       return { outcome: res.outcome, reply: res.reply, entries: res.entries, chatId };
     },
 
-    async createChat() { return away('Creating a chat'); },
-    async closeChat() { return away('Closing a chat'); },
-    async reopenChat() { return away('Reopening a chat'); },
+    async createChat({ name, host, repoId, workspace, baseBranch, branch, agent, firstMessage }, caller) {
+      if (host && !isThisHost(host)) return away(`Creating a chat on "${host}"`);
+      if (workspace === 'cloud') return away('Creating a cloud chat');
+      const parent = caller ? sessions.roster.get(caller) : null;
+      const repo = repoId?.trim() || parent?.body.workspace?.repoId || null;
+      if (repo && !d.repos().some((r) => r.id === repo)) {
+        return fail(`no repository "${repo}" on ${d.hostName} (list_hosts shows its repositories)`);
+      }
+      const want: HostWorkspaceRequest = !repo
+        ? { kind: 'scratch' }
+        : workspace === 'slot'
+          ? { kind: 'worktree', repoId: repo, branch: branch?.trim() || `popbot/chat-${Date.now()}`, baseBranch: baseBranch?.trim() || null }
+          : { kind: 'root', repoId: repo };
+      const chatId = `chat_${randomUUID().replaceAll('-', '').slice(0, 12)}`;
+      const kind = agent ?? parent?.body.agent ?? 'claude';
+      const same = parent?.body.agent === kind ? parent.body : null;
+      const body: HostSpawnBody = {
+        agent: kind,
+        chatName: name.trim(),
+        // It runs under its maker's permission rules and models.
+        rules: parent?.body.rules ?? { chat: [], global: [] },
+        popbotMcp: true,
+        workspace: want,
+        claudeModel: same?.claudeModel ?? null,
+        claudeReasoningEffort: same?.claudeReasoningEffort ?? null,
+        codexModel: same?.codexModel ?? null,
+        codexReasoningEffort: same?.codexReasoningEffort ?? null,
+      };
+      try {
+        if (want.kind !== 'scratch') await d.workspaces.ensure(chatId, want);
+      } catch (err) {
+        return fail(`could not make its workspace: ${err instanceof Error ? err.message : String(err)}`);
+      }
+      const chat = sessions.roster.created(chatId, body);
+      dlog('host.popbot.create', { by: caller, chatId, kind: want.kind, repo });
+      if (firstMessage?.trim()) {
+        const from = { id: caller ?? '', name: nameOf(caller) };
+        const text = firstMessage.trim();
+        void sessions.wake(chatId)
+          .then(() => sessions.prompt(chatId, text, from, caller ? attributeCrossChatMessage(text, from, false) : text))
+          .catch((err: unknown) => dlog('host.popbot.first-message-failed', { chatId, error: err instanceof Error ? err.message : String(err) }));
+      }
+      return { chat: summarize(chat, caller) };
+    },
+
+    async closeChat({ chatId }, caller) {
+      if (chatId === caller) return fail('you cannot close the chat you are running in');
+      const chat = findChat(chatId);
+      if (!chat) return fail(`no chat ${chatId} on ${d.hostName}`);
+      if (!chat.open) return fail(`chat ${chat.id} is already closed`);
+      // Its workspace stays as it is, as when the desktop closes a host chat.
+      await sessions.closeByHost(chat.id);
+      dlog('host.popbot.close', { by: caller, chatId: chat.id });
+      return { ok: true, chatId: chat.id };
+    },
+
+    async reopenChat({ chatId }, caller) {
+      const chat = findChat(chatId);
+      if (!chat) return fail(`no chat ${chatId} on ${d.hostName}`);
+      if (!chat.open) {
+        sessions.reopenByHost(chat.id);
+        dlog('host.popbot.reopen', { by: caller, chatId: chat.id });
+      }
+      return { chat: summarize(sessions.roster.get(chat.id) ?? chat, caller) };
+    },
+
     async startCodeReview() { return away('Starting a code review'); },
     async openTicketChat() { return away('Opening a ticket chat'); },
-    getTranscript() { return away('Reading a transcript'); },
-    searchTranscripts() { return away('Searching transcripts'); },
+
+    getTranscript({ chatId: wanted, from, to, includeTools, maxChars }, caller) {
+      const chatId = wanted ? (findChat(wanted)?.id ?? botChat(wanted) ?? wanted) : caller;
+      if (!chatId) return fail('pass chatId');
+      const frames = sessions.framesOf(chatId);
+      if (!frames) return fail(`no chat ${chatId} on ${d.hostName}`);
+      const entries = frameEntries(frames, { includeTools });
+      const r = renderTranscript(entries, { from, to, maxChars });
+      const note = `(The recent part of this chat, as ${d.hostName} has it while PopBot's desktop is away; #numbers are this host's.)\n\n`;
+      return { chatId, text: note + r.text, count: r.count, total: entries.length, truncated: r.truncated };
+    },
+
+    searchTranscripts({ query, chatId: wanted, allChats, includeClosed, mode, contextChars, maxResults, caseSensitive }, caller) {
+      const scope: Array<{ id: string; name: string; closed: boolean }> = [];
+      if (!allChats && !includeClosed) {
+        const id = wanted ? (findChat(wanted)?.id ?? botChat(wanted) ?? wanted) : caller;
+        if (!id) return fail('pass chatId, allChats or includeClosed');
+        const known = sessions.roster.get(id);
+        const bot = bots.list().find((b) => b.chatId === id);
+        if (!known && !bot) return fail(`no chat ${id} on ${d.hostName}`);
+        scope.push({ id, name: known?.name ?? bot!.name, closed: known ? !known.open : false });
+      } else {
+        for (const c of sessions.roster.list()) if (c.open || includeClosed) scope.push({ id: c.id, name: c.name, closed: !c.open });
+        for (const b of bots.list()) scope.push({ id: b.chatId, name: b.name, closed: false });
+      }
+      // "fts": every word, anywhere in a message; the match shown is the first.
+      const terms = mode === 'fts' ? query.split(/\s+/).filter(Boolean) : [query];
+      const fold = (s: string): string => (caseSensitive ? s : s.toLowerCase());
+      const matches: TranscriptSearchHit[] = [];
+      for (const chat of scope) {
+        if (matches.length >= maxResults) break;
+        const entries = frameEntries(sessions.framesOf(chat.id) ?? [], { includeTools: true })
+          .filter((e) => terms.every((t) => fold(e.text).includes(fold(t))));
+        for (const m of searchTranscript(entries, terms[0] ?? '', { contextChars, maxResults: maxResults - matches.length, caseSensitive })) {
+          matches.push({ chatId: chat.id, chatName: chat.name, closed: chat.closed, messageId: m.id, index: m.index, role: m.role, kind: entries.find((e) => e.id === m.id)?.kind ?? 'text', ts: m.ts, offset: m.offset, before: m.before, match: m.match, after: m.after });
+        }
+      }
+      return { matches };
+    },
     listRefs() {
       return {
         tickets: [],
