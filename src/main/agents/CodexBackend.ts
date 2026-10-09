@@ -12,6 +12,7 @@ import type { PickedAttachment } from '@shared/ipc';
 import {
   DEFAULT_CODEX_MODEL,
   DEFAULT_CODEX_REASONING_EFFORT,
+  codexWireModel,
 } from '@shared/persistence';
 import type { AgentBackend, AgentSession, SpawnOpts } from './types';
 import { dlog } from '../diagLog';
@@ -87,12 +88,18 @@ class CodexSession implements AgentSession {
     const sdkReasoningEffort = codexWireReasoningEffort(model, reasoningEffort) as ModelReasoningEffort;
     const permissions = codexPermissions(opts);
     const mcpConfig = codexMcpConfig(opts.mcpServers);
+    // A fast entry is its model on the priority tier (Codex's /fast).
+    const wire = codexWireModel(model);
+    const config = {
+      ...(mcpConfig ? { mcp_servers: mcpConfig } : {}),
+      ...(wire.serviceTier ? { service_tier: wire.serviceTier } : {}),
+    };
     const codex = new Codex({
       codexPathOverride: opts.pathToCodexExecutable ?? undefined,
-      ...(mcpConfig ? { config: { mcp_servers: mcpConfig } } : {}),
+      ...(Object.keys(config).length > 0 ? { config } : {}),
     });
     const threadOptions = {
-      model,
+      model: wire.model,
       modelReasoningEffort: sdkReasoningEffort,
       ...(opts.cwd ? { workingDirectory: opts.cwd } : {}),
       skipGitRepoCheck: true,
