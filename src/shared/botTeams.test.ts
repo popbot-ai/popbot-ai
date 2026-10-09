@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { authorAllowed, describeTeamSpec, parseTeamSpec, teamSpecProblems } from './botTeams';
+import { authorAllowed, describeTeamSpec, labelers, parseTeamSpec, teamMemberFor, teamSpecProblems } from './botTeams';
 
 const members = new Set(['alice', 'bob']);
 
@@ -31,5 +31,28 @@ describe('who may wake a bot through a GitHub trigger', () => {
   it('names what is not a team', () => {
     expect(teamSpecProblems('web_devs, acme/web-devs, acme/*, *')).toEqual([]);
     expect(teamSpecProblems('web devs, a/b/c, /x')).toEqual(['web devs', 'a/b/c', '/x']);
+  });
+
+  it("lets a pull request through when a member labeled it, though they didn't open it", () => {
+    const spec = parseTeamSpec('web_devs', 'acme');
+    const events = [
+      { label: 'webreview', actor: 'claude[bot]' },
+      { label: 'risk:high', actor: 'alice' },
+      { label: 'WebReviewer', actor: 'bob' },
+    ];
+    expect(labelers(['webreviewer'], events)).toEqual(['bob']);
+    expect(teamMemberFor(spec, 'claude[bot]', labelers(['webreviewer'], events), members)).toBe('bob');
+    // Another label of theirs, or a watched label put on by an outsider, is not enough.
+    expect(teamMemberFor(spec, 'claude[bot]', labelers(['webreview'], events), members)).toBeNull();
+    expect(teamMemberFor(spec, 'mallory', labelers(['risk:high'], [{ label: 'risk:high', actor: 'mallory' }]), members)).toBeNull();
+  });
+
+  it('counts only whoever last put the label on', () => {
+    const events = [{ label: 'review', actor: 'alice' }, { label: 'review', actor: 'mallory' }];
+    expect(teamMemberFor(parseTeamSpec('web_devs', 'acme'), 'mallory', labelers(['review'], events), members)).toBeNull();
+  });
+
+  it('names the author first when they are on the team', () => {
+    expect(teamMemberFor(parseTeamSpec('web_devs', 'acme'), 'alice', ['bob'], members)).toBe('alice');
   });
 });

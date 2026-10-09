@@ -28,7 +28,7 @@ import {
   type HostRules,
   type BotWatchedPr,
 } from '@shared/hostProtocol';
-import { authorAllowed, describeTeamSpec, parseTeamSpec, type TeamSpec } from '@shared/botTeams';
+import { describeTeamSpec, labelers, parseTeamSpec, teamMemberFor, type TeamSpec } from '@shared/botTeams';
 import { cronWakeText, githubWakeLine, githubWakeText } from '@shared/botTriggers';
 import { ensureChatWorktree, removeChatWorktree } from '../main/git/worktrees';
 import { dlog } from '../main/diagLog';
@@ -104,6 +104,7 @@ interface PrNode {
   commits: { nodes: Array<{ commit: { oid: string; author: { user: { login: string } | null } | null; statusCheckRollup: { state: string } | null } }> };
   comments: { nodes: Array<{ author: { login: string } | null; createdAt: string }> };
   reviews: { nodes: Array<{ author: { login: string } | null; submittedAt: string | null; state: string }> };
+  timelineItems?: { nodes: Array<{ actor: { login: string } | null; label: { name: string } | null } | null> };
 }
 
 const PR_QUERY = `query($q: String!) {
@@ -115,6 +116,7 @@ const PR_QUERY = `query($q: String!) {
         commits(last: 1) { nodes { commit { oid author { user { login } } statusCheckRollup { state } } } }
         comments(last: 20) { nodes { author { login } createdAt } }
         reviews(last: 20) { nodes { author { login } submittedAt state } }
+        timelineItems(itemTypes: [LABELED_EVENT], last: 30) { nodes { ... on LabeledEvent { actor { login } label { name } } } }
       }
     }
   }
@@ -441,9 +443,9 @@ export class HostBots implements BotHooks {
       .filter((n): n is PrNode => typeof n?.number === 'number');
     rt.state.lastPollAt = Date.now();
 
-    // Public repositories: only pull requests by the trigger's teams
-    // reach the bot. Anyone else's does not wake it and is not watched.
-    // A member list that cannot be read lets nothing through.
+    // Public repositories: only pull requests the trigger's teams opened,
+    // or labeled, reach the bot. Anyone else's does not wake it and is not
+    // watched. A member list that cannot be read lets nothing through.
     const spec = parseTeamSpec(trigger.team, repo.split('/')[0]);
     if (!spec.anyone && spec.groups.length === 0) {
       rt.state.github[trigger.id] = {};
@@ -451,7 +453,14 @@ export class HostBots implements BotHooks {
       throw new Error(`the GitHub trigger on ${repo} has no "Member of team", so it matches no one — set the team whose pull requests it should take`);
     }
     const members = spec.anyone ? new Set<string>() : await this.teamMembers(bot, spec);
-    const nodes = found.filter((pr) => authorAllowed(spec, pr.author?.login ?? '', members));
+    const labeledBy = new Map<PrNode, string | null>();
+    for (const pr of found) {
+      const author = pr.author?.login ?? '';
+      const events = (pr.timelineItems?.nodes ?? []).map((e) => ({ label: e?.label?.name ?? '', actor: e?.actor?.login ?? '' }));
+      const member = teamMemberFor(spec, author, labelers(trigger.labels, events), members);
+      if (member !== null) labeledBy.set(pr, member.toLowerCase() === author.toLowerCase() ? null : member);
+    }
+    const nodes = found.filter((pr) => labeledBy.has(pr));
     if (nodes.length < found.length) {
       dlog('host.bot.not-team', { bot: bot.id, trigger: trigger.id, skipped: found.filter((pr) => !nodes.includes(pr)).map((pr) => `#${pr.number}@${pr.author?.login ?? '?'}`) });
     }
@@ -485,7 +494,7 @@ export class HostBots implements BotHooks {
       const changes = describeChanges(was, seen, pr, others, me);
       if (changes.length > 0 && seen.wakes.length < MAX_WAKES_PER_PR_PER_DAY) {
         seen.wakes.push(Date.now());
-        lines.push(githubWakeLine({ number: pr.number, title: pr.title, author: pr.author?.login ?? '?', draft: pr.isDraft, url: pr.url }, changes));
+        lines.push(githubWakeLine({ number: pr.number, title: pr.title, author: pr.author?.login ?? '?', labeledBy: labeledBy.get(pr), draft: pr.isDraft, url: pr.url }, changes));
       } else if (changes.length > 0) {
         dlog('host.bot.wake-capped', { bot: bot.id, pr: pr.number, wakes: seen.wakes.length });
       }
@@ -822,7 +831,7 @@ function charter(bot: HostBot, hostName: string): string {
 function describeTrigger(t: BotTrigger): string {
   if (t.kind === 'github') {
     const team = describeTeamSpec(t.team, t.repo?.split('/')[0] ?? "your repository's org");
-    return `"GitHub" messages: open pull requests in ${t.repo ?? 'your repository'} labeled ${t.labels.map((l) => `"${l}"`).join(' or ')}, opened by ${team}, that ` +
+    return `"GitHub" messages: open pull requests in ${t.repo ?? 'your repository'} labeled ${t.labels.map((l) => `"${l}"`).join(' or ')}, opened by ${team} or labeled by them, that ` +
       `are new to you, got new commits (the old and new head are given), finished CI, got comments or reviews, gained or lost conflicts, or left draft. ` +
       (team === 'anyone'
         ? ''
