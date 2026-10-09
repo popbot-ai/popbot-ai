@@ -559,6 +559,8 @@ export const ja = {
   'chat.host.slotTitle': '{host} の {repo} のスロット {slot}',
   'chat.crossAgent.from': 'チャット「{name}」のエージェントから',
   'chat.crossAgent.waiting': '返答を待っています',
+  'chat.crossAgent.show': 'メッセージ全体を表示',
+  'chat.crossAgent.hide': 'メッセージ全体を隠す',
   'chat.app.terminal': 'ターミナル',
   'chat.app.editor': 'エディター',
   'chat.app.unity': 'Unity',

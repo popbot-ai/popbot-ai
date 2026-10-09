@@ -1,4 +1,5 @@
 import { createContext, memo, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { firstSentence } from '@shared/messageSummary';
 import { createPortal } from 'react-dom';
 import ReactMarkdown, { type Components } from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -992,26 +993,41 @@ function ChatForkRow({ text }: { text: string }): JSX.Element {
   );
 }
 
-/** A message relayed from another chat's agent (send_to_chat). The
- *  header names the chat it came from; the body is the agent's text,
- *  rendered as markdown like any agent prose. */
+/** A message relayed from another chat's agent (send_to_chat), a bot, or
+ *  PopBot itself (a file offer). Folded to one line — who it is from and
+ *  the sender's summary of it — and opened to the full text, rendered as
+ *  markdown like any agent prose, on a click. */
 function CrossAgentRow({ from, text }: { from: CrossChatOrigin; text: string }): JSX.Element {
   const { t } = useTranslation();
+  const [open, setOpen] = useState(false);
+  const summary = from.summary?.trim() || firstSentence(text);
   return (
-    <div className="msg cross-agent">
+    <div className={`msg cross-agent${open ? ' open' : ''}`}>
       <div className="body">
-        <div className="cross-agent-head">
+        <button
+          type="button"
+          className="cross-agent-head"
+          aria-expanded={open}
+          title={open ? t('chat.crossAgent.hide') : t('chat.crossAgent.show')}
+          onClick={() => setOpen((o) => !o)}
+        >
           {/* A bot's triggers speak as GitHub or its schedule (see src/host/bots.ts). */}
           <i
             className={from.chatId === 'github' ? 'fa-brands fa-github' : from.chatId === 'schedule' ? 'fa-regular fa-clock' : 'fa-solid fa-robot'}
             aria-hidden="true"
           />
-          <span>{t('chat.crossAgent.from', { name: from.chatName })}</span>
+          {/* The sender's own name when it gave one; its full chat name on hover. */}
+          <span className="cross-agent-name" title={from.chatName}>{from.agentName?.trim() || from.chatName}</span>
+          {/* A long one (a file path) is cut at the edge: all of it on hover. */}
+          <span className="cross-agent-summary" title={summary}>{summary}</span>
           {from.waiting && <span className="cross-agent-waiting">{t('chat.crossAgent.waiting')}</span>}
-        </div>
-        <div className="prose">
-          <ReactMarkdown remarkPlugins={[remarkGfm]} components={MD_COMPONENTS}>{text}</ReactMarkdown>
-        </div>
+          <i className={`fa-solid fa-chevron-${open ? 'down' : 'right'} cross-agent-chevron`} aria-hidden="true" />
+        </button>
+        {open && (
+          <div className="prose">
+            <ReactMarkdown remarkPlugins={[remarkGfm]} components={MD_COMPONENTS}>{text}</ReactMarkdown>
+          </div>
+        )}
       </div>
     </div>
   );

@@ -511,6 +511,8 @@ export const uk = {
   'chat.host.slotTitle': 'Слот {slot} репозиторію {repo} на {host}',
   'chat.crossAgent.from': 'Від агента чату «{name}»',
   'chat.crossAgent.waiting': 'чекає на вашу відповідь',
+  'chat.crossAgent.show': 'Показати повідомлення повністю',
+  'chat.crossAgent.hide': 'Сховати повідомлення',
   'chat.app.terminal': 'Термінал',
   'chat.app.editor': 'Редактор',
   'chat.app.unity': 'Unity',

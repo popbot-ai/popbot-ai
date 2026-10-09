@@ -164,7 +164,7 @@ export interface RemoteSpawnOpts {
   /** The host sent the agent a message itself — a bot's trigger,
    *  another bot, or another chat on the host while no desktop was
    *  there. Record it as the turn it starts. */
-  onPrompt(text: string, from: { id: string; name: string; waiting?: boolean }): void;
+  onPrompt(text: string, from: { id: string; name: string; waiting?: boolean; summary?: string; agentName?: string }): void;
   /** A bot answered a chat's message by the reply id it carried:
    *  deliver it to that chat, once. */
   onReply(replyId: string, text: string): void;

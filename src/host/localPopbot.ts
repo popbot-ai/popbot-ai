@@ -121,6 +121,12 @@ export function localPopbotHandlers(d: LocalPopbotDeps): PopbotToolHandlers {
     };
   };
 
+  /** The sender's own name, when it gave one (`sender_name`). */
+  const withName = (given: string | undefined): { agentName?: string } => {
+    const name = given?.trim();
+    return name ? { agentName: name } : {};
+  };
+
   /** A bot's chat on this host, by the bot's id or name. */
   const botChat = (ref: string): string | null => {
     const key = ref.trim().toLowerCase();
@@ -158,7 +164,7 @@ export function localPopbotHandlers(d: LocalPopbotDeps): PopbotToolHandlers {
       }];
     },
 
-    async sendToChat({ chatId, text, waitForReply, timeoutSeconds }, caller) {
+    async sendToChat({ chatId, text, summary, sender_name, waitForReply, timeoutSeconds }, caller) {
       if (chatId === caller) return fail('you cannot message the chat you are running in — that would wait on your own turn');
       if (sessions.isBot(chatId)) return fail(`${chatId} is a bot; use message_bot`);
       const target = findChat(chatId);
@@ -170,10 +176,10 @@ export function localPopbotHandlers(d: LocalPopbotDeps): PopbotToolHandlers {
       }
       if (target.id === caller) return fail('you cannot message the chat you are running in — that would wait on your own turn');
       if (!target.open) return fail(`chat ${target.id} ("${target.name}") is closed; it can be reopened in PopBot`);
-      const from = { id: caller ?? '', name: nameOf(caller) };
+      const from = { id: caller ?? '', name: nameOf(caller), ...withName(sender_name) };
       const forAgent = attributeCrossChatMessage(text, from, waitForReply);
       const send = async (): Promise<void> => {
-        await sessions.prompt(target.id, text, { ...from, waiting: waitForReply }, forAgent);
+        await sessions.prompt(target.id, text, { ...from, waiting: waitForReply, summary: summary.trim() }, forAgent);
       };
       try {
         await sessions.wake(target.id);
@@ -213,9 +219,9 @@ export function localPopbotHandlers(d: LocalPopbotDeps): PopbotToolHandlers {
       }));
     },
 
-    async messageBot({ bot: wanted, host, text, waitForReply, timeoutSeconds }, caller) {
+    async messageBot({ bot: wanted, host, text, summary, sender_name, waitForReply, timeoutSeconds }, caller) {
       if (host && !isThisHost(host)) return away(`Messaging a bot on "${host}"`);
-      const from = { id: caller ?? '', name: nameOf(caller) };
+      const from = { id: caller ?? '', name: nameOf(caller), summary: summary.trim(), ...withName(sender_name) };
       if (!waitForReply) {
         const sent = await bots.fromChat(wanted, from, text, false);
         if ('error' in sent) return sent;

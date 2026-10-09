@@ -13,6 +13,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import { z } from 'zod';
 import { dlog } from '../main/diagLog';
+import { MESSAGE_SUMMARY } from '../main/mcp/server';
 import type { HostBots } from './bots';
 
 const PATH_RE = /^\/mcp\/([A-Za-z0-9_-]+)\/([A-Za-z0-9_-]+)\/?$/;
@@ -48,8 +49,9 @@ function register(server: McpServer, bots: HostBots, caller: string): void {
     inputSchema: {
       to: z.string().describe('The bot\'s id or name'),
       text: z.string().min(1),
+      summary: MESSAGE_SUMMARY.optional(),
     },
-  }, async ({ to, text: body }) => text(await bots.message(caller, to, body)));
+  }, async ({ to, text: body, summary }) => text(await bots.message(caller, to, body, summary?.trim() || undefined)));
 
   server.registerTool('reply_to_chat', {
     title: 'Answer a chat',

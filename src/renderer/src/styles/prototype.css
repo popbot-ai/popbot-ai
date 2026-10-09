@@ -1756,15 +1756,23 @@ input, textarea { font: inherit; color: inherit; background: none; border: 0; ou
   max-width: 88%;
   white-space: normal;
 }
+/* Folded to one line by default: who it is from and the sender's
+   summary; a click opens the full message under it. */
+.msg.cross-agent .body { padding: 5px 10px; }
+.msg.cross-agent.open .body { padding-bottom: 8px; }
 .cross-agent-head {
-  display: flex; align-items: center; gap: 6px;
-  font-size: 11px; font-weight: 600; color: #4fc1c1;
-  margin-bottom: 4px;
+  display: flex; align-items: center; gap: 6px; width: 100%;
+  min-width: 0; padding: 0; border: 0; background: none; cursor: pointer;
+  font: inherit; font-size: 12px; text-align: left; color: var(--fg-1);
 }
-.cross-agent-head i { font-size: 10px; }
-.cross-agent-waiting {
-  margin-left: auto; font-weight: 500; color: var(--fg-3);
-}
+.cross-agent-head i { font-size: 10px; color: #4fc1c1; flex: none; }
+/* A long chat name gives way to the summary; a sender's own name is short. */
+.cross-agent-name { font-weight: 600; color: #4fc1c1; flex: 0 1 auto; max-width: 28%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cross-agent-summary { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cross-agent-waiting { flex: none; font-size: 11px; color: var(--fg-3); }
+.cross-agent-head .cross-agent-chevron { color: var(--fg-3); font-size: 9px; }
+.cross-agent-head:hover .cross-agent-summary { color: var(--fg-0); }
+.msg.cross-agent.open .cross-agent-head { margin-bottom: 6px; }
 
 /* Tool call block */
 /* Tool calls — lightweight inline status row, no boxy frame.

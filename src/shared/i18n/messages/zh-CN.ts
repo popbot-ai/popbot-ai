@@ -556,6 +556,8 @@ export const zhCN = {
   'chat.host.slotTitle': '{host} 上 {repo} 的卡槽 {slot}',
   'chat.crossAgent.from': '来自对话“{name}”的智能体',
   'chat.crossAgent.waiting': '正在等待你的回复',
+  'chat.crossAgent.show': '显示完整消息',
+  'chat.crossAgent.hide': '隐藏完整消息',
   'chat.app.terminal': '终端',
   'chat.app.editor': '编辑器',
   'chat.app.unity': 'Unity',

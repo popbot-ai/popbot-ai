@@ -527,6 +527,13 @@ export interface CrossChatOrigin {
   chatId: string;
   chatName: string;
   waiting: boolean;
+  /** One line for the person reading the chat — what the message is
+   *  ("Asking Joe if he has the file I need."). The row shows it, folded;
+   *  the full message opens under it. Absent on older rows. */
+  summary?: string;
+  /** The sending agent's own name, when it has one ("Jim") — shown as the
+   *  sender in place of its chat's name. */
+  agentName?: string;
   /** A chat's message to a bot that is not waiting carries a one-time
    *  id: the only way the bot can answer (its reply_to_chat tool takes
    *  the id, never a chat). Set on the row in the bot's chat. */

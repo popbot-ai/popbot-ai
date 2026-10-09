@@ -559,6 +559,8 @@ export const ptBR = {
   'chat.host.slotTitle': 'Slot {slot} de {repo} em {host}',
   'chat.crossAgent.from': 'Do agente do chat “{name}”',
   'chat.crossAgent.waiting': 'aguardando sua resposta',
+  'chat.crossAgent.show': 'Mostrar a mensagem completa',
+  'chat.crossAgent.hide': 'Ocultar a mensagem completa',
   'chat.app.terminal': 'Terminal',
   'chat.app.editor': 'Editor',
   'chat.app.unity': 'Unity',

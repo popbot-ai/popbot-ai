@@ -8,7 +8,7 @@
  */
 export function attributeCrossChatMessage(
   text: string,
-  from: { id: string; name: string },
+  from: { id: string; name: string; agentName?: string },
   waiting: boolean,
   /** Bots on either end answer through their own tools: a bot with the
    *  bots tool reply_to_chat, a chat answering a bot with message_bot. */
@@ -26,7 +26,9 @@ export function attributeCrossChatMessage(
   return (
     (bots.fromBotId
       ? `Message from the bot "${from.name}" — not from the user of this chat. ${how}\n\n`
-      : `Message from the agent in PopBot chat "${from.name}" (chat id ${from.id}) — not from the user of this chat. ${how}\n\n`) +
+      : from.agentName
+        ? `Message from ${from.agentName}, the agent in PopBot chat "${from.name}" (chat id ${from.id}) — not from the user of this chat. ${how}\n\n`
+        : `Message from the agent in PopBot chat "${from.name}" (chat id ${from.id}) — not from the user of this chat. ${how}\n\n`) +
     text
   );
 }

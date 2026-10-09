@@ -411,7 +411,7 @@ export type HostFrame =
    *  another bot, or another chat on the host while the desktop was away
    *  — which no desktop typed, so a desktop records it as the user turn
    *  it is. `from` names the sender. */
-  | { seq: number; kind: 'prompt'; text: string; from: { id: string; name: string; waiting?: boolean } }
+  | { seq: number; kind: 'prompt'; text: string; from: { id: string; name: string; waiting?: boolean; summary?: string; agentName?: string } }
   /** A bot answered a chat's message (its bots tool reply_to_chat),
    *  naming the reply id that message carried — never a chat. The
    *  desktop that issued the id delivers it, once: now, or when it next
