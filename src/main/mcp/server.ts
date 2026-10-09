@@ -108,7 +108,7 @@ export interface PopbotToolHandlers {
   closeChat(input: { chatId: string; keepChanges: boolean }, caller: string | null): Promise<{ ok: true; chatId: string } | ToolFailure>;
   reopenChat(input: { chatId: string }, caller: string | null): Promise<{ chat: ChatSummary } | ToolFailure>;
   sendToChat(
-    input: { chatId: string; text: string; waitForReply: boolean; timeoutSeconds: number },
+    input: { chatId: string; text: string; summary: string; sender_name?: string; waitForReply: boolean; timeoutSeconds: number },
     caller: string | null,
   ): Promise<{ outcome: 'sent' | 'replied' | 'timeout' | 'needs-permission' | 'errored'; reply: string; entries: number } | ToolFailure>;
   startCodeReview(input: { prNumber: number; scm: 'git' | 'perforce' }, caller: string | null): Promise<{ chat: ChatSummary; existing: boolean } | ToolFailure>;
@@ -129,7 +129,7 @@ export interface PopbotToolHandlers {
   /** Show a message in the app: focus its chat, scroll to the row. */
   goToMessage(input: { chatId: string; messageId: string }, caller: string | null): { ok: true } | ToolFailure;
   /** Offer a file to a chat on another machine (src/main/transfer/). */
-  transferFile(input: { path: string; toChat: string; message?: string; from?: string }, caller: string | null): Promise<FileTransferSummary | ToolFailure>;
+  transferFile(input: { path: string; toChat: string; message?: string; from?: string; sender_name?: string }, caller: string | null): Promise<FileTransferSummary | ToolFailure>;
   acceptFileTransfer(input: { transferId: string; waitSeconds: number }, caller: string | null): Promise<FileTransferSummary | ToolFailure>;
   declineFileTransfer(input: { transferId: string; reason?: string }, caller: string | null): Promise<FileTransferSummary | ToolFailure>;
   getFileTransfer(input: { transferId: string; waitSeconds: number }, caller: string | null): Promise<FileTransferSummary | ToolFailure>;
@@ -138,7 +138,7 @@ export interface PopbotToolHandlers {
    *  kill them (a person does that, in the Bots tab). */
   listBots(input: { host?: string }, caller: string | null): Promise<BotSummary[] | ToolFailure>;
   messageBot(
-    input: { bot: string; host?: string; text: string; waitForReply: boolean; timeoutSeconds: number },
+    input: { bot: string; host?: string; text: string; summary: string; sender_name?: string; waitForReply: boolean; timeoutSeconds: number },
     caller: string | null,
   ): Promise<{ outcome: 'sent' | 'replied' | 'timeout' | 'needs-permission' | 'errored'; reply: string; entries: number; chatId: string } | ToolFailure>;
 }
@@ -157,6 +157,16 @@ async function guarded<T>(fn: () => T | Promise<T>): Promise<ReturnType<typeof t
     return text({ error: err instanceof Error ? err.message : String(err) });
   }
 }
+
+/** A message's summary: what the person reading the receiving chat sees,
+ *  the full message folded under it. One short sentence on one line. */
+export const MESSAGE_SUMMARY = z.string().trim().min(1).max(120)
+  .regex(/^[^\r\n]+$/, 'one line')
+  .describe('Required. One short, casual sentence on one line saying what this message is about, as you would to a colleague — short and to the point, e.g. "Asking Jim if he has the build.log file that I need." The person watching sees this instead of the message; the full text opens on a click.');
+
+/** The sending agent's own name, when it has been given one. */
+export const AGENT_NAME = z.string().trim().min(1).max(40).regex(/^[^\r\n]+$/, 'one line').optional()
+  .describe('Your own name, if you have been given one (e.g. "Jim"). If you have one, always pass it: the person watching sees it as the sender instead of your chat\'s long name, and the receiving agent is told it.');
 
 /** Register the popbot tools on an McpServer, bound to the calling chat. */
 export function registerPopbotTools(server: McpServer, h: PopbotToolHandlers, caller: string | null): void {
@@ -187,6 +197,8 @@ export function registerPopbotTools(server: McpServer, h: PopbotToolHandlers, ca
       bot: z.string().describe('The bot’s id or name, from list_bots'),
       host: z.string().optional().describe('Its host, when two hosts have a bot of that name'),
       text: z.string().min(1),
+      summary: MESSAGE_SUMMARY,
+      sender_name: AGENT_NAME,
       waitForReply: z.boolean().default(false),
       timeoutSeconds: z.number().int().min(5).max(1800).default(300),
     },
@@ -242,6 +254,8 @@ export function registerPopbotTools(server: McpServer, h: PopbotToolHandlers, ca
     inputSchema: {
       chatId: z.string(),
       text: z.string().min(1),
+      summary: MESSAGE_SUMMARY,
+      sender_name: AGENT_NAME,
       waitForReply: z.boolean().default(true),
       timeoutSeconds: z.number().int().min(5).max(1800).default(300),
     },
@@ -323,6 +337,7 @@ export function registerPopbotTools(server: McpServer, h: PopbotToolHandlers, ca
       toChat: z.string().describe('The chat id whose agent the file is for'),
       message: z.string().optional().describe('What the file is, and why you are sending it'),
       from: z.string().optional().describe('The machine the file is on, when not yours: "this computer" or a host name'),
+      sender_name: AGENT_NAME,
     },
   }, async (input) => guarded(() => h.transferFile(input, caller)));
 

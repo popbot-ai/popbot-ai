@@ -239,7 +239,7 @@ export class HostBots implements BotHooks {
   /** One bot's message to another, delivered as a turn in the other's
    *  chat. Never waits for the answer — a reply, if one is wanted, comes
    *  back the same way — so two bots can never block on each other. */
-  async message(fromId: string, toId: string, text: string): Promise<{ ok: true } | { error: string }> {
+  async message(fromId: string, toId: string, text: string, summary?: string): Promise<{ ok: true } | { error: string }> {
     const from = this.bot(fromId);
     if (!from) return { error: `no bot "${fromId}" on this host` };
     const rt = this.runtime(from.id);
@@ -264,7 +264,7 @@ export class HostBots implements BotHooks {
       `It is not waiting: to answer, use message_bot with to "${from.id}".\n\n${text}`;
     try {
       this.runtime(to.id).heardFrom.set(from.id, Date.now());
-      await this.deliver(to, body, { id: botChatId(from.id), name: from.name });
+      await this.deliver(to, text, { id: botChatId(from.id), name: from.name, ...(summary ? { summary } : {}) }, body);
       dlog('host.bot.message', { from: from.id, to: to.id, len: text.length });
       return { ok: true };
     } catch (err) {
@@ -280,7 +280,7 @@ export class HostBots implements BotHooks {
    */
   async fromChat(
     key: string,
-    from: { id: string; name: string },
+    from: { id: string; name: string; summary?: string; agentName?: string },
     text: string,
     waiting: boolean,
     /** Runs once the bot's session is up, just before the message goes
@@ -298,7 +298,7 @@ export class HostBots implements BotHooks {
       replyId = `r_${randomBytes(8).toString('hex')}`;
       this.chatReplies.set(replyId, { chatId: from.id, botId: bot.id, at: Date.now(), used: false });
     }
-    const forAgent = attributeCrossChatMessage(text, from, waiting, { toBot: true, ...(replyId ? { replyId } : {}) });
+    const forAgent = attributeCrossChatMessage(text, { id: from.id, name: from.name, ...(from.agentName ? { agentName: from.agentName } : {}) }, waiting, { toBot: true, ...(replyId ? { replyId } : {}) });
     await this.ensureLive(bot);
     beforeSend?.(botChatId(bot.id));
     await this.deliver(bot, text, { ...from, waiting }, forAgent);
@@ -691,7 +691,7 @@ export class HostBots implements BotHooks {
     await this.sessions.spawn(chatId, { agent: 'claude', rules: BOT_RULES });
   }
 
-  private async deliver(bot: HostBot, text: string, from: { id: string; name: string; waiting?: boolean }, forAgent?: string): Promise<void> {
+  private async deliver(bot: HostBot, text: string, from: { id: string; name: string; waiting?: boolean; summary?: string; agentName?: string }, forAgent?: string): Promise<void> {
     await this.ensureLive(bot);
     await this.sessions.prompt(botChatId(bot.id), text, from, forAgent);
   }

@@ -641,6 +641,8 @@ export const en = {
   'chat.host.slotTitle': 'Slot {slot} of {repo} on {host}',
   'chat.crossAgent.from': 'From the agent in chat “{name}”',
   'chat.crossAgent.waiting': 'waiting for your reply',
+  'chat.crossAgent.show': 'Show the full message',
+  'chat.crossAgent.hide': 'Hide the full message',
   'chat.app.terminal': 'Terminal',
   'chat.app.editor': 'Editor',
   'chat.app.unity': 'Unity',

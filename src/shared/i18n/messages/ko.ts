@@ -559,6 +559,8 @@ export const ko = {
   'chat.host.slotTitle': '{host}의 {repo} 슬롯 {slot}',
   'chat.crossAgent.from': '채팅 “{name}”의 에이전트로부터',
   'chat.crossAgent.waiting': '답장을 기다리는 중',
+  'chat.crossAgent.show': '전체 메시지 보기',
+  'chat.crossAgent.hide': '전체 메시지 숨기기',
   'chat.app.terminal': '터미널',
   'chat.app.editor': '편집기',
   'chat.app.unity': 'Unity',

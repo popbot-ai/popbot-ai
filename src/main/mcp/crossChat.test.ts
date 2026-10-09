@@ -15,4 +15,9 @@ describe('attributeCrossChatMessage', () => {
     expect(out).toContain('not waiting for a reply');
     expect(out).toContain('send_to_chat with chatId "chat_abc"');
   });
+
+  it('names the sender when it gave its own name', () => {
+    const out = attributeCrossChatMessage('hi', { id: 'chat_1', name: 'Docs rewrite — FREDDY', agentName: 'Freddy' }, false);
+    expect(out).toMatch(/^Message from Freddy, the agent in PopBot chat "Docs rewrite — FREDDY" \(chat id chat_1\)/);
+  });
 });

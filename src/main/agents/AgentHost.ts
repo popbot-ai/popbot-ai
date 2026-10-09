@@ -534,7 +534,7 @@ class AgentHostImpl {
       } satisfies MessageBodyText,
     });
     const wireText = origin
-      ? attributeCrossChatMessage(text, { id: origin.chatId, name: origin.chatName }, origin.waiting, {
+      ? attributeCrossChatMessage(text, { id: origin.chatId, name: origin.chatName, ...(origin.agentName ? { agentName: origin.agentName } : {}) }, origin.waiting, {
           toBot: !!chat.host?.botId,
           fromBotId: getChat(origin.chatId)?.host?.botId ?? undefined,
           replyId: origin.replyId,
@@ -1876,7 +1876,7 @@ class AgentHostImpl {
           chatId,
           role: 'user',
           kind: 'text',
-          body: { text, from: { chatId: from.id, chatName: from.name, waiting: from.waiting === true } } satisfies MessageBodyText,
+          body: { text, from: { chatId: from.id, chatName: from.name, waiting: from.waiting === true, ...(from.summary ? { summary: from.summary } : {}), ...(from.agentName ? { agentName: from.agentName } : {}) } } satisfies MessageBodyText,
         });
         updateChatStatus(chatId, 'run', text.slice(0, 140));
         this.broadcast({ type: 'message-added', chatId, message: row, ts: Date.now() });

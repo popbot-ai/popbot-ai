@@ -63,7 +63,14 @@ describe('popbot MCP server over Streamable HTTP', () => {
     ]);
     // A file is offered to a chat: transfer_file has no destination of its own.
     const offer = tools.find((t) => t.name === 'transfer_file')!;
-    expect(Object.keys((offer.inputSchema as { properties: Record<string, unknown> }).properties).sort()).toEqual(['from', 'message', 'path', 'toChat']);
+    expect(Object.keys((offer.inputSchema as { properties: Record<string, unknown> }).properties).sort()).toEqual(['from', 'message', 'path', 'sender_name', 'toChat']);
+    // A message says what it is (summary, required) and may name its sender.
+    for (const name of ['send_to_chat', 'message_bot']) {
+      const schema = tools.find((t) => t.name === name)!.inputSchema as { properties: Record<string, unknown>; required?: string[] };
+      expect(schema.required).toContain('summary');
+      expect(Object.keys(schema.properties)).toContain('sender_name');
+      expect(schema.required).not.toContain('sender_name');
+    }
     // Codex runs only tools marked non-destructive under its `never` policy.
     for (const name of ['transfer_file', 'accept_file_transfer', 'decline_file_transfer', 'cancel_file_transfer']) {
       expect(tools.find((t) => t.name === name)?.annotations?.destructiveHint).toBe(false);

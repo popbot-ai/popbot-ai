@@ -359,7 +359,7 @@ export class HostSessions {
    *  or another chat on the host. Recorded in the log first, so a desktop
    *  shows it as the turn it is. `forAgent` is what the agent is sent,
    *  when it differs from what the chat shows (a sender's attribution). */
-  async prompt(chatId: string, text: string, from: { id: string; name: string; waiting?: boolean }, forAgent?: string): Promise<void> {
+  async prompt(chatId: string, text: string, from: { id: string; name: string; waiting?: boolean; summary?: string; agentName?: string }, forAgent?: string): Promise<void> {
     const live = this.must(chatId);
     this.push(chatId, { kind: 'prompt', text, from });
     live.busy = true;

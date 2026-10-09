@@ -79,6 +79,12 @@ function summarize(chat: ChatRecord, caller: string | null, closed: boolean): Ch
   };
 }
 
+/** The sender's own name, when it gave one (`sender_name`). */
+function withName(given: string | undefined): { agentName?: string } {
+  const agentName = given?.trim();
+  return agentName ? { agentName } : {};
+}
+
 function isOpen(chatId: string): boolean {
   return listOpenChats().some((c) => c.id === chatId);
 }
@@ -282,10 +288,16 @@ function transferSummary(t: FileTransferInfo): FileTransferSummary {
 }
 
 /** A note to a chat about a transfer, attributed to the chat at the other end. */
-function tellChat(chatId: string | null, text: string, fromChatId: string | null): void {
+function tellChat(chatId: string | null, text: string, fromChatId: string | null, summary?: string, agentName?: string): void {
   if (!chatId || !getChat(chatId)) return;
   const from = fromChatId ? getChat(fromChatId) : null;
-  sendInBackground(chatId, text, { chatId: from?.id ?? 'popbot', chatName: from?.name ?? 'PopBot', waiting: false });
+  sendInBackground(chatId, text, {
+    chatId: from?.id ?? 'popbot',
+    chatName: from?.name ?? 'PopBot',
+    waiting: false,
+    ...(summary ? { summary } : {}),
+    ...withName(agentName),
+  });
 }
 
 /** Transfers whose arrival the recipient already saw in its accept call. */
@@ -300,15 +312,15 @@ function followTransfer(id: string): void {
     const toName = getChat(t.toChatId)?.name ?? t.toChatId;
     if (t.phase === 'done') {
       if (!arrivalSeen.delete(t.id)) {
-        tellChat(t.toChatId, `The file "${name}" has arrived: ${t.destPath} (${humanSize(t.size)}, SHA-256 ${t.sha256}).`, t.fromChatId);
+        tellChat(t.toChatId, `The file "${name}" has arrived: ${t.destPath} (${humanSize(t.size)}, SHA-256 ${t.sha256}).`, t.fromChatId, `${name} arrived.`);
       }
-      tellChat(t.fromChatId, `"${name}" was delivered to chat "${toName}" — ${t.destPath} on ${t.to}.`, t.toChatId);
+      tellChat(t.fromChatId, `"${name}" was delivered to chat "${toName}" — ${t.destPath} on ${t.to}.`, t.toChatId, `${name} was delivered to ${toName}.`);
     } else if (t.phase === 'failed') {
-      tellChat(t.fromChatId, `Sending "${name}" to chat "${toName}" failed: ${t.error}`, t.toChatId);
-      tellChat(t.toChatId, `The file "${name}" did not arrive: ${t.error}`, t.fromChatId);
+      tellChat(t.fromChatId, `Sending "${name}" to chat "${toName}" failed: ${t.error}`, t.toChatId, `Sending ${name} to ${toName} failed.`);
+      tellChat(t.toChatId, `The file "${name}" did not arrive: ${t.error}`, t.fromChatId, `${name} did not arrive.`);
     } else if (t.phase === 'cancelled') {
-      tellChat(t.fromChatId, `The transfer of "${name}" to chat "${toName}" was cancelled.`, t.toChatId);
-      tellChat(t.toChatId, `The transfer of "${name}" was cancelled.`, t.fromChatId);
+      tellChat(t.fromChatId, `The transfer of "${name}" to chat "${toName}" was cancelled.`, t.toChatId, `Sending ${name} to ${toName} was cancelled.`);
+      tellChat(t.toChatId, `The transfer of "${name}" was cancelled.`, t.fromChatId, `${name} was cancelled.`);
     }
   });
 }
@@ -352,7 +364,7 @@ export function createPopbotToolHandlers(): PopbotToolHandlers {
       })));
     },
 
-    async messageBot({ bot: wanted, host, text, waitForReply, timeoutSeconds }, caller) {
+    async messageBot({ bot: wanted, host, text, summary, sender_name, waitForReply, timeoutSeconds }, caller) {
       let listings = await botListings(false);
       if (host) {
         const record = findHost(host);
@@ -373,6 +385,8 @@ export function createPopbotToolHandlers(): PopbotToolHandlers {
         chatId: caller ?? '',
         chatName: (caller && getChat(caller)?.name) || caller || 'a chat',
         waiting: waitForReply,
+        summary: summary.trim(),
+        ...withName(sender_name),
         // A message that does not wait can be answered later — once, by
         // this id. A caller with no chat cannot be answered at all.
         ...(!waitForReply && caller ? { replyId: `r_${randomBytes(8).toString('hex')}` } : {}),
@@ -447,7 +461,8 @@ export function createPopbotToolHandlers(): PopbotToolHandlers {
       return { chat: summarize(res.chat, caller, false) };
     },
 
-    async sendToChat({ chatId, text, waitForReply, timeoutSeconds }, caller) {
+    async sendToChat({ chatId: wanted, text, summary, sender_name, waitForReply, timeoutSeconds }, caller) {
+      const chatId = wanted;
       if (chatId === caller) return fail('you cannot message the chat you are running in — that would wait on your own turn');
       const chat = getChat(chatId);
       if (!chat) return fail(`no chat ${chatId}`);
@@ -461,6 +476,8 @@ export function createPopbotToolHandlers(): PopbotToolHandlers {
         chatId: senderId,
         chatName: (caller && getChat(caller)?.name) || senderId || 'another chat',
         waiting: waitForReply,
+        summary: summary.trim(),
+        ...withName(sender_name),
       };
       if (!waitForReply) {
         sendInBackground(chatId, text, origin);
@@ -582,7 +599,7 @@ export function createPopbotToolHandlers(): PopbotToolHandlers {
       return listChatRefs();
     },
 
-    async transferFile({ path, toChat, message, from }, caller) {
+    async transferFile({ path, toChat, message, from, sender_name }, caller) {
       const target = getChat(toChat);
       if (!target) return fail(`no chat ${toChat}`);
       if (target.id === caller) return fail('that is your own chat');
@@ -592,7 +609,7 @@ export function createPopbotToolHandlers(): PopbotToolHandlers {
       const sender = caller ? getChat(caller) : null;
       const offer = await offerFileTransfer(
         { from: from ?? machineOfChat(sender), fromPath: path, to: machineOfChat(target), fromChatId: caller, toChatId: target.id },
-        (lapsed) => tellChat(caller, `Nobody accepted "${fileName(lapsed.fromPath)}" within an hour, so the offer to chat "${target.name}" lapsed.`, target.id),
+        (lapsed) => tellChat(caller, `Nobody accepted "${fileName(lapsed.fromPath)}" within an hour, so the offer to chat "${target.name}" lapsed.`, target.id, `Nobody took ${fileName(lapsed.fromPath)}; the offer lapsed.`),
       );
       followTransfer(offer.id);
       tellChat(
@@ -602,6 +619,8 @@ export function createPopbotToolHandlers(): PopbotToolHandlers {
           `\n\nTo take it — into ~/popbot/sent_files on ${offer.to}, where you run — call the popbot tool accept_file_transfer with transferId "${offer.id}". ` +
           'To turn it down, decline_file_transfer. The offer lapses in an hour.',
         caller,
+        `${sender_name?.trim() || sender?.name || 'An agent'} has sent a send file request for ${offer.fromPath}`,
+        sender_name,
       );
       dlog('mcp.popbot.transferFile', { by: caller, to: target.id, id: offer.id, size: offer.size });
       return transferSummary(offer);
@@ -621,6 +640,7 @@ export function createPopbotToolHandlers(): PopbotToolHandlers {
         t.fromChatId,
         `Chat "${getChat(t.toChatId)?.name ?? t.toChatId}" declined "${fileName(t.fromPath)}"${reason?.trim() ? `: ${reason.trim()}` : '.'}`,
         t.toChatId,
+        `${getChat(t.toChatId)?.name ?? 'The other chat'} declined ${fileName(t.fromPath)}.`,
       );
       return transferSummary(t);
     },

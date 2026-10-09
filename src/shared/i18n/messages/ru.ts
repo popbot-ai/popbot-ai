@@ -511,6 +511,8 @@ export const ru = {
   'chat.host.slotTitle': 'Слот {slot} репозитория {repo} на {host}',
   'chat.crossAgent.from': 'От агента чата «{name}»',
   'chat.crossAgent.waiting': 'ждёт вашего ответа',
+  'chat.crossAgent.show': 'Показать сообщение целиком',
+  'chat.crossAgent.hide': 'Скрыть сообщение',
   'chat.app.terminal': 'Терминал',
   'chat.app.editor': 'Редактор',
   'chat.app.unity': 'Unity',

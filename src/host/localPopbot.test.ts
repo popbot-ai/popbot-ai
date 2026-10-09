@@ -103,7 +103,7 @@ describe("a host's chats with no desktop connected", () => {
   });
 
   it('delivers a message to another chat and returns its answer', async () => {
-    const res = await call('chat_alpha', 'send_to_chat', { chatId: 'chat_beta', text: 'what is the build status?' });
+    const res = await call('chat_alpha', 'send_to_chat', { summary: 'Quick question.', chatId: 'chat_beta', text: 'what is the build status?' });
     expect(JSON.parse(res.text)).toMatchObject({ outcome: 'replied', reply: 'echo: what is the build status?' });
     // Logged as from Alpha, for the desktop to record when it is back.
     const prompt = sessions.get('chat_beta')!.frames.find((f): f is Extract<HostFrame, { kind: 'prompt' }> => f.kind === 'prompt');
@@ -113,7 +113,7 @@ describe("a host's chats with no desktop connected", () => {
   });
 
   it('finds a chat by its name too', async () => {
-    const res = await call('chat_beta', 'send_to_chat', { chatId: 'Alpha', text: 'thanks', waitForReply: false });
+    const res = await call('chat_beta', 'send_to_chat', { summary: 'Quick question.', chatId: 'Alpha', text: 'thanks', waitForReply: false });
     expect(JSON.parse(res.text)).toMatchObject({ outcome: 'sent' });
   });
 
@@ -125,7 +125,7 @@ describe("a host's chats with no desktop connected", () => {
 
   it('does not wake a chat the desktop closed', async () => {
     sessions.setMeta('chat_beta', { open: false });
-    const res = await call('chat_alpha', 'send_to_chat', { chatId: 'chat_beta', text: 'hello?' });
+    const res = await call('chat_alpha', 'send_to_chat', { summary: 'Quick question.', chatId: 'chat_beta', text: 'hello?' });
     expect(res.text).toMatch(/closed/);
     sessions.setMeta('chat_beta', { open: true, name: 'Beta (renamed)' });
     const list = JSON.parse((await call('chat_alpha', 'list_chats', {})).text) as Array<{ name: string }>;
@@ -134,10 +134,10 @@ describe("a host's chats with no desktop connected", () => {
 
   it('lets a chat message a bot, and the bot answer it by the reply id', async () => {
     bots.save(null, { name: 'Helper', prompt: 'Help.', triggers: [] });
-    const waited = await call('chat_alpha', 'message_bot', { bot: 'Helper', text: 'review #12', waitForReply: true });
+    const waited = await call('chat_alpha', 'message_bot', { summary: 'Quick question.', bot: 'Helper', text: 'review #12', waitForReply: true });
     expect(JSON.parse(waited.text)).toMatchObject({ outcome: 'replied', reply: 'echo: review #12' });
 
-    await call('chat_alpha', 'message_bot', { bot: 'helper', text: 'and #13 when you can' });
+    await call('chat_alpha', 'message_bot', { summary: 'Quick question.', bot: 'helper', text: 'and #13 when you can' });
     const told = sent.get(botChatId('helper'))!.at(-1)!;
     const replyId = /replyId "(r_[a-f0-9]+)"/.exec(told)![1];
     expect(await bots.replyToChat('helper', replyId, '#13 looks good')).toEqual({ ok: true });
@@ -231,7 +231,7 @@ describe("a host's chats with no desktop connected", () => {
       sessions: restarted, workspaces: new HostWorkspaces(config), bots,
     });
     expect(restarted.get('chat_beta')).toBeUndefined();
-    const res = await handlers.sendToChat({ chatId: 'chat_beta', text: 'still there?', waitForReply: true, timeoutSeconds: 10 }, 'chat_alpha');
+    const res = await handlers.sendToChat({ chatId: 'chat_beta', text: 'still there?', summary: 'Checking Beta is still around.', waitForReply: true, timeoutSeconds: 10 }, 'chat_alpha');
     expect(res).toMatchObject({ outcome: 'replied', reply: 'echo: still there?' });
     // Its log went on from where it was, so a desktop reading by seq misses nothing.
     const frames = restarted.get('chat_beta')!.frames;
