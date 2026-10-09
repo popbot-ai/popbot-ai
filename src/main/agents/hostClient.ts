@@ -13,6 +13,7 @@ import {
   type HostAttachment,
   type HostBotInfo,
   type HostBotInput,
+  type HostChatMeta,
   type HostFrame,
   type HostInfo,
   type HostRepo,
@@ -154,6 +155,18 @@ export async function ensureHostWorkspace(host: HostAddress, chatId: string, req
  *  name when `stash`, else discarded. */
 export async function releaseHostWorkspace(host: HostAddress, chatId: string, stash: boolean, opts: { moved?: boolean } = {}): Promise<void> {
   await hostRequest(host, 'POST', `/v1/chats/${encodeURIComponent(chatId)}/release`, { stash, moved: opts.moved === true }, 120_000);
+}
+
+/** Tell a host a chat it runs was renamed, closed, reopened, or has left
+ *  it — for the host's own popbot tools, used while no desktop is there.
+ *  Best effort: an older host has no such route, and a host that is down
+ *  learns the name at the chat's next spawn. */
+export async function setHostChatMeta(host: HostAddress, chatId: string, meta: HostChatMeta): Promise<void> {
+  try {
+    await hostRequest(host, 'PUT', `/v1/chats/${encodeURIComponent(chatId)}/meta`, meta, 15_000);
+  } catch {
+    // see above
+  }
 }
 
 /** End a chat's session on its host. A host that has no session for

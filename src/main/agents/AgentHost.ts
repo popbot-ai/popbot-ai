@@ -1834,6 +1834,7 @@ class AgentHostImpl {
       host,
       info,
       agent: chat?.agent ?? 'claude',
+      chatName: chat?.name ?? chatId,
       rules: () => ({
         chat: getChatPermissionRules(chatId),
         global: getSetting<PermissionRule[]>('permissions.rules') ?? [],
@@ -1868,13 +1869,14 @@ class AgentHostImpl {
       },
       onPrompt: (text, from) => {
         if (!isDbOpen()) return;
-        // A turn nobody typed here: the bot's trigger, or another bot.
-        // It shows as a message from its sender, like a cross-chat one.
+        // A turn nobody typed here: the bot's trigger, another bot, or
+        // another chat on the host while this desktop was away. It shows
+        // as a message from its sender, like a cross-chat one.
         const row = appendMessage({
           chatId,
           role: 'user',
           kind: 'text',
-          body: { text, from: { chatId: from.id, chatName: from.name, waiting: false } } satisfies MessageBodyText,
+          body: { text, from: { chatId: from.id, chatName: from.name, waiting: from.waiting === true } } satisfies MessageBodyText,
         });
         updateChatStatus(chatId, 'run', text.slice(0, 140));
         this.broadcast({ type: 'message-added', chatId, message: row, ts: Date.now() });

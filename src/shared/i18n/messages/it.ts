@@ -1433,7 +1433,7 @@ export const it = {
   'whatsNew.title': 'Novità di PopBot',
   'whatsNew.f1.h': 'Bot che fanno la guardia',
   'whatsNew.f1.p':
-    'Apri la scheda Bot accanto a Chat e dai a un bot un nome, una macchina e i suoi ordini. Vive su quell’host, continua a lavorare a computer spento e si sveglia con dei trigger: una pull request GitHub (per etichetta, dai membri di un team che indichi) o una pianificazione. Ogni bot ha la sua identità GitHub, email e immagine, può scrivere ai bot che consenti e risponde quando le tue chat gli chiedono qualcosa.',
+    'Apri la scheda Bot accanto a Chat e dai a un bot un nome, una macchina e i suoi ordini. Vive su quell’host, continua a lavorare a computer spento e si sveglia con dei trigger: un’etichetta su una pull request GitHub o una pianificazione. Ogni bot ha la sua identità GitHub, email e immagine, può scrivere ai bot che consenti e risponde quando le tue chat gli chiedono qualcosa.',
   'whatsNew.f2.h': 'Sposta chat e file tra macchine',
   'whatsNew.f2.p':
     'Sposta una chat su un’altra macchina dal suo menu ☰: i commit non inviati e le modifiche non salvate la seguono, e il repository viene abbinato per nome. Gli agenti possono anche inviare un file di qualsiasi dimensione a una chat su un’altra macchina: l’agente dall’altra parte deve accettarlo, arriva in ~/popbot/sent_files e una connessione caduta riprende da dove si era fermata.',

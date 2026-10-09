@@ -108,10 +108,7 @@ export function BotForm({ hosts, editing, onClose, onSaved }: BotFormProps): JSX
   const [avatar, setAvatar] = useState<string | null>(editing?.bot.avatar ?? null);
   const fileRef = useRef<HTMLInputElement | null>(null);
   const [githubToken, setGithubToken] = useState('');
-  // A host from before teams sends GitHub triggers without one.
-  const [triggers, setTriggers] = useState<BotTrigger[]>(
-    () => (editing?.bot.triggers ?? []).map((tr) => (tr.kind === 'github' ? { ...tr, team: tr.team ?? '' } : tr)),
-  );
+  const [triggers, setTriggers] = useState<BotTrigger[]>(() => editing?.bot.triggers ?? []);
   const [peersText, setPeersText] = useState((editing?.bot.peers ?? []).join(', '));
   const [addOpen, setAddOpen] = useState(false);
   const [verdict, setVerdict] = useState<Verdict>(null);
@@ -187,7 +184,7 @@ export function BotForm({ hosts, editing, onClose, onSaved }: BotFormProps): JSX
 
   const addTrigger = (kind: BotTrigger['kind']): void => {
     const trigger: BotTrigger = kind === 'github'
-      ? { id: newTriggerId(), kind: 'github', repo: null, labels: [], team: '', pollSeconds: DEFAULT_GITHUB_POLL_SECONDS }
+      ? { id: newTriggerId(), kind: 'github', repo: null, labels: [], pollSeconds: DEFAULT_GITHUB_POLL_SECONDS }
       : { id: newTriggerId(), kind: 'cron', schedule: '0 9 * * 1-5', message: '' };
     setTriggers((prev) => [...prev, trigger]);
     setAddOpen(false);
@@ -428,25 +425,7 @@ export function BotForm({ hosts, editing, onClose, onSaved }: BotFormProps): JSX
                       onCommit={() => void apply()}
                     />
                   </div>
-                  <div className="field">
-                    <label>{t('bots.trigger.team')}</label>
-                    <input
-                      className="input"
-                      type="text"
-                      value={trigger.team}
-                      placeholder={t('bots.trigger.teamPlaceholder')}
-                      onChange={(e) => setTrigger(trigger.id, { ...trigger, team: e.target.value })}
-                      onBlur={() => void apply()}
-                      onKeyDown={(e) => { if (e.key === 'Enter') void apply(); }}
-                    />
-                  </div>
-                  <div className={`bot-form-hint indented${trigger.team.trim() ? '' : ' warn'}`}>
-                    {trigger.team.trim()
-                      ? trigger.team.split(',').some((p) => p.trim() === '*')
-                        ? t('bots.trigger.teamAnyone')
-                        : t('bots.trigger.teamHint')
-                      : t('bots.trigger.teamBlank')}
-                  </div>
+                  <div className="bot-form-hint indented">{t('bots.trigger.labelsHint')}</div>
                   <div className="field">
                     <label>{t('bots.trigger.every')}</label>
                     <div className="bot-trigger-inline">

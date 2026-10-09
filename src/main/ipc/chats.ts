@@ -40,7 +40,7 @@ import { appendMessage, copyMessages, listMessages } from '../persistence/messag
 import { getSetting, setSetting } from '../persistence/settings';
 import { AgentHost, sessionCwdForChat } from '../agents/AgentHost';
 import { cloudStatus, endCloudSession, pullCloudBranch, testCloudApiKey } from '../agents/cloudSessions';
-import { HostRequestError, endHostSession, ensureHostWorkspace, hostRequest, hostSlots, releaseHostWorkspace } from '../agents/hostClient';
+import { HostRequestError, endHostSession, ensureHostWorkspace, hostRequest, hostSlots, releaseHostWorkspace, setHostChatMeta } from '../agents/hostClient';
 import { getHost } from '../persistence/hosts';
 import { searchTranscripts } from '../search/transcriptSearch';
 import { getCodexBinaryPath } from '../agents/codexProbe';
@@ -53,7 +53,7 @@ import { getRepo, listRepos } from '../persistence/repos';
 import { slotWorktreePathForRepo, worktreesDirForRepo } from '../git/chatPaths';
 import { remountSlots, remountReposElevated } from '../shado/base';
 import { RAW_CHAT_REPO_ID, type ChatRecord, type HostChatInfo, type RepoRecord } from '@shared/persistence';
-import type { HostPackBody, HostUnpackBody, HostWorkspaceResult, PackedWork } from '@shared/hostProtocol';
+import type { HostChatMeta, HostPackBody, HostUnpackBody, HostWorkspaceResult, PackedWork } from '@shared/hostProtocol';
 
 /** After a reboot, Windows drops the VHDX slot mounts. A dropped mount leaves
  *  the slot folder either EMPTY or as a BROKEN mount point (reading it errors).
@@ -140,6 +140,15 @@ export function resolveRepo(repoId?: string | null): RepoRecord | null {
  *  the preferred slug is taken, suffix with the chat-id tail to
  *  guarantee uniqueness. Pure path resolution — does not touch disk
  *  beyond an `existsSync` check. */
+/** Keep a host's record of a chat it runs current — the name its other
+ *  chats see, and whether it is open — for the host's own popbot tools,
+ *  which answer while this desktop is away. Fire and forget. */
+export function tellHostAboutChat(chat: ChatRecord | null | undefined, meta: HostChatMeta): void {
+  if (!chat?.host || chat.host.botId) return;
+  const host = getHost(chat.host.hostId);
+  if (host) void setHostChatMeta(host, chat.id, meta);
+}
+
 /** `<branch>-fork`, or `-fork-2`, `-fork-3`… when a chat already has it —
  *  including closed ones, whose branches still exist in the repo. */
 function forkBranchName(sourceBranch: string): string {
@@ -532,7 +541,10 @@ export function registerChatHandlers(): void {
   });
 
   ipcMain.handle(IpcChannel.ChatsRename, (_e, chatId: string, name: string) => {
-    return renameChat(chatId, typeof name === 'string' ? name : '');
+    const renamed = renameChat(chatId, typeof name === 'string' ? name : '');
+    const chat = getChat(chatId);
+    if (chat) tellHostAboutChat(chat, { name: chat.name });
+    return renamed;
   });
 
   ipcMain.handle(IpcChannel.ChatsDelete, async (_e, chatId: string) => {
@@ -545,6 +557,7 @@ export function registerChatHandlers(): void {
       if (host) {
         await endHostSession(host, chatId).catch(() => undefined);
         await releaseHostWorkspace(host, chatId, false).catch(() => undefined);
+        await setHostChatMeta(host, chatId, { gone: true });
       }
     }
     disposePty(chatId);
@@ -846,6 +859,8 @@ export async function createChatWithWorkspace(input: CreateChatInput): Promise<C
  */
 export async function closeChatWithWorkspace(chatId: string, opts?: CloseChatOptions): Promise<void> {
   const chat = getChat(chatId);
+  // A closed chat on a host is not woken there by its other chats.
+  tellHostAboutChat(chat, { open: false });
   // Await SDK shutdown so its session JSONL flushes before any
   // worktree teardown below — otherwise the next reopen of this
   // chat lands on "no conversation found".
@@ -937,6 +952,7 @@ export async function closeChatWithWorkspace(chatId: string, opts?: CloseChatOpt
 export async function reopenChatWithWorkspace(chatId: string): Promise<ReopenChatResult> {
   const chat = getChat(chatId);
   if (!chat) return { ok: false, reason: 'not-found' };
+  tellHostAboutChat(chat, { open: true });
   // CR chats (and any future slot-less chat type) have no branch
   // — they run against the repo root and don't need a worktree
   // restored on reopen. Slot-backed chats always have a branch

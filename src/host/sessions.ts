@@ -2,8 +2,9 @@
  * The host's live sessions: one backend session per chat, driven by the
  * desktop over HTTP, with every event it produces appended to a per-chat
  * log the desktop tails (and replays from its last seq after a
- * disconnect). The host persists nothing else — the transcript is the
- * desktop's.
+ * disconnect). The log is on disk, so what happened while no desktop was
+ * connected — another chat on the host messaging this one — outlives a
+ * host restart until a desktop reads it. The transcript is the desktop's.
  */
 import { randomUUID } from 'node:crypto';
 import { mkdirSync, writeFileSync } from 'node:fs';
@@ -12,6 +13,7 @@ import type { AgentEvent, PermissionDecision, PermissionRule } from '@shared/age
 import { resolvePermissionRules } from '@shared/agent';
 import type { PickedAttachment } from '@shared/ipc';
 import type {
+  HostChatMeta,
   HostFrame,
   HostMcpRequest,
   HostMcpResponse,
@@ -24,6 +26,7 @@ import { ClaudeBackend } from '../main/agents/ClaudeBackend';
 import { CodexBackend } from '../main/agents/CodexBackend';
 import type { AgentSession } from '../main/agents/types';
 import { dlog } from '../main/diagLog';
+import { ChatRoster } from './chatRoster';
 import type { HostConfig } from './config';
 import { FrameLog } from './frameLog';
 import type { HostWorkspaces } from './workspaces';
@@ -80,12 +83,16 @@ interface LiveChat {
   rules: HostRules;
   frames: HostFrame[];
   seq: number;
+  /** Desktops reading the chat's stream. */
   listeners: Set<(frame: HostFrame) => void>;
+  /** The host's own watchers (a chat on the host waiting for this one's
+   *  answer) — not a desktop. */
+  taps: Set<(frame: HostFrame) => void>;
   /** popbot MCP calls the desktop has not answered, by frame id. */
   mcpPending: Map<string, (answer: McpAnswer) => void>;
   /** Frames kept for replay. */
   cap: number;
-  /** A bot's log, kept on disk. */
+  /** The log on disk. */
   log: FrameLog | null;
   /** A message went in and the turn it started has not ended. */
   busy: boolean;
@@ -100,12 +107,16 @@ export class HostSessions {
   private readonly chats = new Map<string, LiveChat>();
   private mcpUrlFor: ((chatId: string) => string) | null = null;
   private bots: BotHooks | null = null;
+  /** The ordinary chats this host runs, remembered across restarts. */
+  readonly roster: ChatRoster;
 
   constructor(
     private readonly config: HostConfig,
     private readonly cli: { claude: string | null; codex: string | null },
     private readonly workspaces: HostWorkspaces,
-  ) {}
+  ) {
+    this.roster = new ChatRoster(join(config.workspacesDir, 'chats'));
+  }
 
   list(): Array<{ chatId: string; alive: boolean; lastSeq: number }> {
     return [...this.chats.entries()].map(([chatId, c]) => ({ chatId, alive: c.session.isAlive(), lastSeq: c.seq }));
@@ -136,6 +147,42 @@ export class HostSessions {
     return !!live && live.session.isAlive() && !live.busy;
   }
 
+  /** In a turn, or with a message waiting for one. */
+  isBusy(chatId: string): boolean {
+    return this.chats.get(chatId)?.busy === true;
+  }
+
+  /** A desktop is reading the chat's stream right now — so it can answer
+   *  the chat's popbot calls. */
+  desktopAttached(chatId: string): boolean {
+    return (this.chats.get(chatId)?.listeners.size ?? 0) > 0;
+  }
+
+  /** The desktop renamed, closed, reopened or let go of a chat. */
+  setMeta(chatId: string, meta: HostChatMeta): void {
+    this.roster.meta(chatId, meta);
+  }
+
+  /**
+   * The chat's session, started again from what the desktop last asked
+   * for when it is not running — so another chat on the host can reach
+   * it with no desktop connected. A closed chat is not woken.
+   */
+  async wake(chatId: string): Promise<void> {
+    if (this.chats.get(chatId)?.session.isAlive()) return;
+    const known = this.roster.get(chatId);
+    if (!known) throw new HostError(404, `no chat ${chatId} on this host`);
+    if (!known.open) throw new HostError(409, `"${known.name}" is closed`);
+    await this.spawn(chatId, { ...known.body, sessionId: known.sessionId });
+  }
+
+  /** Watch the chat's frames from now on, as the host itself. */
+  tap(chatId: string, listener: (frame: HostFrame) => void): () => void {
+    const live = this.must(chatId);
+    live.taps.add(listener);
+    return () => { live.taps.delete(listener); };
+  }
+
   /** Where agents reach the popbot relay (see mcpRelay.ts). */
   useMcpRelay(urlFor: (chatId: string) => string): void {
     this.mcpUrlFor = urlFor;
@@ -148,13 +195,18 @@ export class HostSessions {
       await prior.session.dispose().catch(() => undefined);
     }
     const bot = this.bots?.spawnFor(chatId) ?? null;
+    if (!bot) this.roster.spawned(chatId, body);
     const workspace = bot
       ? { cwd: await bot.cwd(), kind: 'root' as const, slotId: null, branch: null }
       : await this.workspaces.ensure(chatId, body.workspace);
     const cwd = workspace.cwd;
-    // A bot's log is on disk, so a host restart neither loses what a
-    // desktop has yet to see nor restarts the numbering it reads by.
-    const opened = !prior && bot ? FrameLog.open(bot.logPath, bot.logCap) : null;
+    // The log is on disk, so a host restart neither loses what a desktop
+    // has yet to see nor restarts the numbering it reads by.
+    const opened = prior
+      ? null
+      : bot
+        ? FrameLog.open(bot.logPath, bot.logCap)
+        : this.roster.get(chatId) ? FrameLog.open(this.roster.logPath(chatId), LOG_CAP) : null;
     const live: LiveChat = {
       // Filled in below; the backend calls onEvent synchronously during
       // spawn in some paths, so the record exists before it.
@@ -164,6 +216,7 @@ export class HostSessions {
       frames: prior?.frames ?? opened?.frames ?? [],
       seq: prior?.seq ?? opened?.seq ?? 0,
       listeners: prior?.listeners ?? new Set(),
+      taps: prior?.taps ?? new Set(),
       mcpPending: prior?.mcpPending ?? new Map(),
       cap: bot ? bot.logCap : LOG_CAP,
       log: prior?.log ?? opened?.log ?? null,
@@ -198,7 +251,8 @@ export class HostSessions {
       onEvent: (event: AgentEvent) => { if (current()) this.push(chatId, { kind: 'event', event }); },
       onSessionId: (sessionId) => {
         if (!current()) return;
-        bot?.onSessionId(sessionId);
+        if (bot) bot.onSessionId(sessionId);
+        else this.roster.sessionId(chatId, sessionId);
         this.push(chatId, { kind: 'session-id', sessionId });
       },
       resolveRule: (tool) => resolveHostRule(this.chats.get(chatId)?.rules, tool),
@@ -229,15 +283,17 @@ export class HostSessions {
     this.push(chatId, { kind: 'reply', replyId, text });
   }
 
-  /** The host's own message to a chat — a bot's trigger, or another
-   *  bot. Recorded in the log first, so a desktop shows it as the turn
-   *  it is. */
-  async prompt(chatId: string, text: string, from: { id: string; name: string }): Promise<void> {
+  /** The host's own message to a chat — a bot's trigger, another bot,
+   *  or another chat on the host. Recorded in the log first, so a desktop
+   *  shows it as the turn it is. `forAgent` is what the agent is sent,
+   *  when it differs from what the chat shows (a sender's attribution). */
+  async prompt(chatId: string, text: string, from: { id: string; name: string; waiting?: boolean }, forAgent?: string): Promise<void> {
     const live = this.must(chatId);
     this.push(chatId, { kind: 'prompt', text, from });
     live.busy = true;
     live.lastAsk = text;
-    await live.session.sendUser(text, []);
+    this.roster.touch(chatId);
+    await live.session.sendUser(forAgent ?? text, []);
   }
 
   async send(chatId: string, body: HostSendBody): Promise<void> {
@@ -245,6 +301,7 @@ export class HostSessions {
     const attachments = this.storeAttachments(chatId, body.attachments ?? []);
     live.busy = true;
     live.lastAsk = body.text;
+    this.roster.touch(chatId);
     await live.session.sendUser(body.text, attachments);
     this.noteAlive(chatId);
   }
@@ -304,7 +361,9 @@ export class HostSessions {
     const live = this.chats.get(chatId);
     if (!live) return;
     this.chats.delete(chatId);
-    for (const l of live.listeners) l({ seq: live.seq + 1, kind: 'dead' });
+    const dead: HostFrame = { seq: live.seq + 1, kind: 'dead' };
+    for (const l of live.listeners) l(dead);
+    for (const t of live.taps) t(dead);
     await live.session.dispose().catch(() => undefined);
     dlog('host.dispose', { chatId });
   }
@@ -336,6 +395,9 @@ export class HostSessions {
     if (live.frames.length > live.cap) live.frames.splice(0, live.frames.length - live.cap);
     live.log?.append(full, live.frames);
     for (const l of live.listeners) l(full);
+    for (const t of live.taps) {
+      try { t(full); } catch { /* a watcher's bug must not stop the log */ }
+    }
     if (full.kind === 'event') this.noteTurn(chatId, live, full.event);
   }
 

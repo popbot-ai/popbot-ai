@@ -5,14 +5,17 @@
  *   popbot-host [--config path] [--port n] [--bind addr] [--token t]
  *
  * The desktop keeps every transcript, search index and setting; this
- * process only runs the `claude` / `codex` CLIs it finds on PATH, in
- * checkouts listed in its config, and streams what they do.
+ * process runs the `claude` / `codex` CLIs it finds on PATH, in
+ * checkouts listed in its config, and streams what they do. Its chats
+ * and bots can still see and message each other with no desktop there.
  */
 import { resolveCliPath } from '../main/agents/resolveCli';
 import { dlog } from '../main/diagLog';
 import { resolveConfig } from './config';
 import { startBotMcp } from './botMcp';
 import { HostBots } from './bots';
+import { startPopbotMcpServer } from '../main/mcp/server';
+import { localPopbotHandlers, popbotRoute } from './localPopbot';
 import { startMcpRelay } from './mcpRelay';
 import { createHostServer } from './server';
 import { HostSessions } from './sessions';
@@ -42,11 +45,17 @@ async function main(): Promise<void> {
   const workspaces = new HostWorkspaces(config);
   workspaces.load();
   const sessions = new HostSessions(config, cli, workspaces);
-  const mcpRelay = await startMcpRelay((chatId, request, signal) => sessions.relayMcp(chatId, request, signal));
-  sessions.useMcpRelay(mcpRelay.urlFor);
   // Bots run whether or not a desktop is connected (bots.ts).
   const bots = new HostBots(config, path, sessions);
   sessions.useBots(bots);
+  // A chat's popbot calls go to the desktop reading its stream; with none
+  // there, the host answers them itself for its own chats and bots.
+  const localPopbot = await startPopbotMcpServer(
+    localPopbotHandlers({ hostName: config.name, version: VERSION, cli, repos: () => config.repos, sessions, workspaces, bots }),
+    { version: VERSION },
+  );
+  const mcpRelay = await startMcpRelay(popbotRoute(sessions, localPopbot.urlFor));
+  sessions.useMcpRelay(mcpRelay.urlFor);
   const botMcp = await startBotMcp(bots, VERSION);
   bots.useMcp(botMcp.urlFor);
   const server = createHostServer({ config, version: VERSION, configPath: path, sessions, workspaces, bots, cli });
@@ -69,6 +78,7 @@ async function main(): Promise<void> {
     bots.stop();
     await sessions.disposeAll();
     await mcpRelay.close();
+    await localPopbot.close();
     await botMcp.close();
     process.exit(0);
   };

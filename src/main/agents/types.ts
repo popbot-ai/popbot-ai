@@ -147,6 +147,9 @@ export interface RemoteSpawnOpts {
   info: HostChatInfo;
   /** Which CLI the host should run — the chat's agent column. */
   agent: AgentBackendId;
+  /** The chat's name, which the host shows its other chats when no
+   *  desktop is connected. */
+  chatName: string;
   /** The desktop's current permission rules, sent to the host at spawn
    *  and after every decision (which may have added one). */
   rules(): HostRules;
@@ -158,9 +161,10 @@ export interface RemoteSpawnOpts {
   languageDirective: string;
   /** Merge a change into the chat's stored host state. */
   onHostUpdate(patch: Partial<HostChatInfo>): void;
-  /** The host sent the agent a message itself — a bot's trigger, or
-   *  another bot. Record it as the turn it starts. */
-  onPrompt(text: string, from: { id: string; name: string }): void;
+  /** The host sent the agent a message itself — a bot's trigger,
+   *  another bot, or another chat on the host while no desktop was
+   *  there. Record it as the turn it starts. */
+  onPrompt(text: string, from: { id: string; name: string; waiting?: boolean }): void;
   /** A bot answered a chat's message by the reply id it carried:
    *  deliver it to that chat, once. */
   onReply(replyId: string, text: string): void;

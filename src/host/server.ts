@@ -10,6 +10,7 @@ import {
   HOST_PROTOCOL_VERSION,
   type HostApproveBody,
   type HostBotInput,
+  type HostChatMeta,
   type HostPackBody,
   type HostUnpackBody,
   type HostFrame,
@@ -233,6 +234,17 @@ export function createHostServer(opts: {
       const action = parts[3];
       if (req.method === 'GET' && action === 'events') {
         return streamEvents(res, chatId, Number(url.searchParams.get('after') ?? '0') || 0);
+      }
+      if (req.method === 'PUT' && action === 'meta') {
+        // Renamed, closed, reopened, or gone from this host — for the
+        // host's own popbot tools (localPopbot.ts).
+        const b = (await readJson(req)) as HostChatMeta;
+        sessions.setMeta(chatId, {
+          ...(typeof b.name === 'string' ? { name: b.name } : {}),
+          ...(typeof b.open === 'boolean' ? { open: b.open } : {}),
+          ...(b.gone === true ? { gone: true } : {}),
+        });
+        return json(res, 200, { ok: true });
       }
       if (req.method !== 'POST') return json(res, 405, { error: 'method not allowed' });
       const body = (await readJson(req)) as Record<string, unknown>;

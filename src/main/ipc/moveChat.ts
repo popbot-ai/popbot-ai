@@ -25,7 +25,7 @@ import { IpcChannel, type MoveChatResult, type MoveChatTarget } from '@shared/ip
 import type { HostRepo, HostSlotsInfo, HostUnpackBody, HostWorkspaceResult, PackedWork } from '@shared/hostProtocol';
 import { RAW_CHAT_REPO_ID, type ChatRecord, type HostChatInfo, type HostRecord, type RepoRecord } from '@shared/persistence';
 import { AgentHost } from '../agents/AgentHost';
-import { endHostSession, hostRequest, probeHost, releaseHostWorkspace } from '../agents/hostClient';
+import { endHostSession, hostRequest, probeHost, releaseHostWorkspace, setHostChatMeta } from '../agents/hostClient';
 import { slotWorktreePathForRepo, worktreesDirForRepo } from '../git/chatPaths';
 import { applyWorkChanges, packWork, unpackBranch } from '../git/moveWork';
 import { movedChatStashName } from '../git/worktrees';
@@ -259,6 +259,8 @@ async function releaseOld(chat: ChatRecord, fromHost: HostRecord | null, localRe
   if (fromHost) {
     if (chat.host?.kind === 'worktree') await releaseHostWorkspace(fromHost, chat.id, true, { moved: true });
     await endHostSession(fromHost, chat.id).catch(() => undefined);
+    // Its other chats there no longer see it.
+    await setHostChatMeta(fromHost, chat.id, { gone: true });
     return;
   }
   if (!localRepo || !chat.worktreePath) return;
