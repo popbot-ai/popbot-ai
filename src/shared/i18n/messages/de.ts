@@ -1428,7 +1428,7 @@ export const de = {
   'whatsNew.title': 'Neu in PopBot',
   'whatsNew.f1.h': 'Bots, die Wache halten',
   'whatsNew.f1.p':
-    'Öffne den Tab Bots neben Chats und gib einem Bot einen Namen, einen Rechner und seinen Auftrag. Er lebt auf diesem Host, arbeitet weiter, wenn dein Computer aus ist, und wird durch Auslöser geweckt: einen GitHub-Pull-Request (nach Label, von Mitgliedern eines Teams, das du angibst) oder einen Zeitplan. Jeder Bot hat eine eigene GitHub-Identität, E-Mail und ein Bild, kann den Bots schreiben, die du erlaubst, und antwortet, wenn deine Chats ihn etwas fragen.',
+    'Öffne den Tab Bots neben Chats und gib einem Bot einen Namen, einen Rechner und seinen Auftrag. Er lebt auf diesem Host, arbeitet weiter, wenn dein Computer aus ist, und wird durch Auslöser geweckt: ein Label an einem GitHub-Pull-Request oder einen Zeitplan. Jeder Bot hat eine eigene GitHub-Identität, E-Mail und ein Bild, kann den Bots schreiben, die du erlaubst, und antwortet, wenn deine Chats ihn etwas fragen.',
   'whatsNew.f2.h': 'Chats und Dateien zwischen Rechnern verschieben',
   'whatsNew.f2.p':
     'Verschiebe einen Chat über sein ☰-Menü auf einen anderen Rechner: Nicht gepushte Commits und nicht committete Änderungen ziehen mit, und das Repository wird über den Namen zugeordnet. Agents können auch Dateien jeder Größe an einen Chat auf einem anderen Rechner senden – der Agent dort muss sie annehmen, sie landen in ~/popbot/sent_files, und eine abgebrochene Verbindung setzt dort wieder an, wo sie stand.',

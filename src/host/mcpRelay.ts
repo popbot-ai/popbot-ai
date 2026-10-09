@@ -3,7 +3,9 @@
  * host are pointed here (127.0.0.1, a random port, a per-launch secret
  * in the path, the chat id after it — the same shape as the desktop's
  * server); each request is handed to `relay`, which sends it up the
- * chat's event stream and resolves with the desktop's answer.
+ * chat's event stream and resolves with the desktop's answer — or, with
+ * no desktop reading that stream, to the host's own popbot server
+ * (localPopbot.ts).
  */
 import { randomBytes } from 'node:crypto';
 import { createServer, type IncomingMessage, type Server } from 'node:http';
@@ -84,6 +86,13 @@ export async function startMcpRelay(relay: McpRelayFn): Promise<McpRelayServer> 
     urlFor: (chatId) => `http://127.0.0.1:${port}/mcp/${secret}/${chatId}`,
     close: () => new Promise<void>((resolve) => { http.close(() => resolve()); http.closeAllConnections?.(); }),
   };
+}
+
+/** Hand a call to another popbot server — the host's own, when no
+ *  desktop is reading the chat's stream (localPopbot.ts). */
+export async function forwardMcp(url: string, request: HostMcpRequest, signal: AbortSignal): Promise<Omit<HostMcpResponse, 'id'>> {
+  const res = await fetch(url, { method: 'POST', headers: request.headers, body: request.body, signal });
+  return { status: res.status, contentType: res.headers.get('content-type'), body: await res.text() };
 }
 
 function readBody(req: IncomingMessage): Promise<string> {

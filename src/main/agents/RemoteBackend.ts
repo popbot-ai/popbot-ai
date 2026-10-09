@@ -79,6 +79,7 @@ class RemoteSession implements AgentSession {
     const isCodex = remote.agent === 'codex';
     this.body = {
       agent: remote.agent,
+      chatName: remote.chatName,
       sessionId: opts.sessionId ?? null,
       claudeModel: isCodex ? null : opts.claudeModel ?? null,
       claudeReasoningEffort: isCodex ? null : opts.claudeReasoningEffort ?? null,

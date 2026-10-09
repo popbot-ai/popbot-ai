@@ -1428,7 +1428,7 @@ export const es = {
   'whatsNew.title': 'Novedades de PopBot',
   'whatsNew.f1.h': 'Bots que vigilan',
   'whatsNew.f1.p':
-    'Abre la pestaña Bots junto a Chats y dale a un bot un nombre, una máquina y sus órdenes. Vive en ese host, sigue trabajando con tu ordenador apagado y se despierta con disparadores: un pull request de GitHub (por etiqueta, de miembros de un equipo que indiques) o un horario. Cada bot tiene su propia identidad de GitHub, correo e imagen, puede escribir a los bots que permitas y responde cuando tus chats le preguntan algo.',
+    'Abre la pestaña Bots junto a Chats y dale a un bot un nombre, una máquina y sus órdenes. Vive en ese host, sigue trabajando con tu ordenador apagado y se despierta con disparadores: una etiqueta en un pull request de GitHub o un horario. Cada bot tiene su propia identidad de GitHub, correo e imagen, puede escribir a los bots que permitas y responde cuando tus chats le preguntan algo.',
   'whatsNew.f2.h': 'Mueve chats y archivos entre máquinas',
   'whatsNew.f2.p':
     'Mueve un chat a otra máquina desde su menú ☰: los commits sin subir y los cambios sin confirmar viajan con él, y el repositorio se empareja por nombre. Los agentes también pueden enviar un archivo de cualquier tamaño a un chat en otra máquina: el agente de allí tiene que aceptarlo, llega a ~/popbot/sent_files y una conexión caída retoma donde se quedó.',

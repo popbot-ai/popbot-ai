@@ -1429,7 +1429,7 @@ export const ptBR = {
   'whatsNew.title': 'Novidades do PopBot',
   'whatsNew.f1.h': 'Bots de plantão',
   'whatsNew.f1.p':
-    'Abra a aba Bots ao lado de Chats e dê a um bot um nome, uma máquina e suas ordens. Ele vive naquele host, continua trabalhando com seu computador desligado e acorda com gatilhos: um pull request do GitHub (por rótulo, de membros de uma equipe que você indicar) ou um agendamento. Cada bot tem identidade própria no GitHub, e-mail e imagem, pode mandar mensagens aos bots que você permitir e responde quando seus chats perguntam algo.',
+    'Abra a aba Bots ao lado de Chats e dê a um bot um nome, uma máquina e suas ordens. Ele vive naquele host, continua trabalhando com seu computador desligado e acorda com gatilhos: um rótulo em um pull request do GitHub ou um agendamento. Cada bot tem identidade própria no GitHub, e-mail e imagem, pode mandar mensagens aos bots que você permitir e responde quando seus chats perguntam algo.',
   'whatsNew.f2.h': 'Mova chats e arquivos entre máquinas',
   'whatsNew.f2.p':
     'Mova um chat para outra máquina pelo menu ☰: commits não enviados e alterações não commitadas vão junto, e o repositório é encontrado pelo nome. Os agentes também podem enviar um arquivo de qualquer tamanho a um chat em outra máquina — o agente de lá precisa aceitá-lo, ele chega em ~/popbot/sent_files e uma conexão que cai retoma de onde parou.',

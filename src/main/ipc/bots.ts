@@ -2,7 +2,8 @@
  * Bots (the Bots tab). A bot lives on a host — in its config, run by it
  * whether or not this app is open (src/host/bots.ts). This side finds
  * every host's bots, gives each a chat record here under the id its host
- * uses, and keeps those chats attached so their transcripts stay current.
+ * uses, and keeps those chats attached so their transcripts stay current
+ * — as it does any host chat that ran on while this app was away.
  *
  * A bot's chat is an ordinary host chat with `host.botId` set. It is
  * not in the Chats tab: opening and closing it only shows and hides the
@@ -58,6 +59,15 @@ async function refreshNow(): Promise<void> {
       for (const bot of bots) {
         const chat = ensureBotChat(host, bot);
         if (chat) void follow(chat.id);
+      }
+      // An open chat on the host that went on without this app — another
+      // chat there messaged it while this app was away — is followed too,
+      // so its transcript here catches up without anyone opening it.
+      const running = new Map((info.chats ?? []).filter((c) => c.alive).map((c) => [c.chatId, c.lastSeq]));
+      for (const chat of listOpenChats()) {
+        if (chat.host?.hostId !== host.id || chat.host.botId) continue;
+        const seq = running.get(chat.id);
+        if (seq !== undefined && seq > chat.host.lastSeq) void follow(chat.id);
       }
     } catch (err) {
       const prior = listings.get(host.id);

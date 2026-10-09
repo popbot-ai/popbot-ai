@@ -21,6 +21,7 @@
  *   POST /v1/chats/:chatId/approve         { permissionId, decision }
  *   POST /v1/chats/:chatId/stop | compact | dispose
  *   POST /v1/chats/:chatId/rules           { rules }
+ *   PUT  /v1/chats/:chatId/meta            HostChatMeta → { ok }  (renamed, closed, reopened, gone)
  *   POST /v1/chats/:chatId/mcp-response    HostMcpResponse
  *   GET  /v1/chats/:chatId/events?after=N  SSE of HostFrame, replaying seq > N
  *   GET  /v1/bots                          → { bots: HostBotInfo[] }
@@ -176,12 +177,10 @@ export interface GithubTrigger {
   kind: 'github';
   /** `owner/name`; empty: the bot repo's GitHub origin. */
   repo: string | null;
+  /** Any of these on an open pull request wakes the bot — whoever opened
+   *  it, whoever put the label on. Putting one on takes triage access to
+   *  the repository, so the label is the gate. */
   labels: string[];
-  /** Whose pull requests count: teams (`org/team`), orgs, or `*`, comma
-   *  separated. Empty matches no one — the repositories are public, and
-   *  a stranger's pull request must never reach a bot that pushes code.
-   *  See shared/botTeams.ts. */
-  team: string;
   /** Seconds between looks. */
   pollSeconds: number;
 }
@@ -268,6 +267,19 @@ export interface HostSpawnBody {
   /** Give the agent the desktop's popbot tools, relayed over the chat's
    *  event stream. An older desktop leaves it out and gets none. */
   popbotMcp?: boolean;
+  /** The chat's name, for the host's own popbot tools — what other chats
+   *  on the host see when the desktop is away (see localPopbot.ts). */
+  chatName?: string | null;
+}
+
+/** What the desktop tells a host about a chat it runs, so the host's own
+ *  popbot tools (used while the desktop is away) show it as it is: its
+ *  name, whether it is open — a closed chat is not woken — and that it
+ *  has left the host altogether (deleted, or moved elsewhere). */
+export interface HostChatMeta {
+  name?: string;
+  open?: boolean;
+  gone?: boolean;
 }
 
 /** Permission rules as the desktop keeps them: the chat's own rules
@@ -366,10 +378,11 @@ export type HostFrame =
   /** The agent is waiting on this popbot MCP call; answer with
    *  `mcp-response`. A replay leaves out the ones already answered. */
   | { seq: number; kind: 'mcp-request'; id: string; request: HostMcpRequest }
-  /** The host itself sent the agent a message — a bot's trigger, or
-   *  another bot — which no desktop typed, so a desktop records it as
-   *  the user turn it is. `from` names the sender. */
-  | { seq: number; kind: 'prompt'; text: string; from: { id: string; name: string } }
+  /** The host itself sent the agent a message — a bot's trigger,
+   *  another bot, or another chat on the host while the desktop was away
+   *  — which no desktop typed, so a desktop records it as the user turn
+   *  it is. `from` names the sender. */
+  | { seq: number; kind: 'prompt'; text: string; from: { id: string; name: string; waiting?: boolean } }
   /** A bot answered a chat's message (its bots tool reply_to_chat),
    *  naming the reply id that message carried — never a chat. The
    *  desktop that issued the id delivers it, once: now, or when it next

@@ -1437,7 +1437,7 @@ export const fr = {
   'whatsNew.title': 'Nouveautés de PopBot',
   'whatsNew.f1.h': 'Des bots qui veillent',
   'whatsNew.f1.p':
-    'Ouvrez l’onglet Bots à côté de Conversations et donnez à un bot un nom, une machine et ses consignes. Il vit sur cet hôte, continue de travailler ordinateur éteint et se réveille sur des déclencheurs : une pull request GitHub (par label, venant des membres d’une équipe que vous nommez) ou un horaire. Chaque bot a sa propre identité GitHub, son e-mail et son image, peut écrire aux bots que vous autorisez et répond quand vos conversations lui posent une question.',
+    'Ouvrez l’onglet Bots à côté de Conversations et donnez à un bot un nom, une machine et ses consignes. Il vit sur cet hôte, continue de travailler ordinateur éteint et se réveille sur des déclencheurs : un label sur une pull request GitHub, ou un horaire. Chaque bot a sa propre identité GitHub, son e-mail et son image, peut écrire aux bots que vous autorisez et répond quand vos conversations lui posent une question.',
   'whatsNew.f2.h': 'Déplacez conversations et fichiers d’une machine à l’autre',
   'whatsNew.f2.p':
     'Déplacez une conversation vers une autre machine depuis son menu ☰ : les commits non poussés et les modifications non commitées suivent, et le dépôt est retrouvé par son nom. Les agents peuvent aussi envoyer un fichier de n’importe quelle taille à une conversation sur une autre machine — l’agent d’en face doit l’accepter, il arrive dans ~/popbot/sent_files, et une connexion coupée reprend là où elle s’était arrêtée.',

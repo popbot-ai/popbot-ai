@@ -16,27 +16,31 @@ function setup(): { config: HostConfig; path: string } {
   const config = { ...defaultConfig(), workspacesDir: join(dir, 'ws') };
   upsertBot(config, path, null, {
     name: 'Reviewer',
-    triggers: [{ id: 't1', kind: 'github', repo: 'org/site', labels: ['review'], team: 'web_devs', pollSeconds: 30 }],
+    triggers: [{ id: 't1', kind: 'github', repo: 'org/site', labels: ['review'], pollSeconds: 30 }],
   });
-  return { config, path };
+  // A field this build does not know, as a newer desktop would have saved it.
+  const raw = JSON.parse(readFileSync(path, 'utf8'));
+  raw.bots[0].triggers[0].newerField = 'set';
+  writeFileSync(path, JSON.stringify(raw));
+  return { config: loadConfig(path), path };
 }
 
 describe("a bot's settings survive builds that don't know them", () => {
-  it('keeps a trigger’s team when a save leaves it out — a desktop older than the field', () => {
+  it('keeps a trigger’s field when a save leaves it out — a desktop older than the field', () => {
     const { config, path } = setup();
-    // What a desktop from before team support sends: the trigger without it.
+    // What a desktop from before the field sends: the trigger without it.
     const older = { id: 't1', kind: 'github', repo: 'org/site', labels: ['review', 'ship'], pollSeconds: 30 };
     const bot = upsertBot(config, path, 'reviewer', { name: 'Reviewer', triggers: [older as never] });
-    expect(bot.triggers[0]).toMatchObject({ team: 'web_devs', labels: ['review', 'ship'] });
+    expect(bot.triggers[0]).toMatchObject({ newerField: 'set', labels: ['review', 'ship'] });
   });
 
   it('still clears it when a save says so', () => {
     const { config, path } = setup();
     const bot = upsertBot(config, path, 'reviewer', {
       name: 'Reviewer',
-      triggers: [{ id: 't1', kind: 'github', repo: 'org/site', labels: ['review'], team: '', pollSeconds: 30 }],
+      triggers: [{ id: 't1', kind: 'github', repo: 'org/site', labels: ['review'], pollSeconds: 30, newerField: '' } as never],
     });
-    expect(bot.triggers[0]).toMatchObject({ team: '' });
+    expect(bot.triggers[0]).toMatchObject({ newerField: '' });
   });
 
   it('keeps fields it does not know through a load and a save — a host older than them', () => {
@@ -49,7 +53,7 @@ describe("a bot's settings survive builds that don't know them", () => {
     writeConfig(path, loaded);
     const again = JSON.parse(readFileSync(path, 'utf8'));
     expect(again.bots[0].futureBotField).toEqual({ x: 1 });
-    expect(again.bots[0].triggers[0]).toMatchObject({ futureTriggerField: 'kept', team: 'web_devs' });
+    expect(again.bots[0].triggers[0]).toMatchObject({ futureTriggerField: 'kept', newerField: 'set' });
     expect(config.bots).toHaveLength(1);
   });
 });

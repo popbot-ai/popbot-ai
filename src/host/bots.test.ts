@@ -176,16 +176,11 @@ describe('bots on a host', () => {
   });
 
   it('refuses triggers it could not run', () => {
-    expect(() => bots.save('web-reviewer', { name: 'Web Reviewer', triggers: [{ id: 't1', kind: 'github', repo: 'o/r', labels: [], team: 'devs', pollSeconds: 30 }] }))
+    expect(() => bots.save('web-reviewer', { name: 'Web Reviewer', triggers: [{ id: 't1', kind: 'github', repo: 'o/r', labels: [], pollSeconds: 30 }] }))
       .toThrow(/at least one label/);
-    expect(() => bots.save('web-reviewer', { name: 'Web Reviewer', triggers: [{ id: 't1', kind: 'github', repo: null, labels: ['x'], team: 'devs', pollSeconds: 30 }] }))
+    expect(() => bots.save('web-reviewer', { name: 'Web Reviewer', triggers: [{ id: 't1', kind: 'github', repo: null, labels: ['x'], pollSeconds: 30 }] }))
       .toThrow(/repository/);
-    expect(() => bots.save('web-reviewer', { name: 'Web Reviewer', triggers: [{ id: 't1', kind: 'github', repo: 'o/r', labels: ['x'], team: 'not a team!', pollSeconds: 30 }] }))
-      .toThrow(/not a team/);
-    // Blank is allowed in the config — it just matches no one.
-    expect(bots.save('web-reviewer', { name: 'Web Reviewer', triggers: [{ id: 't1', kind: 'github', repo: 'o/r', labels: ['x'], team: '', pollSeconds: 30 }] }).triggers).toHaveLength(1);
-    expect(() => bots.save('web-reviewer', { name: 'Web Reviewer', triggers: [{ id: 't1', kind: 'github', repo: null, labels: ['x'], team: 'devs', pollSeconds: 30 }] }))
-      .toThrow(/repository/);
+    expect(bots.save('web-reviewer', { name: 'Web Reviewer', triggers: [{ id: 't1', kind: 'github', repo: 'o/r', labels: ['x'], pollSeconds: 30 }] }).triggers).toHaveLength(1);
     expect(() => bots.save('web-reviewer', { name: 'Web Reviewer', triggers: [{ id: 't1', kind: 'cron', schedule: '0 9 * *', message: '' }] }))
       .toThrow(/five fields/);
     // A good one is kept, and the stored token survives an edit that leaves it out.

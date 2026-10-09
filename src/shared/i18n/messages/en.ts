@@ -110,7 +110,7 @@ export const en = {
   'whatsNew.title': 'What’s new in PopBot',
   'whatsNew.f1.h': 'Bots that keep watch',
   'whatsNew.f1.p':
-    'Open the Bots tab beside Chats and give a bot a name, a machine and its orders. It lives on that host, keeps working with your computer off, and wakes on triggers: a GitHub pull request (by label, from members of a team you name) or a schedule. Each bot has its own GitHub identity, email and picture, can message the bots you allow, and answers when your chats ask it something.',
+    'Open the Bots tab beside Chats and give a bot a name, a machine and its orders. It lives on that host, keeps working with your computer off, and wakes on triggers: a label on a GitHub pull request, or a schedule. Each bot has its own GitHub identity, email and picture, can message the bots you allow, and answers when your chats ask it something.',
   'whatsNew.f2.h': 'Move chats and files between machines',
   'whatsNew.f2.p':
     'Move a chat to another machine from its ☰ menu: unpushed commits and uncommitted changes travel with it, and the repository is matched by name. Agents can also send a file of any size to a chat on another machine — the agent there has to accept it, it lands in ~/popbot/sent_files, and a dropped connection picks up where it stopped.',
@@ -357,11 +357,7 @@ export const en = {
   'bots.trigger.repoFromBot': "The bot's repository",
   'bots.trigger.labels': 'Labels',
   'bots.trigger.labelsPlaceholder': 'needs-review, ship-it',
-  'bots.trigger.team': 'Member of team',
-  'bots.trigger.teamPlaceholder': 'team, or org/team',
-  'bots.trigger.teamHint': "Only pull requests opened by members of these teams, or given the label by one of them, wake the bot; anyone else's are ignored. A team name is looked up in the repository's org — org/team names one elsewhere, org/* any member of an org. The bot's GitHub account has to be able to see the team.",
-  'bots.trigger.teamBlank': "Matches no one yet. Only pull requests opened by members of this team, or given the label by one of them, wake the bot — on a public repository, a stranger's code must never reach a bot that checks it out and pushes. A team name is looked up in the repository's org; org/team names one elsewhere, org/* any member of an org, * anyone.",
-  'bots.trigger.teamAnyone': "Anyone's pull request wakes this bot. On a public repository that includes strangers' code — be sure that is what you want.",
+  'bots.trigger.labelsHint': 'Any open pull request with one of these labels wakes the bot, whoever opened it and whoever put the label on. Putting a label on takes triage access to the repository, so the label is the gate.',
   'bots.trigger.every': 'Check every',
   'bots.trigger.seconds': 'seconds',
   'bots.trigger.schedule': 'Cron',

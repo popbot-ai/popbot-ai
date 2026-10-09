@@ -1430,7 +1430,7 @@ export const pl = {
   'whatsNew.title': 'Co nowego w PopBot',
   'whatsNew.f1.h': 'Boty, które pilnują',
   'whatsNew.f1.p':
-    'Otwórz kartę Boty obok Czatów i nadaj botowi nazwę, maszynę i polecenia. Żyje na tym hoście, pracuje dalej przy wyłączonym komputerze i budzi się na wyzwalacze: pull request na GitHubie (według etykiety, od członków wskazanego zespołu) albo harmonogram. Każdy bot ma własną tożsamość GitHub, e-mail i obrazek, może pisać do dozwolonych botów i odpowiada, gdy czaty o coś go zapytają.',
+    'Otwórz kartę Boty obok Czatów i nadaj botowi nazwę, maszynę i polecenia. Żyje na tym hoście, pracuje dalej przy wyłączonym komputerze i budzi się na wyzwalacze: etykieta na pull requeście w GitHubie albo harmonogram. Każdy bot ma własną tożsamość GitHub, e-mail i obrazek, może pisać do dozwolonych botów i odpowiada, gdy czaty o coś go zapytają.',
   'whatsNew.f2.h': 'Przenoś czaty i pliki między maszynami',
   'whatsNew.f2.p':
     'Przenieś czat na inną maszynę z jego menu ☰: niewypchnięte commity i niezatwierdzone zmiany jadą razem z nim, a repozytorium jest dopasowywane po nazwie. Agenci mogą też wysłać plik dowolnego rozmiaru do czatu na innej maszynie — tamtejszy agent musi go przyjąć, plik trafia do ~/popbot/sent_files, a zerwane połączenie wznawia się od miejsca, w którym stanęło.',
