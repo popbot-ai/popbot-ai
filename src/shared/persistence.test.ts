@@ -9,6 +9,7 @@ import {
   DEFAULT_CODEX_REASONING_EFFORT,
   closestReasoningEffort,
   codexReasoningEffortsForModel,
+  codexWireModel,
   normalizeClaudeModel,
   normalizeCodexModel,
 } from './persistence';
@@ -41,6 +42,18 @@ describe('model registry', () => {
     expect(CODEX_MODELS).not.toContain('gpt-5.5');
   });
 
+  it('offers GPT-6.1 Sol Fast: Sol on the priority tier, opt-in only', () => {
+    expect(CODEX_MODELS).toContain('gpt-6.1-sol-fast');
+    expect(CODEX_MODEL_LABELS['gpt-6.1-sol-fast']).toBe('GPT-6.1 Sol Fast');
+    expect(codexWireModel('gpt-6.1-sol-fast')).toEqual({ model: 'gpt-6.1-sol', serviceTier: 'priority' });
+    expect(codexWireModel('gpt-6.1-sol')).toEqual({ model: 'gpt-6.1-sol', serviceTier: null });
+    expect(codexReasoningEffortsForModel('gpt-6.1-sol-fast')).toEqual(codexReasoningEffortsForModel('gpt-6.1-sol'));
+    // Never a default, and nothing rolls onto it.
+    expect(DEFAULT_CODEX_MODEL).not.toBe('gpt-6.1-sol-fast');
+    expect(normalizeCodexModel('gpt-6.1-sol-fast')).toBe('gpt-6.1-sol-fast');
+    expect(normalizeCodexModel('gpt-5.6-sol')).toBe('gpt-6.1-sol');
+  });
+
   it('exposes GPT-6.1 Sol, the GPT-5.6 tiers and Claude Sonnet 5', () => {
     expect(CODEX_MODELS).toContain('gpt-6.1-sol');
     expect(CODEX_MODELS).toContain('gpt-5.6-terra');
@@ -56,7 +69,7 @@ describe('model registry', () => {
       'claude-fable-5',
       'claude-fable-5-1',
     ]);
-    expect(CODEX_MODELS).toEqual(['gpt-6.1-sol', 'gpt-5.6-terra', 'gpt-5.6-luna', 'gpt-6-astra']);
+    expect(CODEX_MODELS).toEqual(['gpt-6.1-sol', 'gpt-6.1-sol-fast', 'gpt-5.6-terra', 'gpt-5.6-luna', 'gpt-6-astra']);
   });
 
   it('keeps Opus 5 and Sol as the defaults — the newest tiers are opt-in only', () => {

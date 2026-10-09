@@ -28,7 +28,7 @@ import { app } from 'electron';
 import type { AgentEvent, PermissionDecision } from '@shared/agent';
 import type { PickedAttachment } from '@shared/ipc';
 import { DEFAULT_CONTEXT_BUDGET } from '@shared/contextUsage';
-import { DEFAULT_CODEX_MODEL, DEFAULT_CODEX_REASONING_EFFORT } from '@shared/persistence';
+import { DEFAULT_CODEX_MODEL, DEFAULT_CODEX_REASONING_EFFORT, codexWireModel } from '@shared/persistence';
 import type { AgentBackend, AgentSession, SpawnOpts } from './types';
 import { dlog } from '../diagLog';
 import {
@@ -196,8 +196,10 @@ class CodexAppServerSession implements AgentSession {
     });
     this.rpc.notify('initialized');
 
+    // A fast entry is its model on the priority tier (Codex's /fast).
+    const wire = codexWireModel(this.model);
     const overrides = {
-      model: this.model,
+      model: wire.model,
       ...(opts.cwd ? { cwd: opts.cwd } : {}),
       // PopBot has already resolved its shared policy into the sandbox
       // below. Ask fails closed until approvals are surfaced to the host.
@@ -205,6 +207,7 @@ class CodexAppServerSession implements AgentSession {
       sandbox: permissions.sandboxMode,
       config: {
         model_reasoning_effort: this.effort,
+        ...(wire.serviceTier ? { service_tier: wire.serviceTier } : {}),
         web_search: permissions.webSearchMode,
         sandbox_workspace_write: { network_access: permissions.networkAccessEnabled },
         ...(mcpConfig ? { mcp_servers: mcpConfig } : {}),
@@ -215,6 +218,7 @@ class CodexAppServerSession implements AgentSession {
       cwd: opts.cwd ?? null,
       resumeId: this.threadId,
       model: this.model,
+      serviceTier: wire.serviceTier,
       reasoningEffort: this.effort,
       permissions,
       codexPath: opts.pathToCodexExecutable ?? null,

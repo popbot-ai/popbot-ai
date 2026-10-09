@@ -134,6 +134,16 @@ describe('Codex app-server session', () => {
     expect(h.types()).toEqual(['status:running', 'turn-start']);
   });
 
+  it('runs GPT-6.1 Sol Fast as Sol on the priority tier', async () => {
+    const h = harness({ codexModel: 'gpt-6.1-sol-fast' });
+    await h.session.sendUser('hello');
+    await flush();
+    expect(h.server.last('thread/start').params).toMatchObject({
+      model: 'gpt-6.1-sol',
+      config: { model_reasoning_effort: 'high', service_tier: 'priority' },
+    });
+  });
+
   it('resumes the pinned thread instead of starting a new one', async () => {
     const h = harness({ sessionId: 'thread-old' });
     await h.session.sendUser('continue');

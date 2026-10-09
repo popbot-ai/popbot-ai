@@ -30,7 +30,7 @@ export const CLAUDE_MODELS = [
   'claude-fable-5',
   'claude-fable-5-1',
 ] as const;
-export const CODEX_MODELS = ['gpt-6.1-sol', 'gpt-5.6-terra', 'gpt-5.6-luna', 'gpt-6-astra'] as const;
+export const CODEX_MODELS = ['gpt-6.1-sol', 'gpt-6.1-sol-fast', 'gpt-5.6-terra', 'gpt-5.6-luna', 'gpt-6-astra'] as const;
 export const DEFAULT_CLAUDE_MODEL = 'claude-opus-5' as const;
 export const DEFAULT_CODEX_MODEL = 'gpt-6.1-sol' as const;
 export const DEFAULT_CLAUDE_REASONING_EFFORT = 'high' as const;
@@ -57,6 +57,7 @@ export const CLAUDE_MODEL_LABELS: Record<ClaudeModelId, string> = {
 };
 export const CODEX_MODEL_LABELS: Record<CodexModelId, string> = {
   'gpt-6.1-sol': 'GPT-6.1 Sol',
+  'gpt-6.1-sol-fast': 'GPT-6.1 Sol Fast',
   'gpt-5.6-terra': 'GPT-5.6 Terra',
   'gpt-5.6-luna': 'GPT-5.6 Luna',
   'gpt-6-astra': 'GPT-6 Astra',
@@ -111,6 +112,23 @@ export function normalizeCodexModel(value: string | null | undefined): CodexMode
   return DEFAULT_CODEX_MODEL;
 }
 
+/**
+ * PopBot model ids that are a Codex model run on its fast service tier —
+ * what Codex's `/fast` switches on: `service_tier = "priority"`, about 2x
+ * the speed for more usage. A picker entry of its own, and opt-in: no
+ * chat moves to one unless someone picks it.
+ */
+const CODEX_FAST_MODELS: Partial<Record<CodexModelId, string>> = {
+  'gpt-6.1-sol-fast': 'gpt-6.1-sol',
+};
+
+/** What Codex is asked for: the model, and the service tier when it is a
+ *  fast entry (null: the account's default tier). */
+export function codexWireModel(model: CodexModelId | string): { model: string; serviceTier: 'priority' | null } {
+  const base = CODEX_FAST_MODELS[model as CodexModelId];
+  return base ? { model: base, serviceTier: 'priority' } : { model, serviceTier: null };
+}
+
 /** Reasoning efforts each Codex model accepts, per the model catalog in
  *  the Codex CLI the SDK bundles (0.160.x):
  *
@@ -124,6 +142,7 @@ export function normalizeCodexModel(value: string | null | undefined): CodexMode
  *  Claude models all take the full {@link CLAUDE_REASONING_EFFORTS} ladder. */
 const CODEX_MODEL_REASONING_EFFORTS: Record<CodexModelId, readonly CodexReasoningEffort[]> = {
   'gpt-6.1-sol': ['low', 'medium', 'high', 'xhigh', 'max', 'ultra'],
+  'gpt-6.1-sol-fast': ['low', 'medium', 'high', 'xhigh', 'max', 'ultra'],
   'gpt-5.6-terra': ['low', 'medium', 'high', 'xhigh', 'max', 'ultra'],
   'gpt-5.6-luna': ['low', 'medium', 'high', 'xhigh', 'max'],
   'gpt-6-astra': ['low', 'medium', 'high', 'xhigh', 'max', 'ultra'],
