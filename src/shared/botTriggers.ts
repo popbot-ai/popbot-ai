@@ -5,8 +5,12 @@
 import type { BotTrigger, CronTrigger, GithubTrigger } from './hostProtocol';
 
 /** One pull request's line in a GitHub wake. */
-export function githubWakeLine(pr: { number: number; title: string; author: string; draft: boolean; url: string }, changes: string[]): string {
-  return `- PR #${pr.number} "${pr.title}" by @${pr.author}${pr.draft ? ' (draft)' : ''} — ${changes.join('; ')}\n  ${pr.url}`;
+export function githubWakeLine(
+  pr: { number: number; title: string; author: string; draft: boolean; url: string; labeledBy?: string | null },
+  changes: string[],
+): string {
+  const by = pr.labeledBy ? `, labeled by @${pr.labeledBy}` : '';
+  return `- PR #${pr.number} "${pr.title}" by @${pr.author}${by}${pr.draft ? ' (draft)' : ''} — ${changes.join('; ')}\n  ${pr.url}`;
 }
 
 export function githubWakeText(repo: string, trigger: Pick<GithubTrigger, 'labels'>, lines: string[], gone: string[]): string {
