@@ -289,7 +289,7 @@ export function ChatSettingsSheet({ chat, onClose, onFork }: ChatSettingsSheetPr
             </div>
           )}
 
-          {onFork && !chat.cloud && !chat.host && (
+          {onFork && !chat.cloud && !chat.host?.botId && (
             <div className="section">
               <h3>{t('chatSettings.fork')}</h3>
               <p className="pref-section-desc" style={{ marginBottom: 12 }}>

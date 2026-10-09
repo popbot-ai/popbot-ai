@@ -40,7 +40,7 @@ import { appendMessage, copyMessages, listMessages } from '../persistence/messag
 import { getSetting, setSetting } from '../persistence/settings';
 import { AgentHost, sessionCwdForChat } from '../agents/AgentHost';
 import { cloudStatus, endCloudSession, pullCloudBranch, testCloudApiKey } from '../agents/cloudSessions';
-import { HostRequestError, endHostSession, ensureHostWorkspace, hostSlots, releaseHostWorkspace } from '../agents/hostClient';
+import { HostRequestError, endHostSession, ensureHostWorkspace, hostRequest, hostSlots, releaseHostWorkspace } from '../agents/hostClient';
 import { getHost } from '../persistence/hosts';
 import { searchTranscripts } from '../search/transcriptSearch';
 import { getCodexBinaryPath } from '../agents/codexProbe';
@@ -52,7 +52,8 @@ import type { SourceControlProvider } from '../scm';
 import { getRepo, listRepos } from '../persistence/repos';
 import { slotWorktreePathForRepo, worktreesDirForRepo } from '../git/chatPaths';
 import { remountSlots, remountReposElevated } from '../shado/base';
-import { RAW_CHAT_REPO_ID, type RepoRecord } from '@shared/persistence';
+import { RAW_CHAT_REPO_ID, type ChatRecord, type HostChatInfo, type RepoRecord } from '@shared/persistence';
+import type { HostPackBody, HostUnpackBody, HostWorkspaceResult, PackedWork } from '@shared/hostProtocol';
 
 /** After a reboot, Windows drops the VHDX slot mounts. A dropped mount leaves
  *  the slot folder either EMPTY or as a BROKEN mount point (reading it errors).
@@ -153,6 +154,106 @@ function forkBranchName(sourceBranch: string): string {
     const candidate = `${base}-${n}`;
     if (!taken.has(candidate)) return candidate;
   }
+}
+
+/**
+ * Fork a chat that runs on a PopBot host. The fork runs on the same host:
+ *
+ *   - a chat on a branch gets its own checkout there, on `<branch>-fork`,
+ *     landed where the original's branch is now with its uncommitted work
+ *     on top — the original's work packed where it is and unpacked for the
+ *     fork, as moving a chat does (git/moveWork.ts), but with no bundle:
+ *     the commits are already in that repository;
+ *   - a chat on the repository root shares it, as a local one does;
+ *   - the transcript and permission rules are copied here, where they live.
+ *
+ * The agent's native session is on the host and stays there: the fork
+ * starts a fresh one, primed from the transcript on its first message,
+ * and told it is a fork (AgentHost.markForked).
+ */
+async function forkHostChat(source: ChatRecord, name: string): Promise<ForkChatResult> {
+  const from = source.host!;
+  if (from.botId) return { ok: false, reason: 'worktree-failed', message: "a bot's chat can't be forked" };
+  const host = getHost(from.hostId);
+  if (!host) return { ok: false, reason: 'host-not-found' };
+  const kind = from.kind;
+  const branch = kind === 'worktree' && from.branch ? forkBranchName(from.branch) : null;
+
+  const fork = createChat({
+    name,
+    ticket: source.ticket,
+    pr: source.pr,
+    prUrl: source.prUrl,
+    prAuthor: source.prAuthor,
+    branch,
+    type: source.type,
+    slotId: null,
+    worktreePath: null,
+    repoId: RAW_CHAT_REPO_ID,
+    agent: source.agent,
+    cloud: null,
+    host: { ...from, branch, slotId: null, slotPrefix: null, cwd: kind === 'scratch' ? null : from.cwd, lastSeq: 0, botId: undefined, botAvatar: undefined },
+    claudeModel: source.claudeModel,
+    claudeReasoningEffort: source.claudeReasoningEffort,
+    codexModel: source.codexModel,
+    codexReasoningEffort: source.codexReasoningEffort,
+  });
+  dlog('chat.fork.host', { from: source.id, to: fork.id, host: host.name, kind, branch, repoId: from.repoId });
+
+  try {
+    let ws: HostWorkspaceResult | null = null;
+    if (kind === 'worktree' && branch && from.branch) {
+      const packed = await hostRequest<{ work: PackedWork | null }>(
+        host, 'POST', `/v1/chats/${encodeURIComponent(source.id)}/pack`,
+        { repoId: from.repoId, branch: from.branch, keepSession: true } satisfies HostPackBody, 300_000,
+      );
+      if (!packed.work) throw new Error(`${host.name} found no work on "${from.branch}" to fork`);
+      ws = await hostRequest<HostWorkspaceResult>(
+        host, 'POST', `/v1/chats/${encodeURIComponent(fork.id)}/unpack`,
+        {
+          workspace: { kind: 'worktree', repoId: from.repoId, branch, baseBranch: from.baseBranch },
+          work: { ...packed.work, branch, bundleBase64: null },
+        } satisfies HostUnpackBody,
+        300_000,
+      );
+    } else if (kind === 'root') {
+      ws = await ensureHostWorkspace(host, fork.id, { kind, repoId: from.repoId, branch: null, baseBranch: from.baseBranch });
+    }
+    if (ws) {
+      const slotPrefix = ws.kind === 'slot' && from.repoId
+        ? await hostSlots(host, from.repoId).then((info) => info.slotPrefix).catch(() => null)
+        : null;
+      setChatHost(fork.id, { ...getChat(fork.id)!.host!, cwd: ws.cwd, slotId: ws.slotId, slotPrefix, branch: ws.branch ?? branch } satisfies HostChatInfo);
+    }
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    dlog('chat.fork.host.failed', { from: source.id, to: fork.id, host: host.name, branch, error: message });
+    await releaseHostWorkspace(host, fork.id, false).catch(() => undefined);
+    deleteChat(fork.id);
+    if (err instanceof HostRequestError && err.code === 'no-free-slot') return { ok: false, reason: 'no-free-slot' };
+    return { ok: false, reason: 'worktree-failed', message };
+  }
+
+  copyMessages(source.id, fork.id);
+  setChatPermissionRules(fork.id, getChatPermissionRules(source.id));
+  appendMessage({
+    chatId: fork.id,
+    role: 'system',
+    kind: 'system',
+    body: {
+      text: `fork: Forked from “${source.name}” on ${host.name}. ` +
+        'The agent starts a fresh session there, primed with this conversation, on your next message.',
+    },
+  });
+  AgentHost.markForked(fork.id, { fromName: source.name, fromCwd: from.cwd, at: Date.now() });
+
+  const ids = listOpenChats().map((c) => c.id).filter((id) => id !== fork.id);
+  const at = ids.indexOf(source.id);
+  ids.splice(at < 0 ? ids.length : at + 1, 0, fork.id);
+  reorderChats(ids);
+
+  const created = getChat(fork.id);
+  return created ? { ok: true, chat: created } : { ok: false, reason: 'not-found' };
 }
 
 export function ephemeralPathFor(opts: {
@@ -276,6 +377,7 @@ export function registerChatHandlers(): void {
     const source = getChat(input.chatId);
     if (!source) return { ok: false, reason: 'not-found' };
     const name = input.name?.trim() || `${source.name} (fork)`;
+    if (source.host) return forkHostChat(source, name);
     const repo = source.branch ? resolveRepo(source.repoId) : null;
     const branch = source.branch && repo ? forkBranchName(source.branch) : null;
 

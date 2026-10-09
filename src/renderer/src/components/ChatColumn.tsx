@@ -703,21 +703,24 @@ export function ChatColumn({
               {t('chatSettings.rapidReReview')}
             </button>
           )}
+          {/* Host chats fork too, onto the same host; a bot's chat does not. */}
+          {!chat.cloud && !chat.host?.botId && (
+            <button
+              type="button"
+              className="chat-menu-item"
+              role="menuitem"
+              // A fork copies the agent's session as it stands; mid-turn
+              // that is a half-written transcript.
+              disabled={!onFork || chat.status === 'run'}
+              title={chat.status === 'run' ? t('chatSettings.forkRunningHint') : undefined}
+              onClick={() => { setMenu(null); void onFork?.(); }}
+            >
+              <i className="fa-solid fa-code-fork" aria-hidden="true" />
+              {t('chatSettings.forkButton')}
+            </button>
+          )}
           {!chat.cloud && !chat.host && (
             <>
-              <button
-                type="button"
-                className="chat-menu-item"
-                role="menuitem"
-                // A fork copies the agent's session as it stands; mid-turn
-                // that is a half-written transcript.
-                disabled={!onFork || chat.status === 'run'}
-                title={chat.status === 'run' ? t('chatSettings.forkRunningHint') : undefined}
-                onClick={() => { setMenu(null); void onFork?.(); }}
-              >
-                <i className="fa-solid fa-code-fork" aria-hidden="true" />
-                {t('chatSettings.forkButton')}
-              </button>
               <button
                 type="button"
                 className="chat-menu-item"

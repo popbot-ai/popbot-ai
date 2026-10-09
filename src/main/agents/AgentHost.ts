@@ -514,10 +514,13 @@ class AgentHostImpl {
     const forkNote = firstOfSession ? this.pendingForkNote(chatId) : null;
     // A cloud chat's working directory is in the sandbox, not here; its
     // backend writes its own first-message preamble.
-    // A host chat's backend does the same for its own working directory.
-    const preamble = firstOfSession && !isCompactCommand && !chat.cloud && !chat.host
-      ? firstMessageCwdPreamble(chat, isFresh, resumed, forkNote)
-      : '';
+    // A host chat's backend does the same for its own working directory —
+    // all a forked one needs from here is the fork note.
+    const preamble = !firstOfSession || isCompactCommand || chat.cloud
+      ? ''
+      : chat.host
+        ? (forkNote ? forkPreamble(chat.host.cwd, forkNote) : '')
+        : firstMessageCwdPreamble(chat, isFresh, resumed, forkNote);
 
     const storedAttachments = await persistChatAttachments(chatId, attachments);
     const userMsg = appendMessage({

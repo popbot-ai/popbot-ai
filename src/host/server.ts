@@ -271,9 +271,10 @@ export function createHostServer(opts: {
           return json(res, 200, await workspaces.ensure(chatId, body as unknown as HostWorkspaceRequest));
         case 'pack': {
           // A chat moving away: its work, packed. The session goes first so
-          // nothing changes the checkout while it is read.
+          // nothing changes the checkout while it is read — unless the chat
+          // is only being forked, and stays (it is idle: forks wait for that).
           const b = body as HostPackBody;
-          await sessions.dispose(chatId);
+          if (b.keepSession !== true) await sessions.dispose(chatId);
           const held = workspaces.held(chatId);
           const heldRepo = workspaces.heldRepo(chatId);
           try {
