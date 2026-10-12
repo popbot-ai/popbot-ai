@@ -28,6 +28,7 @@ import { removeRepo, upsertRepo, type HostConfig } from './config';
 import { listBranches } from './git';
 import { FileOpError, abortPart, commitPart, readFileFrom, statFile, writePartFrom } from '../main/transfer/fileOps';
 import { applyWorkChanges, packWork, unpackBranch } from '../main/git/moveWork';
+import type { HostMailbox } from './hostMailbox';
 import { HostError, HostSessions } from './sessions';
 import { HostWorkspaceError, type HostWorkspaces } from './workspaces';
 
@@ -44,6 +45,8 @@ export function createHostServer(opts: {
   workspaces: HostWorkspaces;
   bots: HostBots;
   cli: { claude: string | null; codex: string | null };
+  /** The host's own mailboxes, taken over by a desktop that comes back. */
+  mail?: HostMailbox;
 }): Server {
   const { config, sessions, workspaces, bots } = opts;
 
@@ -127,6 +130,18 @@ export function createHostServer(opts: {
         bots: bots.list(),
       };
       return json(res, 200, info);
+    }
+
+    // Mail its chats sent while no desktop could be reached: a desktop
+    // that is back takes it all into its own mailbox (hostMailbox.ts).
+    if (parts[1] === 'mailbox' && opts.mail) {
+      if (req.method === 'GET' && parts.length === 2) return json(res, 200, { messages: opts.mail.takeAll() });
+      if (req.method === 'POST' && parts[2] === 'taken' && parts.length === 3) {
+        const b = (await readJson(req)) as { ids?: unknown };
+        const ids = Array.isArray(b.ids) ? b.ids.filter((x): x is string => typeof x === 'string') : [];
+        opts.mail.taken(ids);
+        return json(res, 200, { ok: true, taken: ids.length });
+      }
     }
 
     // A file transfer to or from this machine (src/main/transfer/). Reads
@@ -246,6 +261,7 @@ export function createHostServer(opts: {
           ...(typeof b.name === 'string' ? { name: b.name } : {}),
           ...(typeof b.open === 'boolean' ? { open: b.open } : {}),
           ...(b.gone === true ? { gone: true } : {}),
+          ...(Array.isArray(b.manages) ? { manages: b.manages } : {}),
         });
         return json(res, 200, { ok: true });
       }
@@ -261,7 +277,7 @@ export function createHostServer(opts: {
         case 'approve': {
           const b = body as unknown as HostApproveBody;
           if (typeof b.permissionId !== 'string' || typeof b.decision !== 'string') return json(res, 400, { error: 'permissionId and decision required' });
-          sessions.approve(chatId, b.permissionId, b.decision as PermissionDecision);
+          sessions.approve(chatId, b.permissionId, b.decision as PermissionDecision, typeof b.reason === 'string' ? b.reason : undefined);
           return json(res, 200, { ok: true });
         }
         case 'stop':

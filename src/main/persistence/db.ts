@@ -411,6 +411,24 @@ const SCHEMA = [
   UPDATE settings SET value = replace(replace(value, '"gpt-5.6-sol"', '"gpt-6.1-sol"'), '"gpt-6-sol"', '"gpt-6.1-sol"')
     WHERE value LIKE '%gpt-5.6-sol%' OR value LIKE '%gpt-6-sol%';
   `,
+  // v28 — agent mailboxes: what one chat's agent sends another, and the
+  // replies, kept here and read with the popbot tools — never put into a
+  // conversation (src/main/mailbox/). deleted_at: deleted by its reader.
+  `
+  CREATE TABLE IF NOT EXISTS mailbox (
+    id TEXT PRIMARY KEY,
+    to_chat_id TEXT NOT NULL,
+    from_chat_id TEXT,
+    from_name TEXT NOT NULL,
+    summary TEXT NOT NULL,
+    body TEXT,
+    reply_to TEXT,
+    created_at INTEGER NOT NULL,
+    read_at INTEGER,
+    deleted_at INTEGER
+  );
+  CREATE INDEX IF NOT EXISTS idx_mailbox_to ON mailbox(to_chat_id, deleted_at, read_at);
+  `,
 ];
 
 export function initDb(): Database.Database {

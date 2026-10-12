@@ -58,6 +58,8 @@ import { AgentHost } from './agents/AgentHost';
 import { probeClaudeAndNotify } from './agents/claudeProbe';
 import { probeCodexForPath } from './agents/codexProbe';
 import { registerChatHandlers } from './ipc/chats';
+import { desktopMailbox } from './mailbox/desktopMailbox';
+import { startAutoContinue } from './agents/autoContinue';
 import { registerAgentHandlers } from './ipc/agent';
 import { registerSettingsHandlers } from './ipc/settings';
 import { registerTicketHandlers } from './ipc/tickets';
@@ -539,6 +541,11 @@ void app.whenReady().then(async () => {
   // PopBot (see mcp/server.ts). Localhost, random port, secret in the
   // path. Chats spawned before it is up simply don't get it.
   void startPopbotMcp(createPopbotToolHandlers());
+  // Nudge quiet chats set to auto-continue (agents/autoContinue.ts), and
+  // run the mailbox clock from launch: mail already waiting, or taken
+  // over from a host, is told about and expires (mailbox/).
+  startAutoContinue();
+  desktopMailbox();
   // Sweep notifications older than 30 days at startup so the table
   // doesn't accrete unbounded. Cheap synchronous DELETE.
   pruneOlderThan(Date.now() - 30 * 24 * 60 * 60 * 1000);

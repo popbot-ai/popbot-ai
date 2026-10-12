@@ -155,7 +155,7 @@ import type {
 } from '@shared/persistence';
 import ReactDiffViewer, { DiffMethod } from 'react-diff-viewer-continued';
 import { isYesNoQuestion, looksLikeQuestion } from '@shared/questionDetect';
-import { useMessages } from '../lib/useMessages';
+import { TRIM_ABOVE, TRIM_TO, useMessages } from '../lib/useMessages';
 import { getExternalEditor } from '../lib/editor';
 import { useTranslation } from '../lib/i18n';
 import { JUMP_EVENT, clearJump, peekJump } from '../lib/jumpToMessage';
@@ -274,7 +274,9 @@ function LiveChatBodyImpl({
   onDecidePermission,
 }: LiveChatBodyProps): JSX.Element {
   const { t } = useTranslation();
-  const { messages, loading } = useMessages(chatId);
+  // Opened at its newest page; older history is read back as the view
+  // reaches the top of what is loaded (useMessages › loadOlder).
+  const { messages, loading, hasOlder, loadOlder, trimOlder } = useMessages(chatId);
   // Index of the first message currently mounted. The mounted slice is
   // `messages[windowStart .. windowStart + cap]` where `cap` is
   // TAIL_WINDOW or BROWSE_WINDOW depending on `sticky`.
@@ -290,6 +292,12 @@ function LiveChatBodyImpl({
   // changes the rendered slice — we need a re-render on the flip.
   const [sticky, setSticky] = useState<boolean>(true);
   const cap = sticky ? TAIL_WINDOW : BROWSE_WINDOW;
+  // A chat that runs on grows its loaded history without end: past
+  // TRIM_ABOVE, drop back to the newest TRIM_TO — only while following
+  // the bottom, so history being read is never pulled away.
+  useEffect(() => {
+    if (sticky && messages.length > TRIM_ABOVE) trimOlder(TRIM_TO);
+  }, [sticky, messages.length, trimOlder]);
   // A "go to message" from the Search panel: the id we're steering the
   // window toward, and the row to flash once it's on screen.
   const jumpTargetRef = useRef<string | null>(null);
@@ -301,6 +309,15 @@ function LiveChatBodyImpl({
       if (!id) return;
       if (loading) return; // try again once the transcript is in
       const idx = messages.findIndex((m) => m.id === id);
+      // Not loaded yet: read older pages until it is (the effect runs
+      // again as each arrives), or until the start of the chat.
+      if (idx < 0 && hasOlder) {
+        // Stop following the bottom first: following trims loaded history,
+        // which would throw away the pages this is reading back.
+        setSticky(false);
+        void loadOlder();
+        return;
+      }
       clearJump(chatId);
       if (idx < 0) return; // gone (deleted, or a different transcript)
       jumpTargetRef.current = id;
@@ -315,7 +332,7 @@ function LiveChatBodyImpl({
     };
     window.addEventListener(JUMP_EVENT, onEvent);
     return () => window.removeEventListener(JUMP_EVENT, onEvent);
-  }, [chatId, messages, loading]);
+  }, [chatId, messages, loading, hasOlder, loadOlder]);
   useLayoutEffect(() => {
     const id = jumpTargetRef.current;
     const el = scrollRef.current;
@@ -522,7 +539,9 @@ function LiveChatBodyImpl({
       const wantSlideForward =
         distFromBottom < SLIDE_THRESHOLD_PX &&
         windowStart + cap < messages.length;
-      if (!wantSlideBack && !wantSlideForward) return;
+      // At the top of what is loaded, reading back: fetch the page above.
+      const wantOlder = !sticky && el.scrollTop < SLIDE_THRESHOLD_PX && windowStart === 0 && hasOlder;
+      if (!wantSlideBack && !wantSlideForward && !wantOlder) return;
 
       slidePendingRef.current = true;
       slideTimer = setTimeout(() => {
@@ -534,6 +553,20 @@ function LiveChatBodyImpl({
         const currentEl = scrollRef.current;
         if (!currentEl) return;
         if (programmaticScrollRef.current || slidingRef.current) return;
+        if (wantOlder && !wantSlideBack) {
+          if (currentEl.scrollTop >= SLIDE_THRESHOLD_PX) return;
+          void loadOlder().then((added) => {
+            const live = scrollRef.current;
+            if (added <= 0 || !live) return;
+            // The rows above arrive in this same update: move the window
+            // by as many so the same rows stay mounted, then slide back a
+            // batch as a scroll to the top normally does.
+            slidingRef.current = true;
+            captureAnchor(live);
+            setWindowStart((prev) => Math.max(0, prev + added - SLIDE_BATCH));
+          });
+          return;
+        }
         if (wantSlideBack) {
           if (currentEl.scrollTop >= SLIDE_THRESHOLD_PX || windowStart <= 0) return;
           slidingRef.current = true;
@@ -556,7 +589,7 @@ function LiveChatBodyImpl({
       el.removeEventListener('scroll', onScroll);
       cancelPendingSlide();
     };
-  }, [windowStart, messages.length, sticky, cap]);
+  }, [windowStart, messages.length, sticky, cap, hasOlder, loadOlder]);
 
   // After every render: restore scroll via anchor if one was captured;
   // otherwise snap to bottom if the user was sticky-bottom. Any write

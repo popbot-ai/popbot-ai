@@ -12,6 +12,7 @@ import { defaultConfig, type HostConfig } from './config';
 import { localPopbotHandlers, popbotRoute } from './localPopbot';
 import { startMcpRelay, type McpRelayServer } from './mcpRelay';
 import { HostSessions } from './sessions';
+import { createHostMailbox, type HostMailbox } from './hostMailbox';
 import { HostWorkspaces } from './workspaces';
 
 // The agent is a fake: every message it is sent gets a one-message turn
@@ -55,11 +56,18 @@ describe("a host's chats with no desktop connected", () => {
   let local: PopbotMcpServer;
   let relay: McpRelayServer;
 
+  let mail: HostMailbox;
+
   function start(): HostSessions {
     const workspaces = new HostWorkspaces(config);
     const s = new HostSessions(config, { claude: null, codex: null }, workspaces);
     bots = new HostBots(config, join(dir, 'config.json'), s);
     s.useBots(bots);
+    // As index.ts does: the host's mailboxes, and bots answering into them.
+    mail = createHostMailbox(config, s);
+    bots.useChatInbox((chatId, botName, text) => {
+      mail.mailbox.post({ to: chatId, from: null, senderName: botName, summary: text.slice(0, 50), body: text });
+    });
     return s;
   }
 
@@ -69,12 +77,14 @@ describe("a host's chats with no desktop connected", () => {
     sessions = start();
     local = await startPopbotMcpServer(localPopbotHandlers({
       hostName: config.name, version: 'test', cli: { claude: null, codex: null }, repos: () => [],
-      sessions, workspaces: new HostWorkspaces(config), bots,
+      sessions, workspaces: new HostWorkspaces(config), bots, mailbox: mail.mailbox,
     }), { version: 'test' });
     relay = await startMcpRelay(popbotRoute(sessions, local.urlFor));
     sessions.useMcpRelay(relay.urlFor);
     await sessions.spawn('chat_alpha', spawnBody('Alpha'));
     await sessions.spawn('chat_beta', spawnBody('Beta'));
+    // The user made Alpha Beta's manager.
+    sessions.setMeta('chat_alpha', { manages: ['chat_beta'] });
   });
   afterAll(async () => {
     bots.stop();
@@ -102,19 +112,32 @@ describe("a host's chats with no desktop connected", () => {
     expect(chats.find((c) => c.id === 'chat_alpha')).toMatchObject({ isCaller: true, host: 'winbox' });
   });
 
-  it('delivers a message to another chat and returns its answer', async () => {
-    const res = await call('chat_alpha', 'send_to_chat', { summary: 'Quick question.', chatId: 'chat_beta', text: 'what is the build status?' });
-    expect(JSON.parse(res.text)).toMatchObject({ outcome: 'replied', reply: 'echo: what is the build status?' });
-    // Logged as from Alpha, for the desktop to record when it is back.
+  it('puts a message in the target\'s mailbox and tells it so at once — the text it asks for', async () => {
+    const res = await call('chat_alpha', 'send_to_chat', { chatId: 'chat_beta', summary: 'Build status?', text: 'what is the build status?' });
+    const sentMsg = JSON.parse(res.text) as { messageId: string; delivered: string };
+    expect(sentMsg.delivered).toBe('interrupted');
+    // Beta is told who and what about, never the text.
+    await vi.waitFor(() => expect(sent.get('chat_beta')?.at(-1)).toContain('Alpha sent you a message: Build status?'));
+    expect(sent.get('chat_beta')!.at(-1)).not.toContain('what is the build status');
     const prompt = sessions.get('chat_beta')!.frames.find((f): f is Extract<HostFrame, { kind: 'prompt' }> => f.kind === 'prompt');
-    expect(prompt).toMatchObject({ text: 'what is the build status?', from: { id: 'chat_alpha', name: 'Alpha', waiting: true } });
-    // The agent is told who it is from.
-    expect(sent.get('chat_beta')!.at(-1)).toContain('PopBot chat "Alpha" (chat id chat_alpha)');
+    expect(prompt).toMatchObject({ from: { id: 'chat_alpha', name: 'Alpha', summary: 'Build status?' } });
+    // It reads it when it chooses, and answers into Alpha's mailbox.
+    const read = JSON.parse((await call('chat_beta', 'read_message', { messageId: sentMsg.messageId })).text) as { body: string };
+    expect(read.body).toBe('what is the build status?');
+    const alphaPromptsBefore = sessions.get('chat_alpha')!.frames.filter((f) => f.kind === 'prompt').length;
+    await call('chat_beta', 'reply', { messageId: sentMsg.messageId, summary: 'Green, all passing' });
+    // Alpha is not interrupted by the answer: it is in its mailbox.
+    expect(sessions.get('chat_alpha')!.frames.filter((f) => f.kind === 'prompt')).toHaveLength(alphaPromptsBefore);
+    const box = JSON.parse((await call('chat_alpha', 'list_mailbox', {})).text) as { messages: Array<{ from: string; summary: string; hasBody: boolean }> };
+    expect(box.messages[0]).toMatchObject({ from: 'Beta', summary: 'Green, all passing', hasBody: false });
   });
 
-  it('finds a chat by its name too', async () => {
-    const res = await call('chat_beta', 'send_to_chat', { summary: 'Quick question.', chatId: 'Alpha', text: 'thanks', waitForReply: false });
-    expect(JSON.parse(res.text)).toMatchObject({ outcome: 'sent' });
+  it('lets a worker write mail to its manager, not message it — and shows who mail is from', async () => {
+    const refused = await call('chat_beta', 'send_to_chat', { chatId: 'Alpha', summary: 'Thanks' });
+    expect(refused.text).toMatch(/only a manager can message its workers/);
+    await call('chat_beta', 'send_mail', { chatId: 'Alpha', summary: 'Thanks' });
+    const box = JSON.parse((await call('chat_alpha', 'list_mailbox', {})).text) as { messages: Array<{ summary: string; relationship: string }> };
+    expect(box.messages[0]).toMatchObject({ summary: 'Thanks', relationship: 'WORKER' });
   });
 
   it('says what needs the desktop', async () => {
@@ -141,8 +164,9 @@ describe("a host's chats with no desktop connected", () => {
     const told = sent.get(botChatId('helper'))!.at(-1)!;
     const replyId = /replyId "(r_[a-f0-9]+)"/.exec(told)![1];
     expect(await bots.replyToChat('helper', replyId, '#13 looks good')).toEqual({ ok: true });
-    const last = sessions.get('chat_alpha')!.frames.filter((f) => f.kind === 'prompt').at(-1);
-    expect(last).toMatchObject({ text: '#13 looks good', from: { id: botChatId('helper'), name: 'Helper' } });
+    // The answer is in Alpha's inbox, not its conversation.
+    const box = JSON.parse((await call('chat_alpha', 'list_mailbox', {})).text) as { messages: Array<{ from: string; summary: string }> };
+    expect(box.messages[0]).toMatchObject({ from: 'Helper', summary: '#13 looks good' });
     // Once only.
     expect(await bots.replyToChat('helper', replyId, 'again')).toMatchObject({ error: expect.any(String) });
   });
@@ -161,23 +185,23 @@ describe("a host's chats with no desktop connected", () => {
   });
 
   it('reads a chat as the host has it — both sides, without the desktop\'s preamble', async () => {
-    await sessions.send('chat_beta', { text: '[System] Starting up on the host "winbox".\n\nhello from the desktop' });
+    await sessions.send('chat_beta', { text: '[PopBot] Other agents work alongside you.\n\n[System] Starting up on the host "winbox".\n\nhello from the desktop' });
     await vi.waitFor(() => expect(sessions.isBusy('chat_beta')).toBe(false));
     const res = await call('chat_alpha', 'get_chat_transcript', { chatId: 'Beta (renamed)' });
     const out = JSON.parse(res.text) as { chatId: string; text: string };
     expect(out.chatId).toBe('chat_beta');
-    expect(out.text).toContain('(from Alpha) what is the build status?');
-    expect(out.text).toContain('echo: what is the build status?');
+    expect(out.text).toContain('(from Alpha) Alpha sent you a message: Build status?');
     expect(out.text).toContain('user @');
     expect(out.text).toContain('hello from the desktop');
     expect(out.text).not.toContain('[System]');
+    expect(out.text).not.toContain('[PopBot]');
   });
 
   it('searches the chats on the host', async () => {
     const res = await call('chat_alpha', 'search_chats', { query: 'build status', allChats: true });
     const { matches } = JSON.parse(res.text) as { matches: Array<{ chatId: string; match: string }> };
     expect(matches.length).toBeGreaterThan(0);
-    expect(matches.every((m) => m.chatId === 'chat_beta' && m.match === 'build status')).toBe(true);
+    expect(matches.every((m) => m.chatId === 'chat_beta' && m.match.toLowerCase() === 'build status')).toBe(true);
     const words = JSON.parse((await call('chat_alpha', 'search_chats', { query: 'status build', allChats: true, mode: 'fts' })).text) as { matches: unknown[] };
     expect(words.matches.length).toBeGreaterThan(0);
   });
@@ -228,11 +252,13 @@ describe("a host's chats with no desktop connected", () => {
     const restarted = start();
     const handlers = localPopbotHandlers({
       hostName: config.name, version: 'test', cli: { claude: null, codex: null }, repos: () => [],
-      sessions: restarted, workspaces: new HostWorkspaces(config), bots,
+      sessions: restarted, workspaces: new HostWorkspaces(config), bots, mailbox: mail.mailbox,
     });
     expect(restarted.get('chat_beta')).toBeUndefined();
-    const res = await handlers.sendToChat({ chatId: 'chat_beta', text: 'still there?', summary: 'Checking Beta is still around.', waitForReply: true, timeoutSeconds: 10 }, 'chat_alpha');
-    expect(res).toMatchObject({ outcome: 'replied', reply: 'echo: still there?' });
+    const res = await handlers.sendToChat({ chatId: 'chat_beta', summary: 'Still there?' }, 'chat_alpha');
+    expect(res).toMatchObject({ delivered: 'interrupted' });
+    // Woken from what the host remembered, and told.
+    await vi.waitFor(() => expect(sent.get('chat_beta')?.at(-1)).toContain('Alpha sent you a message: Still there?'));
     // Its log went on from where it was, so a desktop reading by seq misses nothing.
     const frames = restarted.get('chat_beta')!.frames;
     expect(frames[0].seq).toBe(1);

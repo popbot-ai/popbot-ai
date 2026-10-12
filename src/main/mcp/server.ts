@@ -40,7 +40,13 @@ export interface ChatSummary {
   lastActiveAt: number;
   /** The chat the tool call came from. */
   isCaller: boolean;
+  /** What it is to the caller, as the user set it: its WORKER (the
+   *  caller manages it), its MANAGER (it manages the caller), or OTHER.
+   *  Only WORKERs can be sent messages or files; anyone can be mailed. */
+  relationship: Relationship;
 }
+
+export type Relationship = 'WORKER' | 'MANAGER' | 'OTHER';
 
 /** A host from Preferences ▸ Hosts, as it answered just now. */
 export interface HostSummary {
@@ -96,6 +102,34 @@ export interface FileTransferSummary {
 
 export type ToolFailure = { error: string };
 
+/** A message as list_mailbox shows it: enough to decide, no body. */
+export interface MailListing {
+  id: string;
+  from: string;
+  fromChat: string | null;
+  /** Who it is from, to you: your WORKER, your MANAGER, or OTHER (any
+   *  other agent, or PopBot itself). */
+  relationship: Relationship;
+  summary: string;
+  hasBody: boolean;
+  replyTo: string | null;
+  at: string;
+  /** Every message is gone five minutes after it arrived. */
+  expires: string;
+  read: boolean;
+}
+
+/** A message as read_message returns it. */
+export interface MailRead {
+  id: string;
+  from: string;
+  fromChat: string | null;
+  summary: string;
+  body: string | null;
+  replyTo: string | null;
+  at: string;
+}
+
 /** Everything the tools do, as plain functions. `caller` is the chat id
  *  the request came from (null for a request with no chat, e.g. tests). */
 export interface PopbotToolHandlers {
@@ -107,10 +141,25 @@ export interface PopbotToolHandlers {
   ): Promise<{ chat: ChatSummary } | ToolFailure>;
   closeChat(input: { chatId: string; keepChanges: boolean }, caller: string | null): Promise<{ ok: true; chatId: string } | ToolFailure>;
   reopenChat(input: { chatId: string }, caller: string | null): Promise<{ chat: ChatSummary } | ToolFailure>;
+  /** Mailboxes (src/main/mailbox/): a message goes into the receiver's
+   *  mailbox, never its conversation — it is told only that mail waits. */
   sendToChat(
-    input: { chatId: string; text: string; summary: string; sender_name?: string; waitForReply: boolean; timeoutSeconds: number },
+    input: { chatId: string; text?: string; summary: string; sender_name?: string },
     caller: string | null,
-  ): Promise<{ outcome: 'sent' | 'replied' | 'timeout' | 'needs-permission' | 'errored'; reply: string; entries: number } | ToolFailure>;
+  ): Promise<{ messageId: string; to: string; delivered: 'interrupted' | 'mailbox' } | ToolFailure>;
+  reply(
+    input: { messageId: string; text?: string; summary: string; sender_name?: string },
+    caller: string | null,
+  ): Promise<{ messageId: string; to: string } | ToolFailure>;
+  /** Mail any chat: into its inbox, a file attached or not — never
+   *  interrupting it. */
+  sendMail(
+    input: { chatId: string; summary: string; text?: string; attach?: string; from?: string; sender_name?: string },
+    caller: string | null,
+  ): Promise<{ messageId: string; to: string; transferId?: string } | ToolFailure>;
+  listMailbox(caller: string | null): { messages: MailListing[] } | ToolFailure;
+  readMessage(input: { messageId: string }, caller: string | null): MailRead | ToolFailure;
+  deleteMessages(input: { messageIds: string[] }, caller: string | null): { deleted: string[]; missing: string[] } | ToolFailure;
   startCodeReview(input: { prNumber: number; scm: 'git' | 'perforce' }, caller: string | null): Promise<{ chat: ChatSummary; existing: boolean } | ToolFailure>;
   openTicketChat(input: { ticket: string; repoId?: string; baseBranch?: string }, caller: string | null): Promise<{ chat: ChatSummary; existing: boolean } | ToolFailure>;
   getTranscript(
@@ -160,9 +209,9 @@ async function guarded<T>(fn: () => T | Promise<T>): Promise<ReturnType<typeof t
 
 /** A message's summary: what the person reading the receiving chat sees,
  *  the full message folded under it. One short sentence on one line. */
-export const MESSAGE_SUMMARY = z.string().trim().min(1).max(120)
+export const MESSAGE_SUMMARY = z.string().trim().min(1).max(50)
   .regex(/^[^\r\n]+$/, 'one line')
-  .describe('Required. One short, casual sentence on one line saying what this message is about, as you would to a colleague — short and to the point, e.g. "Asking Jim if he has the build.log file that I need." The person watching sees this instead of the message; the full text opens on a click.');
+  .describe('Required. At most 50 characters on one line saying what this message is — short, casual, to the point, e.g. "Do you have build.log?" It is all the receiver sees until it opens the message, and may be the whole message.');
 
 /** The sending agent's own name, when it has been given one. */
 export const AGENT_NAME = z.string().trim().min(1).max(40).regex(/^[^\r\n]+$/, 'one line').optional()
@@ -173,7 +222,7 @@ export function registerPopbotTools(server: McpServer, h: PopbotToolHandlers, ca
   server.registerTool('list_chats', {
     title: 'List chats',
     annotations: { readOnlyHint: true, openWorldHint: false },
-    description: 'PopBot chats: id, name, status (idle/run/wait/err), agent, repo, branch, ticket, PR, whether it is a cloud chat, the PopBot host it runs on (null: this computer), and which one is you (isCaller). Closed (archived) chats are included on request. Bots are listed by list_bots, not here.',
+    description: 'PopBot chats: id, name, status (idle/run/wait/err), agent, repo, branch, ticket, PR, whether it is a cloud chat, the PopBot host it runs on (null: this computer), which one is you (isCaller), and what each is to you (relationship): WORKER (you manage it), MANAGER (it manages you), or OTHER. Messages and files (send_to_chat, transfer_file) go only to your workers, whom the user decides; mail (send_mail, a file attached or not) goes to anyone. Closed chats whose agent is still running are listed too; the other closed (archived) chats on request. Bots are listed by list_bots, not here.',
     inputSchema: {
       includeClosed: z.boolean().default(false).describe('Also list closed/archived chats'),
       host: z.string().optional().describe('Only the chats on this PopBot host (a name or id from list_hosts), or "local" for this computer\'s'),
@@ -250,16 +299,61 @@ export function registerPopbotTools(server: McpServer, h: PopbotToolHandlers, ca
   server.registerTool('send_to_chat', {
     title: 'Message another chat',
     annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
-    description: 'Send a message to another chat’s agent. It arrives attributed to you — your chat’s name and id, and whether you are waiting — so that agent knows it is not from its user and how to answer. With waitForReply (default) it waits for that agent’s turn to finish and returns what it said; a chat that is mid-turn gets the message queued behind its current work. Outcomes: replied, timeout (still working; call get_chat_transcript later), needs-permission (waiting on the user), errored (delivered, but that chat’s agent could not run its turn — the reason says why; its owner fixes it there, so do not resend). You cannot message the chat you are running in.',
+    description: 'Message one of your workers — a chat you manage (list_chats relationship WORKER). It goes into that agent’s mailbox, never its conversation, and the agent is interrupted at once with its summary; it reads the rest when it chooses (read_message). Does not wait: its answer comes to YOUR inbox later (you are told how many wait there, every so often — list_mailbox shows them). Messages expire five minutes after they arrive. A summary alone may be the whole message (leave text out). Anyone else — your manager included — you write mail to (send_mail); a message to you, you answer with reply.',
     inputSchema: {
       chatId: z.string(),
-      text: z.string().min(1),
       summary: MESSAGE_SUMMARY,
+      text: z.string().optional().describe('The message itself; leave out when the summary says it all'),
       sender_name: AGENT_NAME,
-      waitForReply: z.boolean().default(true),
-      timeoutSeconds: z.number().int().min(5).max(1800).default(300),
     },
   }, async (input) => guarded(() => h.sendToChat(input, caller)));
+
+  server.registerTool('send_mail', {
+    title: 'Mail any chat',
+    annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
+    description: 'Leave mail in any chat’s inbox (list_chats shows them) — with a file attached, if you like. It never interrupts that agent: it is told every so often how many messages wait, and reads them when it chooses (list_mailbox). An attached file waits to be accepted from there (accept_file_transfer), and lands in ~/popbot/sent_files on its machine. Mail expires five minutes after it arrives; an attached file’s offer, in an hour. A summary alone may be the whole mail.',
+    inputSchema: {
+      chatId: z.string(),
+      summary: MESSAGE_SUMMARY,
+      text: z.string().optional().describe('The mail itself; leave out when the summary says it all'),
+      attach: z.string().optional().describe('A file to attach: its path on the machine you run on (or `from`), absolute or starting with ~'),
+      from: z.string().optional().describe('The machine the attached file is on, when not yours: "this computer" or a host name'),
+      sender_name: AGENT_NAME,
+    },
+  }, async (input) => guarded(() => h.sendMail(input, caller)));
+
+  server.registerTool('list_mailbox', {
+    title: 'See your mailbox',
+    annotations: { readOnlyHint: true, openWorldHint: false },
+    description: 'The messages other chats sent you, answers to yours, and mail, newest first: id, who from — and what they are to you (relationship: WORKER, MANAGER or OTHER) — its summary (at most 50 characters), whether it has a body, when it expires, whether you have read it. Every message is gone five minutes after it arrived. Decide from the summary: read what matters (read_message), delete the rest (delete_message).',
+    inputSchema: {},
+  }, async () => guarded(() => h.listMailbox(caller)));
+
+  server.registerTool('read_message', {
+    title: 'Read a message',
+    annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
+    description: 'Open a message in your mailbox: its full text (if it has any) and what it answers. Marks it read. Answer it with reply.',
+    inputSchema: { messageId: z.string() },
+  }, async (input) => guarded(() => h.readMessage(input, caller)));
+
+  server.registerTool('reply', {
+    title: 'Answer a message',
+    annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
+    description: 'Answer a message in your mailbox. The answer goes to the sender’s mailbox; it is not interrupted by it. A summary alone may be the whole answer.',
+    inputSchema: {
+      messageId: z.string(),
+      summary: MESSAGE_SUMMARY,
+      text: z.string().optional().describe('The answer itself; leave out when the summary says it all'),
+      sender_name: AGENT_NAME,
+    },
+  }, async (input) => guarded(() => h.reply(input, caller)));
+
+  server.registerTool('delete_message', {
+    title: 'Delete messages',
+    annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
+    description: 'Delete messages from your mailbox, read or not — anything the summary told you enough about. You stop being reminded of them.',
+    inputSchema: { messageIds: z.array(z.string()).min(1) },
+  }, async (input) => guarded(() => h.deleteMessages(input, caller)));
 
   server.registerTool('start_code_review', {
     title: 'Start a code review chat',

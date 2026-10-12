@@ -44,7 +44,7 @@ import { db, isDbOpen } from '../persistence/db';
 import { dlog } from '../diagLog';
 import { listOpenChats, setChatSessionId } from '../persistence/chats';
 import { getSetting } from '../persistence/settings';
-import { appendMessage, countAgentOrUserMessages, listMessages } from '../persistence/messages';
+import { appendMessage, countAgentOrUserMessages, lastMessageOfKind } from '../persistence/messages';
 import { sqliteSessionStore } from './sqliteSessionStore';
 import { applyPerforceAgentCwd, worktreePathForChat } from '../git/chatPaths';
 import type { ChatRecord, MessageBodyText } from '@shared/persistence';
@@ -59,14 +59,9 @@ import type { ChatRecord, MessageBodyText } from '@shared/persistence';
 const RECOVERY_NOTE_MARKER = '<!-- popbot.chat.recover -->';
 
 function lastSystemNoteText(chatId: string): string | null {
-  const msgs = listMessages(chatId);
-  for (let i = msgs.length - 1; i >= 0; i--) {
-    const m = msgs[i];
-    if (m.kind === 'system') {
-      try { return (JSON.parse(m.body) as MessageBodyText).text ?? ''; } catch { return ''; }
-    }
-  }
-  return null;
+  const m = lastMessageOfKind(chatId, 'system');
+  if (!m) return null;
+  try { return (JSON.parse(m.body) as MessageBodyText).text ?? ''; } catch { return ''; }
 }
 
 function noteRecoveryInTranscript(

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { colAccentStyle } from '../lib/repoColor';
 import type { ChatRecord } from '@shared/persistence';
 import type { SourceControlProviderId } from '@shared/sourceControl';
@@ -39,6 +39,66 @@ function ChatKindChip({ chat }: { chat: Chat }): JSX.Element | null {
   return <span className="pill muted" title={t('panelB.kind.plainTooltip')}>{t('panelB.kind.plain')}</span>;
 }
 
+/**
+ * An agent that is up: a bright RUNNING (mid-turn), PAUSED (waiting on its
+ * user) or LIVE (a closed chat's session, idle on its host or in the
+ * cloud) chip, whose menu shuts it down.
+ */
+function LiveChip({ chat }: { chat: Chat }): JSX.Element | null {
+  const { t } = useTranslation();
+  const [menu, setMenu] = useState<{ top: number; left: number } | null>(null);
+  useEffect(() => {
+    if (!menu) return;
+    const close = (): void => setMenu(null);
+    const onKey = (e: KeyboardEvent): void => { if (e.key === 'Escape') close(); };
+    window.addEventListener('mousedown', close);
+    window.addEventListener('keydown', onKey);
+    return () => {
+      window.removeEventListener('mousedown', close);
+      window.removeEventListener('keydown', onKey);
+    };
+  }, [menu]);
+  if (!chat.live) return null;
+  const { state } = chat.live;
+  const shutDown = async (): Promise<void> => {
+    setMenu(null);
+    if (!confirm(t('panelB.live.shutdownConfirm', { name: chat.name }))) return;
+    await window.popbot.agent.shutdown(chat.id);
+  };
+  const label = state === 'running' ? 'panelB.live.running' : state === 'paused' ? 'panelB.live.paused' : 'panelB.live.live';
+  const title = state === 'running' ? 'panelB.live.runningTitle' : state === 'paused' ? 'panelB.live.pausedTitle' : 'panelB.live.liveTitle';
+  return (
+    <>
+      <button
+        type="button"
+        className={`pill live-chip ${state}`}
+        title={t(title)}
+        onClick={(e) => {
+          e.stopPropagation();
+          const r = e.currentTarget.getBoundingClientRect();
+          setMenu(menu ? null : { top: r.bottom + 4, left: r.left });
+        }}
+      >
+        {t(label)}
+      </button>
+      {menu && (
+        <div
+          className="chat-menu"
+          role="menu"
+          style={{ top: menu.top, left: menu.left }}
+          onMouseDown={(e) => e.stopPropagation()}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <button type="button" className="chat-menu-item danger" role="menuitem" onClick={() => void shutDown()}>
+            <i className="fa-solid fa-power-off" aria-hidden="true" />
+            {t('panelB.live.shutdown')}
+          </button>
+        </div>
+      )}
+    </>
+  );
+}
+
 interface ChatRowProps {
   chat: Chat;
   focused?: boolean;
@@ -52,9 +112,14 @@ function ChatRow({ chat, focused, inactive, removing, onClick, onDelete }: ChatR
   const { t } = useTranslation();
   const tokens = chat.tokens;
   const tokenPct = tokens ? tokenBarPct(tokens.used) : 0;
+  // A closed chat whose agent is still up stays greyed, but for its chip
+  // and — while it works — its pulsing glyph.
+  const live = inactive ? chat.live : undefined;
+  const glyphStatus = live?.state === 'running' ? 'run' : chat.status;
+  // Any agent that is up — open or closed — carries a chip to shut it down.
   return (
     <div
-      className={`chat-row ${focused ? 'focused' : ''} ${inactive ? 'inactive' : ''} ${removing ? 'removing' : ''}`}
+      className={`chat-row ${focused ? 'focused' : ''} ${inactive ? 'inactive' : ''} ${live ? `live-elsewhere ${live.state}` : ''} ${removing ? 'removing' : ''}`}
       onClick={onClick}
       // Per-row accent: drives the top-edge color bar (`::after`) and
       // the left-edge focused indicator (`::before`) in this chat's
@@ -64,15 +129,16 @@ function ChatRow({ chat, focused, inactive, removing, onClick, onDelete }: ChatR
       style={colAccentStyle(chat.repoColor)}
     >
       {chat.prAuthor ? (
-        <ReviewAvatar author={chat.prAuthor} className={`status-glyph scm-glyph status-${chat.status}`} />
+        <ReviewAvatar author={chat.prAuthor} className={`status-glyph scm-glyph status-${glyphStatus}`} />
       ) : (
-        <span className={`status-glyph scm-glyph status-${chat.status}`}>
+        <span className={`status-glyph scm-glyph status-${glyphStatus}`}>
           <ScmGlyph scm={chat.scm} />
         </span>
       )}
       <div style={{ minWidth: 0 }}>
         <div className="name">{chat.name}</div>
         <div className="meta-line">
+          {chat.live && <LiveChip chat={chat} />}
           <ChatKindChip chat={chat} />
           {chat.slotId != null && (
             <span className="pill muted" title={t('panelB.slotTooltip', { slotId: chat.slotId })}>
@@ -186,6 +252,12 @@ export function PanelB({
   const [openActive, setOpenActive] = useState(true);
   const [openInactive, setOpenInactive] = useState(true);
   const [inactiveLimit, setInactiveLimit] = useState(25);
+  // Closed chats whose agent is still up come first — running, then live —
+  // ahead of the rest (the list is not shown while searching).
+  const inactiveSorted = useMemo(() => {
+    const rank = (c: Chat): number => (c.live?.state === 'running' ? 0 : c.live ? 1 : 2);
+    return [...inactive].sort((a, b) => rank(a) - rank(b));
+  }, [inactive]);
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<ChatRecord[]>([]);
   const [removingIds, setRemovingIds] = useState<Set<string>>(() => new Set());
@@ -342,7 +414,7 @@ export function PanelB({
             <span className="count">{inactive.length}</span>
           </div>
           <div className="list-section-body">
-            {inactive.slice(0, inactiveLimit).map((c) => (
+            {inactiveSorted.slice(0, inactiveLimit).map((c) => (
               <ChatRow
                 key={c.id}
                 chat={c}

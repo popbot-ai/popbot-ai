@@ -11,6 +11,7 @@ import { getChat, setChatHost } from '../persistence/chats';
 import type { HostRepo } from '@shared/hostProtocol';
 import { getHost, listHosts, removeHost, saveHost } from '../persistence/hosts';
 import { appendMessage } from '../persistence/messages';
+import { forgetChatLiveness } from './closedLiveness';
 import { dlog } from '../diagLog';
 
 export function registerHostsHandlers(): void {
@@ -94,30 +95,34 @@ export function registerHostsHandlers(): void {
   // gives its slot back (dirty work stashed under the chat's name; the
   // next message takes a slot again and pops it). Closing the chat or
   // quitting PopBot only detaches.
-  ipcMain.handle(IpcChannel.HostsShutdown, async (_e, chatId: string) => {
-    const chat = typeof chatId === 'string' ? getChat(chatId) : null;
-    if (!chat?.host) return;
-    const host = getHost(chat.host.hostId);
-    if (!host) throw new Error(`the host "${chat.host.hostName}" is no longer configured`);
-    await AgentHost.dispose(chatId);
-    await endHostSession(host, chatId);
-    if (chat.host.kind === 'worktree') {
-      await releaseHostWorkspace(host, chatId, true);
-      setChatHost(chatId, { ...chat.host, slotId: null, cwd: null });
-      const fresh = getChat(chatId);
-      if (fresh) AgentHost.emit({ type: 'chat-updated', chatId, chat: fresh, ts: Date.now() });
-    }
-    dlog('hosts.shutdown', { chatId, host: host.name, kind: chat.host.kind });
-    const note = appendMessage({
-      chatId,
-      role: 'system',
-      kind: 'system',
-      body: {
-        text: chat.host.kind === 'worktree'
-          ? `host: The session on ${host.name} was shut down and its slot released; uncommitted work was stashed. Your next message takes a slot again and starts a new session there, resuming this conversation.`
-          : `host: The session on ${host.name} was shut down. Your next message starts a new one there, resuming this conversation.`,
-      },
-    });
-    AgentHost.emit({ type: 'message-added', chatId, message: note, ts: Date.now() });
+  ipcMain.handle(IpcChannel.HostsShutdown, (_e, chatId: string) => shutdownHostChat(chatId));
+}
+
+/** End a chat's session on its host and give its slot back (see above). */
+export async function shutdownHostChat(chatId: string): Promise<void> {
+  const chat = typeof chatId === 'string' ? getChat(chatId) : null;
+  if (!chat?.host) return;
+  const host = getHost(chat.host.hostId);
+  if (!host) throw new Error(`the host "${chat.host.hostName}" is no longer configured`);
+  await AgentHost.dispose(chatId);
+  await endHostSession(host, chatId);
+  forgetChatLiveness(chatId);
+  if (chat.host.kind === 'worktree') {
+    await releaseHostWorkspace(host, chatId, true);
+    setChatHost(chatId, { ...chat.host, slotId: null, cwd: null });
+    const fresh = getChat(chatId);
+    if (fresh) AgentHost.emit({ type: 'chat-updated', chatId, chat: fresh, ts: Date.now() });
+  }
+  dlog('hosts.shutdown', { chatId, host: host.name, kind: chat.host.kind });
+  const note = appendMessage({
+    chatId,
+    role: 'system',
+    kind: 'system',
+    body: {
+      text: chat.host.kind === 'worktree'
+        ? `host: The session on ${host.name} was shut down and its slot released; uncommitted work was stashed. Your next message takes a slot again and starts a new session there, resuming this conversation.`
+        : `host: The session on ${host.name} was shut down. Your next message starts a new one there, resuming this conversation.`,
+    },
   });
+  AgentHost.emit({ type: 'message-added', chatId, message: note, ts: Date.now() });
 }

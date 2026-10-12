@@ -52,6 +52,93 @@ export function listMessages(chatId: string, tail?: number): MessageRecord[] {
   return rows.map(rowToRecord);
 }
 
+/**
+ * The `limit` messages just before a given one (oldest-first) — the next
+ * page of history above what a chat view has loaded. A long chat is
+ * opened at its tail and read back a page at a time, never whole.
+ */
+export function listMessagesBefore(chatId: string, before: { createdAt: number; id: string }, limit: number): MessageRecord[] {
+  const rows = db()
+    .prepare<[string, number, number, string, number], MessageRow>(
+      `SELECT * FROM messages WHERE chat_id = ? AND (created_at < ? OR (created_at = ? AND id < ?))
+        ORDER BY created_at DESC, id DESC LIMIT ?`,
+    )
+    .all(chatId, before.createdAt, before.createdAt, before.id, Math.max(1, Math.min(limit, 5_000)));
+  rows.reverse();
+  return rows.map(rowToRecord);
+}
+
+/** Messages created at or after `since`, oldest-first. */
+export function listMessagesSince(chatId: string, since: number): MessageRecord[] {
+  return db()
+    .prepare<[string, number], MessageRow>(
+      'SELECT * FROM messages WHERE chat_id = ? AND created_at >= ? ORDER BY created_at ASC, id ASC',
+    )
+    .all(chatId, since)
+    .map(rowToRecord);
+}
+
+/** Has the chat a message of this role at all? (Without reading them.) */
+export function hasMessageWithRole(chatId: string, role: MessageRole): boolean {
+  return !!db()
+    .prepare<[string, string], { one: number }>('SELECT 1 AS one FROM messages WHERE chat_id = ? AND role = ? LIMIT 1')
+    .get(chatId, role);
+}
+
+/** The newest message of a kind (and role, when given), if any. */
+export function lastMessageOfKind(chatId: string, kind: MessageKind, role?: MessageRole): MessageRecord | null {
+  const row = role
+    ? db()
+      .prepare<[string, string, string], MessageRow>(
+        'SELECT * FROM messages WHERE chat_id = ? AND kind = ? AND role = ? ORDER BY created_at DESC, id DESC LIMIT 1',
+      )
+      .get(chatId, kind, role)
+    : db()
+      .prepare<[string, string], MessageRow>(
+        'SELECT * FROM messages WHERE chat_id = ? AND kind = ? ORDER BY created_at DESC, id DESC LIMIT 1',
+      )
+      .get(chatId, kind);
+  return row ? rowToRecord(row) : null;
+}
+
+/** User rows whose body contains `needle` (a reply id, say). */
+export function userMessagesContaining(chatId: string, needle: string): MessageRecord[] {
+  const escaped = needle.replace(/[\\%_]/g, (c) => `\\${c}`);
+  return db()
+    .prepare<[string, string], MessageRow>(
+      "SELECT * FROM messages WHERE chat_id = ? AND role = 'user' AND body LIKE ? ESCAPE '\\' ORDER BY created_at ASC",
+    )
+    .all(chatId, `%${escaped}%`)
+    .map(rowToRecord);
+}
+
+/**
+ * The conversation's text turns (user and agent) changed after `since`,
+ * for priming a session from the transcript: the first `head` of them,
+ * the newest `tail`, and how many there are in all — the middle of a
+ * long chat is never read.
+ */
+export function textTurnsSince(
+  chatId: string,
+  since: number,
+  opts: { head: number; tail: number },
+): { head: MessageRecord[]; tail: MessageRecord[]; total: number } {
+  const where = "chat_id = ? AND kind = 'text' AND role IN ('user', 'agent') AND updated_at > ?";
+  const total = (db()
+    .prepare<[string, number], { n: number }>(`SELECT COUNT(*) AS n FROM messages WHERE ${where}`)
+    .get(chatId, since)?.n) ?? 0;
+  const head = opts.head > 0
+    ? db().prepare<[string, number, number], MessageRow>(`SELECT * FROM messages WHERE ${where} ORDER BY created_at ASC, id ASC LIMIT ?`)
+      .all(chatId, since, opts.head).map(rowToRecord)
+    : [];
+  const tail = db()
+    .prepare<[string, number, number], MessageRow>(`SELECT * FROM messages WHERE ${where} ORDER BY created_at DESC, id DESC LIMIT ?`)
+    .all(chatId, since, opts.tail)
+    .reverse()
+    .map(rowToRecord);
+  return { head, tail, total };
+}
+
 export interface MessageSearchHit {
   message: MessageRecord;
   /** bm25 score: lower is a better match. */

@@ -34,9 +34,19 @@ interface HostView {
   error?: string;
   version?: string;
   pools: PoolView[];
-  /** Open chats on this host (empty for this computer: the chat list has them). */
-  chats: ChatRecord[];
+  /** Chats on this host (empty for this computer: the chat list has them):
+   *  the open ones, and closed ones whose session there is still up. */
+  chats: HostChatView[];
   openCount: number;
+}
+
+/** A chat on a host, with its session there as the host tells it: running
+ *  (mid-turn), live (up, idle), down (shut down, or never started) — or
+ *  null when the host could not be asked. */
+interface HostChatView {
+  chat: ChatRecord;
+  closed: boolean;
+  session: 'running' | 'live' | 'down' | null;
 }
 
 const REFRESH_MS = 30_000;
@@ -54,8 +64,9 @@ export function HostsPanel({
   const [views, setViews] = useState<HostView[] | null>(null);
 
   const load = useCallback(async (): Promise<HostView[]> => {
-    const [chats, repos, hosts] = await Promise.all([
+    const [chats, closedChats, repos, hosts] = await Promise.all([
       window.popbot.chats.list(),
+      window.popbot.chats.listClosed(),
       window.popbot.repos.list(),
       window.popbot.hosts.list(),
     ]);
@@ -83,8 +94,22 @@ export function HostsPanel({
       const mine = chats.filter((c) => c.host?.hostId === h.id && !c.host.botId);
       const probe = await window.popbot.hosts.probe(h.url, h.token);
       if (!probe.ok) {
-        return { id: h.id, name: h.name, local: false, state: 'error', error: probe.error, pools: [], chats: mine, openCount: mine.length };
+        const unknown = mine.map((chat): HostChatView => ({ chat, closed: false, session: null }));
+        return { id: h.id, name: h.name, local: false, state: 'error', error: probe.error, pools: [], chats: unknown, openCount: mine.length };
       }
+      // What the host says of each session: up or not, and mid-turn.
+      const sessions = new Map(probe.info.chats.map((c) => [c.chatId, c]));
+      const stateOf = (chatId: string): HostChatView['session'] => {
+        const s = sessions.get(chatId);
+        return !s?.alive ? 'down' : s.busy ? 'running' : 'live';
+      };
+      const views: HostChatView[] = [
+        ...mine.map((chat) => ({ chat, closed: false, session: stateOf(chat.id) })),
+        // A closed chat whose session goes on there (closing only detaches).
+        ...closedChats
+          .filter((c) => c.host?.hostId === h.id && !c.host.botId && stateOf(c.id) !== 'down')
+          .map((chat) => ({ chat, closed: true, session: stateOf(chat.id) })),
+      ];
       const pools = await Promise.all(probe.info.repos.map(async (r): Promise<PoolView> => {
         const res = await window.popbot.hosts.slots(h.id, r.id);
         const slots: SlotView[] = res.ok
@@ -97,7 +122,7 @@ export function HostsPanel({
           : [];
         return { repoId: r.id, prefix: r.slotPrefix, count: r.slotCount, mode: r.mode, slots };
       }));
-      return { id: h.id, name: h.name, local: false, state: 'ok', version: probe.info.version, pools, chats: mine, openCount: mine.length };
+      return { id: h.id, name: h.name, local: false, state: 'ok', version: probe.info.version, pools, chats: views, openCount: mine.length };
     }));
     return [local, ...remote];
   }, [t]);
@@ -175,18 +200,40 @@ export function HostsPanel({
           })}
           {!h.local && h.chats.length > 0 && (
             <ul className="hosts-chats">
-              {h.chats.map((c) => (
-                <li key={c.id}>
+              {h.chats.map(({ chat: c, closed, session }) => (
+                <li key={c.id} className={closed ? 'closed' : undefined}>
                   <button type="button" className="hosts-chat" onClick={() => onFocusChat(c.id)}>
-                    <span className={`hosts-chat-dot st-${c.status}`} aria-hidden />
+                    <span className={`hosts-chat-dot st-${session === 'running' ? 'run' : c.status}`} aria-hidden />
                     <span className="hosts-chat-name">{c.name}</span>
+                    {closed && <span className="hosts-chat-closed">{t('hosts.tab.closed')}</span>}
                     {c.host?.slotId != null && (
                       <span className="hosts-chat-slot mono">{`${c.host.slotPrefix ?? c.host.repoId ?? 'slot'}-${c.host.slotId}`}</span>
                     )}
                     {c.host?.kind === 'root' && c.host.repoId && (
                       <span className="hosts-chat-slot mono">{c.host.repoId}</span>
                     )}
+                    {/* The session there, as the host says. */}
+                    {session && (
+                      <span className={`pill hosts-session ${session}`} title={t(`hosts.tab.session.${session}Title`)}>
+                        {t(`hosts.tab.session.${session}`)}
+                      </span>
+                    )}
                   </button>
+                  {(session === 'running' || session === 'live') && (
+                    <button
+                      type="button"
+                      className="hosts-chat-shutdown"
+                      title={t('panelB.live.shutdown')}
+                      onClick={() => {
+                        if (!confirm(t('panelB.live.shutdownConfirm', { name: c.name }))) return;
+                        void window.popbot.agent.shutdown(c.id).finally(() => {
+                          void load().then(setViews).catch(() => undefined);
+                        });
+                      }}
+                    >
+                      <i className="fa-solid fa-power-off" aria-hidden />
+                    </button>
+                  )}
                 </li>
               ))}
             </ul>

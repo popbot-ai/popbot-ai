@@ -397,6 +397,10 @@ export interface ChatRecord {
   cloud: CloudChatInfo | null;
   /** Set when this chat runs on a host — see {@link HostChatInfo}. */
   host: HostChatInfo | null;
+  /** A closed chat whose agent is still up elsewhere — a session on its
+   *  host (from the last look there) or a cloud session not shut down —
+   *  and whether it is mid-turn. Set on the closed list only. */
+  liveElsewhere?: { state: 'running' | 'live'; where: 'host' | 'cloud' };
   /** Claude SDK session UUID, captured on first message. Passed back
    *  as `resume` so the agent keeps conversation history across opens. */
   sessionId: string | null;
@@ -553,6 +557,9 @@ export interface CrossChatOrigin {
   /** The sending agent's own name, when it has one ("Jim") — shown as the
    *  sender in place of its chat's name. */
   agentName?: string;
+  /** A mailbox notice ("Freddy sent you a message"), sent to the agent as
+   *  it is: it carries no message to attribute (src/main/mailbox/). */
+  notice?: boolean;
   /** A chat's message to a bot that is not waiting carries a one-time
    *  id: the only way the bot can answer (its reply_to_chat tool takes
    *  the id, never a chat). Set on the row in the bot's chat. */

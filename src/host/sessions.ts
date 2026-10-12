@@ -119,6 +119,8 @@ export class HostSessions {
   readonly roster: ChatRoster;
   /** When a desktop last called this host. */
   private desktopAt = 0;
+  /** When each chat last started a turn (for mailbox notices). */
+  private readonly turnStarts = new Map<string, number>();
 
   constructor(
     private readonly config: HostConfig,
@@ -128,8 +130,8 @@ export class HostSessions {
     this.roster = new ChatRoster(join(config.workspacesDir, 'chats'));
   }
 
-  list(): Array<{ chatId: string; alive: boolean; lastSeq: number }> {
-    return [...this.chats.entries()].map(([chatId, c]) => ({ chatId, alive: c.session.isAlive(), lastSeq: c.seq }));
+  list(): Array<{ chatId: string; alive: boolean; lastSeq: number; busy: boolean }> {
+    return [...this.chats.entries()].map(([chatId, c]) => ({ chatId, alive: c.session.isAlive(), lastSeq: c.seq, busy: c.busy }));
   }
 
   get(chatId: string): LiveChat | undefined {
@@ -166,6 +168,11 @@ export class HostSessions {
    *  the chat's popbot calls. */
   desktopAttached(chatId: string): boolean {
     return (this.chats.get(chatId)?.listeners.size ?? 0) > 0;
+  }
+
+  /** When the chat last started a turn (0: not since this host started). */
+  lastTurnStartAt(chatId: string): number {
+    return this.turnStarts.get(chatId) ?? 0;
   }
 
   /** A desktop called (any request to this host's API). */
@@ -379,8 +386,8 @@ export class HostSessions {
     this.noteAlive(chatId);
   }
 
-  approve(chatId: string, permissionId: string, decision: PermissionDecision): void {
-    this.must(chatId).session.approve(permissionId, decision);
+  approve(chatId: string, permissionId: string, decision: PermissionDecision, reason?: string): void {
+    this.must(chatId).session.approve(permissionId, decision, reason);
   }
 
   stop(chatId: string): void {
@@ -499,6 +506,7 @@ export class HostSessions {
   private noteTurn(chatId: string, live: LiveChat, event: AgentEvent): void {
     if (event.type === 'turn-start') {
       live.busy = true;
+      this.turnStarts.set(chatId, Date.now());
       return;
     }
     if (event.type === 'session-status' && (event.status === 'idle' || event.status === 'errored' || event.status === 'complete')) {

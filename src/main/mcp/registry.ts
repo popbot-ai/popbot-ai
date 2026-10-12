@@ -5,6 +5,7 @@
  * knows everything, including AgentHost) so neither imports the other in
  * a cycle.
  */
+import { writeFileSync } from 'node:fs';
 import { app } from 'electron';
 import { POPBOT_MCP_SETTINGS_KEY, popbotMcpEnabled, type PopbotMcpSettings } from '@shared/persistence';
 import { dlog } from '../diagLog';
@@ -18,6 +19,11 @@ export async function startPopbotMcp(handlers: PopbotToolHandlers): Promise<void
   try {
     running = await startPopbotMcpServer(handlers, { version: safeVersion() });
     dlog('mcp.popbot.started', { port: running.port });
+    // For testing a separate copy of the app from outside: where its tools
+    // are, written only when asked for (never in normal use — the secret
+    // in the path is what keeps other processes out).
+    const infoFile = process.env.POPBOT_MCP_INFO_FILE;
+    if (infoFile) writeFileSync(infoFile, JSON.stringify({ port: running.port, secret: running.secret }));
   } catch (err) {
     dlog('mcp.popbot.start-failed', { error: err instanceof Error ? err.message : String(err) });
   }

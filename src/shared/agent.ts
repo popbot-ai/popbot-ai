@@ -237,7 +237,9 @@ export interface ChatUpdatedEvent {
 export interface ChatsChangedEvent {
   type: 'chats-changed';
   chatId: string;
-  reason: 'created' | 'closed' | 'reopened';
+  /** `liveness`: a closed chat's agent elsewhere started or stopped. */
+  /** `relations`: who manages whom changed (the Make manager popup). */
+  reason: 'created' | 'closed' | 'reopened' | 'liveness' | 'relations' | 'auto-continue';
   ts: number;
 }
 

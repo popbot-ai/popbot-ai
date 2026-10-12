@@ -36,7 +36,7 @@ import {
   setChatWorktree,
   setChatP4Shelf,
 } from '../persistence/chats';
-import { appendMessage, copyMessages, listMessages } from '../persistence/messages';
+import { appendMessage, copyMessages, listMessages, listMessagesBefore } from '../persistence/messages';
 import { getSetting, setSetting } from '../persistence/settings';
 import { AgentHost, sessionCwdForChat } from '../agents/AgentHost';
 import { cloudStatus, endCloudSession, pullCloudBranch, testCloudApiKey } from '../agents/cloudSessions';
@@ -46,6 +46,9 @@ import { searchTranscripts } from '../search/transcriptSearch';
 import { getCodexBinaryPath } from '../agents/codexProbe';
 import { forkClaudeSession, forkCodexThread } from '../agents/forkAgentContext';
 import { dlog } from '../diagLog';
+import { noteClosedOnHost, withLiveness } from './closedLiveness';
+import { allManages, setManages } from '../mailbox/relations';
+import { autoContinueModes, setAutoContinue } from '../agents/autoContinue';
 import { dispose as disposePty } from '../term/ptyManager';
 import { GitWorktreeError, getSourceControlProvider } from '../scm';
 import type { SourceControlProvider } from '../scm';
@@ -294,7 +297,8 @@ export function registerChatHandlers(): void {
   ipcMain.handle(IpcChannel.ReposReconnectSlots, () => reconnectSlots());
 
   ipcMain.handle(IpcChannel.ChatsList, () => listOpenChats());
-  ipcMain.handle(IpcChannel.ChatsListClosed, (_e, limit?: number) => listClosedChats(limit));
+  // Each marked when its agent is still up on its host or in the cloud.
+  ipcMain.handle(IpcChannel.ChatsListClosed, (_e, limit?: number) => withLiveness(listClosedChats(limit)));
 
   ipcMain.handle(IpcChannel.ChatsCreate, (_e, input: CreateChatInput) => createChatWithWorkspace(input));
 
@@ -533,6 +537,8 @@ export function registerChatHandlers(): void {
   ipcMain.handle(IpcChannel.CloudShutdown, async (_e, chatId: string) => {
     await AgentHost.dispose(chatId);
     await endCloudSession(chatId, (event) => AgentHost.emit(event));
+    // The closed list shows it as live until now.
+    AgentHost.emit({ type: 'chats-changed', chatId, reason: 'liveness', ts: Date.now() });
   });
 
   ipcMain.handle(IpcChannel.ChatsReorder, (_e, ids: string[]) => {
@@ -591,6 +597,19 @@ export function registerChatHandlers(): void {
 
   ipcMain.handle(IpcChannel.MessagesList, (_e, chatId: string, tail?: number) =>
     listMessages(chatId, tail),
+  );
+  ipcMain.handle(IpcChannel.ChatsGetManages, () => allManages());
+  ipcMain.handle(IpcChannel.ChatsSetManages, (_e, chatId: string, workers: string[]) => {
+    if (typeof chatId !== 'string' || !Array.isArray(workers)) return;
+    setManages(chatId, workers.filter((w): w is string => typeof w === 'string'));
+  });
+  ipcMain.handle(IpcChannel.ChatsGetAutoContinue, () => autoContinueModes());
+  ipcMain.handle(IpcChannel.ChatsSetAutoContinue, (_e, chatId: string, mode: unknown) => {
+    if (typeof chatId !== 'string') return;
+    setAutoContinue(chatId, mode === 'forever' || mode === 'until-complete' ? mode : null);
+  });
+  ipcMain.handle(IpcChannel.MessagesListBefore, (_e, chatId: string, before: { createdAt: number; id: string }, limit: number) =>
+    listMessagesBefore(chatId, before, limit),
   );
 }
 
@@ -861,6 +880,11 @@ export async function closeChatWithWorkspace(chatId: string, opts?: CloseChatOpt
   const chat = getChat(chatId);
   // A closed chat on a host is not woken there by its other chats.
   tellHostAboutChat(chat, { open: false });
+  // Closing only detaches from a host session: it goes on there, and the
+  // chat list shows it so (RUNNING / LIVE) without waiting for a look.
+  if (chat?.host && !chat.host.botId && AgentHost.isAttached(chatId)) {
+    noteClosedOnHost(chat.host.hostId, chatId, chat.status === 'run' ? 'running' : 'live');
+  }
   // Await SDK shutdown so its session JSONL flushes before any
   // worktree teardown below — otherwise the next reopen of this
   // chat lands on "no conversation found".

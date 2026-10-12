@@ -5,7 +5,7 @@ import { startPopbotMcpServer, type ChatSummary, type PopbotMcpServer, type Popb
 
 const chat = (id: string, name: string, caller: string | null): ChatSummary => ({
   id, name, status: 'idle', agent: 'claude', repoId: 'app', branch: null, ticket: null, pr: null,
-  cloud: false, host: null, closed: false, lastActiveAt: 1, isCaller: id === caller,
+  cloud: false, host: null, closed: false, lastActiveAt: 1, isCaller: id === caller, relationship: 'OTHER'
 });
 
 const calls: Array<{ tool: string; input: unknown; caller: string | null }> = [];
@@ -15,7 +15,12 @@ const handlers: PopbotToolHandlers = {
   createChat: async (input, caller) => { calls.push({ tool: 'create_chat', input, caller }); return { chat: { ...chat('chat_new', input.name, caller), host: input.host ?? null } }; },
   closeChat: async (input, caller) => (input.chatId === caller ? { error: 'you cannot close the chat you are running in' } : { ok: true, chatId: input.chatId }),
   reopenChat: async (input, caller) => ({ chat: chat(input.chatId, 'R', caller) }),
-  sendToChat: async (input) => ({ outcome: 'replied', reply: `echo: ${input.text}`, entries: 1 }),
+  sendToChat: async (input, caller) => { calls.push({ tool: 'send_to_chat', input, caller }); return { messageId: 'm_1', to: input.chatId, delivered: 'interrupted' }; },
+  reply: async () => ({ messageId: 'm_2', to: 'A' }),
+  sendMail: async (input) => ({ messageId: 'm_3', to: input.chatId }),
+  listMailbox: () => ({ messages: [{ id: 'm_1', from: 'FREDDY', fromChat: 'chat_b', summary: 'Do you have build.log?', hasBody: false, replyTo: null, at: 't', expires: 't', read: false, relationship: 'MANAGER' }] }),
+  readMessage: (input) => ({ id: input.messageId, from: 'FREDDY', fromChat: 'chat_b', summary: 'Do you have build.log?', body: null, replyTo: null, at: 't' }),
+  deleteMessages: (input) => ({ deleted: input.messageIds, missing: [] }),
   startCodeReview: async (input, caller) => ({ chat: chat('chat_cr', `[CR] PR #${input.prNumber}`, caller), existing: false }),
   openTicketChat: async (input, caller) => ({ chat: chat('chat_t', input.ticket, caller), existing: true }),
   getTranscript: (input, caller) => ({ chatId: input.chatId ?? caller ?? '?', text: '#0 user @ t\nhi\n', count: 1, total: 1, truncated: false }),
@@ -58,8 +63,9 @@ describe('popbot MCP server over Streamable HTTP', () => {
     const { tools } = await client.listTools();
     expect(tools.map((t) => t.name).sort()).toEqual([
       'accept_file_transfer', 'cancel_file_transfer', 'close_chat', 'create_chat', 'decline_file_transfer',
-      'get_chat_transcript', 'get_file_transfer', 'go_to_message', 'list_bots', 'list_chats', 'list_hosts', 'list_refs',
-      'message_bot', 'open_ticket_chat', 'reopen_chat', 'search_chats', 'send_to_chat', 'start_code_review', 'transfer_file',
+      'delete_message', 'get_chat_transcript', 'get_file_transfer', 'go_to_message', 'list_bots', 'list_chats', 'list_hosts',
+      'list_mailbox', 'list_refs', 'message_bot', 'open_ticket_chat', 'read_message', 'reopen_chat', 'reply', 'search_chats',
+      'send_mail', 'send_to_chat', 'start_code_review', 'transfer_file',
     ]);
     // A file is offered to a chat: transfer_file has no destination of its own.
     const offer = tools.find((t) => t.name === 'transfer_file')!;
@@ -77,8 +83,12 @@ describe('popbot MCP server over Streamable HTTP', () => {
     }
     // Chats see bots and talk to them; making, pausing and killing them is a person's.
     expect(tools.map((t) => t.name).filter((n) => /bot/.test(n)).sort()).toEqual(['list_bots', 'message_bot']);
-    const send = tools.find((t) => t.name === 'send_to_chat')!;
-    expect(JSON.stringify(send.inputSchema)).toContain('"waitForReply"');
+    // Mailboxes: a send does not wait, and a summary may be the whole message.
+    const send = tools.find((t) => t.name === 'send_to_chat')!.inputSchema as { properties: Record<string, unknown>; required?: string[] };
+    expect(Object.keys(send.properties)).not.toContain('waitForReply');
+    expect(send.required).not.toContain('text');
+    const reply = tools.find((t) => t.name === 'reply')!.inputSchema as { required?: string[] };
+    expect(reply.required?.sort()).toEqual(['messageId', 'summary']);
     await client.close();
   });
 

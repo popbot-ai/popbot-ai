@@ -31,6 +31,9 @@ import { hotkey } from '../lib/hotkeys';
 import { LiveChatBody } from './LiveChatBody';
 import { BotChatDialogs, BotChatMenuItems } from './BotChatMenu';
 import { MoveChatDialog } from './MoveChatDialog';
+import { ManagerDialog } from './ManagerDialog';
+import type { AutoContinueMode } from '../lib/useAutoContinue';
+import { chatShortName } from '@shared/chatNames';
 import { useAppsRunning } from '../lib/useAppsRunning';
 import { useSettings } from '../lib/useSettings';
 import {
@@ -206,6 +209,15 @@ interface ChatColumnProps {
    *  `usePrStatusByChat` poll. Null until the first poll completes
    *  for chats with a PR; null forever for chats without one. */
   pr: GitPrInfo | null;
+  /** The chats this one manages (the Make manager popup), the live chats
+   *  it could, and a way to change it. */
+  manages?: string[];
+  liveChats?: ChatRecord[];
+  onSetManages?: (workers: string[]) => void;
+  /** Auto-continue (agents/autoContinue.ts): off, forever, or until the
+   *  agent says all its work is complete. */
+  autoContinue?: AutoContinueMode | null;
+  onSetAutoContinue?: (mode: AutoContinueMode | null) => void;
 }
 
 export function ChatColumn({
@@ -221,8 +233,20 @@ export function ChatColumn({
   onOpenPrefs,
   ticket,
   pr,
+  manages = [],
+  liveChats = [],
+  onSetManages,
+  autoContinue = null,
+  onSetAutoContinue,
 }: ChatColumnProps): JSX.Element {
   const { t } = useTranslation();
+  const [managing, setManaging] = useState(false);
+  // Its workers by their short names — "BARRY", or the whole chat name
+  // when it has none.
+  const managedNames = manages.map((id) => {
+    const c = liveChats.find((x) => x.id === id);
+    return c ? chatShortName(c.name) : null;
+  }).filter((n): n is string => !!n);
   // Click-to-rename on the column title. Blur is the single commit path
   // (Enter and Escape both blur); Escape flags the edit as cancelled so
   // the blur that follows it doesn't save the draft.
@@ -773,6 +797,36 @@ export function ChatColumn({
               </button>
             </>
           )}
+          {onSetAutoContinue && !chat.host?.botId && (
+            <>
+              {(['forever', 'until-complete'] as const).map((mode) => (
+                <button
+                  key={mode}
+                  type="button"
+                  className="chat-menu-item"
+                  role="menuitemradio"
+                  aria-checked={autoContinue === mode}
+                  title={t(mode === 'forever' ? 'chat.autoContinue.foreverTooltip' : 'chat.autoContinue.untilTooltip')}
+                  onClick={() => { setMenu(null); onSetAutoContinue(autoContinue === mode ? null : mode); }}
+                >
+                  <i className={`fa-solid ${autoContinue === mode ? 'fa-check' : mode === 'forever' ? 'fa-infinity' : 'fa-flag-checkered'}`} aria-hidden="true" />
+                  {t(mode === 'forever' ? 'chat.autoContinue.forever' : 'chat.autoContinue.until')}
+                </button>
+              ))}
+            </>
+          )}
+          {onSetManages && (
+            <button
+              type="button"
+              className="chat-menu-item"
+              role="menuitem"
+              title={t('chat.manager.menuTooltip')}
+              onClick={() => { setMenu(null); setManaging(true); }}
+            >
+              <i className="fa-solid fa-sitemap" aria-hidden="true" />
+              {t('chat.manager.menu')}
+            </button>
+          )}
           {!chat.cloud && (
             <button
               type="button"
@@ -813,6 +867,15 @@ export function ChatColumn({
       )}
       {isBot && <BotChatDialogs chat={chat} dialog={botDialog} onClose={() => setBotDialog(null)} onError={botError} />}
       {moving && <MoveChatDialog chat={chat} onClose={() => setMoving(false)} />}
+      {managing && onSetManages && (
+        <ManagerDialog
+          chat={chat}
+          candidates={liveChats.filter((c) => c.id !== chat.id && !c.host?.botId)}
+          selected={manages}
+          onChange={onSetManages}
+          onClose={() => setManaging(false)}
+        />
+      )}
       <div className="runtime-strip">
         <SlotAppButtons worktreePath={chat.worktreePath ?? null} chatId={chat.id} onOpenPrefs={onOpenPrefs} />
         {/* Both chips render side-by-side when applicable so the user
@@ -1039,6 +1102,29 @@ export function ChatColumn({
                 onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); openMenuAt(e.currentTarget); }}
               >
                 <i className="fa-solid fa-server" aria-hidden /> <span>{chat.host.hostName}</span>
+              </button>
+            )}
+            {/* Auto-continue is on: says which; a click turns it off. */}
+            {autoContinue && onSetAutoContinue && (
+              <button
+                type="button"
+                className={`autocontinue-chip ${autoContinue}`}
+                title={t('chat.autoContinue.chipTitle')}
+                onClick={() => onSetAutoContinue(null)}
+              >
+                <i className={`fa-solid ${autoContinue === 'forever' ? 'fa-infinity' : 'fa-flag-checkered'}`} aria-hidden />{' '}
+                <span>{t(autoContinue === 'forever' ? 'chat.autoContinue.chipForever' : 'chat.autoContinue.chipUntil')}</span>
+              </button>
+            )}
+            {/* A manager: hover names its workers; a click changes them. */}
+            {managedNames.length > 0 && (
+              <button
+                type="button"
+                className="manager-chip"
+                title={t('chat.manager.chipTitle', { names: managedNames.join(', ') })}
+                onClick={() => setManaging(true)}
+              >
+                <i className="fa-solid fa-sitemap" aria-hidden /> <span>{managedNames.length}</span>
               </button>
             )}
             <span className="spacer" />

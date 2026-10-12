@@ -56,9 +56,22 @@ import type { RemoteSpawnOpts } from './types';
 import { dlog } from '../diagLog';
 import { getClaudeBinaryPath } from './claudeProbe';
 import { popbotMcpUrlForChat } from '../mcp/registry';
+import { POPBOT_PRIMER } from '../mcp/popbotPrimer';
+import { desktopMailbox } from '../mailbox/desktopMailbox';
+import { managesOf } from '../mailbox/relations';
+import { firstSentence } from '@shared/messageSummary';
 import { attributeCrossChatMessage } from '../mcp/crossChat';
 import { getSetting, setSetting } from '../persistence/settings';
-import { appendMessage, getMessage, listMessages, updateMessageBody } from '../persistence/messages';
+import {
+  appendMessage,
+  getMessage,
+  hasMessageWithRole,
+  lastMessageOfKind,
+  listMessagesSince,
+  textTurnsSince,
+  updateMessageBody,
+  userMessagesContaining,
+} from '../persistence/messages';
 import { listSessions, type SDKSessionInfo } from '@anthropic-ai/claude-agent-sdk';
 import { applyPerforceAgentCwd, worktreePathForChat } from '../git/chatPaths';
 import { sqliteSessionStore } from './sqliteSessionStore';
@@ -87,37 +100,45 @@ type ProviderAgent = 'claude' | 'codex';
  * The bridge is bounded just like restartWithContext: preserve the opening
  * turns (usually the task definition), then as much recent context as fits.
  */
+/** The bridge keeps the opening turns (usually the task definition) … */
+const BRIDGE_HEAD = 3;
+/** … and as many recent ones as fit; at most this many rows are read for
+ *  them, so a long chat's middle is never loaded. */
+const BRIDGE_TAIL_ROWS = 400;
+
 function providerContextBridge(
-  messages: ReturnType<typeof listMessages>,
+  turns: ReturnType<typeof textTurnsSince> | null,
   contextAt: number,
   provider: ProviderAgent,
 ): string {
-  const missed: Array<{ role: 'user' | 'agent'; text: string; at: number }> = [];
-  for (const message of messages) {
-    if (message.updatedAt <= contextAt || message.kind !== 'text') continue;
-    if (message.role !== 'user' && message.role !== 'agent') continue;
+  if (!turns || turns.total === 0) return '';
+  type Turn = { role: 'user' | 'agent'; text: string; at: number };
+  const parse = (rows: typeof turns.tail): Turn[] => rows.flatMap((message): Turn[] => {
+    if (message.role !== 'user' && message.role !== 'agent') return [];
     try {
       const text = (JSON.parse(message.body) as MessageBodyText).text ?? '';
-      if (text.trim()) missed.push({ role: message.role, text, at: message.updatedAt });
+      return text.trim() ? [{ role: message.role, text, at: message.updatedAt }] : [];
     } catch {
       // A malformed historical row must not prevent the next provider turn.
+      return [];
     }
-  }
-  if (missed.length === 0) return '';
+  });
+  const headIds = new Set(contextAt === 0 ? turns.head.map((m) => m.id) : []);
+  const head = contextAt === 0 ? parse(turns.head) : [];
+  const candidates = parse(turns.tail.filter((m) => !headIds.has(m.id)));
+  if (head.length === 0 && candidates.length === 0) return '';
 
-  const HEAD_KEEP = 3;
   const MAX_CHARS = 80_000;
-  const head = contextAt === 0 ? missed.slice(0, HEAD_KEEP) : [];
-  const candidates = contextAt === 0 ? missed.slice(HEAD_KEEP) : missed;
   let total = head.reduce((n, item) => n + item.text.length, 0);
-  const tail: typeof missed = [];
+  const tail: Turn[] = [];
   for (let i = candidates.length - 1; i >= 0; i -= 1) {
     if (total + candidates[i].text.length > MAX_CHARS && tail.length > 0) break;
     tail.unshift(candidates[i]);
     total += candidates[i].text.length;
   }
-  const omitted = candidates.length - tail.length;
-  const render = (item: (typeof missed)[number]): string =>
+  // Everything between the head and what is shown: unread rows included.
+  const omitted = Math.max(0, turns.total - headIds.size - tail.length);
+  const render = (item: Turn): string =>
     `### ${item.role === 'user' ? 'User' : 'Assistant'}\n${item.text}`;
   const transcript = [
     ...head.map(render),
@@ -479,9 +500,24 @@ class AgentHostImpl {
     const providerContextAt = nativeHandle
       ? (provider === 'codex' ? chat.codexContextAt : chat.claudeContextAt)
       : 0;
-    // Snapshot before appending the new user message: the bridge is prior
-    // conversation only. The current instruction is sent once, normally.
-    const priorMessages = listMessages(chatId);
+    // Prepend an invisible working-directory preamble on the FIRST message of a
+    // spawned session (no live session yet) — only the agent sees it (the
+    // stored/broadcast user bubble below uses the raw `text`). A fresh chat gets
+    // a "starting up here" note; a reopened chat (flagged by the reopen handler)
+    // gets its current cwd re-stated in case it moved slots. A live in-session
+    // turn gets nothing — the agent already knows its cwd.
+    const firstOfSession = !this.sessions.get(chatId)?.isAlive();
+    // A typed `/compact` is a command for the CLI, not prose for the model:
+    // anything prepended to it (the cwd preamble, the provider context
+    // bridge) would turn it into an ordinary message. Send it bare — the
+    // same thing the context gauge does.
+    const isCompactCommand = provider === 'claude' && /^\/compact(\s|$)/.test(text.trim());
+    // Read before the new message is saved: the bridge is prior conversation
+    // only, and only a session's first message carries one. Never the whole
+    // transcript — a long chat's ends, by query (textTurnsSince).
+    const bridgeTurns = firstOfSession && !isCompactCommand
+      ? textTurnsSince(chatId, providerContextAt, { head: providerContextAt === 0 ? BRIDGE_HEAD : 0, tail: BRIDGE_TAIL_ROWS })
+      : null;
 
     dlog('agent.send', {
       chatId,
@@ -494,33 +530,24 @@ class AgentHostImpl {
       branch: chat.branch ?? null,
     });
 
-    // Prepend an invisible working-directory preamble on the FIRST message of a
-    // spawned session (no live session yet) — only the agent sees it (the
-    // stored/broadcast user bubble below uses the raw `text`). A fresh chat gets
-    // a "starting up here" note; a reopened chat (flagged by the reopen handler)
-    // gets its current cwd re-stated in case it moved slots. A live in-session
-    // turn gets nothing — the agent already knows its cwd.
-    const firstOfSession = !this.sessions.get(chatId)?.isAlive();
-    const isFresh = !priorMessages.some((m) => m.role === 'agent');
+    const isFresh = !hasMessageWithRole(chatId, 'agent');
     // Read (don't consume) the resume flag — we only clear it AFTER the message
     // is actually delivered, so a spawn/send failure preserves it for the retry.
     const resumed = this.resumedChats.has(chatId);
-    // A typed `/compact` is a command for the CLI, not prose for the model:
-    // anything prepended to it (the cwd preamble, the provider context
-    // bridge) would turn it into an ordinary message. Send it bare — the
-    // same thing the context gauge does.
-    const isCompactCommand = provider === 'claude' && /^\/compact(\s|$)/.test(text.trim());
     // Read (don't consume) for the same reason as the resume flag.
     const forkNote = firstOfSession ? this.pendingForkNote(chatId) : null;
     // A cloud chat's working directory is in the sandbox, not here; its
     // backend writes its own first-message preamble.
     // A host chat's backend does the same for its own working directory —
     // all a forked one needs from here is the fork note.
+    // A session here that has the popbot tools also gets PopBot's fixed
+    // note (a host chat's comes with its backend's own preamble).
+    const primer = popbotMcpUrlForChat(chatId) !== null ? POPBOT_PRIMER : '';
     const preamble = !firstOfSession || isCompactCommand || chat.cloud
       ? ''
       : chat.host
         ? (forkNote ? forkPreamble(chat.host.cwd, forkNote) : '')
-        : firstMessageCwdPreamble(chat, isFresh, resumed, forkNote);
+        : firstMessageCwdPreamble(chat, isFresh, resumed, forkNote) + primer;
 
     const storedAttachments = await persistChatAttachments(chatId, attachments);
     const userMsg = appendMessage({
@@ -533,7 +560,7 @@ class AgentHostImpl {
         ...(origin ? { from: origin } : {}),
       } satisfies MessageBodyText,
     });
-    const wireText = origin
+    const wireText = origin && !origin.notice
       ? attributeCrossChatMessage(text, { id: origin.chatId, name: origin.chatName, ...(origin.agentName ? { agentName: origin.agentName } : {}) }, origin.waiting, {
           toBot: !!chat.host?.botId,
           fromBotId: getChat(origin.chatId)?.host?.botId ?? undefined,
@@ -565,7 +592,7 @@ class AgentHostImpl {
     try {
       const session = await this.getOrSpawnSession(chatId);
       const contextBridge = firstOfSession && !isCompactCommand
-        ? providerContextBridge(priorMessages, providerContextAt, provider)
+        ? providerContextBridge(bridgeTurns, providerContextAt, provider)
         : '';
       // The preamble (if any) rides on the first message to the agent only; it
       // is intentionally absent from the persisted/broadcast user bubble above.
@@ -680,8 +707,7 @@ class AgentHostImpl {
   private tryAutoRetry(chatId: string, why: string): boolean {
     const used = this.autoRetries.get(chatId) ?? 0;
     if (used >= AgentHostImpl.MAX_AUTO_RETRIES) return false;
-    const all = listMessages(chatId);
-    const { text, attachments } = this.lastUserTurn(all);
+    const { text, attachments } = this.lastUserTurn(chatId);
     if (!text.trim() && attachments.length === 0) return false;
     this.autoRetries.set(chatId, used + 1);
     dlog('agent.auto-retry', { chatId, attempt: used + 1, why });
@@ -892,7 +918,7 @@ class AgentHostImpl {
     });
   }
 
-  approve(chatId: string, permissionId: string, decision: PermissionDecision): void {
+  approve(chatId: string, permissionId: string, decision: PermissionDecision, reason?: string): void {
     // Logged at IPC entry so we can correlate user-click → approve IPC
     // → session.approve → ClaudeBackend.approve → resolve in the log.
     // Captures whether the session is still alive at decision time
@@ -971,7 +997,7 @@ class AgentHostImpl {
       ts: Date.now(),
     });
 
-    session.approve(permissionId, decision);
+    session.approve(permissionId, decision, reason);
   }
 
   /**
@@ -1164,8 +1190,7 @@ class AgentHostImpl {
       this.flushAllBuffersForChat(chatId);
     }
 
-    const all = listMessages(chatId);
-    const { text: lastText, attachments } = this.lastUserTurn(all);
+    const { text: lastText, attachments } = this.lastUserTurn(chatId);
 
     this.broadcast({ type: 'session-status', chatId, status: 'running', ts: Date.now() });
     if (!lastText.trim() && attachments.length === 0) {
@@ -1187,10 +1212,9 @@ class AgentHostImpl {
    *  a turn that carried attachments must re-send them — the retained
    *  copies under userData survive even if the source file moved — not
    *  silently degrade to a text-only resend. */
-  private lastUserTurn(
-    messages: ReturnType<typeof listMessages>,
-  ): { text: string; attachments: PickedAttachment[] } {
-    const lastUser = [...messages].reverse().find((m) => m.role === 'user' && m.kind === 'text');
+  /** The chat's last user message — one row, by query. */
+  private lastUserTurn(chatId: string): { text: string; attachments: PickedAttachment[] } {
+    const lastUser = lastMessageOfKind(chatId, 'text', 'user');
     if (!lastUser) return { text: '', attachments: [] };
     try {
       const body = JSON.parse(lastUser.body) as MessageBodyText;
@@ -1363,7 +1387,7 @@ class AgentHostImpl {
         );
     // Session discovery must use the SAME cwd we'll spawn in.
     if (!isCodex && !isCloud && !isRemote && !sessionId && liveWorktree && cwd) {
-      const hasPriorAgent = listMessages(chatId).some((m) => m.role === 'agent');
+      const hasPriorAgent = hasMessageWithRole(chatId, 'agent');
       if (hasPriorAgent) {
         sessionId = await this.discoverSessionId(cwd, chatId, chat?.branch ?? null);
         if (sessionId) {
@@ -1573,9 +1597,8 @@ class AgentHostImpl {
     this.lastAutoRecoveryAt.set(chatId, now);
 
     // First attempt this window: try discovery + replay last user.
-    const all = listMessages(chatId);
-    const hasPriorAgent = all.some((m) => m.role === 'agent');
-    const { text: lastText, attachments } = this.lastUserTurn(all);
+    const hasPriorAgent = hasMessageWithRole(chatId, 'agent');
+    const { text: lastText, attachments } = this.lastUserTurn(chatId);
 
     let nextSessionId: string | null = null;
     const liveWorktreeForRecovery = applyPerforceAgentCwd(worktreePathForChat(chat), chat);
@@ -1649,10 +1672,12 @@ class AgentHostImpl {
     // Build the priming prompt. We only include user + agent text
     // turns — tool-call/result messages get summarized away to keep
     // the size manageable.
-    const all = listMessages(chatId);
+    // The ends of the chat only, by query: a long chat's middle is never read.
+    const read = textTurnsSince(chatId, 0, { head: BRIDGE_HEAD, tail: BRIDGE_TAIL_ROWS });
+    const headIds = new Set(read.head.map((m) => m.id));
+    const unread = Math.max(0, read.total - read.head.length - read.tail.filter((m) => !headIds.has(m.id)).length);
     const turns: Array<{ role: 'user' | 'agent'; text: string }> = [];
-    for (const m of all) {
-      if (m.kind !== 'text') continue;
+    for (const m of [...read.head, ...read.tail.filter((r) => !headIds.has(r.id))]) {
       if (m.role !== 'user' && m.role !== 'agent') continue;
       try {
         const t = (JSON.parse(m.body) as MessageBodyText).text ?? '';
@@ -1675,7 +1700,8 @@ class AgentHostImpl {
       tail.unshift(candidates[i]);
       total += len;
     }
-    const omitted = candidates.length - tail.length;
+    // Turns not shown: the ones left out here, and the middle never read.
+    const omitted = candidates.length - tail.length + unread;
     const render = (t: { role: 'user' | 'agent'; text: string }): string =>
       `### ${t.role === 'user' ? 'User' : 'Assistant'}\n${t.text}`;
     const omittedMarker = `### ... [${omitted} turn${omitted === 1 ? '' : 's'} omitted for length] ...\n`;
@@ -1835,6 +1861,7 @@ class AgentHostImpl {
       info,
       agent: chat?.agent ?? 'claude',
       chatName: chat?.name ?? chatId,
+      manages: managesOf(chatId),
       rules: () => ({
         chat: getChatPermissionRules(chatId),
         global: getSetting<PermissionRule[]>('permissions.rules') ?? [],
@@ -1847,7 +1874,7 @@ class AgentHostImpl {
         // The id names the message it answers, and so the chat; a bot
         // never names a chat itself. Each id answers once.
         let asked: { id: string; body: MessageBodyText } | null = null;
-        for (const m of listMessages(chatId)) {
+        for (const m of userMessagesContaining(chatId, replyId)) {
           if (m.role !== 'user' || !m.body.includes(replyId)) continue;
           try {
             const body = JSON.parse(m.body) as MessageBodyText;
@@ -1863,9 +1890,14 @@ class AgentHostImpl {
           return;
         }
         updateMessageBody(asked.id, { ...asked.body, from: { ...from, repliedAt: Date.now() } } satisfies MessageBodyText);
-        void this.send(target.id, text, undefined, { chatId, chatName: bot.name, waiting: false }).catch((err: unknown) => {
+        // An answer: into the chat's inbox, never its conversation
+        // (src/main/mailbox/). A chat answers a bot with message_bot, so
+        // it carries no sender to reply to.
+        try {
+          desktopMailbox().post({ to: target.id, from: null, senderName: bot.name, summary: firstSentence(text, 50), body: text });
+        } catch (err) {
           dlog('agent.bot-reply.failed', { botChat: chatId, toChatId: target.id, error: err instanceof Error ? err.message : String(err) });
-        });
+        }
       },
       onPrompt: (text, from) => {
         if (!isDbOpen()) return;
@@ -1983,6 +2015,11 @@ class AgentHostImpl {
       // instead restarts the clock from the turn's actual start, which
       // is the right thing to measure.
       this.armStallWatchdog(event.chatId);
+      // Not for the window, but the mailbox and auto-continue go by it
+      // (a notice has been taken up; a chat is working again).
+      for (const listener of this.listeners) {
+        try { listener(event); } catch { /* a listener's bug must not break the host */ }
+      }
       return;
     }
 
@@ -2404,7 +2441,7 @@ class AgentHostImpl {
       const outcome = await done;
       return {
         outcome,
-        messages: listMessages(chatId).filter((m) => m.createdAt >= since && m.role !== 'user'),
+        messages: listMessagesSince(chatId, since).filter((m) => m.role !== 'user'),
         reason: outcome === 'errored' ? reason : null,
       };
     } finally {

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type {
   MessageBodyText,
   MessageBodyTool,
@@ -36,27 +36,68 @@ const dropEphemeral = (rows: MessageRecord[]): MessageRecord[] =>
     ? rows.filter((m) => !m.id.startsWith(EPHEMERAL_PREFIX))
     : rows;
 
+/** A chat view opens at its newest messages and reads older history back
+ *  a page at a time (loadOlder) — a long chat is never loaded whole. */
+export const MESSAGE_PAGE = 500;
+/** A chat that grows past this many loaded messages while it runs … */
+export const TRIM_ABOVE = 1000;
+/** … drops back to its newest this many (older ones reload on scroll). */
+export const TRIM_TO = 500;
+
 export function useMessages(chatId: string | undefined, tail?: number) {
   const [messages, setMessages] = useState<MessageRecord[]>([]);
   const [loading, setLoading] = useState(true);
+  // More above what is loaded (a full first page, or a full last page).
+  const [hasOlder, setHasOlder] = useState(false);
+  const olderInFlight = useRef<Promise<number> | null>(null);
+  const messagesRef = useRef<MessageRecord[]>([]);
+  messagesRef.current = messages;
+  // Paging applies to the full view only; a thumbnail asks for its few.
+  const page = tail ?? MESSAGE_PAGE;
 
   useEffect(() => {
     if (!chatId) {
       setMessages([]);
       setLoading(false);
+      setHasOlder(false);
       return;
     }
     let cancelled = false;
     setLoading(true);
-    void window.popbot.chats.listMessages(chatId, tail).then((rows) => {
+    void window.popbot.chats.listMessages(chatId, page).then((rows) => {
       if (!cancelled) {
         setMessages(rows);
+        setHasOlder(tail === undefined && rows.length >= page);
         setLoading(false);
       }
     });
     return () => {
       cancelled = true;
     };
+  }, [chatId, tail, page]);
+
+  /** Read the page above the oldest loaded message; resolves to how many
+   *  were added at the front (0 when the start of the chat is reached). */
+  const loadOlder = useCallback((): Promise<number> => {
+    if (!chatId || tail !== undefined) return Promise.resolve(0);
+    if (olderInFlight.current) return olderInFlight.current;
+    const oldest = messagesRef.current.find((m) => !m.id.startsWith(EPHEMERAL_PREFIX));
+    if (!oldest) return Promise.resolve(0);
+    const run = window.popbot.chats
+      .listMessagesBefore(chatId, { createdAt: oldest.createdAt, id: oldest.id }, MESSAGE_PAGE)
+      .then((rows) => {
+        if (rows.length < MESSAGE_PAGE) setHasOlder(false);
+        const have = new Set(messagesRef.current.map((m) => m.id));
+        const fresh = rows.filter((m) => !have.has(m.id));
+        if (fresh.length === 0) return 0;
+        setMessages((prev) => [...fresh, ...prev]);
+        return fresh.length;
+      })
+      .finally(() => {
+        olderInFlight.current = null;
+      });
+    olderInFlight.current = run;
+    return run;
   }, [chatId, tail]);
 
   useEffect(() => {
@@ -137,15 +178,21 @@ export function useMessages(chatId: string | undefined, tail?: number) {
             ];
           }
           case 'text-delta': {
-            return prev.map((m) => {
-              if (m.id !== event.messageId) return m;
-              const body = parseTextBody(m.body);
-              return {
-                ...m,
-                body: JSON.stringify({ text: body.text + event.delta } satisfies MessageBodyText),
-                updatedAt: event.ts,
-              };
-            });
+            // The streaming row is at (or near) the end: look from there,
+            // and copy the list once rather than visiting every row.
+            let at = -1;
+            for (let i = prev.length - 1; i >= 0; i -= 1) {
+              if (prev[i].id === event.messageId) { at = i; break; }
+            }
+            if (at < 0) return prev;
+            const m = prev[at];
+            const next = prev.slice();
+            next[at] = {
+              ...m,
+              body: JSON.stringify({ text: parseTextBody(m.body).text + event.delta } satisfies MessageBodyText),
+              updatedAt: event.ts,
+            };
+            return next;
           }
           case 'tool-use': {
             const id = 'tool_' + event.toolUseId;
@@ -245,7 +292,16 @@ export function useMessages(chatId: string | undefined, tail?: number) {
     return off;
   }, [chatId]);
 
-  return { messages, loading };
+  /** Forget all but the newest `keep` loaded messages: a long-running chat
+   *  must not hold its whole growth in memory. They are still there to
+   *  read back (loadOlder). */
+  const trimOlder = useCallback((keep: number) => {
+    if (tail !== undefined) return;
+    setMessages((prev) => (prev.length > keep ? prev.slice(-keep) : prev));
+    setHasOlder(true);
+  }, [tail]);
+
+  return { messages, loading, hasOlder, loadOlder, trimOlder };
 }
 
 function parseTextBody(body: string): MessageBodyText {

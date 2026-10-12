@@ -150,6 +150,8 @@ export interface RemoteSpawnOpts {
   /** The chat's name, which the host shows its other chats when no
    *  desktop is connected. */
   chatName: string;
+  /** The chats it manages, for the host's own tools likewise. */
+  manages: string[];
   /** The desktop's current permission rules, sent to the host at spawn
    *  and after every decision (which may have added one). */
   rules(): HostRules;
@@ -194,7 +196,8 @@ export interface AgentSession {
    *  image natively rather than having to Read the path back. */
   sendUser(text: string, attachments?: PickedAttachment[]): Promise<void>;
   /** Resolve a pending permission request. */
-  approve(permissionId: string, decision: PermissionDecision): void;
+  /** `reason`: what the agent is told of a denial (default: the user denied it). */
+  approve(permissionId: string, decision: PermissionDecision, reason?: string): void;
   /** Cancel any in-flight work. The session can still receive new messages after stop(). */
   stop(): void;
   /** Ask the backend to compact its conversation context — summarize the

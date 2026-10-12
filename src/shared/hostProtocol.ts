@@ -21,6 +21,8 @@
  *   POST /v1/chats/:chatId/approve         { permissionId, decision }
  *   POST /v1/chats/:chatId/stop | compact | dispose
  *   POST /v1/chats/:chatId/rules           { rules }
+ *   GET  /v1/mailbox                       → { messages }  (mail sent while no desktop was there)
+ *   POST /v1/mailbox/taken                 { ids } → { ok }  (a desktop has taken them over)
  *   PUT  /v1/chats/:chatId/meta            HostChatMeta → { ok }  (renamed, closed, reopened, gone)
  *   POST /v1/chats/:chatId/mcp-response    HostMcpResponse
  *   GET  /v1/chats/:chatId/events?after=N  SSE of HostFrame, replaying seq > N
@@ -111,8 +113,9 @@ export interface HostInfo {
   claude: { ok: boolean; path: string | null };
   codex: { ok: boolean; path: string | null };
   repos: HostRepo[];
-  /** Chats with a live session on the host, for a desktop that comes back. */
-  chats: Array<{ chatId: string; alive: boolean; lastSeq: number }>;
+  /** Chats with a live session on the host, for a desktop that comes back
+   *  — and whether each is mid-turn (an older host leaves `busy` out). */
+  chats: Array<{ chatId: string; alive: boolean; lastSeq: number; busy?: boolean }>;
   /** Every ordinary chat the host knows, as its own tools left it — what a
    *  desktop that was away adopts: chats made, closed or reopened on the
    *  host meanwhile. An older host leaves it out. */
@@ -274,6 +277,8 @@ export interface HostSpawnBody {
   /** The chat's name, for the host's own popbot tools — what other chats
    *  on the host see when the desktop is away (see localPopbot.ts). */
   chatName?: string | null;
+  /** The chats it manages, as the user set them (HostChatMeta.manages). */
+  manages?: string[];
 }
 
 /** A chat as the host remembers it (src/host/chatRoster.ts). */
@@ -309,6 +314,9 @@ export interface HostChatMeta {
   name?: string;
   open?: boolean;
   gone?: boolean;
+  /** The chats this one manages (set by the user): who it may message,
+   *  interrupting them, and who may message it, into its inbox. */
+  manages?: string[];
 }
 
 /** Permission rules as the desktop keeps them: the chat's own rules
@@ -376,6 +384,8 @@ export interface HostSendBody {
 export interface HostApproveBody {
   permissionId: string;
   decision: PermissionDecision;
+  /** What the agent is told of a denial; an older host ignores it. */
+  reason?: string;
 }
 
 /** An MCP Streamable HTTP request the agent made to its popbot server.

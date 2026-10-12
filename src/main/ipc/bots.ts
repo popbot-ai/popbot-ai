@@ -18,7 +18,8 @@ import { hostBotAction, killHostBot, probeHost, saveHostBot } from '../agents/ho
 import { closeChat, createChat, deleteChat, getChat, listClosedChats, listOpenChats, renameChat, setChatHost } from '../persistence/chats';
 import { getHost, listHosts } from '../persistence/hosts';
 import { isDbOpen } from '../persistence/db';
-import { syncHostChats } from './hostChatSync';
+import { syncHostChats, takeHostMail } from './hostChatSync';
+import { forgetHost, noteHostChats } from './closedLiveness';
 import { dlog } from '../diagLog';
 
 /** How often the hosts are asked about their bots. */
@@ -45,7 +46,11 @@ function refresh(): Promise<void> {
 async function refreshNow(): Promise<void> {
   if (!isDbOpen()) return;
   const hosts = listHosts();
-  for (const id of [...listings.keys()]) if (!hosts.some((h) => h.id === id)) listings.delete(id);
+  for (const id of [...listings.keys()]) {
+    if (hosts.some((h) => h.id === id)) continue;
+    listings.delete(id);
+    forgetHost(id);
+  }
   await Promise.all(hosts.map(async (host) => {
     try {
       const info = await probeHost(host);
@@ -61,9 +66,13 @@ async function refreshNow(): Promise<void> {
         const chat = ensureBotChat(host, bot);
         if (chat) void follow(chat.id);
       }
+      // Closed chats whose session is still up there, for the chat list.
+      noteHostChats(host.id, info.chats ?? []);
       // What the host's own tools did while this app was away: chats made,
       // closed or reopened there.
       if (info.roster) await syncHostChats(host, info.roster).catch((err: unknown) => dlog('hostsync.failed', { host: host.name, error: message(err) }));
+      // And the mail its chats sent each other meanwhile.
+      await takeHostMail(host).catch((err: unknown) => dlog('hostsync.mail-failed', { host: host.name, error: message(err) }));
       // An open chat on the host that went on without this app — another
       // chat there messaged it while this app was away — is followed too,
       // so its transcript here catches up without anyone opening it.
@@ -74,6 +83,7 @@ async function refreshNow(): Promise<void> {
         if (seq !== undefined && seq > chat.host.lastSeq) void follow(chat.id);
       }
     } catch (err) {
+      noteHostChats(host.id, null);
       const prior = listings.get(host.id);
       listings.set(host.id, {
         hostId: host.id,
