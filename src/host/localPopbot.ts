@@ -32,6 +32,7 @@ import { dlog } from '../main/diagLog';
 import type { HostBots } from './bots';
 import type { RosterChat } from './chatRoster';
 import { frameEntries } from './hostTranscript';
+import { mailListing, type Mailbox } from '../main/mailbox/mailbox';
 import { forwardMcp, type McpRelayFn } from './mcpRelay';
 import type { HostSessions } from './sessions';
 import type { HostWorkspaces } from './workspaces';
@@ -46,6 +47,8 @@ export interface LocalPopbotDeps {
   sessions: HostSessions;
   workspaces: HostWorkspaces;
   bots: HostBots;
+  /** This host's mailboxes (hostMailbox.ts). */
+  mailbox: Mailbox;
 }
 
 /**
@@ -118,6 +121,7 @@ export function localPopbotHandlers(d: LocalPopbotDeps): PopbotToolHandlers {
       closed: !c.open,
       lastActiveAt: c.lastActiveAt,
       isCaller: c.id === caller,
+      relationship: ((rel) => (rel === 'worker' ? 'WORKER' : rel === 'manager' ? 'MANAGER' : 'OTHER'))(caller ? sessions.roster.relation(caller, c.id) : null),
     };
   };
 
@@ -164,8 +168,8 @@ export function localPopbotHandlers(d: LocalPopbotDeps): PopbotToolHandlers {
       }];
     },
 
-    async sendToChat({ chatId, text, summary, sender_name, waitForReply, timeoutSeconds }, caller) {
-      if (chatId === caller) return fail('you cannot message the chat you are running in — that would wait on your own turn');
+    async sendToChat({ chatId, text, summary, sender_name }, caller) {
+      if (chatId === caller) return fail('you cannot message the chat you are running in');
       if (sessions.isBot(chatId)) return fail(`${chatId} is a bot; use message_bot`);
       const target = findChat(chatId);
       if (!target) {
@@ -174,33 +178,44 @@ export function localPopbotHandlers(d: LocalPopbotDeps): PopbotToolHandlers {
           'reached right now (list_chats shows them).',
         );
       }
-      if (target.id === caller) return fail('you cannot message the chat you are running in — that would wait on your own turn');
+      if (target.id === caller) return fail('you cannot message the chat you are running in');
       if (!target.open) return fail(`chat ${target.id} ("${target.name}") is closed; it can be reopened in PopBot`);
-      const from = { id: caller ?? '', name: nameOf(caller), ...withName(sender_name) };
-      const forAgent = attributeCrossChatMessage(text, from, waitForReply);
-      const send = async (): Promise<void> => {
-        await sessions.prompt(target.id, text, { ...from, waiting: waitForReply, summary: summary.trim() }, forAgent);
-      };
-      try {
-        await sessions.wake(target.id);
-        if (!waitForReply) {
-          await send();
-          dlog('host.popbot.send', { by: caller, to: target.id, wait: false });
-          return { outcome: 'sent', reply: '', entries: 0 };
-        }
-        const res = await deliverAndWait(sessions, target.id, send, timeoutSeconds * 1000);
-        dlog('host.popbot.send', { by: caller, to: target.id, wait: true, outcome: res.outcome, replyChars: res.reply.length });
-        return {
-          outcome: res.outcome,
-          reply: res.reply,
-          entries: res.entries,
-          ...(res.outcome === 'errored'
-            ? { reason: `delivered, but the agent in chat ${target.id} failed to run its turn${res.reason ? `: ${res.reason}` : ''}. Resending will not help.` }
-            : {}),
-        };
-      } catch (err) {
-        return fail(`could not reach "${target.name}": ${err instanceof Error ? err.message : String(err)}`);
-      }
+      // Into its mailbox; it is told only that something waits.
+      const sent = await d.mailbox.send({ to: target.id, from: caller, senderName: sender_name ?? null, summary, body: text ?? null });
+      dlog('host.popbot.send', { by: caller, to: target.id, messageId: sent.id, interrupted: sent.interrupted });
+      return { messageId: sent.id, to: target.name, delivered: sent.interrupted ? 'interrupted' : 'mailbox' };
+    },
+
+    async sendMail({ chatId, summary, text, attach, sender_name }, caller) {
+      if (attach?.trim()) return away('Attaching a file');
+      if (chatId === caller) return fail('that is your own chat');
+      const target = findChat(chatId);
+      if (!target) return fail(`no chat ${chatId} on ${d.hostName} (PopBot's desktop is away; list_chats shows this host's)`);
+      if (!target.open) return fail(`chat ${target.id} ("${target.name}") is closed`);
+      const sent = d.mailbox.mail({ to: target.id, from: caller, senderName: sender_name ?? null, summary, body: text ?? null });
+      return { messageId: sent.id, to: target.name };
+    },
+
+    async reply({ messageId, text, summary, sender_name }, caller) {
+      if (!caller) return fail('only a chat has a mailbox to answer from');
+      const sent = d.mailbox.reply({ messageId, from: caller, senderName: sender_name ?? null, summary, body: text ?? null });
+      return { messageId: sent.id, to: nameOf(sent.toChatId) };
+    },
+
+    listMailbox(caller) {
+      if (!caller) return fail('only a chat has a mailbox');
+      return { messages: d.mailbox.list(caller).map((m) => mailListing(m, (from) => sessions.roster.relation(caller, from))) };
+    },
+
+    readMessage({ messageId }, caller) {
+      if (!caller) return fail('only a chat has a mailbox');
+      const m = d.mailbox.read(caller, messageId);
+      return { id: m.id, from: m.fromName, fromChat: m.fromChatId, summary: m.summary, body: m.body, replyTo: m.replyTo, at: new Date(m.createdAt).toISOString() };
+    },
+
+    deleteMessages({ messageIds }, caller) {
+      if (!caller) return fail('only a chat has a mailbox');
+      return d.mailbox.delete(caller, messageIds);
     },
 
     async listBots({ host }) {

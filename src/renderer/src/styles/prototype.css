@@ -737,6 +737,22 @@ input, textarea { font: inherit; color: inherit; background: none; border: 0; ou
 .chat-row .timestamp { color: var(--fg-3); }
 .chat-row.inactive { opacity: 0.55; }
 .chat-row.inactive .name { color: var(--fg-1); }
+/* A closed chat whose agent is still up — on its host or in the cloud —
+   stays greyed like any closed chat, except a bright chip (RUNNING
+   mid-turn, LIVE when idle; its menu shuts it down) and, while it
+   works, its pulsing glyph. The row is not dimmed as a whole, so those
+   two can stand out; everything else is dimmed piece by piece. */
+.chat-row.inactive.live-elsewhere { opacity: 1; }
+.chat-row.inactive.live-elsewhere .name,
+.chat-row.inactive.live-elsewhere .meta-line > :not(.live-chip):not(.chat-menu),
+.chat-row.inactive.live-elsewhere .token-bar,
+.chat-row.inactive.live-elsewhere:not(.running) .status-glyph { opacity: 0.55; }
+.chat-row .status-glyph.status-run { animation: pulse 1.6s ease-in-out infinite; }
+.live-chip { cursor: pointer; font-weight: 700; letter-spacing: 0.06em; flex: none; }
+.live-chip.running { background: var(--st-run); color: #fff; box-shadow: 0 0 8px rgba(79, 139, 255, 0.55); }
+.live-chip.live { background: rgba(79, 193, 193, 0.18); color: #4fc1c1; border-color: rgba(79, 193, 193, 0.6); }
+.live-chip.paused { background: var(--st-wait); color: #1a1300; }
+.live-chip:hover { filter: brightness(1.15); }
 
 /* "Active / being worked on" accent — used in two places, intentionally
  * sharing the same cue so a Linear ticket with an open chat reads the
@@ -6172,6 +6188,50 @@ input.input.mono, select.input.mono { font-family: var(--font-mono); font-size: 
 .hosts-chat-dot.st-done { background: var(--st-done); }
 .hosts-chat-dot.st-wait { background: var(--st-wait); }
 .hosts-chat-dot.st-err { background: var(--st-err); }
+.hosts-chat-dot.st-run { animation: pulse 1.6s ease-in-out infinite; }
+/* Auto-continue is on: which mode; a click turns it off. */
+.autocontinue-chip {
+  display: inline-flex; align-items: center; gap: 4px; flex: none;
+  background: rgba(79, 139, 255, 0.14); border: 1px solid rgba(79, 139, 255, 0.5);
+  color: #7aa7ff; border-radius: 10px; padding: 1px 8px; font-size: 11px; cursor: pointer;
+}
+.autocontinue-chip:hover { background: rgba(79, 139, 255, 0.24); }
+/* A manager's chip under the message box: hover names its workers. */
+.manager-chip {
+  display: inline-flex; align-items: center; gap: 5px; flex: none;
+  background: rgba(198, 120, 221, 0.14); border: 1px solid rgba(198, 120, 221, 0.5);
+  color: #c678dd; border-radius: 10px; padding: 1px 8px; font-size: 11px; cursor: pointer;
+}
+.manager-chip:hover { background: rgba(198, 120, 221, 0.24); }
+/* Make manager: tick the live chats it manages. */
+.manager-dialog { width: min(520px, calc(100vw - 32px)); }
+.manager-dialog .modal-head { display: block; }
+.manager-dialog .modal-head .sub { margin-top: 6px; }
+.manager-list { list-style: none; margin: 0; padding: 0; max-height: 50vh; overflow: auto; }
+.manager-list li label {
+  display: flex; align-items: center; gap: 8px; padding: 6px 4px; border-radius: 4px; cursor: pointer; min-width: 0;
+}
+.manager-list li label:hover { background: var(--bg-2); }
+.manager-name { font-weight: 600; color: var(--fg-0); flex: none; }
+.manager-full { color: var(--fg-3); font-size: 11.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; flex: 1 1 auto; }
+.manager-where { color: var(--fg-3); font-size: 11px; flex: none; margin-left: auto; }
+.manager-empty { color: var(--fg-3); }
+/* Each chat's session there, as the host says: RUNNING (mid-turn), LIVE
+   (up, idle), SHUT DOWN. A closed chat is listed only while its session
+   is up, greyed but for its state chip and its Shut down button. */
+.hosts-chats li { display: flex; align-items: center; min-width: 0; }
+.hosts-chats li.closed .hosts-chat-name,
+.hosts-chats li.closed .hosts-chat-slot { opacity: 0.55; }
+.hosts-chat-closed { font-size: 10px; color: var(--fg-3); flex: 0 0 auto; }
+.hosts-session { flex: 0 0 auto; font-size: 9px; line-height: 13px; padding: 0 5px; font-weight: 700; }
+.hosts-session.running { background: var(--st-run); color: #fff; }
+.hosts-session.live { background: rgba(79, 193, 193, 0.18); color: #4fc1c1; border-color: rgba(79, 193, 193, 0.6); }
+.hosts-session.down { background: transparent; color: var(--fg-3); border-color: var(--line-1); }
+.hosts-chat-shutdown {
+  flex: 0 0 auto; background: transparent; border: 0; padding: 3px 6px; border-radius: 4px;
+  color: var(--fg-3); cursor: pointer; font-size: 10px;
+}
+.hosts-chat-shutdown:hover { color: #e89696; background: var(--bg-2); }
 .host-card.local { background: var(--bg-2); }
 .host-card-head { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; min-width: 0; }
 .host-card-head > i { color: var(--fg-3); font-size: 11px; }

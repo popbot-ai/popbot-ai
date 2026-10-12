@@ -67,6 +67,12 @@ const api: PopBotApi = {
     listRefs: () => ipcRenderer.invoke(IpcChannel.ChatsListRefs),
     listMessages: (chatId: string, tail?: number) =>
       ipcRenderer.invoke(IpcChannel.MessagesList, chatId, tail),
+    listMessagesBefore: (chatId: string, before: { createdAt: number; id: string }, limit: number) =>
+      ipcRenderer.invoke(IpcChannel.MessagesListBefore, chatId, before, limit),
+    getManages: () => ipcRenderer.invoke(IpcChannel.ChatsGetManages),
+    setManages: (chatId: string, workers: string[]) => ipcRenderer.invoke(IpcChannel.ChatsSetManages, chatId, workers),
+    getAutoContinue: () => ipcRenderer.invoke(IpcChannel.ChatsGetAutoContinue),
+    setAutoContinue: (chatId: string, mode: 'forever' | 'until-complete' | null) => ipcRenderer.invoke(IpcChannel.ChatsSetAutoContinue, chatId, mode),
   },
   diag: {
     log: (tag: string, data?: Record<string, unknown>) => ipcRenderer.send(IpcChannel.DiagLog, tag, data),
@@ -223,6 +229,7 @@ const api: PopBotApi = {
   agent: {
     send: (input: SendMessageInput) => ipcRenderer.invoke(IpcChannel.AgentSend, input),
     stop: (chatId: string) => ipcRenderer.invoke(IpcChannel.AgentStop, chatId),
+    shutdown: (chatId: string) => ipcRenderer.invoke(IpcChannel.AgentShutdown, chatId),
     compact: (chatId: string) => ipcRenderer.invoke(IpcChannel.AgentCompact, chatId),
     configure: (input: ConfigureAgentInput) =>
       ipcRenderer.invoke(IpcChannel.AgentConfigure, input),

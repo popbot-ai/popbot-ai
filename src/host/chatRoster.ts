@@ -25,6 +25,8 @@ export interface RosterChat {
   changedAt: number;
   /** Made by the host's own tools: a desktop adopts it when it is back. */
   createdByHost: boolean;
+  /** The chats this one manages, as the user set them on the desktop. */
+  manages?: string[];
   /** How the desktop last started it. */
   body: HostSpawnBody;
   /** The native session to resume — the latest the agent reported. */
@@ -67,6 +69,7 @@ export class ChatRoster {
       changedBy: keep ? prior.changedBy : 'desktop',
       changedAt: keep ? prior.changedAt : prior?.open === false ? Date.now() : prior?.changedAt ?? Date.now(),
       createdByHost: prior?.createdByHost ?? false,
+      manages: body.manages ?? prior?.manages ?? [],
       body: { ...body, sessionId: null },
       // The desktop's choice, a fresh one included; the agent reports
       // the id it settles on (sessionId below).
@@ -123,7 +126,15 @@ export class ChatRoster {
       ...(typeof meta.name === 'string' && meta.name.trim() ? { name: meta.name.trim() } : {}),
       // The desktop has it now, whoever changed it last.
       ...(typeof meta.open === 'boolean' ? { open: meta.open, changedBy: 'desktop' as const, changedAt: Date.now() } : {}),
+      ...(Array.isArray(meta.manages) ? { manages: meta.manages.filter((x) => typeof x === 'string') } : {}),
     });
+  }
+
+  /** What `to` is to `from`: its worker, its manager, or nothing. */
+  relation(from: string, to: string): 'worker' | 'manager' | null {
+    if (this.chats.get(from)?.manages?.includes(to)) return 'worker';
+    if (this.chats.get(to)?.manages?.includes(from)) return 'manager';
+    return null;
   }
 
   private put(chat: RosterChat): void {

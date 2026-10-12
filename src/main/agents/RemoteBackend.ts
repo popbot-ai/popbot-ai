@@ -29,6 +29,7 @@ import type {
 import type { HostRecord } from '@shared/persistence';
 import { dlog } from '../diagLog';
 import { encodeAttachments, hostRequest, HostRequestError, readHostEvents } from './hostClient';
+import { POPBOT_PRIMER } from '../mcp/popbotPrimer';
 import type { AgentBackend, AgentSession, RemoteSpawnOpts, SpawnOpts } from './types';
 
 const RECONNECT_MIN_MS = 1_000;
@@ -80,6 +81,7 @@ class RemoteSession implements AgentSession {
     this.body = {
       agent: remote.agent,
       chatName: remote.chatName,
+      manages: remote.manages,
       sessionId: opts.sessionId ?? null,
       claudeModel: isCodex ? null : opts.claudeModel ?? null,
       claudeReasoningEffort: isCodex ? null : opts.claudeReasoningEffort ?? null,
@@ -250,12 +252,14 @@ class RemoteSession implements AgentSession {
   private hostPreamble(): string {
     const now = new Date().toLocaleString('sv-SE', { dateStyle: 'short', timeStyle: 'short' });
     const where = this.cwd ? ` in this working directory: ${this.cwd}` : '';
-    return this.resumes
+    // PopBot's fixed note, when it has the popbot tools.
+    const primer = this.remote.popbotMcpUrl() !== null ? POPBOT_PRIMER : '';
+    return primer + (this.resumes
       ? `[System] This chat resumed at ${now} on the host "${this.host.name}"${where} — use this path for ` +
           `all file reads, edits, and commands from here on; any path you recall from earlier may be stale.\n\n`
       : `[System] Starting up at ${now} on the host "${this.host.name}"${where}.${this.remote.languageDirective} ` +
           `This machine is not the one the person is using: files and tools are here, on the host. ` +
-          `Instructions will follow.\n\n`;
+          `Instructions will follow.\n\n`);
   }
 
   /** Follow the chat's stream without sending anything — a bot's chat,
@@ -288,7 +292,7 @@ class RemoteSession implements AgentSession {
     dlog('remote.sent', { chatId: this.chatId, host: this.host.name, textLen: text.length, attachments: body.attachments?.length ?? 0 });
   }
 
-  approve(permissionId: string, decision: PermissionDecision): void {
+  approve(permissionId: string, decision: PermissionDecision, reason?: string): void {
     void (async () => {
       try {
         // The decision may have added a rule; the host resolves rules
@@ -299,6 +303,7 @@ class RemoteSession implements AgentSession {
         await hostRequest(this.host, 'POST', `/v1/chats/${encodeURIComponent(this.chatId)}/approve`, {
           permissionId,
           decision,
+          ...(reason ? { reason } : {}),
         } satisfies HostApproveBody);
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);

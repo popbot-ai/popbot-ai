@@ -155,6 +155,14 @@ export class HostBots implements BotHooks {
     this.mcpUrlFor = urlFor;
   }
 
+  /** Where a bot's answer to a chat goes when this host gave out the
+   *  reply id: the chat's inbox, never its conversation (hostMailbox.ts). */
+  private chatInbox: ((chatId: string, botName: string, text: string) => void) | null = null;
+
+  useChatInbox(put: (chatId: string, botName: string, text: string) => void): void {
+    this.chatInbox = put;
+  }
+
   /** Start every bot: its session, its watchers, the cron clock. */
   start(): void {
     for (const bot of this.config.bots) this.arm(bot, 2_000);
@@ -330,8 +338,11 @@ export class HostBots implements BotHooks {
       local.used = true;
       const sender = { id: botChatId(bot.id), name: bot.name };
       try {
-        await this.sessions.wake(local.chatId);
-        await this.sessions.prompt(local.chatId, text, sender, attributeCrossChatMessage(text, sender, false, { fromBotId: bot.id }));
+        if (this.chatInbox) this.chatInbox(local.chatId, bot.name, text);
+        else {
+          await this.sessions.wake(local.chatId);
+          await this.sessions.prompt(local.chatId, text, sender, attributeCrossChatMessage(text, sender, false, { fromBotId: bot.id }));
+        }
       } catch (err) {
         return { error: `could not reach that chat: ${err instanceof Error ? err.message : String(err)}` };
       }

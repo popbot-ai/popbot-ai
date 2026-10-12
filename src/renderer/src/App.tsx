@@ -48,6 +48,8 @@ import { playPing, playUrgentDing } from './lib/ping';
 import type { NotificationAction, NotificationRecord } from '@shared/notifications';
 import { NotificationToastStack } from './components/NotificationToast';
 import type { CreateChatInput, TranscriptSearchHit } from '@shared/ipc';
+import { useAutoContinue } from './lib/useAutoContinue';
+import { useManages } from './lib/useManages';
 import { useChats } from './lib/useChats';
 import { useReadiness } from './lib/useReadiness';
 import { hotkey } from './lib/hotkeys';
@@ -97,6 +99,7 @@ function chatRecordToFixture(c: ChatRecord, t: Translator): ChatFixture {
     worktreePath: c.worktreePath,
     repoColor: c.repoColor,
     scm: c.repoScm,
+    ...(c.liveElsewhere ? { live: c.liveElsewhere } : {}),
   };
 }
 
@@ -112,6 +115,15 @@ function relativeTime(ts: number, t: Translator): string {
 export default function App(): JSX.Element {
   const { t } = useTranslation();
   const { chats, closedChats, loading, create, close, reopen, attachSlot, remove, refresh, reorder, rename, fork } = useChats();
+  // Who manages whom, and the live chats there are to manage: the open
+  // ones, and closed ones whose agent is still up elsewhere. Bots keep
+  // their own messaging.
+  const { manages, setManages } = useManages();
+  const { modes: autoContinueModes, setMode: setAutoContinueMode } = useAutoContinue();
+  const liveChats = useMemo(
+    () => [...chats, ...closedChats.filter((c) => c.liveElsewhere)].filter((c) => !c.host?.botId),
+    [chats, closedChats],
+  );
   // The visible columns are a contiguous window of `chats`. windowStart is
   // the index of the leftmost visible chat. Click a thumbnail to scroll
   // the window so that chat is visible (and active).
@@ -625,7 +637,13 @@ export default function App(): JSX.Element {
   const fixtures = chats.map((c) => chatRecordToFixture(c, t));
   // Bots live in the Bots tab, open or closed: their chats run on their
   // host either way. Their columns still show among the others.
-  const chatListFixtures = chats.filter((c) => !c.host?.botId).map((c) => chatRecordToFixture(c, t));
+  // An open chat that is working, or paused waiting on its user, can be
+  // shut down from its row.
+  const chatListFixtures = chats.filter((c) => !c.host?.botId).map((c): ChatFixture => {
+    const f = chatRecordToFixture(c, t);
+    const state = c.status === 'run' ? 'running' : c.status === 'wait' ? 'paused' : null;
+    return state ? { ...f, live: { state, where: c.host ? 'host' : c.cloud ? 'cloud' : 'here' } } : f;
+  });
   const inactiveFixtures = closedChats.filter((c) => !c.host?.botId).map((c) => chatRecordToFixture(c, t));
   const focusedRecord = chats.find((c) => c.id === focusedId);
   const settingsChat = chats.find((c) => c.id === settingsForId);
@@ -1758,6 +1776,11 @@ export default function App(): JSX.Element {
                 onClose={() => void closeCol(chat.id)}
                 onOpenSettings={() => setSettingsForId(chat.id)}
                 onFork={() => forkChat(chat)}
+                manages={manages[chat.id] ?? []}
+                liveChats={liveChats}
+                onSetManages={(workers) => void setManages(chat.id, workers)}
+                autoContinue={autoContinueModes[chat.id] ?? null}
+                onSetAutoContinue={(mode) => void setAutoContinueMode(chat.id, mode)}
                 onChatUpdated={() => void refresh()}
                 onRename={(name) => rename(chat.id, name)}
                 onOpenPrefs={openPrefsAt}

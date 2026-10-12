@@ -86,6 +86,14 @@ export const IpcChannel = {
    *  forked native session, and its own workspace. */
   ChatsFork: 'pb:chats:fork',
   MessagesList: 'pb:messages:list',
+  /** Who manages whom (the Make manager popup). */
+  ChatsGetManages: 'pb:chats:get-manages',
+  ChatsSetManages: 'pb:chats:set-manages',
+  /** Auto-continue modes (forever / until complete), per chat. */
+  ChatsGetAutoContinue: 'pb:chats:get-auto-continue',
+  ChatsSetAutoContinue: 'pb:chats:set-auto-continue',
+  /** The page of history above what a chat view has loaded. */
+  MessagesListBefore: 'pb:messages:list-before',
 
   /** Renderer → diagnostic log (fire-and-forget): a line in the same
    *  popbot-agent.log the main process writes, tagged `renderer.<tag>`. */
@@ -239,6 +247,8 @@ export const IpcChannel = {
 
   AgentSend: 'pb:agent:send',
   AgentStop: 'pb:agent:stop',
+  /** End a chat's agent session wherever it runs — see agent.shutdown. */
+  AgentShutdown: 'pb:agent:shutdown',
   /** Compact the chat's agent context (summarize the transcript so far)
    *  — the composer's context gauge. Progress arrives as `compaction`
    *  agent events. */
@@ -808,6 +818,16 @@ export interface PopBotApi {
      *  after the original in the strip. */
     fork(input: ForkChatInput): Promise<ForkChatResult>;
     listMessages(chatId: string, tail?: number): Promise<MessageRecord[]>;
+    /** The `limit` messages before `before`, oldest-first: a chat view opens
+     *  at its tail and reads a long history back a page at a time. */
+    listMessagesBefore(chatId: string, before: { createdAt: number; id: string }, limit: number): Promise<MessageRecord[]>;
+    /** Who manages whom: each manager's chat id → the chats it manages. */
+    getManages(): Promise<Record<string, string[]>>;
+    /** Set the chats `chatId` manages (an empty list: none). */
+    setManages(chatId: string, workers: string[]): Promise<void>;
+    /** Each chat's auto-continue mode; a chat with none is not listed. */
+    getAutoContinue(): Promise<Record<string, 'forever' | 'until-complete'>>;
+    setAutoContinue(chatId: string, mode: 'forever' | 'until-complete' | null): Promise<void>;
     /** Full-text search over transcripts, best matches first. */
     searchTranscripts(query: string, opts?: TranscriptSearchOptions): Promise<TranscriptSearchResult>;
     listRefs(): Promise<ChatRefs>;
@@ -1101,6 +1121,10 @@ export interface PopBotApi {
   agent: {
     send(input: SendMessageInput): Promise<void>;
     stop(chatId: string): Promise<void>;
+    /** Shut a chat's agent down, running or paused, wherever it runs: its
+     *  session on its host or in the cloud, or here its turn and process.
+     *  The next message starts a new session, resuming the conversation. */
+    shutdown(chatId: string): Promise<void>;
     /** Compact the chat's context. Claude only — for a Codex chat the
      *  host answers with a warning diagnostic instead (Codex compacts on
      *  its own). Progress comes back as `compaction` events on onEvent. */

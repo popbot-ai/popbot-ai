@@ -28,10 +28,10 @@ function stringify(v: unknown): string {
   }
 }
 
-/** What the desktop puts in front of a first message — where the agent
- *  is — is for the agent, not part of the conversation. */
+/** What the desktop puts in front of a first message — PopBot's note,
+ *  where the agent is — is for the agent, not part of the conversation. */
 function withoutPreamble(text: string): string {
-  return text.replace(/^\[System\][\s\S]*?\n\n/, '');
+  return text.replace(/^(?:\[(?:System|PopBot)\][\s\S]*?\n\n)+/, '');
 }
 
 export function frameEntries(frames: HostFrame[], opts: { includeTools?: boolean } = {}): TranscriptEntry[] {

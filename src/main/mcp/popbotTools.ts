@@ -35,6 +35,11 @@ import { getChat, listChatRefs, listClosedChats, listOpenChats } from '../persis
 import { listHosts } from '../persistence/hosts';
 import { getMessage, listMessages } from '../persistence/messages';
 import { getRepo, listRepos } from '../persistence/repos';
+import { withLiveness } from '../ipc/closedLiveness';
+import { desktopMailbox } from '../mailbox/desktopMailbox';
+import { relation } from '../mailbox/relations';
+import { mailListing } from '../mailbox/mailbox';
+import type { Relationship } from './server';
 import { getSetting } from '../persistence/settings';
 import { getReviewByNumber } from '../reviews';
 import { getSourceControlProvider } from '../scm';
@@ -76,6 +81,7 @@ function summarize(chat: ChatRecord, caller: string | null, closed: boolean): Ch
     closed,
     lastActiveAt: chat.lastActiveAt,
     isCaller: chat.id === caller,
+    relationship: toRelationship(caller ? relation(caller, chat.id) : null),
   };
 }
 
@@ -83,6 +89,10 @@ function summarize(chat: ChatRecord, caller: string | null, closed: boolean): Ch
 function withName(given: string | undefined): { agentName?: string } {
   const agentName = given?.trim();
   return agentName ? { agentName } : {};
+}
+
+function toRelationship(rel: 'worker' | 'manager' | null): Relationship {
+  return rel === 'worker' ? 'WORKER' : rel === 'manager' ? 'MANAGER' : 'OTHER';
 }
 
 function isOpen(chatId: string): boolean {
@@ -288,16 +298,30 @@ function transferSummary(t: FileTransferInfo): FileTransferSummary {
 }
 
 /** A note to a chat about a transfer, attributed to the chat at the other end. */
-function tellChat(chatId: string | null, text: string, fromChatId: string | null, summary?: string, agentName?: string): void {
+/**
+ * A message to a chat about a file (an offer, how a transfer went), from
+ * the chat at the other end: into its mailbox, like any message between
+ * chats (src/main/mailbox/). An offer interrupts its receiver, as a new
+ * message does; how a transfer went is a note it hears about in time.
+ */
+function tellChat(
+  chatId: string | null,
+  text: string,
+  fromChatId: string | null,
+  summary: string,
+  opts: { interrupt?: boolean; senderName?: string } = {},
+): void {
   if (!chatId || !getChat(chatId)) return;
-  const from = fromChatId ? getChat(fromChatId) : null;
-  sendInBackground(chatId, text, {
-    chatId: from?.id ?? 'popbot',
-    chatName: from?.name ?? 'PopBot',
-    waiting: false,
-    ...(summary ? { summary } : {}),
-    ...withName(agentName),
-  });
+  const input = { to: chatId, from: fromChatId, senderName: opts.senderName?.trim() || null, summary, body: text };
+  const failed = (err: unknown): void => dlog('mcp.popbot.mail-failed', { to: chatId, error: err instanceof Error ? err.message : String(err) });
+  if (opts.interrupt) void desktopMailbox().send(input).catch(failed);
+  else {
+    try {
+      desktopMailbox().post(input);
+    } catch (err) {
+      failed(err);
+    }
+  }
 }
 
 /** Transfers whose arrival the recipient already saw in its accept call. */
@@ -338,8 +362,12 @@ export function createPopbotToolHandlers(): PopbotToolHandlers {
       }
       // Bots have list_bots.
       const notBot = (c: ChatRecord): boolean => keep(c) && !c.host?.botId;
+      // Every agent: the open chats, and closed ones whose agent is still
+      // up on its host or in the cloud — the rest of the closed ones on
+      // request. What each is to the caller is marked (relationship).
       const open = listOpenChats().filter(notBot).map((c) => summarize(c, caller, false));
-      const closed = includeClosed ? listClosedChats(200).filter(notBot).map((c) => summarize(c, caller, true)) : [];
+      const closedAll = withLiveness(listClosedChats(200)).filter(notBot);
+      const closed = closedAll.filter((c) => includeClosed || c.liveElsewhere).map((c) => summarize(c, caller, true));
       return [...open, ...closed];
     },
 
@@ -461,45 +489,65 @@ export function createPopbotToolHandlers(): PopbotToolHandlers {
       return { chat: summarize(res.chat, caller, false) };
     },
 
-    async sendToChat({ chatId: wanted, text, summary, sender_name, waitForReply, timeoutSeconds }, caller) {
-      const chatId = wanted;
-      if (chatId === caller) return fail('you cannot message the chat you are running in — that would wait on your own turn');
+    async sendToChat({ chatId, text, summary, sender_name }, caller) {
+      if (chatId === caller) return fail('you cannot message the chat you are running in');
       const chat = getChat(chatId);
       if (!chat) return fail(`no chat ${chatId}`);
       if (chat.host?.botId) return fail(`${chat.name} is a bot; use message_bot`);
       if (!isOpen(chatId)) return fail(`chat ${chatId} is closed; reopen it first`);
-      // The message lands as a user turn in the other chat: the origin
-      // on the row shows it in a cross-agent box, and the agent gets an
-      // attribution saying who it is from and how to answer.
-      const senderId = caller ?? '';
-      const origin: CrossChatOrigin = {
-        chatId: senderId,
-        chatName: (caller && getChat(caller)?.name) || senderId || 'another chat',
-        waiting: waitForReply,
-        summary: summary.trim(),
-        ...withName(sender_name),
-      };
-      if (!waitForReply) {
-        sendInBackground(chatId, text, origin);
-        return { outcome: 'sent', reply: '', entries: 0 };
+      // Into its mailbox; it is told only that something waits.
+      const sent = await desktopMailbox().send({ to: chatId, from: caller, senderName: sender_name ?? null, summary, body: text ?? null });
+      dlog('mcp.popbot.sendToChat', { by: caller, chatId, messageId: sent.id, interrupted: sent.interrupted, bodyChars: text?.length ?? 0 });
+      return { messageId: sent.id, to: chat.name, delivered: sent.interrupted ? 'interrupted' : 'mailbox' };
+    },
+
+    async sendMail({ chatId, summary, text, attach, from, sender_name }, caller) {
+      if (chatId === caller) return fail('that is your own chat');
+      const target = getChat(chatId);
+      if (!target) return fail(`no chat ${chatId}`);
+      if (target.host?.botId) return fail(`${target.name} is a bot; use message_bot`);
+      if (!isOpen(target.id)) return fail(`chat ${target.name} is closed; reopen it first`);
+      let body = text?.trim() || null;
+      let transferId: string | undefined;
+      if (attach?.trim()) {
+        if (target.cloud) return fail(`${target.name} runs in the cloud, which files cannot be sent to`);
+        const sender = caller ? getChat(caller) : null;
+        const offer = await offerFileTransfer(
+          { from: from ?? machineOfChat(sender), fromPath: attach.trim(), to: machineOfChat(target), fromChatId: caller, toChatId: target.id },
+          (lapsed) => tellChat(caller, `Nobody accepted "${fileName(lapsed.fromPath)}" within an hour, so the offer to chat "${target.name}" lapsed.`, target.id, `Nobody took ${fileName(lapsed.fromPath)}; the offer lapsed.`),
+        );
+        followTransfer(offer.id);
+        transferId = offer.id;
+        body = `${body ? `${body}\n\n` : ''}Attached: "${fileName(offer.fromPath)}" (${humanSize(offer.size)}) from ${offer.from}. ` +
+          `To take it — into ~/popbot/sent_files on ${offer.to}, where you run — call the popbot tool accept_file_transfer with transferId "${offer.id}". ` +
+          'To turn it down, decline_file_transfer. The offer lapses in an hour.';
       }
-      const { outcome, messages, reason } = await AgentHost.sendAndWait(chatId, text, timeoutSeconds * 1000, origin);
-      const entries = transcriptEntries(messages, { includeTools: false });
-      const reply = entries.filter((e) => e.role === 'agent').map((e) => e.text).join('\n\n')
-        || entries.map((e) => e.text).join('\n');
-      dlog('mcp.popbot.sendToChat', { by: caller, chatId, outcome, replyChars: reply.length, reason });
-      // The message was delivered whatever the outcome; an error is the
-      // other chat's agent failing to run (its sign-in, its CLI), which
-      // its owner fixes there — say so, or the caller reads it as this
-      // tool failing.
-      return {
-        outcome,
-        reply,
-        entries: messages.length,
-        ...(outcome === 'errored'
-          ? { reason: `delivered, but the agent in chat ${chatId} failed to run its turn${reason ? `: ${reason}` : ''}. That chat's owner has to fix it there (its sign-in or CLI); resending will not help.` }
-          : {}),
-      };
+      const sent = desktopMailbox().mail({ to: target.id, from: caller, senderName: sender_name ?? null, summary, body });
+      dlog('mcp.popbot.sendMail', { by: caller, to: target.id, messageId: sent.id, transferId: transferId ?? null });
+      return { messageId: sent.id, to: target.name, ...(transferId ? { transferId } : {}) };
+    },
+
+    async reply({ messageId, text, summary, sender_name }, caller) {
+      if (!caller) return fail('only a chat has a mailbox to answer from');
+      const sent = desktopMailbox().reply({ messageId, from: caller, senderName: sender_name ?? null, summary, body: text ?? null });
+      dlog('mcp.popbot.reply', { by: caller, to: sent.toChatId, messageId: sent.id, replyTo: messageId });
+      return { messageId: sent.id, to: getChat(sent.toChatId)?.name ?? sent.toChatId };
+    },
+
+    listMailbox(caller) {
+      if (!caller) return fail('only a chat has a mailbox');
+      return { messages: desktopMailbox().list(caller).map((m) => mailListing(m, (from) => relation(caller, from))) };
+    },
+
+    readMessage({ messageId }, caller) {
+      if (!caller) return fail('only a chat has a mailbox');
+      const m = desktopMailbox().read(caller, messageId);
+      return { id: m.id, from: m.fromName, fromChat: m.fromChatId, summary: m.summary, body: m.body, replyTo: m.replyTo, at: new Date(m.createdAt).toISOString() };
+    },
+
+    deleteMessages({ messageIds }, caller) {
+      if (!caller) return fail('only a chat has a mailbox');
+      return desktopMailbox().delete(caller, messageIds);
     },
 
     async startCodeReview({ prNumber, scm }, caller) {
@@ -606,6 +654,10 @@ export function createPopbotToolHandlers(): PopbotToolHandlers {
       if (target.host?.botId) return fail(`${target.name} is a bot, and bots cannot accept files yet`);
       if (target.cloud) return fail(`${target.name} runs in the cloud, which files cannot be sent to`);
       if (!isOpen(target.id)) return fail(`chat ${target.name} is closed; reopen it first`);
+      // An offer is a message: from a manager to its workers only,
+      // interrupting them. Anyone else attaches a file to mail.
+      const rel = caller ? relation(caller, target.id) : null;
+      if (rel !== 'worker') return fail(`only a manager can offer files to its workers, and ${target.name} is not yours (list_chats relationship); attach it to mail instead (send_mail attach)`);
       const sender = caller ? getChat(caller) : null;
       const offer = await offerFileTransfer(
         { from: from ?? machineOfChat(sender), fromPath: path, to: machineOfChat(target), fromChatId: caller, toChatId: target.id },
@@ -619,8 +671,8 @@ export function createPopbotToolHandlers(): PopbotToolHandlers {
           `\n\nTo take it — into ~/popbot/sent_files on ${offer.to}, where you run — call the popbot tool accept_file_transfer with transferId "${offer.id}". ` +
           'To turn it down, decline_file_transfer. The offer lapses in an hour.',
         caller,
-        `${sender_name?.trim() || sender?.name || 'An agent'} has sent a send file request for ${offer.fromPath}`,
-        sender_name,
+        `File for you: ${fileName(offer.fromPath)}`,
+        { interrupt: true, senderName: sender_name ?? sender?.name },
       );
       dlog('mcp.popbot.transferFile', { by: caller, to: target.id, id: offer.id, size: offer.size });
       return transferSummary(offer);

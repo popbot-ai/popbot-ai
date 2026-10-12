@@ -11,10 +11,34 @@
 import type { HostRosterChat } from '@shared/hostProtocol';
 import { RAW_CHAT_REPO_ID, type HostRecord } from '@shared/persistence';
 import { AgentHost } from '../agents/AgentHost';
-import { setHostChatMeta } from '../agents/hostClient';
+import { HostRequestError, hostRequest, setHostChatMeta } from '../agents/hostClient';
+import type { MailMessage } from '../mailbox/mailbox';
+import { sqliteMailStore } from '../mailbox/sqliteMailStore';
 import { closeChat, createChat, getChat, listOpenChats } from '../persistence/chats';
 import { dlog } from '../diagLog';
 import { closeChatWithWorkspace, reopenChatWithWorkspace } from './chats';
+
+/**
+ * Mail the host's chats sent each other while this app was away: into
+ * this app's mailboxes (same ids, so taking it twice is harmless), then
+ * the host told it may forget it. A host older than mailboxes has none.
+ */
+export async function takeHostMail(host: HostRecord): Promise<void> {
+  let messages: Array<MailMessage & { deleted?: boolean }>;
+  try {
+    messages = (await hostRequest<{ messages: Array<MailMessage & { deleted?: boolean }> }>(host, 'GET', '/v1/mailbox')).messages ?? [];
+  } catch (err) {
+    if (err instanceof HostRequestError && err.status === 404) return;
+    throw err;
+  }
+  if (messages.length === 0) return;
+  for (const m of messages) {
+    sqliteMailStore.insert(m);
+    if (m.deleted) sqliteMailStore.remove(m.id);
+  }
+  await hostRequest(host, 'POST', '/v1/mailbox/taken', { ids: messages.map((m) => m.id) });
+  dlog('hostsync.mail-taken', { host: host.name, count: messages.length });
+}
 
 export async function syncHostChats(host: HostRecord, roster: HostRosterChat[]): Promise<void> {
   const open = new Set(listOpenChats().map((c) => c.id));

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ChatRecord } from '@shared/persistence';
 import type { ChatStatus } from '@shared/domain';
 import type {
@@ -29,18 +29,31 @@ const SESSION_STATUS_TO_CHAT_STATUS: Record<string, ChatStatus> = {
  * updates the user sees during a stream are derived from agent events.
  * We don't refetch the whole list every event; we patch in place.
  */
+/** One row per chat id, the first kept: a chat closed while a reload was
+ *  in flight arrives both ways, and must not show twice. */
+function uniqueById(rows: ChatRecord[]): ChatRecord[] {
+  const seen = new Set<string>();
+  return rows.filter((c) => (seen.has(c.id) ? false : (seen.add(c.id), true)));
+}
+
 export function useChats() {
   const [chats, setChats] = useState<ChatRecord[]>([]);
   const [closedChats, setClosedChats] = useState<ChatRecord[]>([]);
   const [loading, setLoading] = useState(true);
+  // The open list as last rendered, for close() to read without reaching
+  // into a state updater (which React may run twice).
+  const chatsRef = useRef<ChatRecord[]>([]);
+  chatsRef.current = chats;
 
   const refresh = useCallback(async () => {
     const [open, closed] = await Promise.all([
       window.popbot.chats.list(),
       window.popbot.chats.listClosed(),
     ]);
-    setChats(open);
-    setClosedChats(closed);
+    // A chat closed or reopened between the two reads can be in both.
+    const openIds = new Set(open.map((c) => c.id));
+    setChats(uniqueById(open));
+    setClosedChats(uniqueById(closed.filter((c) => !openIds.has(c.id))));
   }, []);
 
   useEffect(() => {
@@ -106,13 +119,15 @@ export function useChats() {
 
   const close = useCallback(async (chatId: string, opts?: CloseChatOptions) => {
     await window.popbot.chats.close(chatId, opts);
-    setChats((prev) => {
-      const found = prev.find((c) => c.id === chatId);
-      if (found) {
-        setClosedChats((p) => [{ ...found, slotId: null, worktreePath: null, lastActiveAt: Date.now() }, ...p]);
-      }
-      return prev.filter((c) => c.id !== chatId);
-    });
+    const found = chatsRef.current.find((c) => c.id === chatId);
+    setChats((prev) => prev.filter((c) => c.id !== chatId));
+    if (found) {
+      // On top of the closed list — replacing any copy a reload already put there.
+      setClosedChats((prev) => [
+        { ...found, slotId: null, worktreePath: null, lastActiveAt: Date.now() },
+        ...prev.filter((c) => c.id !== chatId),
+      ]);
+    }
   }, []);
 
   const reopen = useCallback(async (chatId: string): Promise<ReopenChatResult> => {

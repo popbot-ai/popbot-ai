@@ -15,6 +15,8 @@ import { resolveConfig } from './config';
 import { startBotMcp } from './botMcp';
 import { HostBots } from './bots';
 import { startPopbotMcpServer } from '../main/mcp/server';
+import { firstSentence } from '@shared/messageSummary';
+import { createHostMailbox } from './hostMailbox';
 import { localPopbotHandlers, popbotRoute } from './localPopbot';
 import { startMcpRelay } from './mcpRelay';
 import { createHostServer } from './server';
@@ -50,15 +52,21 @@ async function main(): Promise<void> {
   sessions.useBots(bots);
   // A chat's popbot calls go to the desktop reading its stream; with none
   // there, the host answers them itself for its own chats and bots.
+  // Its own mailboxes, for its chats while no desktop can be reached.
+  const mail = createHostMailbox(config, sessions);
+  mail.mailbox.start();
+  bots.useChatInbox((chatId, botName, text) => {
+    mail.mailbox.post({ to: chatId, from: null, senderName: botName, summary: firstSentence(text, 50), body: text });
+  });
   const localPopbot = await startPopbotMcpServer(
-    localPopbotHandlers({ hostName: config.name, version: VERSION, cli, repos: () => config.repos, sessions, workspaces, bots }),
+    localPopbotHandlers({ hostName: config.name, version: VERSION, cli, repos: () => config.repos, sessions, workspaces, bots, mailbox: mail.mailbox }),
     { version: VERSION },
   );
   const mcpRelay = await startMcpRelay(popbotRoute(sessions, localPopbot.urlFor));
   sessions.useMcpRelay(mcpRelay.urlFor);
   const botMcp = await startBotMcp(bots, VERSION);
   bots.useMcp(botMcp.urlFor);
-  const server = createHostServer({ config, version: VERSION, configPath: path, sessions, workspaces, bots, cli });
+  const server = createHostServer({ config, version: VERSION, configPath: path, sessions, workspaces, bots, cli, mail });
   server.listen(config.port, config.bind, () => {
     process.stdout.write(
       `popbot-host ${VERSION} listening on http://${config.bind}:${config.port} as "${config.name}"\n` +
@@ -76,6 +84,7 @@ async function main(): Promise<void> {
   const shutdown = async (): Promise<void> => {
     server.close();
     bots.stop();
+    mail.mailbox.stop();
     await sessions.disposeAll();
     await mcpRelay.close();
     await localPopbot.close();

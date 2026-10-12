@@ -1069,7 +1069,7 @@ class ClaudeSession implements AgentSession {
     });
   }
 
-  approve(permissionId: string, decision: PermissionDecision): void {
+  approve(permissionId: string, decision: PermissionDecision, reason?: string): void {
     const pending = this.pendingPerms.get(permissionId);
     if (!pending) {
       // Log this — could indicate a race where approve arrived after
@@ -1105,7 +1105,7 @@ class ClaudeSession implements AgentSession {
       });
       pending.resolve(result);
     } else {
-      const result = { behavior: 'deny' as const, message: 'user denied' };
+      const result = { behavior: 'deny' as const, message: reason?.trim() || 'user denied' };
       dlog('perm.resolve.deny', {
         chatId: this.chatId,
         sessionId: this.knownSessionId,

@@ -72,6 +72,10 @@ export interface Chat {
   /** Source-control system of this chat's repo (denormalized) — drives the
    *  per-row VCS icon in the chat list. */
   scm?: SourceControlProviderId | null;
+  /** An agent that is up and can be shut down: an open chat that is
+   *  running or paused (waiting on its user), or a closed one whose
+   *  session goes on on its host or in the cloud (ChatRecord.liveElsewhere). */
+  live?: { state: 'running' | 'paused' | 'live'; where: 'here' | 'host' | 'cloud' };
 }
 
 export interface InactiveChat {

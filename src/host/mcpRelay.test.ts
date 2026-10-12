@@ -23,7 +23,7 @@ vi.mock('../main/agents/CodexBackend', () => ({ CodexBackend: { spawn: () => { t
 
 const chat = (id: string, caller: string | null): ChatSummary => ({
   id, name: id, status: 'idle', agent: 'claude', repoId: 'app', branch: null, ticket: null, pr: null,
-  cloud: false, host: null, closed: false, lastActiveAt: 1, isCaller: id === caller,
+  cloud: false, host: null, closed: false, lastActiveAt: 1, isCaller: id === caller, relationship: 'OTHER'
 });
 const callers: Array<string | null> = [];
 const handlers = {
