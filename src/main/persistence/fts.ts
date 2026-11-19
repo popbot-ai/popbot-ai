@@ -71,6 +71,55 @@ export const FTS_MIGRATION_SQL = `
     SELECT m.rowid, ${indexedText('m')}, m.chat_id FROM messages m;
 `;
 
+/** Whether a row is the conversation itself: not tool output, and not a
+ *  message another chat or PopBot sent in (a user row with a `from`). */
+export function conversationRow(r: string): string {
+  return `(${r}.kind <> 'tool' AND NOT (${r}.kind = 'text' AND ${r}.role = 'user'
+    AND json_valid(${r}.body) AND json_extract(${r}.body, '$.from') IS NOT NULL))`;
+}
+
+/**
+ * The conversation only: tool rows (command output, file reads, patches)
+ * were nearly all of the index — gigabytes, for text nobody searches for
+ * (search defaults to user and agent messages) — and messages from other
+ * chats and PopBot crowd out the user's own. From v30 the triggers index
+ * only conversationRow()s; rows already in the index that aren't are
+ * taken out a slice at a time by the janitor (janitor.ts). A delete of a
+ * row the index doesn't hold is a no-op, so the delete triggers stay as
+ * they were.
+ */
+export const FTS_CONVERSATION_ONLY_SQL = `
+  DROP TRIGGER IF EXISTS messages_fts_ai;
+  DROP TRIGGER IF EXISTS messages_fts_au;
+  CREATE TRIGGER messages_fts_ai AFTER INSERT ON messages WHEN ${conversationRow('new')} BEGIN
+    INSERT INTO messages_fts(rowid, text, chat_id)
+      VALUES (new.rowid, ${indexedText('new')}, new.chat_id);
+  END;
+  CREATE TRIGGER messages_fts_au AFTER UPDATE OF body, kind ON messages BEGIN
+    DELETE FROM messages_fts WHERE rowid = old.rowid;
+    INSERT INTO messages_fts(rowid, text, chat_id)
+      SELECT new.rowid, ${indexedText('new')}, new.chat_id WHERE ${conversationRow('new')};
+  END;
+`;
+
+/** Offline only (scripts/compact-db.mjs): the index rebuilt from the
+ *  conversation alone — far quicker than taking tool rows out one by one. */
+export const FTS_REBUILD_CONVERSATION_SQL = `
+  DROP TABLE IF EXISTS messages_fts;
+  CREATE VIRTUAL TABLE messages_fts USING fts5(
+    text,
+    chat_id UNINDEXED,
+    tokenize = 'trigram'
+  );
+  DROP TRIGGER IF EXISTS messages_fts_ad;
+  CREATE TRIGGER messages_fts_ad AFTER DELETE ON messages BEGIN
+    DELETE FROM messages_fts WHERE rowid = old.rowid;
+  END;
+  ${FTS_CONVERSATION_ONLY_SQL}
+  INSERT INTO messages_fts(rowid, text, chat_id)
+    SELECT m.rowid, ${indexedText('m')}, m.chat_id FROM messages m WHERE ${conversationRow('m')};
+`;
+
 export type FtsQueryMode = 'text' | 'fts';
 
 /**

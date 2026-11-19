@@ -9,6 +9,7 @@ import {
 } from '@shared/ipc';
 import { AgentHost } from '../agents/AgentHost';
 import { shutdownChat } from './shutdownChat';
+import { clearChat } from './clearChat';
 import { probeClaude } from '../agents/claudeProbe';
 import { probeCodex } from '../agents/codexProbe';
 import {
@@ -29,6 +30,8 @@ export function registerAgentHandlers(): void {
   });
 
   ipcMain.handle(IpcChannel.AgentShutdown, (_e, chatId: string) => shutdownChat(chatId));
+
+  ipcMain.handle(IpcChannel.AgentClear, (_e, chatId: string) => clearChat(chatId));
 
   ipcMain.handle(IpcChannel.AgentCompact, async (_e, chatId: string) => {
     await AgentHost.compact(chatId);

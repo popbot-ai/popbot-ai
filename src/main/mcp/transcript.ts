@@ -41,11 +41,13 @@ function stringify(v: unknown): string {
 }
 
 /** One text line per stored row. Tool rows are summarized (name, args,
- *  result) and can be left out; system rows can too. */
+ *  result) and can be left out; system rows can too. `firstIndex`: the
+ *  chat position of the first row, when they are a window of it. */
 export function transcriptEntries(
   messages: MessageRecord[],
-  opts: { includeTools?: boolean; includeSystem?: boolean } = {},
+  opts: { includeTools?: boolean; includeSystem?: boolean; firstIndex?: number } = {},
 ): TranscriptEntry[] {
+  const firstIndex = opts.firstIndex ?? 0;
   const includeTools = opts.includeTools ?? true;
   const includeSystem = opts.includeSystem ?? true;
   const out: TranscriptEntry[] = [];
@@ -68,7 +70,7 @@ export function transcriptEntries(
       text = `[permission ${body?.tool ?? '?'}] ${body?.decision ?? 'pending'}`;
     }
     if (text === null) return;
-    out.push({ index, id: m.id, role: m.role, kind: m.kind, ts: m.createdAt, text });
+    out.push({ index: firstIndex + index, id: m.id, role: m.role, kind: m.kind, ts: m.createdAt, text });
   });
   return out;
 }

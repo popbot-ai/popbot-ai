@@ -545,7 +545,7 @@ export const ko = {
   'chat.context.menu.compact': '컨텍스트 압축',
   'chat.context.menu.compacting': '압축 중…',
   'chat.context.menu.codexHint':
-    'Codex는 컨텍스트를 스스로 압축합니다. 사용량을 보고 직접 압축하려면 환경설정 ▸ 에이전트에서 “작업 중인 Codex에 지시 전달”을 켜세요.',
+    '이 연결에서는 Codex가 컨텍스트 사용량을 알려 주지 않습니다(보려면 환경설정 ▸ 에이전트에서 “작업 중 Codex 조정”을 켜세요). 그래도 압축은 할 수 있습니다.',
   'chat.context.menu.runningHint': '에이전트가 끝날 때까지 기다리세요',
   'chat.context.compactingNote': '컨텍스트 압축 중…',
   'chat.context.failedNote': '압축 실패: {error}',
@@ -567,6 +567,10 @@ export const ko = {
   'chat.host.chipTitle': '{host}에서 실행 중 · 채팅 설정 열기',
   'chat.host.chipPendingTitle': '{host}에서 실행 — 세션은 첫 메시지와 함께 시작됩니다.',
   'chat.host.shutdown': '호스트에서 종료',
+  'chat.clear.menu': '채팅 지우기',
+  'chat.clear.menuTooltip': '이 채팅의 기록을 비우고 대화를 처음부터 다시 시작합니다. 채팅, 작업 공간, 설정은 그대로 유지됩니다.',
+  'chat.clear.confirm': '“{name}”을(를) 지울까요? 모든 메시지가 삭제되고 에이전트는 대화를 잊습니다. 되돌릴 수 없습니다. 채팅, 작업 공간, 설정은 그대로 유지됩니다.',
+  'chat.clear.failed': '채팅을 지우지 못했습니다',
   'chat.host.shutdownConfirm':
     '{host}의 이 채팅 세션을 지금 종료할까요? 에이전트가 그곳에서 하던 작업이 중단됩니다. 다음 메시지를 보내면 {host}에 새 세션이 시작되어 이 대화를 이어갑니다.',
   'chat.host.withRepo': '{host} · {repo}',
@@ -1448,9 +1452,9 @@ export const ko = {
   'whatsNew.f2.h': '채팅과 파일을 컴퓨터 간에 이동',
   'whatsNew.f2.p':
     '☰ 메뉴에서 채팅을 다른 컴퓨터로 옮길 수 있습니다. 푸시하지 않은 커밋과 커밋하지 않은 변경도 함께 옮겨지고, 저장소는 이름으로 맞춥니다. 에이전트는 다른 컴퓨터의 채팅에 크기 제한 없이 파일을 보낼 수도 있습니다. 받는 쪽 에이전트가 수락해야 하며, 파일은 ~/popbot/sent_files에 도착하고, 연결이 끊겨도 멈춘 곳부터 이어집니다.',
-  'whatsNew.f3.h': 'GPT-6.1 Sol 외',
+  'whatsNew.f3.h': 'Fable 5.2, Ultracode, 매니저 채팅',
   'whatsNew.f3.p':
-    'GPT-6.1 Sol이 GPT-5.6 Sol을 대체하며, 5.6 Sol 채팅은 자동으로 옮겨집니다(Codex CLI 0.160 이상 필요). 채팅 검색은 채팅 이름을 먼저 찾고, 왼쪽 막대는 ⌘B(Ctrl+B)로 접을 수 있으며, 호스트 채팅은 네트워크가 바뀐 뒤 스스로 다시 연결됩니다.',
+    'Claude Fable 5.2가 Opus 5.5(이제 기본값), Sonnet 5.5, Haiku 5.5와 함께 제공되며, 이전 버전의 채팅은 자동으로 옮겨집니다. Ultracode는 Claude를 xhigh로 실행하고 워크플로로 작업을 하위 에이전트에게 나눠 줍니다. ☰ 메뉴에서 채팅을 다른 채팅의 매니저로 지정하면 워커에게 메시지를 보내고 워커는 매니저의 받은편지함에 답합니다. 자동 계속을 켜면 자리를 비운 동안에도 채팅이 계속 작업합니다. “채팅 지우기”로 대화를 새로 시작하고, 호스트 채팅의 파일 링크는 다운로드되며, 긴 채팅도 빠르게 유지됩니다.',
   'whatsNew.gotIt': '확인',
   // --- Auto-update prompts (persisted via the notification system) ---
   'app.update.restartAction': '다시 시작하고 설치',

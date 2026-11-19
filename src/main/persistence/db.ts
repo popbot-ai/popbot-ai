@@ -1,5 +1,5 @@
 import { app } from 'electron';
-import { FTS_MIGRATION_SQL } from './fts';
+import { FTS_CONVERSATION_ONLY_SQL, FTS_MIGRATION_SQL } from './fts';
 import { mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import Database from 'better-sqlite3';
@@ -429,6 +429,50 @@ const SCHEMA = [
   );
   CREATE INDEX IF NOT EXISTS idx_mailbox_to ON mailbox(to_chat_id, deleted_at, read_at);
   `,
+  // v29 — indexes for queries that read whole tables on the main thread.
+  // Each chat's last user prompt (lastUserMessageAtByChat, on every
+  // review-list refresh) read every message row for its role: 8–10 s
+  // against a 20 GB database. And the SDK session store looks sessions up
+  // by session_id alone — on every transcript append and every resume —
+  // which no index began with. And priming a session from a long chat
+  // (textTurnsSince) walked every row of it to find the text ones.
+  `
+  CREATE INDEX IF NOT EXISTS idx_messages_user_at ON messages(chat_id, created_at) WHERE role = 'user';
+  CREATE INDEX IF NOT EXISTS idx_messages_text_turns ON messages(chat_id, created_at, updated_at)
+    WHERE kind = 'text' AND role IN ('user', 'agent');
+  CREATE INDEX IF NOT EXISTS idx_sdk_session_entries_session ON sdk_session_entries(session_id, subpath, seq);
+  `,
+  // v30 — chats stop growing without bound (janitor.ts): search indexes
+  // the conversation, not tool output, and a chat's tool output older
+  // than its newest rows is trimmed. trimmed_before: how far that has got.
+  `
+  ${FTS_CONVERSATION_ONLY_SQL}
+  ALTER TABLE chats ADD COLUMN trimmed_before INTEGER NOT NULL DEFAULT 0;
+  `,
+  // v31 — Anthropic's current line-up: Opus 5.5, Sonnet 5.5, Haiku 5.5,
+  // Fable 5.2. Chats on an earlier version of a line move to its current
+  // model (normalizeClaudeModel already reads them that way; this makes
+  // the stored rows and the saved new-chat choice say so too). The cloud
+  // agent cache is left alone: its entries are agents made for a given
+  // model, and the new models get agents of their own on first use.
+  `
+  UPDATE chats SET claude_model = CASE
+      WHEN claude_model GLOB 'claude-opus-*' THEN 'claude-opus-5-5'
+      WHEN claude_model GLOB 'claude-sonnet-*' THEN 'claude-sonnet-5-5'
+      WHEN claude_model GLOB 'claude-haiku-*' THEN 'claude-haiku-5-5'
+      WHEN claude_model GLOB 'claude-fable-*' THEN 'claude-fable-5-2'
+      ELSE claude_model END
+    WHERE claude_model NOT IN ('claude-opus-5-5', 'claude-sonnet-5-5', 'claude-haiku-5-5', 'claude-fable-5-2');
+  UPDATE settings SET value = json_set(value, '$.claudeModel', CASE
+      WHEN json_extract(value, '$.claudeModel') GLOB 'claude-opus-*' THEN 'claude-opus-5-5'
+      WHEN json_extract(value, '$.claudeModel') GLOB 'claude-sonnet-*' THEN 'claude-sonnet-5-5'
+      WHEN json_extract(value, '$.claudeModel') GLOB 'claude-haiku-*' THEN 'claude-haiku-5-5'
+      WHEN json_extract(value, '$.claudeModel') GLOB 'claude-fable-*' THEN 'claude-fable-5-2'
+      ELSE json_extract(value, '$.claudeModel') END)
+    WHERE key = 'chatCreate.lastAgentConfig' AND json_valid(value)
+      AND json_extract(value, '$.claudeModel') IS NOT NULL
+      AND json_extract(value, '$.claudeModel') NOT IN ('claude-opus-5-5', 'claude-sonnet-5-5', 'claude-haiku-5-5', 'claude-fable-5-2');
+  `,
 ];
 
 export function initDb(): Database.Database {
@@ -443,8 +487,15 @@ export function initDb(): Database.Database {
   db.pragma('foreign_keys = ON');
   db.pragma('busy_timeout = 5000');
 
+  migrate(db);
+  _db = db;
+  return db;
+}
+
+/** Bring a database's schema up to date (or to `upTo`, for tests). */
+export function migrate(db: Database.Database, upTo: number = SCHEMA.length): void {
   const currentVersion = (db.pragma('user_version', { simple: true }) as number) ?? 0;
-  for (let v = currentVersion; v < SCHEMA.length; v++) {
+  for (let v = currentVersion; v < upTo; v++) {
     // Each migration is atomic: if a statement fails partway, roll the whole
     // step back so user_version never advances over a half-applied schema
     // (which would wedge the next startup with "duplicate column" etc.).
@@ -458,9 +509,6 @@ export function initDb(): Database.Database {
       throw err;
     }
   }
-
-  _db = db;
-  return db;
 }
 
 export function db(): Database.Database {

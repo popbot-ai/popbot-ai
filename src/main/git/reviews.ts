@@ -213,8 +213,9 @@ function hasHumanReview(pr: GhPr): boolean {
  */
 function chatEngagementByPr(): Map<number, number> {
   const out = new Map<number, number>();
-  const lastPrompt = lastUserMessageAtByChat();
-  for (const c of [...listOpenChats(), ...listClosedChats()]) {
+  const prChats = [...listOpenChats(), ...listClosedChats()].filter((c) => c.pr !== null && c.pr !== undefined);
+  const lastPrompt = lastUserMessageAtByChat(prChats.map((c) => c.id));
+  for (const c of prChats) {
     if (c.pr === null || c.pr === undefined) continue;
     // YOUR last prompt in the chat, not the chat's last activity: the
     // agent finishing the original review after the author pushed is

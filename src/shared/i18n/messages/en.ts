@@ -114,9 +114,9 @@ export const en = {
   'whatsNew.f2.h': 'Move chats and files between machines',
   'whatsNew.f2.p':
     'Move a chat to another machine from its ☰ menu: unpushed commits and uncommitted changes travel with it, and the repository is matched by name. Agents can also send a file of any size to a chat on another machine — the agent there has to accept it, it lands in ~/popbot/sent_files, and a dropped connection picks up where it stopped.',
-  'whatsNew.f3.h': 'GPT-6.1 Sol, and more',
+  'whatsNew.f3.h': 'Fable 5.2, Ultracode, manager chats',
   'whatsNew.f3.p':
-    'GPT-6.1 Sol replaces GPT-5.6 Sol, and chats on 5.6 Sol move to it on their own (it needs Codex CLI 0.160 or newer). Chat search finds chat names first, the left bar folds away with ⌘B (Ctrl+B), and host chats reconnect by themselves after a network change.',
+    'Claude Fable 5.2 joins Opus 5.5 (now the default), Sonnet 5.5 and Haiku 5.5, and chats on older versions move up on their own. Ultracode runs Claude at xhigh with workflows that hand work to subagents. Make a chat the manager of others from its ☰ menu: it messages its workers and they write back to its inbox, and auto-continue keeps a chat working while you are away. Clear chat starts a conversation over, file links in host chats download, and long chats stay fast.',
   'whatsNew.gotIt': 'Got it',
 
   // ---------------------------------------------------------------------------
@@ -586,6 +586,7 @@ export const en = {
   'chat.reasoning.xhigh': 'XHigh',
   'chat.reasoning.max': 'Max',
   'chat.reasoning.ultra': 'Ultra',
+  'chat.reasoning.ultracode': 'Ultracode',
   'chat.repo.none': 'No repo',
   'chat.repo.withName': 'Repo · {repoId}',
   'chat.col.closeTitle': 'Close chat',
@@ -627,7 +628,7 @@ export const en = {
   'chat.context.menu.compact': 'Compact context',
   'chat.context.menu.compacting': 'Compacting…',
   'chat.context.menu.codexHint':
-    'Codex compacts its context on its own. Turn on “Steer Codex while it works” in Preferences ▸ Agents to see usage and compact on request.',
+    'Codex doesn’t report how full its context is on this connection (turn on “Steer Codex while it works” in Preferences ▸ Agents to see it), but you can still compact it.',
   'chat.context.menu.runningHint': 'Wait for the agent to finish',
   'chat.context.compactingNote': 'Compacting context…',
   'chat.context.failedNote': 'Compaction failed: {error}',
@@ -649,6 +650,10 @@ export const en = {
   'chat.host.chipTitle': 'Runs on {host} · open the chat settings',
   'chat.host.chipPendingTitle': 'Runs on {host} — the session starts with your first message.',
   'chat.host.shutdown': 'Shut down on host',
+  'chat.clear.menu': 'Clear chat',
+  'chat.clear.menuTooltip': 'Empty this chat’s history and start its conversation over. The chat, its workspace and settings stay.',
+  'chat.clear.confirm': 'Clear “{name}”? Every message in it is deleted and the agent forgets the conversation. This can’t be undone. The chat, its workspace and settings stay.',
+  'chat.clear.failed': 'Couldn’t clear the chat',
   'chat.host.shutdownConfirm':
     'End this chat’s session on {host} now? Anything the agent is doing there stops. Your next message starts a new session on {host}, resuming this conversation.',
   'chat.host.withRepo': 'On {host} · {repo}',
@@ -741,6 +746,9 @@ export const en = {
   // ---------------------------------------------------------------------------
   'chat.editor.openInEditor': 'Open {href} in editor',
   'chat.fs.revealFile': 'Show in Finder: {href}  (⌥-click to open in editor)',
+  'chat.fs.downloadFromHost': 'Download {href} from {host} (into Downloads, then shown in Finder)',
+  'chat.fs.downloading': 'Downloading {href} from {host}…',
+  'chat.fs.downloadFailed': 'Couldn’t download from {host}',
   'chat.fs.openFolder': 'Open folder in Finder: {href}',
   'chat.transcript.loading': 'Loading transcript…',
   'chat.transcript.empty': 'New chat. Type a message below to start.',
@@ -889,6 +897,7 @@ export const en = {
   'agent.effort.xhigh': 'XHigh',
   'agent.effort.max': 'Max',
   'agent.effort.ultra': 'Ultra',
+  'agent.effort.ultracode': 'Ultracode',
   'agent.label': 'Agent',
   'agent.model': 'Model',
   'agent.cloudToggle': 'Cloud',
@@ -1192,7 +1201,7 @@ export const en = {
     'Default {default} days (range {min}–{max}). Lower it to reclaim disk sooner; raise it to keep history longer.',
   'prefs.runtime.toolResults.title': 'Keep full tool output for',
   'prefs.runtime.toolResults.desc':
-    'Tool results are the bulk of the database — a long Bash or Read result can be megabytes, and the search index stores it again. After this many days (default {default}) a daily sweep keeps the call and the first couple of KB of output and drops the rest. Nothing is deleted; no result inside the window is touched.',
+    'Tool output is the bulk of the database — a long Bash or Read result can be megabytes. Once it is older than this many days (default {default}), or falls outside a chat’s newest 1,000 messages, PopBot keeps the call and the first couple of KB and drops the rest; messages other chats send in are trimmed the same way. Nothing is deleted, and your prompts and the agent’s replies are never trimmed.',
   'prefs.runtime.toolResults.enable': 'Trim old output',
 
   // Preferences — Integrations: ticket source / game engine.

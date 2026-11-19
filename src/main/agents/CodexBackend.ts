@@ -14,6 +14,7 @@ import {
   DEFAULT_CODEX_REASONING_EFFORT,
   codexWireModel,
 } from '@shared/persistence';
+import { CodexRpcClient, spawnCodexAppServer } from './codexRpc';
 import type { AgentBackend, AgentSession, SpawnOpts } from './types';
 import { dlog } from '../diagLog';
 import {
@@ -35,6 +36,16 @@ import {
  * PopBot still owns its UI transcript and raw Codex event cache. The
  * native Codex thread id is only the resume handle.
  */
+/** A compaction that has not finished in this long is given up on. */
+const COMPACT_TIMEOUT_MS = 10 * 60_000;
+
+function withTimeout<T>(p: Promise<T>, ms: number, what: string): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const t = setTimeout(() => reject(new Error(`${what} timed out after ${ms / 60_000} minutes`)), ms);
+    p.then((v) => { clearTimeout(t); resolve(v); }, (e) => { clearTimeout(t); reject(e); });
+  });
+}
+
 export const CodexBackend: AgentBackend = {
   id: 'codex',
   capabilities: { skills: true, memory: true, subAgents: true, mcpHttp: true },
@@ -51,6 +62,9 @@ class CodexSession implements AgentSession {
   private readonly onSessionId?: (sessionId: string) => void;
   private readonly thread: Thread;
   private knownThreadId: string | null;
+  /** For compaction, which runs through a short-lived app-server. */
+  private readonly codexPath: string;
+  private readonly wireModel: string;
   private readonly rawBacklog: ThreadEvent[] = [];
   private readonly openMessages = new Set<string>();
   private readonly agentTextByItem = new Map<string, string>();
@@ -83,6 +97,8 @@ class CodexSession implements AgentSession {
     this.knownThreadId = opts.sessionId ?? null;
 
     const model = opts.codexModel ?? DEFAULT_CODEX_MODEL;
+    this.codexPath = opts.pathToCodexExecutable ?? 'codex';
+    this.wireModel = codexWireModel(model).model;
     const reasoningEffort = opts.codexReasoningEffort ?? DEFAULT_CODEX_REASONING_EFFORT;
     // The SDK forwards this verbatim as `model_reasoning_effort`.
     const sdkReasoningEffort = codexWireReasoningEffort(model, reasoningEffort) as ModelReasoningEffort;
@@ -199,6 +215,59 @@ class CodexSession implements AgentSession {
     });
     this.abortController?.abort();
     this.emit({ type: 'session-status', chatId: this.chatId, status: 'idle', ts: Date.now() });
+  }
+
+  /**
+   * Manual compaction. The exec SDK has no call for it, so a short-lived
+   * `codex app-server` compacts the thread — the same thread this session
+   * resumes, so its next turn starts from the summary. Queued behind any
+   * turn in flight, like a message; progress is reported as `compaction`
+   * events, and the session goes idle when it is over.
+   */
+  async compact(): Promise<void> {
+    const threadId = this.knownThreadId;
+    if (!threadId) throw new Error('nothing to compact yet: no Codex conversation has started');
+    const generation = this.queueGeneration;
+    const run = this.turnTail.then(async () => {
+      if (this.disposed || generation !== this.queueGeneration) return;
+      await this.compactThread(threadId);
+    });
+    this.turnTail = run.catch(() => undefined);
+  }
+
+  private async compactThread(threadId: string): Promise<void> {
+    const startedAt = Date.now();
+    this.emit({ type: 'compaction', chatId: this.chatId, phase: 'started', ts: startedAt });
+    let client: CodexRpcClient | null = null;
+    try {
+      let finish: () => void = () => undefined;
+      const finished = new Promise<void>((resolve) => { finish = resolve; });
+      client = new CodexRpcClient(spawnCodexAppServer(this.codexPath), {
+        onNotification: (method, params) => {
+          const item = (params as { item?: { type?: string } } | undefined)?.item;
+          if ((method === 'item/completed' && item?.type === 'contextCompaction') || method === 'thread/compacted' || method === 'turn/completed') finish();
+        },
+        onServerRequest: (id) => client?.respondError(id, -32601, 'not handled during compaction'),
+        onClose: () => finish(),
+      });
+      const rpc = client;
+      await withTimeout((async () => {
+        await rpc.request('initialize', { clientInfo: { name: 'popbot', title: 'PopBot', version: '0' }, capabilities: null });
+        rpc.notify('initialized');
+        await rpc.request('thread/resume', { threadId, excludeTurns: true, model: this.wireModel });
+        await rpc.request('thread/compact/start', { threadId });
+        await finished;
+      })(), COMPACT_TIMEOUT_MS, 'Codex compaction');
+      dlog('codex.compact.done', { chatId: this.chatId, threadId, ms: Date.now() - startedAt });
+      this.emit({ type: 'compaction', chatId: this.chatId, phase: 'done', trigger: 'manual', durationMs: Date.now() - startedAt, ts: Date.now() });
+    } catch (err) {
+      const error = err instanceof Error ? err.message : String(err);
+      dlog('codex.compact.failed', { chatId: this.chatId, threadId, error });
+      this.emit({ type: 'compaction', chatId: this.chatId, phase: 'failed', error, ts: Date.now() });
+    } finally {
+      client?.close();
+      this.emit({ type: 'session-status', chatId: this.chatId, status: 'idle', ts: Date.now() });
+    }
   }
 
   async dispose(): Promise<void> {

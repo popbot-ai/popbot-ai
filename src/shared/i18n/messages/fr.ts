@@ -545,7 +545,7 @@ export const fr = {
   'chat.context.menu.compact': 'Compacter le contexte',
   'chat.context.menu.compacting': 'Compactage…',
   'chat.context.menu.codexHint':
-    'Codex compacte son contexte de lui-même. Activez « Guider Codex pendant qu’il travaille » dans Préférences ▸ Agents pour voir l’utilisation et compacter à la demande.',
+    'Codex n’indique pas le remplissage de son contexte sur cette connexion (activez « Piloter Codex pendant qu’il travaille » dans Préférences ▸ Agents pour le voir), mais vous pouvez quand même le compacter.',
   'chat.context.menu.runningHint': 'Attendez que l’agent ait terminé',
   'chat.context.compactingNote': 'Compactage du contexte…',
   'chat.context.failedNote': 'Échec du compactage : {error}',
@@ -567,6 +567,10 @@ export const fr = {
   'chat.host.chipTitle': 'S’exécute sur {host} · ouvrir les réglages de la conversation',
   'chat.host.chipPendingTitle': 'S’exécute sur {host} — la session démarre avec votre premier message.',
   'chat.host.shutdown': 'Arrêter sur l’hôte',
+  'chat.clear.menu': 'Vider le chat',
+  'chat.clear.menuTooltip': 'Vider l’historique de ce chat et recommencer la conversation. Le chat, son espace de travail et ses réglages restent.',
+  'chat.clear.confirm': 'Vider « {name} » ? Tous ses messages sont supprimés et l’agent oublie la conversation. C’est irréversible. Le chat, son espace de travail et ses réglages restent.',
+  'chat.clear.failed': 'Impossible de vider le chat',
   'chat.host.shutdownConfirm':
     'Terminer maintenant la session de cette conversation sur {host} ? Tout ce que l’agent y fait s’arrête. Votre prochain message démarre une nouvelle session sur {host} qui reprend cette conversation.',
   'chat.host.withRepo': 'Sur {host} · {repo}',
@@ -1471,9 +1475,9 @@ export const fr = {
   'whatsNew.f2.h': 'Déplacez conversations et fichiers d’une machine à l’autre',
   'whatsNew.f2.p':
     'Déplacez une conversation vers une autre machine depuis son menu ☰ : les commits non poussés et les modifications non commitées suivent, et le dépôt est retrouvé par son nom. Les agents peuvent aussi envoyer un fichier de n’importe quelle taille à une conversation sur une autre machine — l’agent d’en face doit l’accepter, il arrive dans ~/popbot/sent_files, et une connexion coupée reprend là où elle s’était arrêtée.',
-  'whatsNew.f3.h': 'GPT-6.1 Sol, et plus encore',
+  'whatsNew.f3.h': 'Fable 5.2, Ultracode, conversations gestionnaires',
   'whatsNew.f3.p':
-    'GPT-6.1 Sol remplace GPT-5.6 Sol, et les conversations en 5.6 Sol y passent d’elles-mêmes (il faut Codex CLI 0.160 ou plus récent). La recherche trouve d’abord les noms des conversations, la barre de gauche se replie avec ⌘B (Ctrl+B), et les conversations sur un hôte se reconnectent seules après un changement de réseau.',
+    'Claude Fable 5.2 rejoint Opus 5.5 (désormais le modèle par défaut), Sonnet 5.5 et Haiku 5.5, et les conversations sur d’anciennes versions passent d’elles-mêmes à la nouvelle. Ultracode fait tourner Claude en xhigh avec des workflows qui confient le travail à des sous-agents. Depuis le menu ☰, faites d’une conversation la gestionnaire d’autres : elle leur écrit, elles répondent dans sa boîte de réception, et la poursuite automatique fait avancer une conversation pendant votre absence. « Vider le chat » recommence une conversation, les liens de fichiers des conversations sur un hôte se téléchargent, et les longues conversations restent rapides.',
   'whatsNew.gotIt': 'Compris',
   // --- Auto-update prompts (persisted via the notification system) ---
   'app.update.restartAction': 'Redémarrer et installer',

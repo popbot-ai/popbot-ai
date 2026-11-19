@@ -60,6 +60,7 @@ import { probeCodexForPath } from './agents/codexProbe';
 import { registerChatHandlers } from './ipc/chats';
 import { desktopMailbox } from './mailbox/desktopMailbox';
 import { startAutoContinue } from './agents/autoContinue';
+import { startJanitor, stopJanitor } from './persistence/janitorSchedule';
 import { registerAgentHandlers } from './ipc/agent';
 import { registerSettingsHandlers } from './ipc/settings';
 import { registerTicketHandlers } from './ipc/tickets';
@@ -79,7 +80,6 @@ import { registerHostsHandlers } from './ipc/hosts';
 import { startSlackPoller, stopSlackPoller } from './slack/poll';
 import { pruneOlderThan } from './persistence/notifications';
 import { purgePersistedDiagnostics } from './persistence/messages';
-import { pruneOldToolResults } from './persistence/toolBodyPrune';
 import { attachWebContents as attachTermWindow, disposeAll as disposeAllPtys } from './term/ptyManager';
 import { startPopbotMcp, stopPopbotMcp } from './mcp/registry';
 import { createPopbotToolHandlers } from './mcp/popbotTools';
@@ -546,6 +546,19 @@ void app.whenReady().then(async () => {
   // over from a host, is told about and expires (mailbox/).
   startAutoContinue();
   desktopMailbox();
+  // Keep chats from growing without bound: old tool output trimmed (the
+  // Preferences retention, and anything past a chat's newest rows) — on
+  // a worker thread of its own (persistence/janitor.ts).
+  startJanitor();
+  // A blocked main thread is a frozen app (the beachball): note each
+  // stall over a second, so a freeze leaves a trace in the log.
+  let tickAt = Date.now();
+  setInterval(() => {
+    const now = Date.now();
+    const late = now - tickAt - 250;
+    if (late > 1_000) dlog('main.stall', { ms: late });
+    tickAt = now;
+  }, 250).unref?.();
   // Sweep notifications older than 30 days at startup so the table
   // doesn't accrete unbounded. Cheap synchronous DELETE.
   pruneOlderThan(Date.now() - 30 * 24 * 60 * 60 * 1000);
@@ -561,33 +574,14 @@ void app.whenReady().then(async () => {
   // Diagnostics are ephemeral as of this build (renderer-held, gone on
   // the next reply). Sweep out the ones older builds persisted so
   // reopening a chat doesn't resurface failures that were resolved
-  // days ago. Runs every boot: it's a cheap indexed delete, and it also
-  // catches rows written by an older build the user rolled back to.
-  const purged = purgePersistedDiagnostics();
-  if (purged > 0) dlog('messages.diagnostics-purged', { count: purged });
+  // days ago. Once: it reads every row of the table (no index covers
+  // it), which on a large database is seconds on the main thread.
+  if (!getSetting<{ done?: boolean }>('one-shot-diagnostics-purge')?.done) {
+    const purged = purgePersistedDiagnostics();
+    if (purged > 0) dlog('messages.diagnostics-purged', { count: purged });
+    setSetting('one-shot-diagnostics-purge', { done: true });
+  }
 
-  // Tool-result retention. Old `tool` messages keep their call and a
-  // readable head of their output; the rest of the text goes. Deferred a
-  // few seconds so it never competes with window creation, then repeated
-  // daily for installs that stay open for weeks.
-  //
-  // This is the sweep that keeps the database from growing without
-  // bound: on a real install, tool results were 1.27 GB of body and,
-  // because FTS indexes them, several GB more of index.
-  const TOOL_PRUNE_EVERY_MS = 24 * 60 * 60 * 1000;
-  const sweepToolResults = (): void => {
-    try {
-      const r = pruneOldToolResults();
-      if (r.trimmed > 0) {
-        console.log(`tool-result retention: trimmed ${r.trimmed} results, freed ~${(r.bytesFreed / 1e6).toFixed(0)} MB`);
-      }
-    } catch (err) {
-      // Never let maintenance take the app down with it.
-      dlog('messages.tool-prune.failed', { error: (err as Error).message });
-    }
-  };
-  setTimeout(sweepToolResults, 8_000).unref?.();
-  setInterval(sweepToolResults, TOOL_PRUNE_EVERY_MS).unref?.();
   const win = createMainWindow();
   attachTermWindow(win.webContents);
   startAutoUpdater();
@@ -626,7 +620,7 @@ app.on('before-quit', (event) => {
   stopSentryPoller();
   stopSlackPoller();
   disposeAllPtys();
-  void Promise.allSettled([AgentHost.disposeAll(), disposeAllWatches(), stopPopbotMcp()]).finally(() => {
+  void Promise.allSettled([AgentHost.disposeAll(), disposeAllWatches(), stopPopbotMcp(), stopJanitor()]).finally(() => {
     closeDb();
     app.quit();
   });

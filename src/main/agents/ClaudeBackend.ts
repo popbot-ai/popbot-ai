@@ -22,6 +22,7 @@ import type { PickedAttachment } from '@shared/ipc';
 import {
   DEFAULT_CLAUDE_MODEL,
   DEFAULT_CLAUDE_REASONING_EFFORT,
+  claudeSdkEffort,
 } from '@shared/persistence';
 import { DEFAULT_CONTEXT_BUDGET } from '@shared/contextUsage';
 import type { AgentBackend, AgentSession, SpawnOpts } from './types';
@@ -193,6 +194,9 @@ class ClaudeSession implements AgentSession {
   private readonly sessionStore: SessionStore | null;
   private readonly model: string;
   private readonly reasoningEffort: SdkOptions['effort'];
+  /** Ultracode: the session runs xhigh with workflows on (Claude Code's
+   *  dynamic multi-agent orchestration), passed as session settings. */
+  private readonly ultracode: boolean;
   private query: SdkQuery | null = null;
   /** Latest session_id we've seen from the SDK; used to deduplicate
    *  the onSessionId callback so we only persist on changes. */
@@ -262,7 +266,9 @@ class ClaudeSession implements AgentSession {
     this.extraEnv = opts.env;
     this.appendSystemPrompt = opts.appendSystemPrompt;
     this.model = opts.claudeModel ?? DEFAULT_CLAUDE_MODEL;
-    this.reasoningEffort = opts.claudeReasoningEffort ?? DEFAULT_CLAUDE_REASONING_EFFORT;
+    const effort = claudeSdkEffort(opts.claudeReasoningEffort ?? DEFAULT_CLAUDE_REASONING_EFFORT);
+    this.reasoningEffort = effort.effort;
+    this.ultracode = effort.ultracode;
     dlog('claude.start', {
       chatId: this.chatId,
       cwd: this.cwd,
@@ -295,6 +301,7 @@ class ClaudeSession implements AgentSession {
       canUseTool: this.handleCanUseTool.bind(this),
       model: this.model,
       effort: this.reasoningEffort,
+      ...(this.ultracode ? { settings: { ultracode: true, enableWorkflows: true } } : {}),
       // Establish the agent's project root. When set, the SDK uses
       // this as the cwd for tool invocations and as the boundary
       // outside of which permission prompts must trigger.

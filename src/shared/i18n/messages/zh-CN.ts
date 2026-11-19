@@ -545,7 +545,7 @@ export const zhCN = {
   'chat.context.menu.compact': '压缩上下文',
   'chat.context.menu.compacting': '压缩中…',
   'chat.context.menu.codexHint':
-    'Codex 会自行压缩上下文。要查看用量并按需压缩，请在 偏好设置 ▸ 代理 中开启“在 Codex 工作时引导它”。',
+    '此连接下 Codex 不报告上下文占用（在 偏好设置 ▸ 智能体 中开启“工作时引导 Codex”即可看到），但仍可以压缩。',
   'chat.context.menu.runningHint': '请等待代理完成',
   'chat.context.compactingNote': '正在压缩上下文…',
   'chat.context.failedNote': '压缩失败：{error}',
@@ -565,6 +565,10 @@ export const zhCN = {
   'chat.host.chipTitle': '在 {host} 上运行 · 打开对话设置',
   'chat.host.chipPendingTitle': '在 {host} 上运行——会话随你的第一条消息开始。',
   'chat.host.shutdown': '在主机上关闭',
+  'chat.clear.menu': '清空聊天',
+  'chat.clear.menuTooltip': '清空此聊天的历史并重新开始对话。聊天、其工作区和设置都会保留。',
+  'chat.clear.confirm': '清空“{name}”？其中所有消息都会被删除，代理也会忘记这段对话。此操作无法撤销。聊天、其工作区和设置都会保留。',
+  'chat.clear.failed': '无法清空聊天',
   'chat.host.shutdownConfirm': '现在结束此对话在 {host} 上的会话？代理在那里正在做的一切都会停止。你的下一条消息会在 {host} 上开始新的会话，并接续这段对话。',
   'chat.host.withRepo': '在 {host} · {repo}',
   'chat.host.noRepo': '在 {host} · 无仓库',
@@ -1447,9 +1451,9 @@ export const zhCN = {
   'whatsNew.f2.h': '在机器之间移动对话和文件',
   'whatsNew.f2.p':
     '从对话的 ☰ 菜单把它移到另一台机器：未推送的提交和未提交的更改会一并带走，仓库按名称匹配。智能体还能把任意大小的文件发给另一台机器上的对话——对方的智能体必须接受，文件会存入 ~/popbot/sent_files，连接中断后会从断点继续。',
-  'whatsNew.f3.h': 'GPT-6.1 Sol 及更多',
+  'whatsNew.f3.h': 'Fable 5.2、Ultracode、管理者对话',
   'whatsNew.f3.p':
-    'GPT-6.1 Sol 取代 GPT-5.6 Sol，使用 5.6 Sol 的对话会自动切换过去（需要 Codex CLI 0.160 或更新版本）。对话搜索优先匹配对话名称，左侧栏可用 ⌘B（Ctrl+B）收起，主机上的对话在网络切换后会自动重连。',
+    'Claude Fable 5.2 加入 Opus 5.5（现为默认）、Sonnet 5.5 和 Haiku 5.5 的行列，旧版本上的对话会自动迁移。Ultracode 以 xhigh 运行 Claude，并通过工作流把任务分派给子代理。在 ☰ 菜单中把一个对话设为其他对话的管理者：它给下属发消息，下属回复到它的收件箱；自动继续让对话在你离开时也能继续工作。“清空聊天”可以重新开始一段对话，主机对话里的文件链接可以下载，长对话也依然流畅。',
   'whatsNew.gotIt': '知道了',
   // --- Auto-update prompts (persisted via the notification system) ---
   'app.update.restartAction': '重启并安装',

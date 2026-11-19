@@ -497,7 +497,7 @@ export const pl = {
   'chat.context.menu.compact': 'Kompaktuj kontekst',
   'chat.context.menu.compacting': 'Kompaktowanie…',
   'chat.context.menu.codexHint':
-    'Codex sam kompaktuje kontekst. Włącz „Steruj Codexem w trakcie pracy” w Preferencje ▸ Agenci, aby widzieć użycie i kompaktować na żądanie.',
+    'Przez to połączenie Codex nie podaje, jak pełny jest jego kontekst (włącz „Steruj Codexem w trakcie pracy” w Preferencje ▸ Agenci, by to widzieć), ale nadal możesz go skompaktować.',
   'chat.context.menu.runningHint': 'Poczekaj, aż agent skończy',
   'chat.context.compactingNote': 'Kompaktowanie kontekstu…',
   'chat.context.failedNote': 'Kompaktowanie nie powiodło się: {error}',
@@ -520,6 +520,10 @@ export const pl = {
   'chat.host.chipTitle': 'Działa na {host} · otwórz ustawienia czatu',
   'chat.host.chipPendingTitle': 'Działa na {host} – sesja zaczyna się od Twojej pierwszej wiadomości.',
   'chat.host.shutdown': 'Zakończ na hoście',
+  'chat.clear.menu': 'Wyczyść czat',
+  'chat.clear.menuTooltip': 'Wyczyść historię tego czatu i zacznij rozmowę od nowa. Czat, jego obszar roboczy i ustawienia zostają.',
+  'chat.clear.confirm': 'Wyczyścić „{name}”? Wszystkie wiadomości zostaną usunięte, a agent zapomni rozmowę. Tego nie można cofnąć. Czat, jego obszar roboczy i ustawienia zostają.',
+  'chat.clear.failed': 'Nie udało się wyczyścić czatu',
   'chat.host.shutdownConfirm':
     'Zakończyć teraz sesję tego czatu na {host}? Wszystko, co agent tam robi, zostanie przerwane. Twoja następna wiadomość rozpocznie nową sesję na {host}, kontynuującą tę rozmowę.',
   'chat.host.withRepo': 'Na {host} · {repo}',
@@ -1464,9 +1468,9 @@ export const pl = {
   'whatsNew.f2.h': 'Przenoś czaty i pliki między maszynami',
   'whatsNew.f2.p':
     'Przenieś czat na inną maszynę z jego menu ☰: niewypchnięte commity i niezatwierdzone zmiany jadą razem z nim, a repozytorium jest dopasowywane po nazwie. Agenci mogą też wysłać plik dowolnego rozmiaru do czatu na innej maszynie — tamtejszy agent musi go przyjąć, plik trafia do ~/popbot/sent_files, a zerwane połączenie wznawia się od miejsca, w którym stanęło.',
-  'whatsNew.f3.h': 'GPT-6.1 Sol i więcej',
+  'whatsNew.f3.h': 'Fable 5.2, Ultracode, czaty-menedżerowie',
   'whatsNew.f3.p':
-    'GPT-6.1 Sol zastępuje GPT-5.6 Sol, a czaty na 5.6 Sol przechodzą na niego same (wymaga Codex CLI 0.160 lub nowszego). Wyszukiwanie najpierw znajduje nazwy czatów, lewy pasek chowa się skrótem ⌘B (Ctrl+B), a czaty na hostach same łączą się ponownie po zmianie sieci.',
+    'Claude Fable 5.2 dołącza do Opus 5.5 (teraz domyślnego), Sonnet 5.5 i Haiku 5.5, a czaty na starszych wersjach same przechodzą na nowe. Ultracode uruchamia Claude na poziomie xhigh z przepływami, które rozdzielają pracę między subagentów. Z menu ☰ uczyń czat menedżerem innych: pisze do swoich pracowników, a oni odpowiadają do jego skrzynki, a automatyczna kontynuacja pozwala czatowi pracować dalej pod twoją nieobecność. „Wyczyść czat” zaczyna rozmowę od nowa, linki do plików w czatach na hostach można pobrać, a długie czaty pozostają szybkie.',
   'whatsNew.gotIt': 'Rozumiem',
   // --- Auto-update prompts (persisted via the notification system) ---
   'app.update.restartAction': 'Uruchom ponownie i zainstaluj',

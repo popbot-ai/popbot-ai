@@ -249,6 +249,8 @@ export const IpcChannel = {
   AgentStop: 'pb:agent:stop',
   /** End a chat's agent session wherever it runs — see agent.shutdown. */
   AgentShutdown: 'pb:agent:shutdown',
+  /** Clear a chat's history and start its conversation over — see agent.clear. */
+  AgentClear: 'pb:agent:clear',
   /** Compact the chat's agent context (summarize the transcript so far)
    *  — the composer's context gauge. Progress arrives as `compaction`
    *  agent events. */
@@ -1121,6 +1123,10 @@ export interface PopBotApi {
   agent: {
     send(input: SendMessageInput): Promise<void>;
     stop(chatId: string): Promise<void>;
+    /** Clear a chat: every message, here and in the database, and the
+     *  agent's conversation behind them — wherever it runs. The chat
+     *  itself (workspace, settings) stays; its next message starts over. */
+    clear(chatId: string): Promise<void>;
     /** Shut a chat's agent down, running or paused, wherever it runs: its
      *  session on its host or in the cloud, or here its turn and process.
      *  The next message starts a new session, resuming the conversation. */

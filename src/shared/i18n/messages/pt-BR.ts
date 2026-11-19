@@ -545,7 +545,7 @@ export const ptBR = {
   'chat.context.menu.compact': 'Compactar contexto',
   'chat.context.menu.compacting': 'Compactando…',
   'chat.context.menu.codexHint':
-    'O Codex compacta o contexto por conta própria. Ative “Orientar o Codex enquanto ele trabalha” em Preferências ▸ Agentes para ver o uso e compactar quando quiser.',
+    'O Codex não informa o quanto o contexto está cheio nesta conexão (ative “Guiar o Codex enquanto trabalha” em Preferências ▸ Agentes para ver), mas você ainda pode compactá-lo.',
   'chat.context.menu.runningHint': 'Aguarde o agente terminar',
   'chat.context.compactingNote': 'Compactando o contexto…',
   'chat.context.failedNote': 'Falha na compactação: {error}',
@@ -567,6 +567,10 @@ export const ptBR = {
   'chat.host.chipTitle': 'Roda em {host} · abrir as configurações do chat',
   'chat.host.chipPendingTitle': 'Roda em {host} — a sessão começa com sua primeira mensagem.',
   'chat.host.shutdown': 'Encerrar no host',
+  'chat.clear.menu': 'Limpar chat',
+  'chat.clear.menuTooltip': 'Limpa o histórico deste chat e recomeça a conversa. O chat, seu espaço de trabalho e suas configurações continuam.',
+  'chat.clear.confirm': 'Limpar “{name}”? Todas as mensagens são apagadas e o agente esquece a conversa. Não dá para desfazer. O chat, seu espaço de trabalho e suas configurações continuam.',
+  'chat.clear.failed': 'Não foi possível limpar o chat',
   'chat.host.shutdownConfirm':
     'Encerrar agora a sessão deste chat em {host}? Tudo o que o agente estiver fazendo lá para. Sua próxima mensagem inicia uma nova sessão em {host}, retomando esta conversa.',
   'chat.host.withRepo': 'Em {host} · {repo}',
@@ -1463,9 +1467,9 @@ export const ptBR = {
   'whatsNew.f2.h': 'Mova chats e arquivos entre máquinas',
   'whatsNew.f2.p':
     'Mova um chat para outra máquina pelo menu ☰: commits não enviados e alterações não commitadas vão junto, e o repositório é encontrado pelo nome. Os agentes também podem enviar um arquivo de qualquer tamanho a um chat em outra máquina — o agente de lá precisa aceitá-lo, ele chega em ~/popbot/sent_files e uma conexão que cai retoma de onde parou.',
-  'whatsNew.f3.h': 'GPT-6.1 Sol e mais',
+  'whatsNew.f3.h': 'Fable 5.2, Ultracode, chats gerentes',
   'whatsNew.f3.p':
-    'O GPT-6.1 Sol substitui o GPT-5.6 Sol, e os chats no 5.6 Sol passam para ele sozinhos (requer Codex CLI 0.160 ou mais recente). A busca encontra primeiro os nomes dos chats, a barra esquerda se recolhe com ⌘B (Ctrl+B) e os chats em hosts se reconectam sozinhos após uma troca de rede.',
+    'O Claude Fable 5.2 se junta ao Opus 5.5 (agora o padrão), ao Sonnet 5.5 e ao Haiku 5.5, e chats em versões anteriores passam para as novas sozinhos. O Ultracode roda o Claude em xhigh com fluxos de trabalho que distribuem o trabalho entre subagentes. Pelo menu ☰, torne um chat gerente de outros: ele escreve para seus workers e eles respondem na caixa de entrada dele, e a continuação automática mantém um chat trabalhando enquanto você está fora. “Limpar chat” recomeça uma conversa, links de arquivos em chats de host são baixados e chats longos continuam rápidos.',
   'whatsNew.gotIt': 'Entendi',
   // --- Auto-update prompts (persisted via the notification system) ---
   'app.update.restartAction': 'Reiniciar e instalar',

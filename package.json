@@ -27,6 +27,7 @@
     "clean": "rimraf out dist release node_modules/.vite",
     "postinstall": "node scripts/install-app-deps.mjs",
     "build:host": "node scripts/build-host.mjs",
+    "db:compact": "node scripts/compact-db.mjs",
     "host": "node dist-host/popbot-host.cjs"
   },
   "dependencies": {

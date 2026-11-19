@@ -32,8 +32,8 @@ interface ContextGaugeProps {
  * Claude reports its context fill (the CLI measures it against the
  * window it will autocompact at), and so does Codex over the app-server
  * connection. Codex's exec SDK reports per-turn totals only, so there the
- * ring is drawn empty and dashed, and the menu explains why manual
- * compaction is unavailable.
+ * ring is drawn empty and dashed — but its context still compacts on
+ * request.
  */
 export function ContextGauge({
   used,
@@ -75,11 +75,14 @@ export function ContextGauge({
     ? t('chat.context.title', { used: fmtTokens(used), budget: fmtTokens(budget), pct })
     : t('chat.context.unreported', { used: fmtTokens(used) });
   const title = compacting ? t('chat.context.compactingTitle') : summary;
-  const canCompact = reported && !compacting && !running;
-  const hint = !reported
-    ? t(agent === 'codex' ? 'chat.context.menu.codexHint' : 'chat.context.menu.runningHint')
-    : running && !compacting
-      ? t('chat.context.menu.runningHint')
+  // Codex compacts on request whatever its connection — even where it does
+  // not report how full it is (the exec connection compacts through a
+  // short-lived app-server).
+  const canCompact = (reported || agent === 'codex') && !compacting && !running;
+  const hint = running && !compacting
+    ? t('chat.context.menu.runningHint')
+    : !reported
+      ? t(agent === 'codex' ? 'chat.context.menu.codexHint' : 'chat.context.menu.runningHint')
       : null;
 
   const openMenu = (e: MouseEvent<HTMLButtonElement>): void => {

@@ -15,6 +15,16 @@ export default defineConfig({
         '@shared': resolve(__dirname, 'src/shared'),
       },
     },
+    build: {
+      rollupOptions: {
+        // The janitor runs on a worker thread of its own (out/main/
+        // janitorWorker.js), never on the main thread.
+        input: {
+          index: resolve(__dirname, 'src/main/index.ts'),
+          janitorWorker: resolve(__dirname, 'src/main/persistence/janitorWorker.ts'),
+        },
+      },
+    },
   },
   preload: {
     plugins: [externalizeDepsPlugin()],

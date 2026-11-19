@@ -269,6 +269,13 @@ export interface MessageRemovedEvent {
   ts: number;
 }
 
+/** A chat's history was cleared (ipc/clearChat.ts): the chat log empties. */
+export interface MessagesClearedEvent {
+  type: 'messages-cleared';
+  chatId: string;
+  ts: number;
+}
+
 export type AgentEvent =
   | MessageStartEvent
   | TextDeltaEvent
@@ -279,6 +286,7 @@ export type AgentEvent =
   | MessageEndEvent
   | MessageAddedEvent
   | MessageRemovedEvent
+  | MessagesClearedEvent
   | ChatUpdatedEvent
   | ChatsChangedEvent
   | GoToMessageEvent

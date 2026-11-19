@@ -10,6 +10,7 @@ import {
   CLOUD_CACHE_SETTINGS_KEY,
   CLOUD_SETTINGS_KEY,
   CLAUDE_MODEL_LABELS,
+  claudeSdkEffort,
   type ClaudeModelId,
   type ClaudeReasoningEffort,
   type CloudCache,
@@ -137,8 +138,11 @@ export async function ensureEnvironment(client: Anthropic): Promise<string> {
 export async function ensureAgent(
   client: Anthropic,
   model: ClaudeModelId,
-  effort: ClaudeReasoningEffort,
+  chosen: ClaudeReasoningEffort,
 ): Promise<string> {
+  // Ultracode is Claude Code's session mode; a cloud agent runs at its
+  // effort, xhigh, without the workflows.
+  const { effort } = claudeSdkEffort(chosen);
   const key = agentCacheKey(model, effort);
   const cached = cache().agents?.[key];
   if (cached) {

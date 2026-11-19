@@ -497,7 +497,7 @@ export const it = {
   'chat.context.menu.compact': 'Compatta contesto',
   'chat.context.menu.compacting': 'Compattazione…',
   'chat.context.menu.codexHint':
-    'Codex compatta il contesto da solo. Attiva «Guida Codex mentre lavora» in Preferenze ▸ Agenti per vedere l’utilizzo e compattare su richiesta.',
+    'Codex non indica quanto è pieno il suo contesto su questa connessione (attiva “Guida Codex mentre lavora” in Preferenze ▸ Agenti per vederlo), ma puoi comunque compattarlo.',
   'chat.context.menu.runningHint': 'Attendi che l’agente finisca',
   'chat.context.compactingNote': 'Compattazione del contesto…',
   'chat.context.failedNote': 'Compattazione non riuscita: {error}',
@@ -519,6 +519,10 @@ export const it = {
   'chat.host.chipTitle': 'Gira su {host} · apri le impostazioni della chat',
   'chat.host.chipPendingTitle': 'Gira su {host}: la sessione parte con il tuo primo messaggio.',
   'chat.host.shutdown': 'Arresta sull’host',
+  'chat.clear.menu': 'Svuota chat',
+  'chat.clear.menuTooltip': 'Svuota la cronologia di questa chat e ricomincia la conversazione. La chat, il suo spazio di lavoro e le impostazioni restano.',
+  'chat.clear.confirm': 'Svuotare «{name}»? Tutti i messaggi vengono eliminati e l’agente dimentica la conversazione. Non si può annullare. La chat, il suo spazio di lavoro e le impostazioni restano.',
+  'chat.clear.failed': 'Impossibile svuotare la chat',
   'chat.host.shutdownConfirm':
     'Terminare adesso la sessione di questa chat su {host}? Tutto ciò che l’agente sta facendo lì si ferma. Il tuo prossimo messaggio avvia una nuova sessione su {host} che riprende questa conversazione.',
   'chat.host.withRepo': 'Su {host} · {repo}',
@@ -1467,9 +1471,9 @@ export const it = {
   'whatsNew.f2.h': 'Sposta chat e file tra macchine',
   'whatsNew.f2.p':
     'Sposta una chat su un’altra macchina dal suo menu ☰: i commit non inviati e le modifiche non salvate la seguono, e il repository viene abbinato per nome. Gli agenti possono anche inviare un file di qualsiasi dimensione a una chat su un’altra macchina: l’agente dall’altra parte deve accettarlo, arriva in ~/popbot/sent_files e una connessione caduta riprende da dove si era fermata.',
-  'whatsNew.f3.h': 'GPT-6.1 Sol, e altro',
+  'whatsNew.f3.h': 'Fable 5.2, Ultracode, chat manager',
   'whatsNew.f3.p':
-    'GPT-6.1 Sol sostituisce GPT-5.6 Sol, e le chat su 5.6 Sol passano da sole al nuovo modello (serve Codex CLI 0.160 o successivo). La ricerca trova prima i nomi delle chat, la barra sinistra si chiude con ⌘B (Ctrl+B) e le chat sugli host si riconnettono da sole dopo un cambio di rete.',
+    'Claude Fable 5.2 si aggiunge a Opus 5.5 (ora il predefinito), Sonnet 5.5 e Haiku 5.5, e le chat sulle versioni precedenti passano da sole a quella nuova. Ultracode fa lavorare Claude in xhigh con workflow che affidano il lavoro a subagenti. Dal menu ☰ rendi una chat manager di altre: scrive ai suoi worker e loro rispondono nella sua casella, e il proseguimento automatico fa lavorare una chat mentre sei via. «Svuota chat» ricomincia una conversazione, i link ai file nelle chat su host si scaricano e le chat lunghe restano veloci.',
   'whatsNew.gotIt': 'Capito',
   // --- Auto-update prompts (persisted via the notification system) ---
   'app.update.restartAction': 'Riavvia e installa',

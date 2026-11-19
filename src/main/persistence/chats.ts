@@ -723,36 +723,6 @@ export function updateChatAgentConfig(
   return getChat(id);
 }
 
-export function appendCodexThreadEvent(input: {
-  chatId: string;
-  threadId: string;
-  eventType: string;
-  payload: unknown;
-}): void {
-  const now = Date.now();
-  const row = db()
-    .prepare<[string, string], { next_seq: number }>(
-      `SELECT COALESCE(MAX(seq) + 1, 0) AS next_seq
-         FROM codex_thread_events
-        WHERE chat_id = ? AND thread_id = ?`,
-    )
-    .get(input.chatId, input.threadId);
-  db()
-    .prepare(
-      `INSERT INTO codex_thread_events
-        (chat_id, thread_id, seq, event_type, payload, created_at)
-       VALUES (?, ?, ?, ?, ?, ?)`,
-    )
-    .run(
-      input.chatId,
-      input.threadId,
-      row?.next_seq ?? 0,
-      input.eventType,
-      JSON.stringify(input.payload),
-      now,
-    );
-}
-
 /** Get the per-chat permission rules. Empty array when none. */
 export function getChatPermissionRules(id: string): PermissionRule[] {
   const row = db()
@@ -789,4 +759,28 @@ export function removeChatPermissionRule(id: string, tool: string): void {
   db()
     .prepare('UPDATE chats SET permission_rules = ? WHERE id = ?')
     .run(JSON.stringify(next), id);
+}
+
+/**
+ * Clear a chat's history: every message, the Claude session transcript
+ * behind it, and the handles to its native conversations (Claude session,
+ * Codex thread) and how much of the transcript they had absorbed — so its
+ * next message starts a new conversation with nothing carried over. The
+ * chat itself stays: name, workspace, agent, settings, rules.
+ */
+export function clearChatHistory(id: string): void {
+  const conn = db();
+  conn.transaction(() => {
+    conn.prepare('DELETE FROM messages WHERE chat_id = ?').run(id);
+    conn.prepare('DELETE FROM sdk_session_entries WHERE chat_id = ?').run(id);
+    conn
+      .prepare(
+        `UPDATE chats
+            SET session_id = NULL, codex_thread_id = NULL,
+                claude_context_at = 0, codex_context_at = 0, trimmed_before = 0,
+                tokens_used = 0, snippet = '', status = 'idle'
+          WHERE id = ?`,
+      )
+      .run(id);
+  })();
 }

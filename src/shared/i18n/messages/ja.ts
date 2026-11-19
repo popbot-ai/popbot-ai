@@ -545,7 +545,7 @@ export const ja = {
   'chat.context.menu.compact': 'コンテキストを圧縮',
   'chat.context.menu.compacting': '圧縮中…',
   'chat.context.menu.codexHint':
-    'Codex はコンテキストを自動で圧縮します。使用量の表示と手動圧縮には、環境設定 ▸ エージェントで「作業中の Codex に指示を届ける」をオンにしてください。',
+    'この接続では Codex はコンテキストの使用量を報告しません（表示するには 環境設定 ▸ エージェント で「作業中に Codex を誘導」をオンに）。それでも圧縮はできます。',
   'chat.context.menu.runningHint': 'エージェントの完了を待ってください',
   'chat.context.compactingNote': 'コンテキストを圧縮中…',
   'chat.context.failedNote': '圧縮に失敗しました: {error}',
@@ -567,6 +567,10 @@ export const ja = {
   'chat.host.chipTitle': '{host} で実行中 · チャット設定を開く',
   'chat.host.chipPendingTitle': '{host} で実行 — セッションは最初のメッセージで始まります。',
   'chat.host.shutdown': 'ホスト上で終了',
+  'chat.clear.menu': 'チャットをクリア',
+  'chat.clear.menuTooltip': 'このチャットの履歴を空にして会話を最初からやり直します。チャット、ワークスペース、設定はそのまま残ります。',
+  'chat.clear.confirm': '「{name}」をクリアしますか？すべてのメッセージが削除され、エージェントは会話を忘れます。元に戻せません。チャット、ワークスペース、設定はそのまま残ります。',
+  'chat.clear.failed': 'チャットをクリアできませんでした',
   'chat.host.shutdownConfirm':
     '{host} 上のこのチャットのセッションを今すぐ終了しますか？ エージェントがそこで行っている作業は停止します。次のメッセージで {host} 上に新しいセッションが始まり、この会話を引き継ぎます。',
   'chat.host.withRepo': '{host} 上 · {repo}',
@@ -1461,9 +1465,9 @@ export const ja = {
   'whatsNew.f2.h': 'チャットとファイルをマシン間で移動',
   'whatsNew.f2.p':
     '☰ メニューからチャットを別のマシンへ移動できます。未プッシュのコミットと未コミットの変更も一緒に移り、リポジトリは名前で照合されます。エージェントは別のマシンのチャットへ任意のサイズのファイルも送れます。受け取り側のエージェントが承認する必要があり、ファイルは ~/popbot/sent_files に届き、接続が切れても中断したところから再開します。',
-  'whatsNew.f3.h': 'GPT-6.1 Sol など',
+  'whatsNew.f3.h': 'Fable 5.2、Ultracode、マネージャーチャット',
   'whatsNew.f3.p':
-    'GPT-6.1 Sol が GPT-5.6 Sol に代わり、5.6 Sol のチャットは自動で移行します（Codex CLI 0.160 以降が必要）。チャット検索はまずチャット名を見つけ、左バーは ⌘B（Ctrl+B）で折りたため、ホストのチャットはネットワーク切り替え後に自動で再接続します。',
+    'Claude Fable 5.2 が Opus 5.5（新しい既定）、Sonnet 5.5、Haiku 5.5 に加わり、旧バージョンのチャットは自動で移行します。Ultracode は Claude を xhigh で動かし、ワークフローで作業をサブエージェントに振り分けます。☰ メニューからチャットを他のチャットのマネージャーにでき、マネージャーはワーカーにメッセージを送り、ワーカーはその受信箱に返信します。自動継続を使えば、離席中もチャットが作業を続けます。「チャットをクリア」で会話をやり直せ、ホストのチャットのファイルリンクはダウンロードでき、長いチャットも速いままです。',
   'whatsNew.gotIt': 'OK',
   // --- Auto-update prompts (persisted via the notification system) ---
   'app.update.restartAction': '再起動してインストール',
