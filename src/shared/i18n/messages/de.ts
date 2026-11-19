@@ -1466,9 +1466,9 @@ export const de = {
   'whatsNew.f2.h': 'Chats und Dateien zwischen Rechnern verschieben',
   'whatsNew.f2.p':
     'Verschiebe einen Chat über sein ☰-Menü auf einen anderen Rechner: Nicht gepushte Commits und nicht committete Änderungen ziehen mit, und das Repository wird über den Namen zugeordnet. Agents können auch Dateien jeder Größe an einen Chat auf einem anderen Rechner senden – der Agent dort muss sie annehmen, sie landen in ~/popbot/sent_files, und eine abgebrochene Verbindung setzt dort wieder an, wo sie stand.',
-  'whatsNew.f3.h': 'GPT-6.1 Sol und mehr',
+  'whatsNew.f3.h': 'Fable 5.2, Ultracode, Manager-Chats',
   'whatsNew.f3.p':
-    'GPT-6.1 Sol ersetzt GPT-5.6 Sol, und Chats auf 5.6 Sol wechseln von selbst dorthin (dafür braucht es Codex CLI 0.160 oder neuer). Die Chatsuche findet zuerst Chatnamen, die linke Leiste lässt sich mit ⌘B (Strg+B) einklappen, und Host-Chats verbinden sich nach einem Netzwechsel von selbst neu.',
+    'Claude Fable 5.2 kommt zu Opus 5.5 (jetzt der Standard), Sonnet 5.5 und Haiku 5.5 hinzu, und Chats auf älteren Versionen wechseln von selbst. Ultracode lässt Claude auf xhigh laufen, mit Workflows, die Arbeit an Subagenten verteilen. Mach einen Chat im ☰-Menü zum Manager anderer: Er schreibt seinen Workern, sie antworten in sein Postfach, und Auto-Continue lässt einen Chat weiterarbeiten, während du weg bist. „Chat leeren“ beginnt ein Gespräch neu, Dateilinks in Host-Chats lassen sich herunterladen, und lange Chats bleiben schnell.',
   'whatsNew.gotIt': 'Verstanden',
   // --- Auto-update prompts (persisted via the notification system) ---
   'app.update.restartAction': 'Neu starten und installieren',

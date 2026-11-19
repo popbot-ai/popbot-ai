@@ -1451,9 +1451,9 @@ export const zhCN = {
   'whatsNew.f2.h': '在机器之间移动对话和文件',
   'whatsNew.f2.p':
     '从对话的 ☰ 菜单把它移到另一台机器：未推送的提交和未提交的更改会一并带走，仓库按名称匹配。智能体还能把任意大小的文件发给另一台机器上的对话——对方的智能体必须接受，文件会存入 ~/popbot/sent_files，连接中断后会从断点继续。',
-  'whatsNew.f3.h': 'GPT-6.1 Sol 及更多',
+  'whatsNew.f3.h': 'Fable 5.2、Ultracode、管理者对话',
   'whatsNew.f3.p':
-    'GPT-6.1 Sol 取代 GPT-5.6 Sol，使用 5.6 Sol 的对话会自动切换过去（需要 Codex CLI 0.160 或更新版本）。对话搜索优先匹配对话名称，左侧栏可用 ⌘B（Ctrl+B）收起，主机上的对话在网络切换后会自动重连。',
+    'Claude Fable 5.2 加入 Opus 5.5（现为默认）、Sonnet 5.5 和 Haiku 5.5 的行列，旧版本上的对话会自动迁移。Ultracode 以 xhigh 运行 Claude，并通过工作流把任务分派给子代理。在 ☰ 菜单中把一个对话设为其他对话的管理者：它给下属发消息，下属回复到它的收件箱；自动继续让对话在你离开时也能继续工作。“清空聊天”可以重新开始一段对话，主机对话里的文件链接可以下载，长对话也依然流畅。',
   'whatsNew.gotIt': '知道了',
   // --- Auto-update prompts (persisted via the notification system) ---
   'app.update.restartAction': '重启并安装',

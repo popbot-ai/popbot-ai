@@ -114,9 +114,9 @@ export const en = {
   'whatsNew.f2.h': 'Move chats and files between machines',
   'whatsNew.f2.p':
     'Move a chat to another machine from its ☰ menu: unpushed commits and uncommitted changes travel with it, and the repository is matched by name. Agents can also send a file of any size to a chat on another machine — the agent there has to accept it, it lands in ~/popbot/sent_files, and a dropped connection picks up where it stopped.',
-  'whatsNew.f3.h': 'GPT-6.1 Sol, and more',
+  'whatsNew.f3.h': 'Fable 5.2, Ultracode, manager chats',
   'whatsNew.f3.p':
-    'GPT-6.1 Sol replaces GPT-5.6 Sol, and chats on 5.6 Sol move to it on their own (it needs Codex CLI 0.160 or newer). Chat search finds chat names first, the left bar folds away with ⌘B (Ctrl+B), and host chats reconnect by themselves after a network change.',
+    'Claude Fable 5.2 joins Opus 5.5 (now the default), Sonnet 5.5 and Haiku 5.5, and chats on older versions move up on their own. Ultracode runs Claude at xhigh with workflows that hand work to subagents. Make a chat the manager of others from its ☰ menu: it messages its workers and they write back to its inbox, and auto-continue keeps a chat working while you are away. Clear chat starts a conversation over, file links in host chats download, and long chats stay fast.',
   'whatsNew.gotIt': 'Got it',
 
   // ---------------------------------------------------------------------------

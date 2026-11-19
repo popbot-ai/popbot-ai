@@ -1471,9 +1471,9 @@ export const it = {
   'whatsNew.f2.h': 'Sposta chat e file tra macchine',
   'whatsNew.f2.p':
     'Sposta una chat su un’altra macchina dal suo menu ☰: i commit non inviati e le modifiche non salvate la seguono, e il repository viene abbinato per nome. Gli agenti possono anche inviare un file di qualsiasi dimensione a una chat su un’altra macchina: l’agente dall’altra parte deve accettarlo, arriva in ~/popbot/sent_files e una connessione caduta riprende da dove si era fermata.',
-  'whatsNew.f3.h': 'GPT-6.1 Sol, e altro',
+  'whatsNew.f3.h': 'Fable 5.2, Ultracode, chat manager',
   'whatsNew.f3.p':
-    'GPT-6.1 Sol sostituisce GPT-5.6 Sol, e le chat su 5.6 Sol passano da sole al nuovo modello (serve Codex CLI 0.160 o successivo). La ricerca trova prima i nomi delle chat, la barra sinistra si chiude con ⌘B (Ctrl+B) e le chat sugli host si riconnettono da sole dopo un cambio di rete.',
+    'Claude Fable 5.2 si aggiunge a Opus 5.5 (ora il predefinito), Sonnet 5.5 e Haiku 5.5, e le chat sulle versioni precedenti passano da sole a quella nuova. Ultracode fa lavorare Claude in xhigh con workflow che affidano il lavoro a subagenti. Dal menu ☰ rendi una chat manager di altre: scrive ai suoi worker e loro rispondono nella sua casella, e il proseguimento automatico fa lavorare una chat mentre sei via. «Svuota chat» ricomincia una conversazione, i link ai file nelle chat su host si scaricano e le chat lunghe restano veloci.',
   'whatsNew.gotIt': 'Capito',
   // --- Auto-update prompts (persisted via the notification system) ---
   'app.update.restartAction': 'Riavvia e installa',

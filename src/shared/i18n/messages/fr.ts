@@ -1475,9 +1475,9 @@ export const fr = {
   'whatsNew.f2.h': 'Déplacez conversations et fichiers d’une machine à l’autre',
   'whatsNew.f2.p':
     'Déplacez une conversation vers une autre machine depuis son menu ☰ : les commits non poussés et les modifications non commitées suivent, et le dépôt est retrouvé par son nom. Les agents peuvent aussi envoyer un fichier de n’importe quelle taille à une conversation sur une autre machine — l’agent d’en face doit l’accepter, il arrive dans ~/popbot/sent_files, et une connexion coupée reprend là où elle s’était arrêtée.',
-  'whatsNew.f3.h': 'GPT-6.1 Sol, et plus encore',
+  'whatsNew.f3.h': 'Fable 5.2, Ultracode, conversations gestionnaires',
   'whatsNew.f3.p':
-    'GPT-6.1 Sol remplace GPT-5.6 Sol, et les conversations en 5.6 Sol y passent d’elles-mêmes (il faut Codex CLI 0.160 ou plus récent). La recherche trouve d’abord les noms des conversations, la barre de gauche se replie avec ⌘B (Ctrl+B), et les conversations sur un hôte se reconnectent seules après un changement de réseau.',
+    'Claude Fable 5.2 rejoint Opus 5.5 (désormais le modèle par défaut), Sonnet 5.5 et Haiku 5.5, et les conversations sur d’anciennes versions passent d’elles-mêmes à la nouvelle. Ultracode fait tourner Claude en xhigh avec des workflows qui confient le travail à des sous-agents. Depuis le menu ☰, faites d’une conversation la gestionnaire d’autres : elle leur écrit, elles répondent dans sa boîte de réception, et la poursuite automatique fait avancer une conversation pendant votre absence. « Vider le chat » recommence une conversation, les liens de fichiers des conversations sur un hôte se téléchargent, et les longues conversations restent rapides.',
   'whatsNew.gotIt': 'Compris',
   // --- Auto-update prompts (persisted via the notification system) ---
   'app.update.restartAction': 'Redémarrer et installer',
