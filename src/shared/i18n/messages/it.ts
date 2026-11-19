@@ -497,7 +497,7 @@ export const it = {
   'chat.context.menu.compact': 'Compatta contesto',
   'chat.context.menu.compacting': 'Compattazione…',
   'chat.context.menu.codexHint':
-    'Codex compatta il contesto da solo. Attiva «Guida Codex mentre lavora» in Preferenze ▸ Agenti per vedere l’utilizzo e compattare su richiesta.',
+    'Codex non indica quanto è pieno il suo contesto su questa connessione (attiva “Guida Codex mentre lavora” in Preferenze ▸ Agenti per vederlo), ma puoi comunque compattarlo.',
   'chat.context.menu.runningHint': 'Attendi che l’agente finisca',
   'chat.context.compactingNote': 'Compattazione del contesto…',
   'chat.context.failedNote': 'Compattazione non riuscita: {error}',
@@ -519,6 +519,10 @@ export const it = {
   'chat.host.chipTitle': 'Gira su {host} · apri le impostazioni della chat',
   'chat.host.chipPendingTitle': 'Gira su {host}: la sessione parte con il tuo primo messaggio.',
   'chat.host.shutdown': 'Arresta sull’host',
+  'chat.clear.menu': 'Svuota chat',
+  'chat.clear.menuTooltip': 'Svuota la cronologia di questa chat e ricomincia la conversazione. La chat, il suo spazio di lavoro e le impostazioni restano.',
+  'chat.clear.confirm': 'Svuotare «{name}»? Tutti i messaggi vengono eliminati e l’agente dimentica la conversazione. Non si può annullare. La chat, il suo spazio di lavoro e le impostazioni restano.',
+  'chat.clear.failed': 'Impossibile svuotare la chat',
   'chat.host.shutdownConfirm':
     'Terminare adesso la sessione di questa chat su {host}? Tutto ciò che l’agente sta facendo lì si ferma. Il tuo prossimo messaggio avvia una nuova sessione su {host} che riprende questa conversazione.',
   'chat.host.withRepo': 'Su {host} · {repo}',

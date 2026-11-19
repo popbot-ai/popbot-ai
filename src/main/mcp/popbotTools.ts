@@ -33,7 +33,7 @@ import { dlog } from '../diagLog';
 import { closeChatWithWorkspace, createChatWithWorkspace, reopenChatWithWorkspace } from '../ipc/chats';
 import { getChat, listChatRefs, listClosedChats, listOpenChats } from '../persistence/chats';
 import { listHosts } from '../persistence/hosts';
-import { getMessage, listMessages } from '../persistence/messages';
+import { countMessages, getMessage, listMessagesRange } from '../persistence/messages';
 import { getRepo, listRepos } from '../persistence/repos';
 import { withLiveness } from '../ipc/closedLiveness';
 import { desktopMailbox } from '../mailbox/desktopMailbox';
@@ -348,6 +348,9 @@ function followTransfer(id: string): void {
     }
   });
 }
+
+/** Rows get_chat_transcript reads per call. */
+const TRANSCRIPT_WINDOW = 2_000;
 
 export function createPopbotToolHandlers(): PopbotToolHandlers {
   return {
@@ -720,9 +723,17 @@ export function createPopbotToolHandlers(): PopbotToolHandlers {
       const chatId = wanted ?? caller;
       if (!chatId) return fail('pass chatId');
       if (!getChat(chatId)) return fail(`no chat ${chatId}`);
-      const entries = transcriptEntries(listMessages(chatId), { includeTools });
-      const r = renderTranscript(entries, { from, to, maxChars });
-      return { chatId, text: r.text, count: r.count, total: entries.length, truncated: r.truncated };
+      // Only the window asked for is read, TRANSCRIPT_WINDOW rows at most
+      // (more than fits in maxChars) — never the whole chat.
+      const total = countMessages(chatId);
+      const start = Math.max(0, from ?? 0);
+      const wantedEnd = Math.min(to ?? total - 1, total - 1);
+      const end = Math.min(wantedEnd, start + TRANSCRIPT_WINDOW - 1);
+      const rows = end >= start ? listMessagesRange(chatId, start, end - start + 1) : [];
+      const r = renderTranscript(transcriptEntries(rows, { includeTools, firstIndex: start }), { from: start, to: end, maxChars });
+      const unread = !r.truncated && end < wantedEnd;
+      const text = unread ? `${r.text}… (more from #${end + 1}; ask with from=${end + 1})\n` : r.text;
+      return { chatId, text, count: r.count, total, truncated: r.truncated || unread };
     },
 
     searchTranscripts({ query, chatId: wanted, allChats, includeClosed, mode, contextChars, maxResults, caseSensitive }, caller) {

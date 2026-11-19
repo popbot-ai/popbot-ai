@@ -68,6 +68,24 @@ export function listMessagesBefore(chatId: string, before: { createdAt: number; 
   return rows.map(rowToRecord);
 }
 
+/** How many rows a chat has (index-only). */
+export function countMessages(chatId: string): number {
+  return db()
+    .prepare<[string], { n: number }>('SELECT COUNT(*) AS n FROM messages WHERE chat_id = ?')
+    .get(chatId)?.n ?? 0;
+}
+
+/** Rows `offset`… of a chat (listMessages order), at most `limit` — a
+ *  window read without loading the rest of the chat. */
+export function listMessagesRange(chatId: string, offset: number, limit: number): MessageRecord[] {
+  return db()
+    .prepare<[string, number, number], MessageRow>(
+      `SELECT * FROM messages WHERE chat_id = ? ORDER BY created_at ASC, id ASC LIMIT ? OFFSET ?`,
+    )
+    .all(chatId, Math.max(0, limit), Math.max(0, offset))
+    .map(rowToRecord);
+}
+
 /** Messages created at or after `since`, oldest-first. */
 export function listMessagesSince(chatId: string, since: number): MessageRecord[] {
   return db()
@@ -87,7 +105,15 @@ export function hasMessageWithRole(chatId: string, role: MessageRole): boolean {
 
 /** The newest message of a kind (and role, when given), if any. */
 export function lastMessageOfKind(chatId: string, kind: MessageKind, role?: MessageRole): MessageRecord | null {
-  const row = role
+  // The user's rows through idx_messages_user_at, which a bound role
+  // can't use: otherwise every agent row since the last prompt is read.
+  const row = role === 'user'
+    ? db()
+      .prepare<[string, string], MessageRow>(
+        "SELECT * FROM messages WHERE chat_id = ? AND kind = ? AND role = 'user' ORDER BY created_at DESC, id DESC LIMIT 1",
+      )
+      .get(chatId, kind)
+    : role
     ? db()
       .prepare<[string, string, string], MessageRow>(
         'SELECT * FROM messages WHERE chat_id = ? AND kind = ? AND role = ? ORDER BY created_at DESC, id DESC LIMIT 1',
@@ -123,16 +149,19 @@ export function textTurnsSince(
   since: number,
   opts: { head: number; tail: number },
 ): { head: MessageRecord[]; tail: MessageRecord[]; total: number } {
+  // Through idx_messages_text_turns (v29): the chat's text rows only —
+  // the whole chat, tool rows and all, is never walked.
   const where = "chat_id = ? AND kind = 'text' AND role IN ('user', 'agent') AND updated_at > ?";
+  const from = 'messages INDEXED BY idx_messages_text_turns';
   const total = (db()
-    .prepare<[string, number], { n: number }>(`SELECT COUNT(*) AS n FROM messages WHERE ${where}`)
+    .prepare<[string, number], { n: number }>(`SELECT COUNT(*) AS n FROM ${from} WHERE ${where}`)
     .get(chatId, since)?.n) ?? 0;
   const head = opts.head > 0
-    ? db().prepare<[string, number, number], MessageRow>(`SELECT * FROM messages WHERE ${where} ORDER BY created_at ASC, id ASC LIMIT ?`)
+    ? db().prepare<[string, number, number], MessageRow>(`SELECT * FROM ${from} WHERE ${where} ORDER BY created_at ASC, id ASC LIMIT ?`)
       .all(chatId, since, opts.head).map(rowToRecord)
     : [];
   const tail = db()
-    .prepare<[string, number, number], MessageRow>(`SELECT * FROM messages WHERE ${where} ORDER BY created_at DESC, id DESC LIMIT ?`)
+    .prepare<[string, number, number], MessageRow>(`SELECT * FROM ${from} WHERE ${where} ORDER BY created_at DESC, id DESC LIMIT ?`)
     .all(chatId, since, opts.tail)
     .reverse()
     .map(rowToRecord);
@@ -174,12 +203,14 @@ export function searchMessages(
 /** A message's position in its chat — the index listMessages would give
  *  it — so a search hit can be read in context with get_chat_transcript. */
 export function indexOfMessage(m: Pick<MessageRecord, 'id' | 'chatId' | 'createdAt'>): number {
+  // Two counts so the big one is index-only; only rows sharing its
+  // timestamp are read for their id.
   const row = db()
-    .prepare<[string, number, number, string], { n: number }>(
-      `SELECT COUNT(*) AS n FROM messages
-        WHERE chat_id = ? AND (created_at < ? OR (created_at = ? AND id < ?))`,
+    .prepare<[string, number, string, number, string], { n: number }>(
+      `SELECT (SELECT COUNT(*) FROM messages WHERE chat_id = ? AND created_at < ?)
+            + (SELECT COUNT(*) FROM messages WHERE chat_id = ? AND created_at = ? AND id < ?) AS n`,
     )
-    .get(m.chatId, m.createdAt, m.createdAt, m.id);
+    .get(m.chatId, m.createdAt, m.chatId, m.createdAt, m.id);
   return row?.n ?? 0;
 }
 
@@ -188,17 +219,17 @@ export function getMessage(id: string): MessageRecord | null {
   return row ? rowToRecord(row) : null;
 }
 
-/** Count non-system messages for a chat — i.e. anything the user or
+/** Whether a chat has any non-system message — anything the user or
  *  agent actually said. Used by boot-time recovery to distinguish a
  *  brand-new chat (no real activity, nothing to recover) from one
- *  that lost its session pin and genuinely needs to be reattached. */
-export function countAgentOrUserMessages(chatId: string): number {
-  const row = db()
-    .prepare<[string], { n: number }>(
-      `SELECT COUNT(*) AS n FROM messages WHERE chat_id = ? AND role IN ('user', 'agent')`,
+ *  that lost its session pin and genuinely needs to be reattached.
+ *  Stops at the first such row. */
+export function hasAgentOrUserMessages(chatId: string): boolean {
+  return !!db()
+    .prepare<[string], { x: number }>(
+      `SELECT 1 AS x FROM messages WHERE chat_id = ? AND role IN ('user', 'agent') LIMIT 1`,
     )
     .get(chatId);
-  return row?.n ?? 0;
 }
 
 export interface AppendMessageArgs {
@@ -273,16 +304,20 @@ export function updateMessageBody(id: string, body: unknown): void {
  * prompt from the user is the signal that they looked again, whereas
  * the chat's last_active_at is bumped by the agent's own activity and
  * so would count an original review that merely finished after the
- * author pushed as a re-review. One grouped query over the index; ~0.1s
- * on a multi-GB database.
+ * author pushed as a re-review. One seek per chat into
+ * idx_messages_user_at (v29), which holds only the user's rows — the end
+ * of that run is the answer, however many agent rows came after.
  */
-export function lastUserMessageAtByChat(): Map<string, number> {
-  const rows = db()
-    .prepare<[], { chat_id: string; at: number }>(
-      "SELECT chat_id, MAX(created_at) AS at FROM messages WHERE role = 'user' GROUP BY chat_id",
-    )
-    .all();
-  return new Map(rows.map((r) => [r.chat_id, r.at]));
+export function lastUserMessageAtByChat(chatIds: string[]): Map<string, number> {
+  const stmt = db().prepare<[string], { at: number | null }>(
+    "SELECT MAX(created_at) AS at FROM messages WHERE chat_id = ? AND role = 'user'",
+  );
+  const out = new Map<string, number>();
+  for (const id of chatIds) {
+    const at = stmt.get(id)?.at;
+    if (at != null) out.set(id, at);
+  }
+  return out;
 }
 
 /**

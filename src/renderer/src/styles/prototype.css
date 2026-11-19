@@ -6190,12 +6190,14 @@ input.input.mono, select.input.mono { font-family: var(--font-mono); font-size: 
 .hosts-chat-dot.st-err { background: var(--st-err); }
 .hosts-chat-dot.st-run { animation: pulse 1.6s ease-in-out infinite; }
 /* Auto-continue is on: which mode; a click turns it off. */
+/* A host chat's file link while its file downloads. */
+.file-link.downloading { cursor: progress; opacity: 0.55; }
 .autocontinue-chip {
-  display: inline-flex; align-items: center; gap: 4px; flex: none;
-  background: rgba(79, 139, 255, 0.14); border: 1px solid rgba(79, 139, 255, 0.5);
-  color: #7aa7ff; border-radius: 10px; padding: 1px 8px; font-size: 11px; cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center; flex: none;
+  background: none; border: none; color: #7aa7ff; border-radius: 4px;
+  padding: 1px 4px; font-size: 12px; cursor: pointer;
 }
-.autocontinue-chip:hover { background: rgba(79, 139, 255, 0.24); }
+.autocontinue-chip:hover { background: rgba(79, 139, 255, 0.18); }
 /* A manager's chip under the message box: hover names its workers. */
 .manager-chip {
   display: inline-flex; align-items: center; gap: 5px; flex: none;

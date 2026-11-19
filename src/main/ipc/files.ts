@@ -10,6 +10,7 @@ import { getChat } from '../persistence/chats';
 import { getRepo } from '../persistence/repos';
 import { getSetting } from '../persistence/settings';
 import { worktreePathForChat } from '../git/chatPaths';
+import { downloadFromHost } from './remoteFiles';
 
 const MAX_BYTES = 4 * 1024 * 1024; // 4 MB cap so we don't load gigantic generated files
 
@@ -165,6 +166,9 @@ export function registerFilesHandlers(): void {
       line?: number,
     ): Promise<{ ok: true } | { ok: false; error: string }> => {
       if (!rawPath || typeof rawPath !== 'string') return { ok: false, error: 'No file path.' };
+      // A host chat's paths are on the host: the file comes here instead.
+      const remote = chatId ? getChat(chatId) : null;
+      if (remote?.host) return downloadFromHost(remote, rawPath);
       let p = rawPath.trim();
       let lineNum = typeof line === 'number' && Number.isFinite(line) ? line : undefined;
       // Strip a GitHub-style line anchor (foo.ts#L42 / #L42-L51) — the
@@ -209,6 +213,8 @@ export function registerFilesHandlers(): void {
       rawPath: string,
     ): Promise<{ ok: true } | { ok: false; error: string }> => {
       if (!rawPath || typeof rawPath !== 'string') return { ok: false, error: 'No path.' };
+      const remote = chatId ? getChat(chatId) : null;
+      if (remote?.host) return downloadFromHost(remote, rawPath);
       let p = rawPath.trim();
       // Agents hand out `file://` URLs as often as bare paths; both mean
       // the same thing here. decodeURI so a path with spaces (%20)

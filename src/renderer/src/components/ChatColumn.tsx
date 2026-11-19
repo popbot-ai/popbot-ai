@@ -163,6 +163,7 @@ const REASONING_LABEL_KEYS: Record<ClaudeReasoningEffort | CodexReasoningEffort,
   xhigh: 'chat.reasoning.xhigh',
   max: 'chat.reasoning.max',
   ultra: 'chat.reasoning.ultra',
+  ultracode: 'chat.reasoning.ultracode',
 };
 
 const STATUS_LABEL_KEYS: Record<string, MessageKey> = {
@@ -380,6 +381,17 @@ export function ChatColumn({
     if (!chat.host) return;
     if (!confirm(t('chat.host.shutdownConfirm', { host: chat.host.hostName }))) return;
     await window.popbot.hosts.shutdown(chat.id);
+  };
+  // Clear: the whole history goes, here and in the database, and the
+  // agent's conversation with it; the chat itself stays (ipc/clearChat.ts).
+  const clearChat = async (): Promise<void> => {
+    if (!confirm(t('chat.clear.confirm', { name: chat.name }))) return;
+    try {
+      await window.popbot.agent.clear(chat.id);
+    } catch (err) {
+      // eslint-disable-next-line no-alert
+      alert(`${t('chat.clear.failed')}:\n\n${(err as Error).message}`);
+    }
   };
   const openMenuAt = (el: Element): void => {
     const r = el.getBoundingClientRect();
@@ -756,7 +768,9 @@ export function ChatColumn({
                 <i className="fa-solid fa-rotate-right" aria-hidden="true" />
                 {t('chatSettings.restartWithContext')}
               </button>
-              {agent === 'claude' && (
+              {/* Claude and Codex both compact on request (Codex's exec
+                  connection through a short-lived app-server). */}
+              {(agent === 'claude' || agent === 'codex') && (
                 <button
                   type="button"
                   className="chat-menu-item"
@@ -851,6 +865,16 @@ export function ChatColumn({
               {t('chat.host.shutdown')}
             </button>
           )}
+          <button
+            type="button"
+            className="chat-menu-item"
+            role="menuitem"
+            title={t('chat.clear.menuTooltip')}
+            onClick={() => { setMenu(null); void clearChat(); }}
+          >
+            <i className="fa-solid fa-eraser" aria-hidden="true" />
+            {t('chat.clear.menu')}
+          </button>
           <div className="chat-menu-sep" />
           <button
             type="button"
@@ -979,6 +1003,7 @@ export function ChatColumn({
         </div>
         <LiveChatBody
           chatId={chat.id}
+          remoteHost={chat.host?.hostName ?? null}
           chatStatus={chat.status}
           onQuickReply={onQuickReply}
           onDecidePermission={decidePermission}
@@ -1104,18 +1129,22 @@ export function ChatColumn({
                 <i className="fa-solid fa-server" aria-hidden /> <span>{chat.host.hostName}</span>
               </button>
             )}
-            {/* Auto-continue is on: says which; a click turns it off. */}
-            {autoContinue && onSetAutoContinue && (
-              <button
-                type="button"
-                className={`autocontinue-chip ${autoContinue}`}
-                title={t('chat.autoContinue.chipTitle')}
-                onClick={() => onSetAutoContinue(null)}
-              >
-                <i className={`fa-solid ${autoContinue === 'forever' ? 'fa-infinity' : 'fa-flag-checkered'}`} aria-hidden />{' '}
-                <span>{t(autoContinue === 'forever' ? 'chat.autoContinue.chipForever' : 'chat.autoContinue.chipUntil')}</span>
-              </button>
-            )}
+            {/* Auto-continue is on: an icon says which (the name is in the
+                tooltip — a labelled chip was too wide); a click turns it off. */}
+            {autoContinue && onSetAutoContinue && (() => {
+              const label = `${t(autoContinue === 'forever' ? 'chat.autoContinue.chipForever' : 'chat.autoContinue.chipUntil')} — ${t('chat.autoContinue.chipTitle')}`;
+              return (
+                <button
+                  type="button"
+                  className={`autocontinue-chip ${autoContinue}`}
+                  title={label}
+                  aria-label={label}
+                  onClick={() => onSetAutoContinue(null)}
+                >
+                  <i className={`fa-solid ${autoContinue === 'forever' ? 'fa-infinity' : 'fa-flag-checkered'}`} aria-hidden />
+                </button>
+              );
+            })()}
             {/* A manager: hover names its workers; a click changes them. */}
             {managedNames.length > 0 && (
               <button

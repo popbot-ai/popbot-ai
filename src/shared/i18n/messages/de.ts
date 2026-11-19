@@ -545,7 +545,7 @@ export const de = {
   'chat.context.menu.compact': 'Kontext komprimieren',
   'chat.context.menu.compacting': 'Wird komprimiert…',
   'chat.context.menu.codexHint':
-    'Codex komprimiert seinen Kontext selbst. Aktiviere „Codex während der Arbeit steuern“ unter Einstellungen ▸ Agenten, um die Auslastung zu sehen und bei Bedarf zu komprimieren.',
+    'Codex meldet über diese Verbindung nicht, wie voll sein Kontext ist (schalte „Codex während der Arbeit steuern“ unter Einstellungen ▸ Agents ein, um es zu sehen) – komprimieren kannst du ihn trotzdem.',
   'chat.context.menu.runningHint': 'Warten, bis der Agent fertig ist',
   'chat.context.compactingNote': 'Kontext wird komprimiert…',
   'chat.context.failedNote': 'Komprimierung fehlgeschlagen: {error}',
@@ -567,6 +567,10 @@ export const de = {
   'chat.host.chipTitle': 'Läuft auf {host} · Chat-Einstellungen öffnen',
   'chat.host.chipPendingTitle': 'Läuft auf {host} – die Sitzung beginnt mit deiner ersten Nachricht.',
   'chat.host.shutdown': 'Auf dem Host beenden',
+  'chat.clear.menu': 'Chat leeren',
+  'chat.clear.menuTooltip': 'Den Verlauf dieses Chats leeren und das Gespräch neu beginnen. Chat, Arbeitsbereich und Einstellungen bleiben.',
+  'chat.clear.confirm': '„{name}“ leeren? Alle Nachrichten werden gelöscht und der Agent vergisst das Gespräch. Das lässt sich nicht rückgängig machen. Chat, Arbeitsbereich und Einstellungen bleiben.',
+  'chat.clear.failed': 'Chat konnte nicht geleert werden',
   'chat.host.shutdownConfirm':
     'Die Sitzung dieses Chats auf {host} jetzt beenden? Alles, was der Agent dort gerade tut, stoppt. Deine nächste Nachricht startet eine neue Sitzung auf {host}, die dieses Gespräch fortsetzt.',
   'chat.host.withRepo': 'Auf {host} · {repo}',

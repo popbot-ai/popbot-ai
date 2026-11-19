@@ -545,7 +545,7 @@ export const fr = {
   'chat.context.menu.compact': 'Compacter le contexte',
   'chat.context.menu.compacting': 'Compactage…',
   'chat.context.menu.codexHint':
-    'Codex compacte son contexte de lui-même. Activez « Guider Codex pendant qu’il travaille » dans Préférences ▸ Agents pour voir l’utilisation et compacter à la demande.',
+    'Codex n’indique pas le remplissage de son contexte sur cette connexion (activez « Piloter Codex pendant qu’il travaille » dans Préférences ▸ Agents pour le voir), mais vous pouvez quand même le compacter.',
   'chat.context.menu.runningHint': 'Attendez que l’agent ait terminé',
   'chat.context.compactingNote': 'Compactage du contexte…',
   'chat.context.failedNote': 'Échec du compactage : {error}',
@@ -567,6 +567,10 @@ export const fr = {
   'chat.host.chipTitle': 'S’exécute sur {host} · ouvrir les réglages de la conversation',
   'chat.host.chipPendingTitle': 'S’exécute sur {host} — la session démarre avec votre premier message.',
   'chat.host.shutdown': 'Arrêter sur l’hôte',
+  'chat.clear.menu': 'Vider le chat',
+  'chat.clear.menuTooltip': 'Vider l’historique de ce chat et recommencer la conversation. Le chat, son espace de travail et ses réglages restent.',
+  'chat.clear.confirm': 'Vider « {name} » ? Tous ses messages sont supprimés et l’agent oublie la conversation. C’est irréversible. Le chat, son espace de travail et ses réglages restent.',
+  'chat.clear.failed': 'Impossible de vider le chat',
   'chat.host.shutdownConfirm':
     'Terminer maintenant la session de cette conversation sur {host} ? Tout ce que l’agent y fait s’arrête. Votre prochain message démarre une nouvelle session sur {host} qui reprend cette conversation.',
   'chat.host.withRepo': 'Sur {host} · {repo}',

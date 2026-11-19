@@ -44,7 +44,7 @@ import { db, isDbOpen } from '../persistence/db';
 import { dlog } from '../diagLog';
 import { listOpenChats, setChatSessionId } from '../persistence/chats';
 import { getSetting } from '../persistence/settings';
-import { appendMessage, countAgentOrUserMessages, lastMessageOfKind } from '../persistence/messages';
+import { appendMessage, hasAgentOrUserMessages, lastMessageOfKind } from '../persistence/messages';
 import { sqliteSessionStore } from './sqliteSessionStore';
 import { applyPerforceAgentCwd, worktreePathForChat } from '../git/chatPaths';
 import type { ChatRecord, MessageBodyText } from '@shared/persistence';
@@ -358,7 +358,7 @@ export async function recoverChatSessions(): Promise<void> {
     // an agent session, so they aren't "detached", just unused. The
     // failed-recovery branch below would otherwise post a confusing
     // "Session detached" note onto a chat the user just created.
-    if (!chat.sessionId && countAgentOrUserMessages(chat.id) === 0) {
+    if (!chat.sessionId && !hasAgentOrUserMessages(chat.id)) {
       dlog('chat.recover.skip-empty', { chatId: chat.id, name: chat.name.slice(0, 60) });
       continue;
     }

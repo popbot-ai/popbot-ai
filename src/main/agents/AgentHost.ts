@@ -33,7 +33,6 @@ import {
 import { IpcChannel } from '@shared/ipc';
 import {
   addChatPermissionRule,
-  appendCodexThreadEvent,
   clearChatSessionId,
   clearChatCodexThreadId,
   getChat,
@@ -1017,15 +1016,9 @@ class AgentHostImpl {
     this.stoppedChats.delete(chatId);
     const session = await this.getOrSpawnSession(chatId);
     if (!session.compact) {
-      // The Codex exec SDK has no compaction call; Codex still compacts on
-      // its own as the window fills. The app-server backend does have one.
-      this.surfaceDiagnostic(
-        chatId,
-        'warning',
-        chat.agent === 'codex'
-          ? 'Codex compacts its context automatically. Manual compaction needs the app-server connection (Preferences ▸ Agents).'
-          : 'This agent does not support manual compaction.',
-      );
+      // Every Claude and Codex session compacts (Codex's exec connection
+      // through a short-lived app-server); a cloud one does not.
+      this.surfaceDiagnostic(chatId, 'warning', 'This agent does not support manual compaction.');
       return;
     }
     dlog('agent.compact', { chatId, agent: chat.agent, sessionId: chat.sessionId ?? null });
@@ -1282,6 +1275,16 @@ class AgentHostImpl {
 
   /** Tear down the session for a chat (e.g. on close). Awaits the
    *  backend's flush so we don't lose in-flight session JSONL writes. */
+  /** Forget what was learned about a chat's conversation — its last
+   *  error, the session ids that failed to resume, retry budgets — once
+   *  its history is cleared (ipc/clearChat.ts). */
+  forgetConversation(chatId: string): void {
+    this.lastErrorText.delete(chatId);
+    this.badSessionIds.delete(chatId);
+    this.autoRetries.delete(chatId);
+    this.lastAutoRecoveryAt.delete(chatId);
+  }
+
   async dispose(chatId: string): Promise<void> {
     // Always clear the timer, even with no live session — otherwise a
     // closed chat can still fire onTurnStalled and resurrect itself
@@ -1496,10 +1499,6 @@ class AgentHostImpl {
       pathToCodexExecutable: getCodexBinaryPath(),
       sessionStore: sqliteSessionStore,
       onEvent: (event) => this.handleEvent(event),
-      onCodexEvent: (event) => {
-        if (!isDbOpen()) return;
-        appendCodexThreadEvent(event);
-      },
       onSessionId: (sid) => {
         if (!isDbOpen() || isCloud) return;
         const current = getChat(chatId);

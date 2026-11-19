@@ -14,29 +14,33 @@ export type AgentBackendId = 'claude' | 'codex';
  * The model pickers, in display order. Each provider's default comes
  * first, then the rest of the current line-up.
  *
- * The newest tiers — Claude Opus 5.5, Claude Fable 5.1 and GPT-6 Astra —
- * are listed but deliberately NOT the default and never a roll-forward
- * target (see {@link normalizeClaudeModel} / {@link normalizeCodexModel}).
- * New launches come at top-tier pricing and limited availability: Fable
- * needs usage credits on the Claude side, and Codex only serves Astra to
- * API-key logins for now (a ChatGPT-account login gets a 400). A chat
- * lands on one of them only because the user picked it, so nobody's
- * running Opus 5 / Sol chat quietly turns into a pricier bill.
+ * Claude: Anthropic's current line-up only — Opus 5.5 (the default),
+ * Sonnet 5.5, Haiku 5.5 and Fable 5.2. Each replaced an earlier version
+ * of its own line (Opus 5, Sonnet 5, Fable 5.1), which upstream now calls
+ * legacy; chats on those move up quietly (see {@link normalizeClaudeModel}).
+ *
+ * GPT-6 Astra is listed but deliberately NOT the default and never a
+ * roll-forward target (see {@link normalizeCodexModel}): Codex only
+ * serves it to API-key logins (a ChatGPT-account login gets a 400), so a
+ * chat lands on it only because the user picked it.
  */
 export const CLAUDE_MODELS = [
-  'claude-opus-5',
   'claude-opus-5-5',
-  'claude-sonnet-5',
-  'claude-fable-5',
-  'claude-fable-5-1',
+  'claude-sonnet-5-5',
+  'claude-haiku-5-5',
+  'claude-fable-5-2',
 ] as const;
 export const CODEX_MODELS = ['gpt-6.1-sol', 'gpt-6.1-sol-fast', 'gpt-5.6-terra', 'gpt-5.6-luna', 'gpt-6-astra'] as const;
-export const DEFAULT_CLAUDE_MODEL = 'claude-opus-5' as const;
+export const DEFAULT_CLAUDE_MODEL = 'claude-opus-5-5' as const;
 export const DEFAULT_CODEX_MODEL = 'gpt-6.1-sol' as const;
 export const DEFAULT_CLAUDE_REASONING_EFFORT = 'high' as const;
 export const DEFAULT_CODEX_REASONING_EFFORT = 'medium' as const;
 
-export const CLAUDE_REASONING_EFFORTS = ['low', 'medium', 'high', 'xhigh', 'max'] as const;
+/** `ultracode` is not an effort the API knows: it is Claude Code's
+ *  session mode — xhigh effort plus standing dynamic-workflow
+ *  orchestration (the agent fans work out to subagents). See
+ *  {@link claudeSdkEffort}. */
+export const CLAUDE_REASONING_EFFORTS = ['low', 'medium', 'high', 'xhigh', 'max', 'ultracode'] as const;
 /** Every rung any Codex model accepts; see {@link codexReasoningEffortsForModel}
  *  for the per-model subset. `none` is PopBot's name for the API's `minimal`. */
 export const CODEX_REASONING_EFFORTS = ['none', 'low', 'medium', 'high', 'xhigh', 'max', 'ultra'] as const;
@@ -49,11 +53,10 @@ export type AgentReasoningEffort = ClaudeReasoningEffort | CodexReasoningEffort;
 
 /** Display names for the model pickers. Product names, not localized. */
 export const CLAUDE_MODEL_LABELS: Record<ClaudeModelId, string> = {
-  'claude-opus-5': 'Claude Opus 5',
   'claude-opus-5-5': 'Claude Opus 5.5',
-  'claude-sonnet-5': 'Claude Sonnet 5',
-  'claude-fable-5': 'Claude Fable 5',
-  'claude-fable-5-1': 'Claude Fable 5.1',
+  'claude-sonnet-5-5': 'Claude Sonnet 5.5',
+  'claude-haiku-5-5': 'Claude Haiku 5.5',
+  'claude-fable-5-2': 'Claude Fable 5.2',
 };
 export const CODEX_MODEL_LABELS: Record<CodexModelId, string> = {
   'gpt-6.1-sol': 'GPT-6.1 Sol',
@@ -68,22 +71,23 @@ export const CODEX_MODEL_LABELS: Record<CodexModelId, string> = {
  *  truth shared by the renderer create-config normalizers and the
  *  main-side row mappers.
  *
- *  Retired Opus versions (4.8, 4.7, 4.6, …) deliberately roll forward to
- *  Opus 5 rather than staying pinned: unlike the Codex tiers, which are
- *  distinct concurrent models, the Opus line is a single model that
- *  supersedes itself, and old versions are eventually retired upstream.
- *  A chat pinned to a retired ID would fail at request time, so we point
- *  it at the Opus that is the default — not at Opus 5.5, which is a new
- *  launch a chat should reach only by the user's choice.
- *
- *  Fable is the one line that does NOT roll forward: a chat on Claude
- *  Fable 5 stays there even though Fable 5.1 exists. Both are still
- *  served, and moving between Fable tiers is a pricing/availability
- *  decision that belongs to the user. */
+ *  Each Claude line — Opus, Sonnet, Haiku, Fable — supersedes itself:
+ *  an earlier version (Opus 5 or 4.x, Sonnet 5, Fable 5.1 or 5, Haiku
+ *  4.5) moves to its line's current model, quietly. Upstream keeps the
+ *  older ones only as legacy and eventually retires them, and each
+ *  successor costs the same or less than what it replaced. */
+const CURRENT_IN_LINE: Array<[RegExp, ClaudeModelId]> = [
+  [/^claude-opus-/, 'claude-opus-5-5'],
+  [/^claude-sonnet-/, 'claude-sonnet-5-5'],
+  [/^claude-haiku-/, 'claude-haiku-5-5'],
+  [/^claude-fable-/, 'claude-fable-5-2'],
+];
+
 export function normalizeClaudeModel(value: string | null | undefined): ClaudeModelId {
   if (CLAUDE_MODELS.includes(value as ClaudeModelId)) return value as ClaudeModelId;
-  // Any prior Opus (claude-opus-4-8, -4-7, -4-6, -4-5, -4-1, …) → the default Opus.
-  if (typeof value === 'string' && value.startsWith('claude-opus-')) return 'claude-opus-5';
+  if (typeof value === 'string') {
+    for (const [line, current] of CURRENT_IN_LINE) if (line.test(value)) return current;
+  }
   return DEFAULT_CLAUDE_MODEL;
 }
 
@@ -162,7 +166,15 @@ const REASONING_EFFORT_RANK: Record<AgentReasoningEffort, number> = {
   xhigh: 4,
   max: 5,
   ultra: 6,
+  // Runs at xhigh: Codex has nothing like it, so it maps to xhigh there.
+  ultracode: 4,
 };
+
+/** What the Claude SDK is asked for: the API effort, and whether the
+ *  session runs in ultracode (xhigh effort plus workflows). */
+export function claudeSdkEffort(effort: ClaudeReasoningEffort): { effort: Exclude<ClaudeReasoningEffort, 'ultracode'>; ultracode: boolean } {
+  return effort === 'ultracode' ? { effort: 'xhigh', ultracode: true } : { effort, ultracode: false };
+}
 
 export function closestReasoningEffort<T extends AgentReasoningEffort>(
   value: string | null | undefined,

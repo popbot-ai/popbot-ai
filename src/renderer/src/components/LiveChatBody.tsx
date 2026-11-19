@@ -10,6 +10,9 @@ import { isMcpTool, mcpServerOfTool } from '@shared/agent';
  *  file references against the chat's cwd when opening them in the
  *  external editor. */
 const ChatIdContext = createContext<string | null>(null);
+/** The host a chat runs on, or null: its file links name files there, and
+ *  a click downloads the file (main routes it — ipc/remoteFiles.ts). */
+const RemoteHostContext = createContext<string | null>(null);
 
 /** Extensions we treat as openable code/text references when they appear
  *  bare in inline code spans (e.g. `src/foo.ts`). Kept tight so prose
@@ -42,12 +45,35 @@ function looksLikeFolder(href: string): boolean {
   return last.length > 0 && !/\.\w{1,8}$/.test(last);
 }
 
+type FileActionResult = { ok: true } | { ok: false; error: string };
+
 /** Reveal a path in Finder / Explorer. A folder opens; a file opens its
- *  containing folder with the file selected. */
-function revealFileRef(chatId: string | null, ref: string): void {
-  void window.popbot.files.revealInFolder(chatId, ref).then((res) => {
+ *  containing folder with the file selected. (In a host chat: downloads
+ *  it, then shows it.) */
+function revealFileRef(chatId: string | null, ref: string): Promise<FileActionResult> {
+  return window.popbot.files.revealInFolder(chatId, ref).then((res) => {
     if (!res.ok) console.warn('files.revealInFolder failed', res.error);
+    return res;
   });
+}
+
+/** A file link's click, with a host chat's download shown as under way
+ *  and its failure said out loud (a local miss stays a console warning). */
+function useFileAction(): { host: string | null; busy: boolean; run: (action: () => Promise<FileActionResult>) => void } {
+  const host = useContext(RemoteHostContext);
+  const { t } = useTranslation();
+  const [busy, setBusy] = useState(false);
+  const run = (action: () => Promise<FileActionResult>): void => {
+    if (!host) { void action(); return; }
+    if (busy) return;
+    setBusy(true);
+    void action().then((res) => {
+      setBusy(false);
+      // eslint-disable-next-line no-alert
+      if (!res.ok) alert(`${t('chat.fs.downloadFailed', { host })}:\n\n${res.error}`);
+    });
+  };
+  return { host, busy, run };
 }
 
 /** Does a bare inline-code token look like a file reference worth
@@ -63,9 +89,10 @@ function isFileToken(s: string): boolean {
 /** Open a file reference (relative or absolute, optional `:line`) in the
  *  configured external editor via main. Non-fatal: a mis-detected token
  *  just no-ops with a console warning. */
-function openFileRef(chatId: string | null, ref: string, line?: number): void {
-  void window.popbot.files.openInEditor(chatId, ref, line).then((res) => {
+function openFileRef(chatId: string | null, ref: string, line?: number): Promise<FileActionResult> {
+  return window.popbot.files.openInEditor(chatId, ref, line).then((res) => {
     if (!res.ok) console.warn('files.openInEditor failed', res.error);
+    return res;
   });
 }
 
@@ -75,16 +102,16 @@ function openFileRef(chatId: string | null, ref: string, line?: number): void {
 const MarkdownAnchor: NonNullable<Components['a']> = ({ href, children, ...props }) => {
   const chatId = useContext(ChatIdContext);
   const { t } = useTranslation();
+  const file = useFileAction();
   if (href && isFileHref(href)) {
     return (
       <a
         {...props}
-        className={['file-link', props.className].filter(Boolean).join(' ')}
+        className={['file-link', file.busy ? 'downloading' : '', props.className].filter(Boolean).join(' ')}
         href={href}
-        title={t(
-          looksLikeFolder(href) ? 'chat.fs.openFolder' : 'chat.fs.revealFile',
-          { href },
-        )}
+        title={file.host
+          ? t(file.busy ? 'chat.fs.downloading' : 'chat.fs.downloadFromHost', { href, host: file.host })
+          : t(looksLikeFolder(href) ? 'chat.fs.openFolder' : 'chat.fs.revealFile', { href })}
         // A markdown LINK to a path means "here is a place on disk" —
         // show it in Finder / Explorer. (An inline-code file token still
         // opens in the editor; that's the jump-to-source affordance, and
@@ -92,8 +119,7 @@ const MarkdownAnchor: NonNullable<Components['a']> = ({ href, children, ...props
         // the editor instead, for a file.
         onClick={(e) => {
           e.preventDefault();
-          if (e.altKey && !looksLikeFolder(href)) openFileRef(chatId, href);
-          else revealFileRef(chatId, href);
+          file.run(() => (e.altKey && !looksLikeFolder(href) ? openFileRef(chatId, href) : revealFileRef(chatId, href)));
         }}
       >
         {children}
@@ -119,17 +145,20 @@ const MarkdownAnchor: NonNullable<Components['a']> = ({ href, children, ...props
 const MarkdownCode: NonNullable<Components['code']> = ({ className, children, ...props }) => {
   const chatId = useContext(ChatIdContext);
   const { t } = useTranslation();
+  const file = useFileAction();
   const raw = String(children ?? '');
   if (!className && !raw.includes('\n') && isFileToken(raw)) {
     return (
       <code
         {...props}
-        className="file-link file-code-link"
+        className={`file-link file-code-link${file.busy ? ' downloading' : ''}`}
         role="link"
         tabIndex={0}
-        title={t('chat.editor.openInEditor', { href: raw })}
-        onClick={() => openFileRef(chatId, raw)}
-        onKeyDown={(e) => { if (e.key === 'Enter') openFileRef(chatId, raw); }}
+        title={file.host
+          ? t(file.busy ? 'chat.fs.downloading' : 'chat.fs.downloadFromHost', { href: raw, host: file.host })
+          : t('chat.editor.openInEditor', { href: raw })}
+        onClick={() => file.run(() => openFileRef(chatId, raw))}
+        onKeyDown={(e) => { if (e.key === 'Enter') file.run(() => openFileRef(chatId, raw)); }}
       >
         {children}
       </code>
@@ -192,6 +221,12 @@ import type { Translator } from '@shared/i18n';
 // Latest) flips back to TAIL_WINDOW and the extras get unmounted.
 const TAIL_WINDOW = 30;
 const BROWSE_WINDOW = 200;
+/** The tail must be at least this much taller than the pane, so there is
+ *  room to scroll up out of the sticky zone and into the load-older edge
+ *  (SLIDE_THRESHOLD_PX). Folded tool rows are short: 30 of them can fit
+ *  in a tall pane with no scrollbar at all — and then nothing can be
+ *  scrolled to load more. So the tail grows until it overflows by this. */
+const FILL_SLACK_PX = 200;
 /** How many to slide the window per scroll-edge trigger. MUST stay
  *  strictly less than the smaller cap (TAIL_WINDOW) so the anchor message captured at the
  *  edge stays mounted across the slide — otherwise anchor restoration in
@@ -241,6 +276,8 @@ const HIDDEN_TOOL_NAMES = new Set<string>([
 
 interface LiveChatBodyProps {
   chatId: string;
+  /** The host the chat runs on, if any: its file links download. */
+  remoteHost?: string | null;
   /** Current chat status — used to decide whether to render the latest
    *  agent question as a question card. */
   chatStatus?: string;
@@ -269,6 +306,7 @@ interface LiveChatBodyProps {
  */
 function LiveChatBodyImpl({
   chatId,
+  remoteHost = null,
   chatStatus,
   onQuickReply,
   onDecidePermission,
@@ -291,7 +329,10 @@ function LiveChatBodyImpl({
   // (not a ref) because changing modes also changes the cap which
   // changes the rendered slice — we need a re-render on the flip.
   const [sticky, setSticky] = useState<boolean>(true);
-  const cap = sticky ? TAIL_WINDOW : BROWSE_WINDOW;
+  // How many of the newest messages tail mode mounts: TAIL_WINDOW, more
+  // when that many don't fill the pane (see the fill effect below).
+  const [tailSize, setTailSize] = useState<number>(TAIL_WINDOW);
+  const cap = sticky ? tailSize : BROWSE_WINDOW;
   // A chat that runs on grows its loaded history without end: past
   // TRIM_ABOVE, drop back to the newest TRIM_TO — only while following
   // the bottom, so history being read is never pulled away.
@@ -414,6 +455,7 @@ function LiveChatBodyImpl({
   useEffect(() => {
     setWindowStart(0);
     setSticky(true);
+    setTailSize(TAIL_WINDOW);
     anchorRef.current = null;
     // chatId only
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -424,8 +466,40 @@ function LiveChatBodyImpl({
   // here — windowStart is user-driven via slide-back/forward.
   useEffect(() => {
     if (!sticky) return;
-    setWindowStart(Math.max(0, messages.length - TAIL_WINDOW));
-  }, [messages.length, sticky]);
+    setWindowStart(Math.max(0, messages.length - tailSize));
+  }, [messages.length, sticky, tailSize]);
+
+  // Fill the pane: while following the tail, if what is mounted isn't
+  // tall enough to scroll (folded tool rows are a line each), mount more
+  // of what is loaded — and when all of it is mounted, read the page
+  // above. Stops once the content overflows by FILL_SLACK_PX, at the
+  // browse cap, or at the start of the chat. Re-checked when the pane
+  // is resized (a taller window can need more).
+  const fillLoadingRef = useRef(false);
+  const [paneTick, setPaneTick] = useState(0);
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el || typeof ResizeObserver === 'undefined') return;
+    const ro = new ResizeObserver(() => setPaneTick((n) => n + 1));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  useEffect(() => {
+    if (!sticky || loading) return;
+    const el = scrollRef.current;
+    if (!el || el.clientHeight === 0) return;
+    if (el.scrollHeight > el.clientHeight + FILL_SLACK_PX) return;
+    if (windowStart > 0 && tailSize < BROWSE_WINDOW) {
+      setTailSize((n) => Math.min(BROWSE_WINDOW, n + SLIDE_BATCH));
+      return;
+    }
+    if (windowStart === 0 && hasOlder && !fillLoadingRef.current && tailSize < BROWSE_WINDOW) {
+      fillLoadingRef.current = true;
+      void loadOlder().finally(() => {
+        fillLoadingRef.current = false;
+      });
+    }
+  }, [sticky, loading, messages.length, windowStart, tailSize, hasOlder, loadOlder, paneTick]);
 
   // Capture an anchor on the topmost visible message — used to preserve
   // scroll position when the window slides.
@@ -690,7 +764,7 @@ function LiveChatBodyImpl({
 
   const jumpToBottom = () => {
     setSticky(true);
-    setWindowStart(Math.max(0, messages.length - TAIL_WINDOW));
+    setWindowStart(Math.max(0, messages.length - tailSize));
     // Snap directly after the next paint so the user sees the jump
     // immediately rather than waiting for the next layout effect.
     requestAnimationFrame(() => {
@@ -704,6 +778,7 @@ function LiveChatBodyImpl({
 
   return (
     <ChatIdContext.Provider value={chatId}>
+    <RemoteHostContext.Provider value={remoteHost}>
       <div className="chat-scroll-wrap">
         <div className="chat-scroll" ref={scrollRef}>
         {olderHidden > 0 && (
@@ -759,6 +834,7 @@ function LiveChatBodyImpl({
         </button>
       )}
       </div>
+    </RemoteHostContext.Provider>
     </ChatIdContext.Provider>
   );
 }
@@ -1608,6 +1684,7 @@ function ToolBlock({ body, chain }: { body: MessageBodyTool; chain: ChainPositio
   // for the first non-empty line of `new_string` (or `content` for
   // Write) — that string is in the file *after* the edit applied.
   const [editLine, setEditLine] = useState<number | null>(null);
+  const file = useFileAction();
   useEffect(() => {
     if (!filePath) return;
     // Build a multi-line needle from the first ~4 non-empty lines of
@@ -1676,16 +1753,18 @@ function ToolBlock({ body, chain }: { body: MessageBodyTool; chain: ChainPositio
         <span className="name">{label}</span>
         {hint && filePath ? (
           <a
-            className="hint file-link"
+            className={`hint file-link${file.busy ? ' downloading' : ''}`}
             href={getExternalEditor().fileUrl(filePath, editLine ?? undefined)}
             target="_blank"
             rel="noreferrer noopener"
             onClick={(e) => {
               e.preventDefault();
               e.stopPropagation();
-              openFileRef(chatId, filePath, editLine ?? undefined);
+              file.run(() => openFileRef(chatId, filePath, editLine ?? undefined));
             }}
-            title={`${filePath}${editLine ? `:${editLine}` : ''} — open in editor`}
+            title={file.host
+              ? t(file.busy ? 'chat.fs.downloading' : 'chat.fs.downloadFromHost', { href: filePath, host: file.host })
+              : `${filePath}${editLine ? `:${editLine}` : ''} — open in editor`}
           >
             {displayHint}
           </a>

@@ -104,6 +104,11 @@ export function useMessages(chatId: string | undefined, tail?: number) {
     if (!chatId) return;
     const off = subscribeAgentEvents((event) => {
       if (event.chatId !== chatId) return;
+      if (event.type === 'messages-cleared') {
+        setMessages([]);
+        setHasOlder(false);
+        return;
+      }
       setMessages((prev) => {
         switch (event.type) {
           case 'message-added': {

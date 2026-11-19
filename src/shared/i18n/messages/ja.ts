@@ -545,7 +545,7 @@ export const ja = {
   'chat.context.menu.compact': 'コンテキストを圧縮',
   'chat.context.menu.compacting': '圧縮中…',
   'chat.context.menu.codexHint':
-    'Codex はコンテキストを自動で圧縮します。使用量の表示と手動圧縮には、環境設定 ▸ エージェントで「作業中の Codex に指示を届ける」をオンにしてください。',
+    'この接続では Codex はコンテキストの使用量を報告しません（表示するには 環境設定 ▸ エージェント で「作業中に Codex を誘導」をオンに）。それでも圧縮はできます。',
   'chat.context.menu.runningHint': 'エージェントの完了を待ってください',
   'chat.context.compactingNote': 'コンテキストを圧縮中…',
   'chat.context.failedNote': '圧縮に失敗しました: {error}',
@@ -567,6 +567,10 @@ export const ja = {
   'chat.host.chipTitle': '{host} で実行中 · チャット設定を開く',
   'chat.host.chipPendingTitle': '{host} で実行 — セッションは最初のメッセージで始まります。',
   'chat.host.shutdown': 'ホスト上で終了',
+  'chat.clear.menu': 'チャットをクリア',
+  'chat.clear.menuTooltip': 'このチャットの履歴を空にして会話を最初からやり直します。チャット、ワークスペース、設定はそのまま残ります。',
+  'chat.clear.confirm': '「{name}」をクリアしますか？すべてのメッセージが削除され、エージェントは会話を忘れます。元に戻せません。チャット、ワークスペース、設定はそのまま残ります。',
+  'chat.clear.failed': 'チャットをクリアできませんでした',
   'chat.host.shutdownConfirm':
     '{host} 上のこのチャットのセッションを今すぐ終了しますか？ エージェントがそこで行っている作業は停止します。次のメッセージで {host} 上に新しいセッションが始まり、この会話を引き継ぎます。',
   'chat.host.withRepo': '{host} 上 · {repo}',

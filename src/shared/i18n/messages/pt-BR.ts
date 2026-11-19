@@ -545,7 +545,7 @@ export const ptBR = {
   'chat.context.menu.compact': 'Compactar contexto',
   'chat.context.menu.compacting': 'Compactando…',
   'chat.context.menu.codexHint':
-    'O Codex compacta o contexto por conta própria. Ative “Orientar o Codex enquanto ele trabalha” em Preferências ▸ Agentes para ver o uso e compactar quando quiser.',
+    'O Codex não informa o quanto o contexto está cheio nesta conexão (ative “Guiar o Codex enquanto trabalha” em Preferências ▸ Agentes para ver), mas você ainda pode compactá-lo.',
   'chat.context.menu.runningHint': 'Aguarde o agente terminar',
   'chat.context.compactingNote': 'Compactando o contexto…',
   'chat.context.failedNote': 'Falha na compactação: {error}',
@@ -567,6 +567,10 @@ export const ptBR = {
   'chat.host.chipTitle': 'Roda em {host} · abrir as configurações do chat',
   'chat.host.chipPendingTitle': 'Roda em {host} — a sessão começa com sua primeira mensagem.',
   'chat.host.shutdown': 'Encerrar no host',
+  'chat.clear.menu': 'Limpar chat',
+  'chat.clear.menuTooltip': 'Limpa o histórico deste chat e recomeça a conversa. O chat, seu espaço de trabalho e suas configurações continuam.',
+  'chat.clear.confirm': 'Limpar “{name}”? Todas as mensagens são apagadas e o agente esquece a conversa. Não dá para desfazer. O chat, seu espaço de trabalho e suas configurações continuam.',
+  'chat.clear.failed': 'Não foi possível limpar o chat',
   'chat.host.shutdownConfirm':
     'Encerrar agora a sessão deste chat em {host}? Tudo o que o agente estiver fazendo lá para. Sua próxima mensagem inicia uma nova sessão em {host}, retomando esta conversa.',
   'chat.host.withRepo': 'Em {host} · {repo}',

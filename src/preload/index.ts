@@ -230,6 +230,7 @@ const api: PopBotApi = {
     send: (input: SendMessageInput) => ipcRenderer.invoke(IpcChannel.AgentSend, input),
     stop: (chatId: string) => ipcRenderer.invoke(IpcChannel.AgentStop, chatId),
     shutdown: (chatId: string) => ipcRenderer.invoke(IpcChannel.AgentShutdown, chatId),
+    clear: (chatId: string) => ipcRenderer.invoke(IpcChannel.AgentClear, chatId),
     compact: (chatId: string) => ipcRenderer.invoke(IpcChannel.AgentCompact, chatId),
     configure: (input: ConfigureAgentInput) =>
       ipcRenderer.invoke(IpcChannel.AgentConfigure, input),

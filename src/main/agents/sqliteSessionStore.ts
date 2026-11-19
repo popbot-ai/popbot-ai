@@ -147,11 +147,18 @@ export class SqliteSessionStore implements SessionStore {
   listSessionsForChat(chatId: string): Array<{ sessionId: string; mtime: number; entryCount: number }> {
     const rows = db()
       .prepare<[string], { sessionId: string; mtime: number; entryCount: number }>(
-        `SELECT session_id AS sessionId, MAX(created_at) AS mtime, COUNT(*) AS entryCount
-           FROM sdk_session_entries
-          WHERE chat_id = ? AND subpath = ''
-          GROUP BY session_id
-          ORDER BY entryCount DESC, mtime DESC`,
+        // Counted from the index; the time is the newest entry's (seq
+        // grows with each append) — one row read per session, not all.
+        `SELECT g.sessionId,
+                (SELECT e.created_at FROM sdk_session_entries e
+                  WHERE e.session_id = g.sessionId AND e.subpath = '' AND e.seq = g.lastSeq
+                  LIMIT 1) AS mtime,
+                g.entryCount
+           FROM (SELECT session_id AS sessionId, MAX(seq) AS lastSeq, COUNT(*) AS entryCount
+                   FROM sdk_session_entries
+                  WHERE chat_id = ? AND subpath = ''
+                  GROUP BY session_id) g
+          ORDER BY g.entryCount DESC, mtime DESC`,
       )
       .all(chatId);
     return rows;

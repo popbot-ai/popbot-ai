@@ -545,7 +545,7 @@ export const ko = {
   'chat.context.menu.compact': '컨텍스트 압축',
   'chat.context.menu.compacting': '압축 중…',
   'chat.context.menu.codexHint':
-    'Codex는 컨텍스트를 스스로 압축합니다. 사용량을 보고 직접 압축하려면 환경설정 ▸ 에이전트에서 “작업 중인 Codex에 지시 전달”을 켜세요.',
+    '이 연결에서는 Codex가 컨텍스트 사용량을 알려 주지 않습니다(보려면 환경설정 ▸ 에이전트에서 “작업 중 Codex 조정”을 켜세요). 그래도 압축은 할 수 있습니다.',
   'chat.context.menu.runningHint': '에이전트가 끝날 때까지 기다리세요',
   'chat.context.compactingNote': '컨텍스트 압축 중…',
   'chat.context.failedNote': '압축 실패: {error}',
@@ -567,6 +567,10 @@ export const ko = {
   'chat.host.chipTitle': '{host}에서 실행 중 · 채팅 설정 열기',
   'chat.host.chipPendingTitle': '{host}에서 실행 — 세션은 첫 메시지와 함께 시작됩니다.',
   'chat.host.shutdown': '호스트에서 종료',
+  'chat.clear.menu': '채팅 지우기',
+  'chat.clear.menuTooltip': '이 채팅의 기록을 비우고 대화를 처음부터 다시 시작합니다. 채팅, 작업 공간, 설정은 그대로 유지됩니다.',
+  'chat.clear.confirm': '“{name}”을(를) 지울까요? 모든 메시지가 삭제되고 에이전트는 대화를 잊습니다. 되돌릴 수 없습니다. 채팅, 작업 공간, 설정은 그대로 유지됩니다.',
+  'chat.clear.failed': '채팅을 지우지 못했습니다',
   'chat.host.shutdownConfirm':
     '{host}의 이 채팅 세션을 지금 종료할까요? 에이전트가 그곳에서 하던 작업이 중단됩니다. 다음 메시지를 보내면 {host}에 새 세션이 시작되어 이 대화를 이어갑니다.',
   'chat.host.withRepo': '{host} · {repo}',

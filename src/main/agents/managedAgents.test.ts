@@ -161,7 +161,7 @@ describe('githubRepoUrl', () => {
 describe('the rest', () => {
   it('mounts under /workspace by repo name and keys agents by model + effort', () => {
     expect(mountPathFor('https://github.com/popbot-ai/popbot-ai')).toBe('/workspace/popbot-ai');
-    expect(agentCacheKey('claude-opus-5', 'high')).toBe('claude-opus-5|high');
+    expect(agentCacheKey('claude-opus-5-5', 'high')).toBe('claude-opus-5-5|high');
   });
 
   it('tells the agent where the repository is, where to push, and how to authenticate', () => {

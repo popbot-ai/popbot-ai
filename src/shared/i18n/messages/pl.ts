@@ -497,7 +497,7 @@ export const pl = {
   'chat.context.menu.compact': 'Kompaktuj kontekst',
   'chat.context.menu.compacting': 'Kompaktowanie…',
   'chat.context.menu.codexHint':
-    'Codex sam kompaktuje kontekst. Włącz „Steruj Codexem w trakcie pracy” w Preferencje ▸ Agenci, aby widzieć użycie i kompaktować na żądanie.',
+    'Przez to połączenie Codex nie podaje, jak pełny jest jego kontekst (włącz „Steruj Codexem w trakcie pracy” w Preferencje ▸ Agenci, by to widzieć), ale nadal możesz go skompaktować.',
   'chat.context.menu.runningHint': 'Poczekaj, aż agent skończy',
   'chat.context.compactingNote': 'Kompaktowanie kontekstu…',
   'chat.context.failedNote': 'Kompaktowanie nie powiodło się: {error}',
@@ -520,6 +520,10 @@ export const pl = {
   'chat.host.chipTitle': 'Działa na {host} · otwórz ustawienia czatu',
   'chat.host.chipPendingTitle': 'Działa na {host} – sesja zaczyna się od Twojej pierwszej wiadomości.',
   'chat.host.shutdown': 'Zakończ na hoście',
+  'chat.clear.menu': 'Wyczyść czat',
+  'chat.clear.menuTooltip': 'Wyczyść historię tego czatu i zacznij rozmowę od nowa. Czat, jego obszar roboczy i ustawienia zostają.',
+  'chat.clear.confirm': 'Wyczyścić „{name}”? Wszystkie wiadomości zostaną usunięte, a agent zapomni rozmowę. Tego nie można cofnąć. Czat, jego obszar roboczy i ustawienia zostają.',
+  'chat.clear.failed': 'Nie udało się wyczyścić czatu',
   'chat.host.shutdownConfirm':
     'Zakończyć teraz sesję tego czatu na {host}? Wszystko, co agent tam robi, zostanie przerwane. Twoja następna wiadomość rozpocznie nową sesję na {host}, kontynuującą tę rozmowę.',
   'chat.host.withRepo': 'Na {host} · {repo}',
