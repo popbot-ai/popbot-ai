@@ -546,6 +546,35 @@ export const en = {
   'titlebar.hideGitPanel': 'Hide git panel',
   'titlebar.showGitPanel': 'Show git panel',
   'titlebar.preferencesTitle': 'Preferences {shortcut}',
+  // The Claude account switcher (ClaudeAccountSwitcher.tsx): which account
+  // the chats run on, and a menu to move them to another.
+  'titlebar.account.title': 'Claude chats run on {name}. Click to switch accounts.',
+  'titlebar.account.titleOff': 'Claude chats use this computer’s own Claude sign-in. Click to choose an account.',
+  'titlebar.account.titleAttention': 'The Claude account in use, {name}, needs attention. Click to see why.',
+  'titlebar.account.none': 'No account',
+  'titlebar.account.head': 'Claude chats run on',
+  'titlebar.account.switchTo': 'Switch Claude chats to {name}',
+  'titlebar.account.row.inUse': 'In use',
+  'titlebar.account.row.next': 'Next up',
+  'titlebar.account.row.out': 'Out of usage {until}',
+  'titlebar.account.row.outInUse': 'In use · out of usage {until}',
+  'titlebar.account.row.refused': 'Sign-in refused',
+  'titlebar.account.row.expired': 'Sign-in expired',
+  'titlebar.account.row.unreadable': 'Can’t be read',
+  'titlebar.account.note': 'Pick an account to switch. Each chat moves over when it’s idle and keeps its conversation.',
+  'titlebar.account.noteNone': 'No other account can be switched to right now.',
+  'titlebar.account.failed': 'Couldn’t switch: {error}',
+  'titlebar.account.manage': 'Manage Claude accounts…',
+  // The same chip for Codex accounts (AccountSwitcher.tsx draws both; each
+  // carries its agent's logo, which is what tells two chips apart).
+  // `row.signIn` is a Codex account whose ChatGPT sign-in stopped working.
+  'titlebar.account.row.signIn': 'Sign-in needed',
+  'titlebar.account.codex.title': 'Codex chats run on {name}. Click to switch accounts.',
+  'titlebar.account.codex.titleOff': 'Codex chats use this computer’s own Codex sign-in. Click to choose an account.',
+  'titlebar.account.codex.titleAttention': 'The Codex account in use, {name}, needs attention. Click to see why.',
+  'titlebar.account.codex.head': 'Codex chats run on',
+  'titlebar.account.codex.switchTo': 'Switch Codex chats to {name}',
+  'titlebar.account.codex.manage': 'Manage Codex accounts…',
 
   // ---------------------------------------------------------------------------
   // Close-chat prompt (CloseChatPrompt.tsx).
@@ -1116,44 +1145,531 @@ export const en = {
   'prefs.section.language': 'Language',
   'prefs.footMeta': 'PopBot · pre-alpha',
 
-  // Preferences — Agents pane.
-  'prefs.agents.title': 'Agents',
-  'prefs.agents.desc':
-    'Default effort levels for newly-created chats. Existing chats keep their own saved effort until you change them in the chat composer.',
+  // Preferences — Agents pane (PrefsAgents in PreferencesSheet.tsx): five
+  // headed features. A pill after a name is that feature's state; the
+  // decisions behind every string here are in lib/agentsPaneView.ts.
+  //
+  // The pointer to the Claude accounts section, first in the pane.
+  'prefs.agents.accounts.title': 'Claude accounts',
+  'prefs.agents.accounts.open': 'Open Claude accounts',
+  'prefs.agents.accounts.pill.running': 'Running on {name}',
+  'prefs.agents.accounts.pill.none': 'No account yet',
+  'prefs.agents.accounts.pill.off': 'Not using an account',
+  'prefs.agents.accounts.pill.attention': 'Needs attention',
+  'prefs.agents.accounts.line.one': 'Every Claude chat runs on {name}.',
+  'prefs.agents.accounts.line.many':
+    'Every Claude chat runs on {name}, and PopBot moves to the next of your {count} accounts when it runs out of usage.',
+  'prefs.agents.accounts.line.none':
+    'Add an account and every Claude chat stays signed in for a year, instead of about a month.',
+  'prefs.agents.accounts.line.noStore':
+    'This computer has no secure place to keep a sign-in, so chats use the Claude sign-in on each computer.',
+  'prefs.agents.accounts.line.off':
+    'Chats use the Claude sign-in on each computer instead of a saved account.',
+  'prefs.agents.accounts.line.refused':
+    'Claude refused the sign-in for {name}, so open Claude accounts and sign in again.',
+  'prefs.agents.accounts.line.expired':
+    'The sign-in for {name} has expired, so open Claude accounts and sign in again.',
+  'prefs.agents.accounts.line.unreadable':
+    'PopBot can’t read the saved sign-in for {name} on this computer, so open Claude accounts and sign in again.',
+  'prefs.agents.accounts.line.oneOut':
+    '{name} is out of usage, so Claude chats stop at the limit until it gets usage back.',
+  'prefs.agents.accounts.line.allOut':
+    'Every account is out of usage, so Claude chats stop at the limit until one gets usage back.',
+  // The pointer to the Codex accounts section, directly under it
+  // (lib/codexAccountsView.ts, accountsPointer).
+  'prefs.agents.codexAccounts.title': 'Codex accounts',
+  'prefs.agents.codexAccounts.open': 'Open Codex accounts',
+  'prefs.agents.codexAccounts.pill.running': 'Running on {name}',
+  'prefs.agents.codexAccounts.pill.none': 'No account yet',
+  'prefs.agents.codexAccounts.pill.off': 'Not using an account',
+  'prefs.agents.codexAccounts.pill.attention': 'Needs attention',
+  'prefs.agents.codexAccounts.line.one': 'Every Codex chat runs on {name}.',
+  'prefs.agents.codexAccounts.line.many':
+    'Every Codex chat runs on {name}, and PopBot moves to the next of your {count} accounts when it runs out of usage.',
+  'prefs.agents.codexAccounts.line.none':
+    'Add an account and every Codex chat runs on it, here and on your hosts, with nothing to sign in on each computer.',
+  'prefs.agents.codexAccounts.line.noStore':
+    'This computer has no secure place to keep a sign-in, so chats use the Codex sign-in on each computer.',
+  'prefs.agents.codexAccounts.line.off':
+    'Chats use the Codex sign-in on each computer instead of a saved account.',
+  'prefs.agents.codexAccounts.line.signIn':
+    'The sign-in for {name} stopped working, so Codex chats can’t run. Open Codex accounts and sign in again.',
+  'prefs.agents.codexAccounts.line.unreadable':
+    'PopBot can’t read the saved sign-in for {name} on this computer, so open Codex accounts and sign in again.',
+  'prefs.agents.codexAccounts.line.oneOut':
+    '{name} is out of usage, so Codex chats stop at the limit until it gets usage back.',
+  'prefs.agents.codexAccounts.line.allOut':
+    'Every account is out of usage, so Codex chats stop at the limit until one gets usage back.',
+  // Default effort. The two option keys are the picker text here only;
+  // the in-chat and New chat pickers keep the short `agent.effort.*` labels.
+  'prefs.agents.effort.title': 'Default effort',
+  'prefs.agents.effort.desc':
+    'How hard agents think when a chat starts. Higher levels are more thorough, but slower, and use more of your usage. Ultracode and Ultra also hand work to helper agents, which uses much more.',
   'prefs.agents.newChats.title': 'New chats',
-  'prefs.agents.newChats.desc':
-    'Used by generic chats and ticket chats when the agent picker opens.',
   'prefs.agents.codeReviews.title': 'Code reviews',
-  'prefs.agents.codeReviews.desc':
-    'Used by PR review chats, re-review fallback chats, and review notifications.',
+  'prefs.agents.effort.option.ultracode': 'Ultracode · heavy usage',
+  'prefs.agents.effort.option.ultra': 'Ultra · heavy usage',
+  'prefs.agents.effort.scope':
+    'Applies to chats created from now on. To change an open chat, use the effort picker beside its model.',
+  'prefs.agents.effort.aria': '{agent} effort for {row}',
+  // The two switches. Their timing lines say what the code does: steering
+  // changes at a chat's next message; an agent that is already running
+  // keeps PopBot control until its chat restarts.
+  'prefs.agents.switch.on': 'On',
+  'prefs.agents.switch.off': 'Off',
   'prefs.agents.codexSteering.title': 'Steer Codex while it works',
-  'prefs.agents.codexSteering.desc':
-    'Connects to Codex through its app-server instead of the exec SDK, so a message you send while Codex is busy reaches it at its next step instead of waiting for the turn to end. Also fills the context gauge for Codex chats and enables Compact context. Experimental in the Codex CLI; needs codex 0.153 or newer. Applies from each chat’s next message.',
-  'prefs.agents.codexSteering.on': 'On — messages reach Codex mid-turn',
-  'prefs.agents.codexSteering.off': 'Off — messages wait for the turn to end',
-  'prefs.agents.mcp.title': 'PopBot tools for agents',
-  'prefs.agents.mcp.desc':
-    'Gives every chat’s agent a “popbot” MCP server: list, create, close and reopen chats, message other chats and wait for their answer, start code reviews and ticket chats, and read and search transcripts. Applies from each chat’s next agent session.',
-  'prefs.agents.mcp.on': 'On — agents can drive PopBot',
-  'prefs.agents.mcp.off': 'Off — no popbot tools',
+  'prefs.agents.steer.desc':
+    'A message you send while Codex is working reaches it at its next step instead of waiting until it finishes, and Codex chats show how full their context is. Experimental, and only for Codex chats on this computer: a Codex update can break it, so turn it off if Codex chats stop responding.',
+  'prefs.agents.steer.pill.tooOld': 'On, Codex too old',
+  // While a Codex account is in use the switch decides nothing: Codex
+  // chats run through the app server either way (codexAccountsView.ts).
+  'prefs.agents.steer.pill.forced': 'On · Codex account in use',
+  'prefs.agents.steer.descForced':
+    'A message you send while Codex is working reaches it at its next step instead of waiting until it finishes, and Codex chats show how full their context is.',
+  'prefs.agents.steer.forced':
+    'On because a Codex account is in use: Codex chats then run through Codex’s app server, here and on your hosts, whatever this switch says. It decides again once you stop using Codex accounts.',
+  'prefs.agents.steer.forcedSwitch': 'Steering is on while a Codex account is in use',
+  'prefs.agents.steer.req.oldForced':
+    'Not working on this computer: it has Codex CLI {version}, and Codex accounts need 0.153 or newer. Update Codex.',
+  'prefs.agents.steer.timing':
+    'Applies to each Codex chat on this computer from the next message you send it. A chat that is working now changes when it finishes.',
+  'prefs.agents.steer.req.oldOff':
+    'This computer has Codex CLI {version}. Steering needs 0.153 or newer, so update Codex before you turn this on.',
+  'prefs.agents.steer.req.oldOn':
+    'Not working on this computer: it has Codex CLI {version}, and steering needs 0.153 or newer. Update Codex, or turn this off.',
+  'prefs.agents.control.title': 'Let agents control PopBot',
+  'prefs.agents.control.desc':
+    'Agents can start, close and message your other chats, start code reviews and ticket chats, and search every chat’s history. Manager chats, mail between chats and messages to bots need this.',
+  'prefs.agents.control.try': 'Try it: in a new chat, ask “What are my other chats working on?”',
+  'prefs.agents.control.changedOn':
+    'On for agents that start from now on. A chat already open on this computer can do this after you close and reopen it, or restart PopBot.',
+  'prefs.agents.control.off':
+    'Off for agents that start from now on. An agent already running on this computer can still control PopBot until you close and reopen its chat, or restart PopBot.',
+
+  // Preferences — Claude accounts pane (PrefsClaudeAccounts.tsx), its nav
+  // item, and the button a chat warning about accounts carries. `{name}`
+  // in a lead sentence and `{command}` are rendered as markup by the pane.
+  'prefs.section.accounts': 'Claude accounts',
+  'prefs.accounts.title': 'Claude accounts',
+  'prefs.accounts.navAlert': 'Needs attention',
+  'prefs.accounts.lead.empty': 'Sign in once and every Claude chat stays signed in for a year.',
+  'prefs.accounts.lead.noStore': 'Chats use the Claude sign-in on each computer, which expires about once a month.',
+  'prefs.accounts.lead.one':
+    'Every Claude chat runs on {name}, here and on your hosts. Add a second account and PopBot switches to it when this one runs out of usage.',
+  'prefs.accounts.lead.many':
+    'Every Claude chat runs on {name}, here and on your hosts. If it runs out of usage, PopBot moves them all to the next account that still has some.',
+  'prefs.accounts.lead.othersOut':
+    'Every Claude chat runs on {name}, here and on your hosts. Your other accounts are out of usage, so if this one runs out too, chats stop until one is back.',
+  'prefs.accounts.lead.allOut': 'Every Claude chat runs on {name}, here and on your hosts.',
+  'prefs.accounts.lead.off':
+    'Your accounts are saved, but chats aren’t using them. They use the Claude sign-in on each computer, which expires about once a month.',
+  'prefs.accounts.alert.noStore':
+    'PopBot can’t keep accounts on this computer: it has no encrypted place to store a sign-in. Turn on your system’s password store, restart PopBot, then add your account.',
+  'prefs.accounts.alert.allOut':
+    'Every account is out of usage, so chats stop when they reach the limit. {name} gets usage back first, {when}. A stopped chat carries on when you send it a message after that. To keep working now, add another account.',
+  'prefs.accounts.alert.oneOut':
+    '{name} is out of usage, so chats stop when they reach the limit. It gets usage back {when}. A stopped chat carries on when you send it a message after that. To keep working now, add a second account.',
+  'prefs.accounts.when.today': 'at {time}',
+  'prefs.accounts.when.tomorrow': 'tomorrow at {time}',
+  'prefs.accounts.when.later': 'on {date} at {time}',
+  'prefs.accounts.until.today': 'until {time}',
+  'prefs.accounts.until.tomorrow': 'until tomorrow at {time}',
+  'prefs.accounts.until.later': 'until {date} at {time}',
+  'prefs.accounts.pill.inUse': 'In use',
+  'prefs.accounts.pill.next': 'Next up',
+  'prefs.accounts.pill.out': 'Out of usage',
+  'prefs.accounts.pill.refused': 'Sign-in refused',
+  'prefs.accounts.pill.expired': 'Sign-in expired',
+  'prefs.accounts.pill.unreadable': 'Can’t be read',
+  'prefs.accounts.status.saved': 'Sign-in saved {date}.',
+  'prefs.accounts.status.next': 'PopBot switches to it if {name} runs out of usage.',
+  'prefs.accounts.status.out':
+    'Out of usage {until}, so chats can’t run on it yet. When it’s back, press Use this account to switch — PopBot doesn’t switch back by itself.',
+  'prefs.accounts.status.outInUse': 'Out of usage {until}.',
+  'prefs.accounts.status.expiring': 'This sign-in is almost a year old. Sign in again before {date}.',
+  'prefs.accounts.status.expired': 'This sign-in is over a year old, so it has expired. Sign in again.',
+  'prefs.accounts.status.refused': 'Claude refused this sign-in in a chat. Sign in again.',
+  'prefs.accounts.status.unreadable': 'PopBot can’t read this account’s saved sign-in on this computer. Sign in again.',
+  'prefs.accounts.status.unreadableNoStore': 'PopBot can’t read this account’s saved sign-in on this computer.',
+  'prefs.accounts.use': 'Use this account',
+  'prefs.accounts.use.label': 'Use {name}',
+  'prefs.accounts.use.title': 'Each chat moves over when it’s idle and keeps its conversation.',
+  'prefs.accounts.use.waits': 'Out of usage {until}. You can switch to it once it’s back.',
+  'prefs.accounts.signInAgain': 'Sign in again',
+  'prefs.accounts.signInAgain.label': 'Sign in again as {name}',
+  'prefs.accounts.pasteToken': 'Paste a token',
+  'prefs.accounts.pasteToken.label': 'Paste a token for {name}',
+  'prefs.accounts.remove': 'Remove',
+  'prefs.accounts.remove.label': 'Remove {name}',
+  'prefs.accounts.rename.label': 'Rename {name}',
+  'prefs.accounts.rename.field': 'Account name',
+  'prefs.accounts.duplicate': 'You already have an account called “{name}”.',
+  'prefs.accounts.verdict.switched': 'Switched. Each chat moves over when it’s idle and keeps its conversation.',
+  'prefs.accounts.verdict.addedInUse': 'Added. Every Claude chat now runs on this account.',
+  'prefs.accounts.verdict.addedStandby': 'Added. PopBot can switch to it when the account in use runs out of usage.',
+  'prefs.accounts.verdict.addedOut': 'Added. The sign-in works; the account itself has no usage left for now.',
+  'prefs.accounts.verdict.renewed': 'Signed in again. Good for another year.',
+  'prefs.accounts.verdict.renewedInUse': 'Signed in again, good for another year. Chats pick it up when they’re idle.',
+  'prefs.accounts.verdict.token': 'Token replaced.',
+  'prefs.accounts.verdict.tokenInUse': 'Token replaced. Chats pick it up when they’re idle.',
+  'prefs.accounts.verdict.tookOver': 'PopBot switched to this account when {name} ran out of usage.',
+  'prefs.accounts.verdict.afterRemove': 'Removed {name}. Your chats are moving to this account.',
+  'prefs.accounts.verdict.removed': 'Removed {name}.',
+  'prefs.accounts.error.switch': 'Couldn’t switch: {error}',
+  'prefs.accounts.error.rename': 'Couldn’t rename: {error}',
+  'prefs.accounts.error.remove': 'Couldn’t remove: {error}',
+  'prefs.accounts.error.stop': 'Couldn’t stop using accounts: {error}',
+  'prefs.accounts.remove.title': 'Remove account',
+  'prefs.accounts.remove.inUse': 'Remove “{name}”? PopBot forgets its sign-in and your Claude chats move to {next}.',
+  'prefs.accounts.remove.only':
+    'Remove “{name}”? It is your only account, so chats go back to the Claude sign-in on each computer, which expires about once a month.',
+  'prefs.accounts.remove.other': 'Remove “{name}”? PopBot forgets its sign-in. Your chats stay on {active}.',
+  'prefs.accounts.remove.off': 'Remove “{name}”? PopBot forgets its sign-in.',
+  'prefs.accounts.off.prompt': 'Rather use the Claude sign-in on each computer?',
+  'prefs.accounts.off.action': 'Stop using accounts',
+  'prefs.accounts.off.title': 'Stop using accounts?',
+  'prefs.accounts.off.body':
+    'Claude chats go back to the Claude sign-in on each computer, which expires about once a month. A computer that isn’t signed in can’t run chats. Your accounts stay saved.',
+  'prefs.accounts.foot.switch': 'Switching is safe: each chat moves over when it’s idle and keeps its conversation.',
+  'prefs.accounts.foot.scope': 'Codex chats and Cloud chats don’t use these accounts.',
+  'prefs.accounts.hosts.outdated':
+    '{host} runs an older PopBot host that can’t use accounts. Update it; until then its chats use the Claude sign-in on that computer.',
+  'prefs.accounts.add.button': 'Add account',
+  'prefs.accounts.add.title': 'Sign in to Claude',
+  'prefs.accounts.add.sub': 'About a minute. You sign in on Claude’s own page; PopBot never sees your password.',
+  'prefs.accounts.add.titleAnother': 'Add another account',
+  'prefs.accounts.add.signIn': 'Sign in to Claude',
+  'prefs.accounts.add.haveToken': 'I already have a token',
+  'prefs.accounts.add.useBrowser': 'Sign in with the browser instead',
+  'prefs.accounts.add.close': 'Close without adding',
+  'prefs.accounts.add.before': 'Until then, chats use the Claude sign-in on each computer. It expires about once a month.',
+  'prefs.accounts.flow.close': 'Close without changing {name}',
+  'prefs.accounts.step.done': 'Done',
+  'prefs.accounts.step1.title': 'Sign in with your browser',
+  'prefs.accounts.step1.titleAnother': 'Sign in as the account you’re adding',
+  'prefs.accounts.step1.titleRenew': 'Sign in as {name}',
+  'prefs.accounts.step1.getting': 'Getting the sign-in page…',
+  'prefs.accounts.step1.opened': 'PopBot opened the sign-in page in your browser. Sign in there and approve.',
+  'prefs.accounts.step1.openedAgain': 'PopBot opened a new sign-in page. Sign in there and approve.',
+  'prefs.accounts.step1.openedRenew': 'PopBot opened the sign-in page in your browser. Sign in as {name} and approve.',
+  'prefs.accounts.step1.whichOne': 'More than one Claude account? Make sure the browser is signed in as the one you want.',
+  'prefs.accounts.step1.notOpened': 'Didn’t open?',
+  'prefs.accounts.step1.openAgain': 'Open it again',
+  'prefs.accounts.step1.copyLink': 'Copy link',
+  'prefs.accounts.step1.copied': 'Copied',
+  'prefs.accounts.step1.open': 'Open in my browser',
+  'prefs.accounts.step1.warnOne': 'Your browser is probably still signed in as {name}, so PopBot hasn’t opened the page for you.',
+  'prefs.accounts.step1.warnMany':
+    'Your browser is probably signed in as an account you already added, so PopBot hasn’t opened the page for you.',
+  'prefs.accounts.step1.warnOpenedOne':
+    'A sign-in page opened in your browser, probably signed in as {name}. Close it and use the link below instead.',
+  'prefs.accounts.step1.warnOpenedMany':
+    'A sign-in page opened in your browser, probably signed in as an account you already added. Close it and use the link below instead.',
+  'prefs.accounts.step1.where': 'Open the link where the other account is signed in. A private window or another browser profile works.',
+  'prefs.accounts.step1.copiedHint': 'Link copied. Open it where the other account is signed in, then bring the code back here.',
+  'prefs.accounts.step1.whereRenew':
+    'Open the link where {name} is signed in. Signing in as a different account would put that account under this name.',
+  'prefs.accounts.step1.copiedHintRenew': 'Link copied. Open it where {name} is signed in, then bring the code back here.',
+  'prefs.accounts.step2.title': 'Paste the code the page gives you',
+  'prefs.accounts.step2.placeholder': 'Paste the code here',
+  'prefs.accounts.step2.waiting': 'Waiting for Claude…',
+  'prefs.accounts.step2.continue': 'Continue',
+  'prefs.accounts.step2.checking': 'Checking the code…',
+  'prefs.accounts.step2.empty': 'Paste the code first.',
+  'prefs.accounts.step2.isLink': 'That is the sign-in link, not the code. Open the link, sign in, then copy the code the page gives you.',
+  'prefs.accounts.step2.notCode': 'That doesn’t look like the code. Copy it from the sign-in page.',
+  'prefs.accounts.step2.notReady': 'PopBot wasn’t ready for the code. Try again.',
+  'prefs.accounts.step2.refused': 'That code wasn’t accepted. It may be incomplete, expired or already used.',
+  'prefs.accounts.step2.newCode': 'Get a new code',
+  'prefs.accounts.step2.done': 'Signed in',
+  'prefs.accounts.step3.title': 'Name the account',
+  'prefs.accounts.step3.placeholder': 'e.g. Work, Personal',
+  'prefs.accounts.step3.hint': 'Claude doesn’t tell PopBot which account this is. The name is how you’ll tell your accounts apart.',
+  'prefs.accounts.step3.hintAnother': 'Make sure it wasn’t {names} again. The same account twice adds no usage.',
+  'prefs.accounts.step3.add': 'Add account',
+  'prefs.accounts.step3.empty': 'Give the account a name.',
+  'prefs.accounts.check.running': 'Checking that {name} can run a chat… This takes a few seconds.',
+  'prefs.accounts.check.slow': 'Still checking. This can take up to a minute and a half.',
+  'prefs.accounts.check.leave': 'You can leave this page. PopBot finishes by itself.',
+  'prefs.accounts.check.refused': 'Signed in, but Claude wouldn’t run a chat on this account.',
+  'prefs.accounts.check.timeout': 'The check took too long.',
+  'prefs.accounts.check.noCli': 'PopBot can’t find the Claude command-line tool, so it can’t check the account.',
+  'prefs.accounts.check.gone': 'That sign-in waited too long, so PopBot let it go.',
+  'prefs.accounts.check.other': 'PopBot couldn’t check this account.',
+  'prefs.accounts.check.nothingSaved': 'Nothing was saved.',
+  'prefs.accounts.check.oldKept': 'The old sign-in is still in place.',
+  'prefs.accounts.check.again': 'Check again',
+  'prefs.accounts.check.signInAgain': 'Sign in again',
+  'prefs.accounts.fail.title': 'The sign-in didn’t finish.',
+  'prefs.accounts.fail.start': 'PopBot couldn’t start the sign-in.',
+  'prefs.accounts.fail.noToken':
+    'Claude signed you in, but PopBot couldn’t read the result. Run {command} in a terminal and paste the token it prints below.',
+  'prefs.accounts.fail.restart': 'Start again',
+  'prefs.accounts.token.title': 'Add an account with a token',
+  'prefs.accounts.token.name': 'Name',
+  'prefs.accounts.token.token': 'Token',
+  'prefs.accounts.token.hint': 'Run {command} in a terminal, sign in as the account you want, and paste the token it prints.',
+  'prefs.accounts.token.copyCommand': 'Copy command',
+  'prefs.accounts.token.odd': 'This doesn’t look like a token from {command} (they start with sk-ant-oat). PopBot will check it anyway.',
+  'prefs.accounts.token.oddReplace':
+    'This doesn’t look like a token from {command} (they start with sk-ant-oat). Press Enter to check it anyway.',
+  'prefs.accounts.token.apiKey': 'That is an API key. PopBot needs the token that {command} prints.',
+  'prefs.accounts.token.cutOff':
+    'This looks cut short: it has {count} characters, and a token has {whole}. A narrow terminal shows the token on two lines — copy both.',
+  'prefs.accounts.token.empty': 'Paste the token first.',
+  'prefs.accounts.token.wasCode': 'That is a token, not a code. Name the account to add it.',
+  'prefs.accounts.token.wasCodeRenew': 'That is a token, not a code. Press Enter to use it for {name}.',
+  'prefs.accounts.token.checking': 'Checking the token… This takes a few seconds.',
+  'prefs.accounts.token.refused': 'Claude refused this token.',
+  'prefs.accounts.token.oldKept': 'The old one is still in place.',
+  'prefs.accounts.token.replaceTitle': 'New token for {name}',
+  'prefs.accounts.token.replaceHint':
+    'Run {command} signed in as {name} and paste the token here. PopBot checks it when you press Enter or leave the field, and swaps it in only if it works.',
+  'prefs.accounts.renew.title': 'Sign in again as {name}',
+  'chat.warning.accounts': 'Claude accounts',
+
+  // Preferences — Codex accounts pane (PrefsCodexAccounts.tsx) and its nav
+  // item. A Codex account is a ChatGPT sign-in made in the browser: there
+  // is nothing to paste, and what comes back says who signed in. Wording
+  // that is the same for both kinds of account (pills, "Use this account",
+  // the switch and remove results) is taken from `prefs.accounts.*` above;
+  // only what names Codex or works differently is here. `{name}` in a
+  // lead sentence is rendered as markup by the pane.
+  'prefs.section.codexAccounts': 'Codex accounts',
+  'prefs.codexAccounts.title': 'Codex accounts',
+  'prefs.codexAccounts.lead.empty': 'Sign in with ChatGPT once and every Codex chat runs on that account, here and on your hosts.',
+  'prefs.codexAccounts.lead.noStore': 'Codex chats use the Codex sign-in on each computer.',
+  'prefs.codexAccounts.lead.one':
+    'Every Codex chat runs on {name}, here and on your hosts. Add a second account and PopBot switches to it when this one runs out of usage.',
+  'prefs.codexAccounts.lead.many':
+    'Every Codex chat runs on {name}, here and on your hosts. If it runs out of usage, PopBot moves them all to the next account that still has some.',
+  'prefs.codexAccounts.lead.othersOut':
+    'Every Codex chat runs on {name}, here and on your hosts. Your other accounts are out of usage, so if this one runs out too, chats stop until one is back.',
+  'prefs.codexAccounts.lead.allOut': 'Every Codex chat runs on {name}, here and on your hosts.',
+  'prefs.codexAccounts.lead.off':
+    'Your accounts are saved, but chats aren’t using them. Codex chats use the Codex sign-in on each computer.',
+  'prefs.codexAccounts.alert.noStore':
+    'PopBot can’t keep accounts on this computer: it has no encrypted place to store a sign-in. Turn on your system’s password store, restart PopBot, then add your account.',
+  'prefs.codexAccounts.alert.allOut':
+    'Every account is out of usage, so Codex chats stop when they reach the limit. {name} gets usage back first, {when}. A stopped chat carries on when you send it a message after that. To keep working now, add another account.',
+  'prefs.codexAccounts.alert.oneOut':
+    '{name} is out of usage, so Codex chats stop when they reach the limit. It gets usage back {when}. A stopped chat carries on when you send it a message after that. To keep working now, add a second account.',
+  'prefs.codexAccounts.alert.signIn':
+    'Codex chats can’t run: the sign-in for {name} stopped working. Sign in again on its card.',
+  'prefs.codexAccounts.alert.signInOther':
+    'Codex chats can’t run: the sign-in for {name} stopped working. Sign in again on its card, or switch to another account.',
+  'prefs.codexAccounts.pill.signIn': 'Sign-in needed',
+  'prefs.codexAccounts.status.saved': 'Signed in {date}. PopBot keeps the sign-in renewed.',
+  'prefs.codexAccounts.status.signIn': 'This sign-in stopped working, so chats can’t run on this account. Sign in again.',
+  'prefs.codexAccounts.status.signInInUse': 'This sign-in stopped working, so Codex chats can’t run. Sign in again.',
+  'prefs.codexAccounts.verdict.addedInUse': 'Added. Every Codex chat now runs on this account.',
+  'prefs.codexAccounts.verdict.renewed': 'Signed in again.',
+  'prefs.codexAccounts.verdict.renewedInUse': 'Signed in again. Chats pick it up when they’re idle.',
+  'prefs.codexAccounts.remove.inUse': 'Remove “{name}”? PopBot forgets its sign-in and your Codex chats move to {next}.',
+  'prefs.codexAccounts.remove.only':
+    'Remove “{name}”? It is your only account, so Codex chats go back to the Codex sign-in on each computer.',
+  'prefs.codexAccounts.off.prompt': 'Rather use the Codex sign-in on each computer?',
+  'prefs.codexAccounts.off.body':
+    'Codex chats go back to the Codex sign-in on each computer. A computer that isn’t signed in to Codex can’t run them. Your accounts stay saved.',
+  'prefs.codexAccounts.foot.scope': 'Claude chats and Cloud chats don’t use these accounts.',
+  // The one note of what differs from Claude accounts.
+  'prefs.codexAccounts.differs.title': 'Two things work differently from Claude accounts:',
+  'prefs.codexAccounts.differs.engine':
+    'While a Codex account is in use, Codex chats run through Codex’s app server, the engine behind “Steer Codex while it works”. So a message you send while Codex is working reaches it at its next step.',
+  'prefs.codexAccounts.differs.hosts':
+    'A host is given a pass that lasts ten days, and this computer renews it. So a host can’t run Codex chats for longer than that without this computer.',
+  'prefs.codexAccounts.hosts.outdated':
+    '{host} runs an older PopBot host that can’t use Codex accounts. Update it; until then its Codex chats use the Codex sign-in on that computer.',
+  'prefs.codexAccounts.add.before': 'Until then, Codex chats use the Codex sign-in on each computer.',
+  // The sign-in panel: two ways to begin, then waiting for the browser.
+  'prefs.codexAccounts.add.title': 'Sign in with ChatGPT',
+  'prefs.codexAccounts.add.titleAnother': 'Add another account',
+  'prefs.codexAccounts.add.sub': 'About a minute, and nothing to paste. You sign in on ChatGPT’s own page; PopBot never sees your password.',
+  'prefs.codexAccounts.start.open': 'Open sign-in page',
+  'prefs.codexAccounts.start.copy': 'Copy link instead',
+  'prefs.codexAccounts.start.hint':
+    'More than one ChatGPT account? The page signs in as whichever one your browser is already on. To pick another, copy the link and open it in a private window.',
+  'prefs.codexAccounts.start.trap':
+    'The page signs in as whichever ChatGPT account your browser is already on, which is probably one you have added. To add a different one, copy the link and open it in a private window, or sign out of ChatGPT in the browser first.',
+  'prefs.codexAccounts.start.trapNamed':
+    'The page signs in as whichever ChatGPT account your browser is already on, which is probably {name}. To add a different one, copy the link and open it in a private window, or sign out of ChatGPT in the browser first.',
+  'prefs.codexAccounts.start.trapRenew':
+    'The page signs in as whichever ChatGPT account your browser is already on. If that isn’t {name}, copy the link and open it where {name} is signed in.',
+  'prefs.codexAccounts.wait.opened': 'PopBot opened the sign-in page in your browser. Sign in there and approve.',
+  'prefs.codexAccounts.wait.openedRenew': 'PopBot opened the sign-in page in your browser. Sign in as {name} and approve.',
+  'prefs.codexAccounts.wait.getLink': 'Getting the sign-in link…',
+  'prefs.codexAccounts.wait.copied':
+    'Link copied. Open it in a private window, or wherever the ChatGPT account you want is signed in, then sign in and approve.',
+  'prefs.codexAccounts.wait.copiedRenew': 'Link copied. Open it where {name} is signed in to ChatGPT, then sign in and approve.',
+  'prefs.codexAccounts.wait.linkReady':
+    'The link is ready. Copy it, then open it in a private window, or wherever the ChatGPT account you want is signed in.',
+  'prefs.codexAccounts.wait.linkReadyRenew': 'The link is ready. Copy it, then open it where {name} is signed in to ChatGPT.',
+  'prefs.codexAccounts.wait.waiting': 'Waiting for you to finish signing in…',
+  'prefs.codexAccounts.wait.auto': 'This page carries on by itself when you’re done.',
+  'prefs.codexAccounts.wait.cancel': 'Cancel',
+  // Signed in: who it was, then the name.
+  'prefs.codexAccounts.signedIn.asPlan': 'Signed in as {email} · {plan}',
+  'prefs.codexAccounts.signedIn.as': 'Signed in as {email}',
+  'prefs.codexAccounts.signedIn.plan': 'Signed in · {plan}',
+  'prefs.codexAccounts.signedIn.bare': 'Signed in',
+  'prefs.codexAccounts.signedIn.out': 'This account has no usage left {until}. PopBot adds it now and skips it until then.',
+  'prefs.codexAccounts.name.hint': 'The name is what PopBot calls this account. Its email is the easy choice.',
+  'prefs.codexAccounts.name.hintNoEmail': 'ChatGPT didn’t say which account this is. The name is how you’ll tell your accounts apart.',
+  'prefs.codexAccounts.saving.add': 'Adding {name}…',
+  'prefs.codexAccounts.saving.renew': 'Saving the new sign-in for {name}…',
+  'prefs.codexAccounts.duplicate.title': 'That ChatGPT account is already here',
+  'prefs.codexAccounts.duplicate.body': 'The browser signed in as {email}, which is already one of your accounts: “{name}”. Nothing was added.',
+  'prefs.codexAccounts.duplicate.bodySame': 'The browser signed in as {email}, which is already one of your accounts. Nothing was added.',
+  'prefs.codexAccounts.duplicate.bodyNoEmail':
+    'The browser signed in as a ChatGPT account that is already one of your accounts: “{name}”. Nothing was added.',
+  'prefs.codexAccounts.duplicate.bodyUnnamed':
+    'The browser signed in as a ChatGPT account that is already one of your accounts. Nothing was added.',
+  'prefs.codexAccounts.duplicate.how':
+    'To add a different account, open the link in a private window, or sign out of ChatGPT in the browser first.',
+  'prefs.codexAccounts.again.copy': 'Try again with a link',
+  'prefs.codexAccounts.again.open': 'Open sign-in page again',
+  'prefs.codexAccounts.again.plain': 'Try again',
+  // A finished sign-in that main would not save.
+  'prefs.codexAccounts.save.mismatch': 'The browser signed in as a different ChatGPT account.',
+  'prefs.codexAccounts.save.mismatchDetail': 'It signed in as {got}, and this account is {want}. Open the link where {want} is signed in.',
+  'prefs.codexAccounts.save.mismatchBare': 'Open the link where {name} is signed in to ChatGPT.',
+  'prefs.codexAccounts.save.gone': 'That sign-in waited too long, so PopBot let it go.',
+  'prefs.codexAccounts.save.noStore': 'This computer has no encrypted place to keep a sign-in.',
+  'prefs.codexAccounts.save.noCli': 'PopBot can’t find the Codex command-line tool.',
+  'prefs.codexAccounts.save.other': 'PopBot couldn’t save this sign-in.',
+  'prefs.codexAccounts.save.again': 'Save it again',
+
+  // Preferences — Agents pane, Cloud chats: one card with two requirements
+  // (an Anthropic API key, GitHub access) and, once the key works, how to
+  // start a cloud chat. Each field owns the line directly under it.
   'prefs.agents.cloud.title': 'Cloud chats',
-  'prefs.agents.cloud.desc':
-    'A chat created with the Cloud chip runs on Anthropic Managed Agents: a session in an Anthropic cloud sandbox, billed to your Console account by the token, that keeps working after PopBot quits.',
+  'prefs.agents.cloud.about':
+    'A cloud chat runs Claude in Anthropic’s cloud, so it keeps working after you quit PopBot or this computer sleeps. Billed by usage to your Anthropic API key, not to your Claude accounts.',
+  'prefs.agents.cloud.pill.ready': 'Ready',
+  'prefs.agents.cloud.pill.notSetUp': 'Not set up',
+  'prefs.agents.cloud.pill.checking': 'Checking…',
+  'prefs.agents.cloud.pill.keyBroken': 'Key not working',
+  'prefs.agents.cloud.pill.keyUnchecked': 'Key not checked',
+  'prefs.agents.cloud.pill.noGithub': 'No GitHub access',
   'prefs.agents.cloud.apiKey.title': 'Anthropic API key',
-  'prefs.agents.cloud.apiKey.desc': 'Stored locally in this app’s database. Leave empty to use the ANTHROPIC_API_KEY environment variable.',
-  'prefs.agents.cloud.getKey': 'Get a key',
-  'prefs.agents.cloud.githubToken.title': 'GitHub token',
-  'prefs.agents.cloud.githubToken.desc':
-    'The sandbox clones your repositories with it (repo scope). Leave empty to use the token gh is signed in with.',
-  'prefs.agents.cloud.workspace.title': 'Workspace ID',
-  'prefs.agents.cloud.workspace.desc':
-    'Only for a key that is not scoped to a workspace (the check says so): the wrkspc_… id from the Console’s Workspaces page. A key created inside a workspace needs none.',
+  'prefs.agents.cloud.key.get': 'Get an API key',
+  'prefs.agents.cloud.key.none':
+    'Not added yet. Paste one here, or start PopBot with the ANTHROPIC_API_KEY environment variable set.',
   'prefs.agents.cloud.envKey': 'Using the ANTHROPIC_API_KEY environment variable.',
-  'prefs.agents.cloud.noKey': 'No key yet — cloud chats are unavailable.',
-  'prefs.agents.cloud.ghToken': 'GitHub: using the token gh is signed in with.',
-  'prefs.agents.cloud.noGh': 'GitHub: no token — save one here, or run gh auth login.',
+  'prefs.agents.cloud.key.saved': 'Saved in PopBot.',
   'prefs.agents.cloud.ok': 'The key works.',
-  'prefs.agents.cloud.error': 'Saved, but the key did not work: {error}',
+  'prefs.agents.cloud.key.checking': 'Checking the key…',
+  'prefs.agents.cloud.key.inUse.rejected': 'Anthropic does not accept this key.',
+  'prefs.agents.cloud.key.inUse.forbidden':
+    'This key is not allowed to run cloud chats. Ask your Anthropic admin to turn on Managed Agents for it, or use another key.',
+  'prefs.agents.cloud.key.inUse.workspace': 'This key needs a Workspace ID. Add it below.',
+  'prefs.agents.cloud.key.inUse.unchecked':
+    'PopBot could not check this key. Check your connection, then choose Check again.',
+  'prefs.agents.cloud.key.envFix': 'Fix the variable and restart PopBot, or use a different key here.',
+  'prefs.agents.cloud.key.hint.first':
+    'PopBot checks the key and saves it only if it works. It is never shown again.',
+  'prefs.agents.cloud.key.hint.replaceSaved':
+    'Your current key stays in use until a new one passes its check.',
+  'prefs.agents.cloud.key.hint.replaceEnv':
+    'A key saved here is used instead of the environment variable, once it passes its check.',
+  'prefs.agents.cloud.key.dirty': 'Press Enter or Check key to check and save it.',
+  'prefs.agents.cloud.key.dirtyReplace':
+    'Press Enter or Check key to switch to this key. Esc keeps the current one.',
+  'prefs.agents.cloud.key.check': 'Check key',
+  'prefs.agents.cloud.key.checkingBtn': 'Checking…',
+  'prefs.agents.cloud.key.draft.rejected':
+    'Anthropic did not accept this key, so it was not saved. Paste it again; the whole key is needed.',
+  'prefs.agents.cloud.key.draft.forbidden':
+    'This key is not allowed to run cloud chats, so it was not saved. Ask your Anthropic admin to turn on Managed Agents for it, or use another key.',
+  'prefs.agents.cloud.key.draft.workspace':
+    'This key needs a Workspace ID, so it is not saved yet. Add the ID below, then check again.',
+  'prefs.agents.cloud.key.draft.unchecked':
+    'PopBot could not check this key, so it was not saved. Check your connection, then choose Check key.',
+  'prefs.agents.cloud.key.draft.spaces':
+    'This has spaces or line breaks in it, so it is not a whole key. Paste it again.',
+  'prefs.agents.cloud.key.draft.link': 'That is a link, not a key. Copy the key itself.',
+  'prefs.agents.cloud.key.draft.github': 'That is a GitHub token. It goes in GitHub access below.',
+  'prefs.agents.cloud.key.stillInUse': 'Your current key is still in use.',
+  'prefs.agents.cloud.key.notChanged': 'Not changed. Your current key is still in use.',
+  'prefs.agents.cloud.key.lastFailed':
+    'The key you entered before closing Preferences did not pass its check, so it was not saved.',
+  'prefs.agents.cloud.key.useOther': 'Use a different key',
+  'prefs.agents.cloud.key.keep': 'Keep current key',
+  'prefs.agents.cloud.key.remove.title': 'Remove API key',
+  'prefs.agents.cloud.key.remove.body':
+    'Remove the saved API key? Cloud chats then use the ANTHROPIC_API_KEY environment variable if it is set. Without a key, PopBot can’t start or reach cloud chats.',
+  'prefs.agents.cloud.key.remove.confirm': 'Remove key',
+  'prefs.agents.cloud.key.remove.cancel': 'Keep key',
+  'prefs.agents.cloud.action.replace': 'Replace',
+  'prefs.agents.cloud.action.remove': 'Remove',
+  'prefs.agents.cloud.action.checkAgain': 'Check again',
+  'prefs.agents.cloud.workspace.title': 'Workspace ID',
+  'prefs.agents.cloud.ws.add': 'Add a Workspace ID',
+  'prefs.agents.cloud.ws.help':
+    'Only for a key that is not tied to a workspace. Find it under Workspaces in the Anthropic Console; it starts with wrkspc_.',
+  'prefs.agents.cloud.ws.saved': 'Workspace ID: {id}',
+  'prefs.agents.cloud.ws.change': 'Change',
+  'prefs.agents.cloud.ws.keep': 'Keep current ID',
+  'prefs.agents.cloud.ws.dirty': 'Press Enter or Check key to check the key with this ID.',
+  'prefs.agents.cloud.ws.ok': 'The key works with this Workspace ID.',
+  'prefs.agents.cloud.ws.fail': 'The key does not work with this Workspace ID, so the ID was not saved.',
+  'prefs.agents.cloud.ws.notChanged': 'Not changed. The current Workspace ID is still in use.',
+  'prefs.agents.cloud.ws.remove.title': 'Remove Workspace ID',
+  'prefs.agents.cloud.ws.remove.body': 'Remove the Workspace ID? PopBot checks the key again without it.',
+  'prefs.agents.cloud.ws.remove.confirm': 'Remove ID',
+  'prefs.agents.cloud.ws.remove.cancel': 'Keep ID',
+  'prefs.agents.cloud.github.title': 'GitHub access',
+  'prefs.agents.cloud.github.none':
+    'Not found. Cloud chats that use a repository need it to clone; chats without a repository don’t.',
+  'prefs.agents.cloud.github.later': 'Not found. Set it up after the key.',
+  'prefs.agents.cloud.github.gh': 'Using your sign-in from the GitHub command-line tool (gh).',
+  'prefs.agents.cloud.github.saved':
+    'Saved in PopBot, not checked. If the token is wrong, cloud chats can’t clone your repositories.',
+  // The command `gh auth login` is rendered between these two.
+  'prefs.agents.cloud.github.howTo.before': 'Easiest: run',
+  'prefs.agents.cloud.github.howTo.after': 'in a terminal. PopBot finds the sign-in when you come back.',
+  'prefs.agents.cloud.github.lookAgain': 'Look again',
+  'prefs.agents.cloud.github.looking': 'Looking…',
+  'prefs.agents.cloud.github.stillNone': 'Still not found. Sign in with gh in a terminal, or paste a token.',
+  'prefs.agents.cloud.github.paste': 'Paste a token',
+  'prefs.agents.cloud.github.useToken': 'Use a token instead',
+  'prefs.agents.cloud.github.use': 'Use this token',
+  'prefs.agents.cloud.github.keep': 'Keep current token',
+  'prefs.agents.cloud.github.keepGh': 'Keep gh sign-in',
+  'prefs.agents.cloud.github.notNow': 'Not now',
+  'prefs.agents.cloud.github.hint':
+    'Needs read and write access to your repositories (classic tokens: the repo scope). PopBot saves it on this computer and never shows it again.',
+  'prefs.agents.cloud.github.hint.overrideGh': 'A token saved here is used instead of your gh sign-in.',
+  'prefs.agents.cloud.github.hint.replace':
+    'Your current token stays in use until you choose Use this token.',
+  'prefs.agents.cloud.github.dirty': 'Press Enter or Use this token to save it.',
+  'prefs.agents.cloud.github.dirtyReplace':
+    'Press Enter or Use this token to switch to it. Esc keeps the current one.',
+  'prefs.agents.cloud.github.draft.anthropic':
+    'That is an Anthropic API key. It goes in Anthropic API key above.',
+  'prefs.agents.cloud.github.draft.link': 'That is a link, not a token. Copy the token itself.',
+  'prefs.agents.cloud.github.draft.spaces':
+    'This has spaces or line breaks in it, so it is not a whole token. Paste it again.',
+  'prefs.agents.cloud.github.draft.format':
+    'This doesn’t look like a GitHub token, so it was not saved. They start with ghp_ or github_pat_.',
+  'prefs.agents.cloud.github.savedNow': 'Saved. Cloud chats you start from now on clone with it.',
+  'prefs.agents.cloud.github.notChanged': 'Not changed. Your current GitHub access is still in use.',
+  'prefs.agents.cloud.github.lastFailed':
+    'The token you entered before closing Preferences didn’t look like a GitHub token, so it was not saved.',
+  'prefs.agents.cloud.github.remove.title': 'Remove GitHub token',
+  'prefs.agents.cloud.github.remove.body':
+    'Remove the saved GitHub token? Cloud chats then use your gh sign-in if there is one. Without either, they can’t clone your repositories.',
+  'prefs.agents.cloud.github.remove.confirm': 'Remove token',
+  'prefs.agents.cloud.github.remove.cancel': 'Keep token',
+  // `{newChat}`, `{cloud}` and `{item}` are filled from common.newChat,
+  // agent.cloudToggle and chat.cloud.shutdown, so they match the real controls.
+  'prefs.agents.cloud.next.newChat': 'New cloud chat',
+  'prefs.agents.cloud.next.manual':
+    'To start one from {newChat}: pick a Claude model, then turn on {cloud} beside it (grey until it’s on).',
+  'prefs.agents.cloud.next.noGithub':
+    'Chats without a repository work now. For chats that use a repository, add GitHub access in step 2.',
+  'prefs.agents.cloud.next.stop':
+    'A cloud chat keeps running after you close it or quit PopBot. To end one, choose “{item}” in the chat’s menu.',
   'prefs.hosts.title': 'Hosts',
   'prefs.hosts.desc':
     'Other boxes that run chats for this PopBot. Each runs popbot-host: build it, copy dist-host/popbot-host.cjs over, and run it once with --init to write its config and print its token. The chat’s transcript, search and settings stay here; the agent, its tools and the checkout are there. A remote box is reached over an SSH tunnel: ssh -L 7677:127.0.0.1:7677 box.',

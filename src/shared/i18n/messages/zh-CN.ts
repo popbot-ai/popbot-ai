@@ -968,42 +968,14 @@ export const zhCN = {
   'prefs.footMeta': 'PopBot · 预览版',
 
   // Preferences — Agents pane.
-  'prefs.agents.title': '代理',
-  'prefs.agents.desc':
-    '新建聊天的默认努力程度。现有聊天保留各自已保存的努力程度，直到您在聊天编辑器中更改它们。',
   'prefs.agents.newChats.title': '新建聊天',
-  'prefs.agents.newChats.desc':
-    '当代理选择器打开时，由普通聊天和工单聊天使用。',
   'prefs.agents.codeReviews.title': '代码审查',
-  'prefs.agents.codeReviews.desc':
-    '由 PR 审查聊天、重新审查回退聊天和审查通知使用。',
   'prefs.agents.codexSteering.title': '在 Codex 工作时引导它',
-  'prefs.agents.codexSteering.desc':
-    '通过 Codex 的 app-server 而不是 exec SDK 连接。在 Codex 忙碌时发送的消息会在它的下一步就送达，而不必等到本轮结束。同时让 Codex 对话的上下文仪表生效，并启用“压缩上下文”。该功能在 Codex CLI 中为实验性功能，需要 codex 0.153 或更高版本。从每个对话的下一条消息开始生效。',
-  'prefs.agents.codexSteering.on': '开 — 消息会在本轮进行中送达 Codex',
-  'prefs.agents.codexSteering.off': '关 — 消息会等到本轮结束',
-  'prefs.agents.mcp.title': '面向智能体的 PopBot 工具',
-  'prefs.agents.mcp.desc':
-    '为每个对话的智能体提供一个“popbot”MCP 服务器：列出、创建、关闭和重新打开对话，向其他对话发消息并等待回复，发起代码审查和工单对话，以及阅读和搜索对话记录。从每个对话的下一次智能体会话开始生效。',
-  'prefs.agents.mcp.on': '开启 — 智能体可以操控 PopBot',
-  'prefs.agents.mcp.off': '关闭 — 无 popbot 工具',
   'prefs.agents.cloud.title': '云端对话',
-  'prefs.agents.cloud.desc':
-    '带云端标记创建的对话在 Anthropic Managed Agents 上运行：这是 Anthropic 云端沙盒中的一个会话，按 token 计入你的 Console 账户，PopBot 退出后也会继续工作。',
   'prefs.agents.cloud.apiKey.title': 'Anthropic API 密钥',
-  'prefs.agents.cloud.apiKey.desc': '保存在本应用的本地数据库中。留空则使用环境变量 ANTHROPIC_API_KEY。',
-  'prefs.agents.cloud.getKey': '获取密钥',
-  'prefs.agents.cloud.githubToken.title': 'GitHub 令牌',
-  'prefs.agents.cloud.githubToken.desc': '沙盒用它克隆你的仓库（repo 权限）。留空则使用 gh 当前登录所用的令牌。',
   'prefs.agents.cloud.workspace.title': '工作区 ID',
-  'prefs.agents.cloud.workspace.desc':
-    '仅当密钥未绑定到工作区时需要（检查会提示）：Console 的 Workspaces 页面中的 wrkspc_… ID。在工作区内创建的密钥不需要。',
   'prefs.agents.cloud.envKey': '正在使用环境变量 ANTHROPIC_API_KEY。',
-  'prefs.agents.cloud.noKey': '还没有密钥，云端对话不可用。',
-  'prefs.agents.cloud.ghToken': 'GitHub：正在使用 gh 当前登录所用的令牌。',
-  'prefs.agents.cloud.noGh': 'GitHub：没有令牌。在这里保存一个，或运行 gh auth login。',
   'prefs.agents.cloud.ok': '密钥可用。',
-  'prefs.agents.cloud.error': '已保存，但密钥不可用：{error}',
   'prefs.hosts.title': '主机',
   'prefs.hosts.desc':
     '为这个 PopBot 运行对话的其他机器。每台机器运行 popbot-host：构建后把 dist-host/popbot-host.cjs 复制过去，用 --init 运行一次以写入配置并打印令牌。对话的记录、搜索和设置留在这里；代理、工具和检出在那边。远程机器通过 SSH 隧道访问：ssh -L 7677:127.0.0.1:7677 machine',

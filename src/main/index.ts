@@ -62,6 +62,14 @@ import { desktopMailbox } from './mailbox/desktopMailbox';
 import { startAutoContinue } from './agents/autoContinue';
 import { startJanitor, stopJanitor } from './persistence/janitorSchedule';
 import { registerAgentHandlers } from './ipc/agent';
+import { registerClaudeAccountsHandlers } from './ipc/claudeAccounts';
+import { loadClaudeAccounts } from './agents/claudeAccounts';
+import { startClaudeAccountsSync } from './agents/claudeAccountsSync';
+import { onActiveClaudeTokenChange } from './agents/claudeAuth';
+import { registerCodexAccountsHandlers } from './ipc/codexAccounts';
+import { loadCodexAccounts } from './agents/codexAccounts';
+import { startCodexAccountsSync } from './agents/codexAccountsSync';
+import { onActiveCodexAuthChange } from './agents/codexAuth';
 import { registerSettingsHandlers } from './ipc/settings';
 import { registerTicketHandlers } from './ipc/tickets';
 import { registerFilesHandlers } from './ipc/files';
@@ -449,6 +457,16 @@ function installDockMenu(): void {
 
 void app.whenReady().then(async () => {
   initDb();
+  // PopBot's Claude accounts (agents/claudeAccounts.ts): the active one's
+  // long-lived token is what every Claude chat runs on, here and on every
+  // host. A switch moves each chat to it at its next idle moment.
+  loadClaudeAccounts();
+  onActiveClaudeTokenChange(() => AgentHost.restartClaudeSessions());
+  // PopBot's Codex accounts (agents/codexAccounts.ts), the same way. A
+  // newer token for the same account moves nothing: a Codex process that
+  // needs it asks.
+  loadCodexAccounts();
+  onActiveCodexAuthChange((change) => { if (change === 'account') AgentHost.restartCodexSessions(); });
   // One-time backfill: copy any pre-existing CLI JSONL transcripts
   // into our SqliteSessionStore so legacy chats don't lose memory on
   // their first post-upgrade resume. Idempotent + flagged in settings;
@@ -523,6 +541,10 @@ void app.whenReady().then(async () => {
   registerCoreHandlers();
   registerChatHandlers();
   registerAgentHandlers();
+  registerClaudeAccountsHandlers();
+  startClaudeAccountsSync();
+  registerCodexAccountsHandlers();
+  startCodexAccountsSync();
   registerSettingsHandlers();
   registerTicketHandlers();
   registerFilesHandlers();

@@ -138,7 +138,24 @@ export default function App(): JSX.Element {
   useEffect(() => {
     const onSignIn = (e: Event): void => {
       const provider = (e as CustomEvent<{ provider?: 'claude' | 'codex' }>).detail?.provider;
-      if (provider === 'claude' || provider === 'codex') setSignInFor(provider);
+      if (provider === 'codex') {
+        setSignInFor('codex');
+        return;
+      }
+      if (provider !== 'claude') return;
+      // With a Claude account in use, chats run on that account's sign-in,
+      // not the CLI's own: the dialog's login could not fix the chat that
+      // asked. The accounts pane is where that sign-in is replaced.
+      void window.popbot.claudeAccounts.list().then(
+        (s) => {
+          if (s.accounts.some((a) => a.active)) {
+            window.dispatchEvent(new CustomEvent('popbot:open-prefs', { detail: { section: 'accounts' } }));
+          } else {
+            setSignInFor('claude');
+          }
+        },
+        () => setSignInFor('claude'),
+      );
     };
     window.addEventListener('popbot:auth-sign-in', onSignIn);
     return () => window.removeEventListener('popbot:auth-sign-in', onSignIn);
@@ -314,6 +331,17 @@ export default function App(): JSX.Element {
     setPrefsSection(sectionId);
     setPrefsOpen(true);
   }, []);
+  // A way into Preferences from anywhere in the window — a chat warning's
+  // "Claude accounts" button, the sign-in route above: `popbot:open-prefs`
+  // names the section to open at.
+  useEffect(() => {
+    const onOpenPrefs = (e: Event): void => {
+      const section = (e as CustomEvent<{ section?: string }>).detail?.section;
+      openPrefsAt(typeof section === 'string' ? section : undefined);
+    };
+    window.addEventListener('popbot:open-prefs', onOpenPrefs);
+    return () => window.removeEventListener('popbot:open-prefs', onOpenPrefs);
+  }, [openPrefsAt]);
   const [modal, setModal] = useState<string | null>(null);
   const [colWidth, setColWidth] = useState<number>(280);
   const [bottomHeight, setBottomHeight] = useState<number>(240);
@@ -345,6 +373,9 @@ export default function App(): JSX.Element {
     allowRepoRoot?: boolean;
     /** Creation flows can pick the backend before the first prompt. */
     showAgentPicker?: boolean;
+    /** Open the dialog set up for a cloud chat (Cloud on, a Claude
+     *  model, this computer) instead of as the last chat was made. */
+    initialCloud?: boolean;
     run: (input: {
       repoId: string | null;
       baseBranch: string | null;
@@ -1397,7 +1428,7 @@ export default function App(): JSX.Element {
     await createWithSlot({ name: `${s.ch} · ${s.who}`, type: 'lite', repoId: defaultRepoId() });
   };
 
-  const handleNewChat = (type: 'lite' | 'client_test' = 'lite') => {
+  const handleNewChat = (type: 'lite' | 'client_test' = 'lite', opts?: { cloud?: boolean }) => {
     // Hard prerequisites: an AI provider AND a repository. Until both are
     // set up, pop the "finish setup" checklist instead of opening a
     // create flow that can't complete.
@@ -1412,6 +1443,7 @@ export default function App(): JSX.Element {
       allowNoRepo: true,
       allowRepoRoot: type === 'lite',
       showAgentPicker: true,
+      initialCloud: opts?.cloud === true,
       run: async ({ repoId, baseBranch, subject, branch, workspaceMode, cloud, host, agentConfig }) => {
         const name = (subject?.trim() || (type === 'lite' ? t('common.newChat') : t('app.create.newClientTestChat')));
         // A host chat has no local workspace: the host makes its own
@@ -1877,6 +1909,7 @@ export default function App(): JSX.Element {
           allowNoRepo={pendingCreate.allowNoRepo}
           allowRepoRoot={pendingCreate.allowRepoRoot}
           showAgentPicker={pendingCreate.showAgentPicker}
+          initialCloud={pendingCreate.initialCloud}
           onOpenPrefs={openPrefsAt}
           onCancel={() => setPendingCreate(null)}
           onConfirm={(input) => {
@@ -1920,6 +1953,13 @@ export default function App(): JSX.Element {
             setSlotConfigVersion((v) => v + 1);
           }}
           initialSection={prefsSection}
+          // "New cloud chat" in Preferences ▸ Agents: the same New chat
+          // dialog, opened with Cloud already on.
+          onNewCloudChat={() => {
+            setPrefsOpen(false);
+            setReadinessVersion((v) => v + 1);
+            handleNewChat('lite', { cloud: true });
+          }}
         />
       )}
       {gateOpen && (

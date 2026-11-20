@@ -3762,6 +3762,10 @@ input.input.mono, select.input.mono { font-family: var(--font-mono); font-size: 
   color: var(--acc-hi);
 }
 .prefs-nav-item.active i { color: var(--acc-hi); }
+/* An agent's mark where an icon would be (the two accounts entries):
+   the same box and the same colours as the icons around it. */
+.prefs-nav-item .prefs-nav-logo { width: 14px; height: 12px; color: var(--fg-3); }
+.prefs-nav-item.active .prefs-nav-logo { color: var(--acc-hi); }
 
 .prefs-nav-foot {
   margin-top: auto;
@@ -3823,18 +3827,103 @@ input.input.mono, select.input.mono { font-family: var(--font-mono); font-size: 
   gap: 8px;
 }
 .pref-label { min-width: 0; }
-.pref-title {
-  font-size: 12.5px; color: var(--fg-0); font-weight: 500;
+/* A setting's name and the line that explains it. The panes use the
+   `pref-label-*` names (the shorter pair was all this sheet defined, so
+   for a long while neither was styled and every pane read as one size of
+   text). The explanation is a step smaller and dimmer than the name, but
+   kept readable: 11.5px on --fg-2, the same as a section's description. */
+.pref-title, .pref-label-title {
+  font-size: 12.5px; color: var(--fg-0); font-weight: 600;
   letter-spacing: -0.005em;
 }
-.pref-desc {
+.pref-desc, .pref-label-desc {
   margin-top: 2px;
-  font-size: 11px; color: var(--fg-3);
-  line-height: 1.45;
-  max-width: 540px;
+  font-size: 11.5px; color: var(--fg-2);
+  line-height: 1.5;
+  max-width: 560px;
 }
 .pref-control { display: flex; align-items: center; justify-content: flex-end; }
 .pref-row.wide .pref-control { justify-content: stretch; }
+
+/* Preferences ▸ Agents (PrefsAgents in PreferencesSheet.tsx): five headed
+   features. One head grammar — name, status pill, then the one control at
+   the right edge — and one class, .pref-state, for every hint, timing
+   line and verdict. The sheet has no look of its own for a disabled
+   button or a monospace field, and this pane needs both. */
+.agents-pane .btn:disabled, .agents-pane .btn[aria-disabled="true"] { opacity: 0.5; cursor: default; }
+.agents-pane :is(.btn, .btn-link, .pref-switch, .pref-select):focus-visible { outline: 2px solid var(--acc-line); outline-offset: 1px; }
+.agents-pane .pref-input.mono { font-family: var(--font-mono); font-size: 11.5px; }
+
+/* feature head: name, status pill, then the one control at the right edge */
+.pref-head { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 8px; min-height: 24px; }
+.pref-head h3 { margin: 0; }
+/* A heading takes focus only when a deep link lands on it, and then the
+   outline is how a keyboard user sees where they are. */
+.pref-head h3:focus { outline: 2px solid var(--acc-line); outline-offset: 3px; border-radius: 2px; }
+.pref-head-control { margin-left: auto; display: inline-flex; align-items: center; gap: 6px; }
+.pref-section.arrived { animation: pref-arrived 2s ease-out; }
+@keyframes pref-arrived {
+  from { box-shadow: inset 3px 0 0 var(--acc); background: rgba(107,124,255,0.10); }
+  to   { box-shadow: inset 3px 0 0 transparent; background: transparent; }
+}
+@media (prefers-reduced-motion: reduce) { .pref-section.arrived { animation: none; box-shadow: inset 3px 0 0 var(--acc); } }
+
+/* state line: hint, timing or verdict */
+.pref-state { display: flex; align-items: baseline; gap: 6px; margin: 6px 0 0; font-size: 11.5px; line-height: 1.5; color: var(--fg-2); max-width: 600px; }
+.pref-state:empty { margin: 0; }
+.pref-state > i { flex: 0 0 12px; text-align: center; font-size: 10.5px; color: var(--fg-3); }
+.pref-state.ok > i { color: var(--st-done); }
+.pref-state.warn { color: #e6c98a; }  .pref-state.warn > i { color: var(--st-wait); }
+.pref-state.error { color: #e89696; } .pref-state.error > i { color: var(--st-err); }
+/* What the service itself said, under the plain sentence. `body` is
+   user-select: none, so it is made selectable here to be copied. */
+.pref-state-detail { margin: 2px 0 0 18px; font-family: var(--font-mono); font-size: 10.5px; line-height: 1.5; color: var(--fg-3); max-width: 582px; overflow-wrap: anywhere; user-select: text; }
+.pref-code { padding: 1px 5px; border-radius: 3px; background: var(--bg-3); color: var(--fg-0); font-family: var(--font-mono); font-size: 11px; user-select: all; }
+
+/* switch: a 38 x 25 hit area around the 30 x 17 track */
+.pref-switch { display: inline-flex; padding: 4px; margin: -4px; border-radius: 999px; }
+.pref-switch .pref-toggle { display: block; pointer-events: none; }
+/* Decided by something else for now (a Codex account in use): shown as
+   it stands, and plainly not there to be flipped. */
+.pref-switch.locked { cursor: default; }
+.pref-switch.locked .pref-toggle { opacity: 0.5; }
+
+/* effort grid */
+.effort-head, .effort-grid .pref-row { display: grid; grid-template-columns: minmax(160px, 1fr) 180px 180px; column-gap: 12px; align-items: center; }
+.effort-head { margin-top: 10px; font-size: 11px; color: var(--fg-2); }
+/* .pref-select and .pref-input have a 200px floor; these two let the
+   grid and the card's fields size themselves. */
+.effort-grid .pref-select { width: 100%; min-width: 0; }
+.effort-grid + .pref-section-desc { margin-top: 8px; }
+
+/* setup card (Cloud chats): a requirement per row — mark, name and state
+   sentence, actions — and whatever is open under it. Doubly qualified:
+   .host-card's own padding is declared later in this file. */
+.host-card.setup-card { padding: 2px 12px; }
+.setup-row { display: grid; grid-template-columns: 20px minmax(0, 1fr) auto; column-gap: 8px; align-items: start; padding: 10px 0; border-top: 1px solid var(--line-1); }
+.setup-row:first-child { border-top: 0; }
+/* A row takes focus itself only so that a click on its own text is not
+   read as leaving it; it is not a tab stop and shows no ring. */
+.setup-row:focus { outline: none; }
+.setup-mark { width: 18px; height: 18px; display: inline-flex; align-items: center; justify-content: center; font-size: 12px; color: var(--fg-3); }
+.setup-mark.num { border: 1px solid var(--line-3); border-radius: 50%; font-size: 10.5px; font-weight: 600; }
+.setup-mark.num.next { background: var(--acc); border-color: var(--acc); color: #fff; }
+.setup-mark.ok { color: var(--st-done); } .setup-mark.warn { color: var(--st-wait); }
+.setup-mark.error { color: var(--st-err); } .setup-mark.set { color: var(--fg-2); }
+.setup-actions { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 6px; }
+.setup-more { grid-column: 2 / -1; min-width: 0; }
+/* Under a row's state sentence the raw message lines up with the
+   sentence; under a state line it is indented past that line's icon. */
+.setup-row .pref-label-desc + .pref-state-detail { margin-left: 0; }
+.setup-field { display: flex; align-items: center; gap: 8px; margin-top: 8px; max-width: 560px; }
+.setup-field .pref-input { flex: 1 1 auto; min-width: 0; }
+.setup-field label { flex: 0 0 auto; font-size: 11.5px; color: var(--fg-2); }
+.setup-sub { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 10px; margin-top: 6px; font-size: 11.5px; color: var(--fg-2); }
+.setup-next { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 12px; padding: 10px 0; border-top: 1px solid var(--line-1); font-size: 11.5px; line-height: 1.5; color: var(--fg-1); }
+/* The sentence shares the button's line and wraps inside its own column;
+   only when there is no room beside the button does it go under it. */
+.setup-next-how { flex: 1 1 240px; min-width: 0; }
+.setup-next-note { flex-basis: 100%; color: var(--fg-2); }
 
 /* Toggle */
 .pref-toggle {
@@ -6351,3 +6440,169 @@ textarea.input.bot-form-prompt {
 .move-chat-warn { font-size: 11.5px; color: var(--st-wait); background: var(--st-wait-bg); border-radius: 4px; padding: 7px 9px; margin: 10px 0 0; line-height: 1.45; }
 .move-chat-status { font-size: 12px; color: var(--fg-1); margin: 10px 0 0; }
 .move-chat-error { font-size: 12px; color: #e89696; margin: 10px 0 0; }
+
+/* ============================================================
+   Preferences ▸ Claude accounts (PrefsClaudeAccounts.tsx)
+   One card per account, built on the Hosts pane's cards. The sign-in
+   steps and the token forms open inside a card.
+   ============================================================ */
+/* The sheet has no look of its own for a disabled button or a monospace
+   field, and this pane needs both: a control dims while its request is
+   in flight, and codes and tokens are read character by character. */
+.acct-pane .btn:disabled { opacity: 0.5; cursor: default; }
+.acct-pane .pref-input:disabled { opacity: 0.6; }
+.acct-pane .pref-input.mono { font-family: var(--font-mono); font-size: 11.5px; }
+.acct-pane code { font-family: var(--font-mono); font-size: 11px; background: var(--bg-3);
+  padding: 1px 5px; border-radius: 3px; color: var(--fg-0); user-select: text; }
+.acct-pane :is(.btn, .acct-icon, .acct-link):focus-visible { outline: 2px solid var(--acc-line); outline-offset: 1px; }
+.acct-lead strong { color: var(--fg-0); font-weight: 600; }
+.acct-alert { display: flex; gap: 10px; align-items: baseline; margin-top: 10px; line-height: 1.5; }
+.pref-warn.acct-alert i { color: var(--st-wait); }
+
+/* A card: name, pills and "Use this account" on top; the status line
+   with the quiet buttons beside it below, wrapping under it when narrow. */
+.acct-card .host-card-head { margin-bottom: 6px; flex-wrap: wrap; }
+.acct-card .host-card-title { max-width: 280px; overflow: hidden; text-overflow: ellipsis; }
+.acct-card .host-card-foot { margin-top: 0; flex-wrap: wrap; align-items: baseline; }
+/* Only the foot row's own line grows: inside a step the same class sits
+   in a column, where this basis would be a height. */
+.acct-card .host-card-foot > .host-card-status { flex: 1 1 260px; }
+.acct-card > .host-card-status { margin-bottom: 6px; }
+.acct-pane .host-card-status { align-items: baseline; line-height: 1.5; }
+.host-card-status.wait i { color: var(--st-wait); }
+.host-card-status.error i { color: var(--st-err); }
+/* A card takes focus when a result lands on it (a new account, a switch). */
+.acct-card:focus { outline: none; }
+.acct-card:focus-visible { outline: 2px solid var(--acc-line); outline-offset: 1px; }
+.acct-use { margin-left: auto; }
+.acct-actions { display: inline-flex; gap: 2px; margin-left: auto; flex: 0 0 auto; }
+.acct-icon { width: 22px; height: 22px; border-radius: 4px; color: var(--fg-3);
+  display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto; }
+.acct-icon:hover { background: var(--bg-3); color: var(--fg-0); }
+.acct-icon i { font-size: 11px; }
+.acct-verdict { display: flex; gap: 6px; align-items: baseline; margin-top: 6px;
+  font-size: 11.5px; line-height: 1.5; color: var(--fg-1); }
+.acct-verdict.ok i { color: var(--st-done); }
+.acct-verdict.error { color: #e89696; }
+/* What the CLI itself said: the dim line under a plain sentence. */
+.acct-detail { font-family: var(--font-mono); font-size: 10.5px; color: var(--fg-3);
+  white-space: pre-wrap; word-break: break-word; user-select: text; }
+
+/* A flow: the sign-in steps or a token form, in the add card or under
+   a card's divider. The first-run card stands alone, so it gets more air. */
+.acct-add { margin-top: 12px; }
+.acct-flow { padding: 4px 6px; }
+.acct-first > .acct-flow { padding: 6px; }
+/* As tall as its close icon, so the title does not move when the icon
+   is away (during a check). */
+.acct-flow-head { display: flex; align-items: center; gap: 8px; min-height: 22px; }
+.acct-flow-title { flex: 1 1 auto; font-size: 12.5px; font-weight: 600; color: var(--fg-0); }
+.acct-flow-sub { margin-top: 2px; font-size: 11.5px; color: var(--fg-2); line-height: 1.5; max-width: 600px; }
+.acct-flow-foot { display: flex; align-items: center; gap: 14px; margin-top: 12px; flex-wrap: wrap; }
+.acct-steps { list-style: none; margin: 12px 0 0; padding: 0; display: flex; flex-direction: column; gap: 12px; }
+.acct-step { display: grid; grid-template-columns: 20px 1fr; column-gap: 10px; }
+.acct-step-num { width: 20px; height: 20px; border-radius: 50%; border: 1px solid var(--line-3);
+  color: var(--fg-3); font-size: 11px; font-weight: 600;
+  display: inline-flex; align-items: center; justify-content: center; }
+.acct-step-num i { font-size: 14px; }
+.acct-step.current .acct-step-num { background: var(--acc); border-color: var(--acc); color: #fff; }
+.acct-step.done .acct-step-num { border-color: transparent; color: var(--st-done); }
+.acct-step.failed .acct-step-num { border-color: transparent; color: var(--st-err); }
+.acct-step-title { font-size: 12.5px; font-weight: 500; color: var(--fg-0); line-height: 20px; }
+.acct-step.todo .acct-step-title { color: var(--fg-3); font-weight: 400; }
+.acct-step-body { grid-column: 2; margin-top: 4px; display: flex; flex-direction: column; gap: 6px;
+  font-size: 11.5px; color: var(--fg-2); line-height: 1.5; max-width: 600px; }
+.acct-step-body .sign-in-code-row .pref-input { flex: 1 1 auto; min-width: 0; }
+.acct-btns { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.acct-warn { display: flex; gap: 6px; align-items: baseline; color: #e6c98a; }
+.acct-warn i { color: var(--st-wait); }
+.acct-form { display: grid; grid-template-columns: max-content 1fr; gap: 8px 10px; align-items: baseline;
+  margin-top: 10px; font-size: 11.5px; color: var(--fg-2); max-width: 640px; }
+.acct-field { display: flex; flex-direction: column; gap: 6px; min-width: 0; line-height: 1.5; }
+.acct-field .pref-input.mono { width: 100%; }
+.acct-replace { margin-top: 8px; font-size: 11.5px; color: var(--fg-2); max-width: 640px; }
+.acct-hint-row { display: flex; align-items: flex-end; gap: 12px; }
+.acct-hint-row > span { flex: 1 1 auto; min-width: 0; }
+.acct-hint-row .acct-link { flex: 0 0 auto; }
+.acct-link { background: none; border: 0; padding: 0; color: var(--acc-hi); font-size: 11.5px; cursor: pointer; }
+.acct-link:hover { text-decoration: underline; }
+.acct-foot { margin-top: 14px; display: flex; flex-direction: column; gap: 6px;
+  font-size: 11.5px; color: var(--fg-3); line-height: 1.5; max-width: 640px; }
+.acct-foot-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.acct-foot .acct-verdict { margin-top: 0; }
+/* Read out, not shown: the live region and the word "Done" on a step. */
+.acct-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+/* Codex accounts (PrefsCodexAccounts.tsx): the email beside a renamed
+   account, the plan, and the one note of what differs from Claude. */
+.acct-email { font-size: 11.5px; color: var(--fg-2); max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.acct-differs { margin-top: 2px; }
+.acct-differs ul { margin: 4px 0 0; padding-left: 18px; list-style: disc; display: flex; flex-direction: column; gap: 3px; max-width: 760px; }
+/* The mark on the Claude accounts nav item while the account in use
+   can't run chats. Amber in both states: it is a warning, not a selection. */
+.prefs-nav-item i.prefs-nav-alert,
+.prefs-nav-item.active i.prefs-nav-alert { margin-left: auto; color: var(--st-wait); font-size: 10px; }
+
+/* ── The title bar's account chips (AccountSwitcher.tsx) ──
+   One for Claude, one for Codex. Each carries its agent's logo — two bare
+   names side by side would not say which is which — and the short name of
+   the account in use, because which account the chats run on is the
+   point. Narrow enough to sit with the icon buttons; a long name is cut
+   short, and when the bar itself is narrow the name goes and the logo
+   stays. Attention is the amber border and name; the logo keeps its own
+   colour, so the chip still says whose it is. */
+.acct-switch { position: relative; display: inline-flex; margin-right: 6px; }
+.acct-switch + .acct-switch { margin-left: -2px; }
+.acct-switch-btn {
+  height: 24px; max-width: 170px; padding: 0 7px; border-radius: 5px;
+  display: inline-flex; align-items: center; gap: 6px;
+  background: transparent; border: 1px solid var(--line-2); color: var(--fg-1);
+  font-size: 11.5px; line-height: 1; cursor: pointer; white-space: nowrap;
+}
+.acct-switch-btn:hover, .acct-switch-btn.open { background: var(--bg-3); color: var(--fg-0); }
+.acct-switch-btn.attention { color: var(--st-wait); border-color: rgba(214,161,59,0.55); background: var(--st-wait-bg); }
+.acct-switch-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* The agents' marks (AgentLogo.tsx). Claude's in its own orange, OpenAI's
+   in the text colour: both read on the dark bar, and neither is mistaken
+   for a status colour (amber is attention, green is done). */
+.agent-logo { flex: 0 0 auto; display: block; }
+.acct-switch .agent-logo.claude { color: #d97757; }
+.acct-switch .agent-logo.codex { color: var(--fg-0); }
+@media (max-width: 1100px) { .acct-switch-btn { max-width: 130px; } }
+@media (max-width: 900px) {
+  .acct-switch-name { display: none; }
+  .acct-switch { margin-right: 4px; }
+}
+.acct-switch-caret { font-size: 8px; color: var(--fg-3); }
+.acct-switch-pop {
+  position: absolute; top: calc(100% + 8px); right: 0; width: 360px; max-width: calc(100vw - 16px); padding: 6px;
+  background: #1a1f29; border: 1px solid #3a4356; border-radius: 10px;
+  box-shadow: 0 24px 64px rgba(0,0,0,0.62), 0 2px 0 rgba(255,255,255,0.04) inset;
+  z-index: 9999; display: flex; flex-direction: column; gap: 2px; text-align: left;
+}
+.acct-switch-head { display: flex; align-items: center; gap: 7px; padding: 6px 8px 4px; font-size: 11px; color: var(--fg-2); letter-spacing: 0.02em; }
+/* A name and what there is to say of it on one line; when the two don't
+   fit (an email and "out of usage until…"), the note goes under the name
+   rather than the name being cut to a few letters. */
+.acct-switch-row {
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 8px; width: 100%; padding: 7px 8px; border-radius: 6px;
+  background: transparent; border: 0; color: var(--fg-0); font-size: 12.5px; text-align: left; cursor: pointer;
+}
+.acct-switch-row > i { width: 14px; font-size: 12px; color: var(--fg-2); text-align: center; align-self: center; }
+.acct-switch-row:hover:not(.no-press) { background: var(--bg-3); }
+.acct-switch-row.no-press { cursor: default; }
+.acct-switch-row.in-use { font-weight: 600; }
+.acct-switch-row.in-use > i { color: var(--st-done); }
+.acct-switch-row:disabled { color: var(--fg-2); }
+.acct-switch-row-name { flex: 0 1 auto; min-width: 0; max-width: calc(100% - 22px); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.acct-switch-row-note { margin-left: auto; flex: 0 0 auto; font-size: 11px; font-weight: 400; color: var(--fg-2); white-space: nowrap; }
+.acct-switch-row-note.out, .acct-switch-row-note.outInUse { color: var(--st-wait); }
+.acct-switch-row-note.refused, .acct-switch-row-note.expired, .acct-switch-row-note.unreadable,
+.acct-switch-row-note.signIn { color: var(--st-err); }
+.acct-switch-note { padding: 6px 8px; font-size: 11px; line-height: 1.4; color: var(--fg-2); border-top: 1px solid var(--line-2); margin-top: 4px; }
+.acct-switch-error { padding: 6px 8px; font-size: 11.5px; color: var(--st-err); }
+.acct-switch-manage {
+  display: flex; align-items: center; gap: 8px; width: 100%; padding: 7px 8px; border-radius: 6px;
+  background: transparent; border: 0; color: var(--fg-1); font-size: 12.5px; text-align: left; cursor: pointer;
+}
+.acct-switch-manage > i { width: 14px; font-size: 11px; color: var(--fg-2); text-align: center; }
+.acct-switch-manage:hover { background: var(--bg-3); color: var(--fg-0); }

@@ -298,6 +298,42 @@ export const IpcChannel = {
   AuthLoginStart: 'pb:auth:login-start',
   AuthLoginInput: 'pb:auth:login-input',
   AuthLoginCancel: 'pb:auth:login-cancel',
+  /** Claude accounts (claudeAccounts.ts): list, add or re-token (each
+   *  verified first), rename, remove, pick the active one. */
+  ClaudeAccountsList: 'pb:claude-accounts:list',
+  ClaudeAccountsAdd: 'pb:claude-accounts:add',
+  ClaudeAccountsSetToken: 'pb:claude-accounts:set-token',
+  ClaudeAccountsRename: 'pb:claude-accounts:rename',
+  ClaudeAccountsRemove: 'pb:claude-accounts:remove',
+  ClaudeAccountsSetActive: 'pb:claude-accounts:set-active',
+  /** Pushed to every window when the accounts change (a save, a
+   *  failover, a host's news): the fresh ClaudeAccountsState. */
+  ClaudeAccountsChanged: 'pb:claude-accounts:changed',
+  /** A sign-in PopBot runs itself (`claude setup-token`): start, type the
+   *  code, cancel; progress arrives on ClaudeAccountsSignInEvent; the
+   *  token it produces is saved with AddSignedIn / SetTokenSignedIn. */
+  ClaudeAccountsSignInStart: 'pb:claude-accounts:sign-in-start',
+  ClaudeAccountsSignInCode: 'pb:claude-accounts:sign-in-code',
+  ClaudeAccountsSignInCancel: 'pb:claude-accounts:sign-in-cancel',
+  ClaudeAccountsSignInEvent: 'pb:claude-accounts:sign-in-event',
+  ClaudeAccountsAddSignedIn: 'pb:claude-accounts:add-signed-in',
+  ClaudeAccountsSetTokenSignedIn: 'pb:claude-accounts:set-token-signed-in',
+  /** Codex accounts (codexAccounts.ts): list, rename, remove, pick the
+   *  active one. An account is only ever made by a ChatGPT sign-in PopBot
+   *  runs itself: start, cancel; progress arrives on
+   *  CodexAccountsSignInEvent; the sign-in it produces is saved with
+   *  AddSignedIn (a new account) or RenewSignedIn (an account's new one). */
+  CodexAccountsList: 'pb:codex-accounts:list',
+  CodexAccountsRename: 'pb:codex-accounts:rename',
+  CodexAccountsRemove: 'pb:codex-accounts:remove',
+  CodexAccountsSetActive: 'pb:codex-accounts:set-active',
+  /** Pushed to every window when the accounts change: the fresh CodexAccountsState. */
+  CodexAccountsChanged: 'pb:codex-accounts:changed',
+  CodexAccountsSignInStart: 'pb:codex-accounts:sign-in-start',
+  CodexAccountsSignInCancel: 'pb:codex-accounts:sign-in-cancel',
+  CodexAccountsSignInEvent: 'pb:codex-accounts:sign-in-event',
+  CodexAccountsAddSignedIn: 'pb:codex-accounts:add-signed-in',
+  CodexAccountsRenewSignedIn: 'pb:codex-accounts:renew-signed-in',
   AuthLoginEvent: 'pb:auth:login-event',
 
   /** Cloud chats (Anthropic Managed Agents): is the cloud set up, does
@@ -699,6 +735,141 @@ export interface AgentBackendStatus {
 }
 
 export type AuthProvider = 'claude' | 'codex';
+
+/** A Claude account PopBot runs on (claudeAccounts.ts): its long-lived
+ *  token never leaves the main process. */
+export interface ClaudeAccountInfo {
+  id: string;
+  label: string;
+  /** When its current token was saved. */
+  addedAt: number;
+  /** The one every chat runs on. */
+  active: boolean;
+  /** Out of usage until then (ms): chats run on another account meanwhile. */
+  outOfUsageUntil?: number;
+  /** Its saved sign-in can't be read on this computer (so it can't be
+   *  used until it is signed in again). */
+  unreadable?: boolean;
+  /** Claude refused its sign-in in a chat here since it was last replaced. */
+  needsSignIn?: boolean;
+}
+
+export interface ClaudeAccountsState {
+  accounts: ClaudeAccountInfo[];
+  /** False where the OS has no encrypted store to keep tokens in. */
+  encryptionAvailable: boolean;
+  /** Hosts that answered but run a PopBot host too old to take accounts
+   *  (by name). A host that is merely unreachable is not listed. */
+  outdatedHosts?: string[];
+}
+
+/**
+ * Why an accounts action failed — what the window words its message by
+ * (`error` is only the detail, e.g. the CLI's own text):
+ *   refused       Claude would not run a request on this sign-in
+ *   timeout       the check did not finish in time
+ *   no-cli        the Claude command-line tool was not found
+ *   no-store      this computer has no encrypted place to keep a sign-in
+ *   sign-in-gone  the browser sign-in is no longer waiting to be saved
+ */
+export type ClaudeAccountsFailure = 'refused' | 'timeout' | 'no-cli' | 'no-store' | 'sign-in-gone' | 'other';
+
+export type ClaudeAccountsResult =
+  | ({ ok: true } & ClaudeAccountsState)
+  | ({ ok: false; error: string; reason: ClaudeAccountsFailure } & ClaudeAccountsState);
+
+/**
+ * Progress of a sign-in PopBot runs for the user (`claude setup-token`,
+ * main/agents/claudeSetupToken.ts), pushed on `pb:claude-accounts:sign-in-event`.
+ * The token itself never reaches the window: `token-ready` says the main
+ * process holds it, to be saved with addSignedIn / setTokenSignedIn.
+ */
+export type ClaudeSignInEvent =
+  /** The sign-in page for this attempt. */
+  | { type: 'url'; url: string }
+  /** Claude is waiting for the code the sign-in page shows. */
+  | { type: 'ready-for-code' }
+  | { type: 'checking-code' }
+  /** The code was not accepted; this attempt is over (start another). */
+  | { type: 'code-refused'; message: string }
+  | { type: 'token-ready' }
+  /** `no-token`: Claude finished signing in, but PopBot could not read
+   *  the result (the token can still be pasted by hand). */
+  | { type: 'failed'; message: string; reason?: 'no-token' };
+
+/**
+ * A Codex account PopBot runs on (codexAccounts.ts): a ChatGPT sign-in
+ * made inside PopBot. Its tokens never leave the main process (hosts are
+ * sent a short-lived one). Unlike a Claude token it has no fixed end:
+ * PopBot renews it every few days for as long as OpenAI lets it.
+ */
+export interface CodexAccountInfo {
+  id: string;
+  /** The name shown: the sign-in's email until renamed. */
+  label: string;
+  /** The ChatGPT account's email, when Codex reported one. */
+  email: string | null;
+  /** The ChatGPT plan as Codex names it ("plus", "pro", "team",
+   *  "business", "enterprise", …), or null when unknown. */
+  plan: string | null;
+  /** When its current sign-in was saved. */
+  addedAt: number;
+  /** The one every Codex chat runs on. */
+  active: boolean;
+  /** Out of usage until then (ms): chats run on another account meanwhile. */
+  outOfUsageUntil?: number;
+  /** Its saved sign-in can't be read on this computer (so it can't be
+   *  used until it is signed in again). */
+  unreadable?: boolean;
+  /** Its sign-in stopped working — OpenAI refused it in a chat, or would
+   *  not renew it — so it can't be used until it is signed in again. */
+  needsSignIn?: boolean;
+}
+
+export interface CodexAccountsState {
+  accounts: CodexAccountInfo[];
+  /** False where the OS has no encrypted store to keep a sign-in in. */
+  encryptionAvailable: boolean;
+  /** Hosts that answered but run a PopBot host too old to take Codex
+   *  accounts (by name). A host that is merely unreachable is not listed. */
+  outdatedHosts?: string[];
+}
+
+/**
+ * Why a Codex accounts action failed — what the window words its message
+ * by (`error` is only the detail, e.g. Codex's own text):
+ *   no-cli        the Codex command-line tool was not found
+ *   no-store      this computer has no encrypted place to keep a sign-in
+ *   sign-in-gone  the browser sign-in is no longer waiting to be saved
+ *   duplicate     that ChatGPT account is already one of the accounts
+ *   mismatch      (renewing) the browser signed in as a different ChatGPT
+ *                 account than the one being renewed
+ */
+export type CodexAccountsFailure = 'no-cli' | 'no-store' | 'sign-in-gone' | 'duplicate' | 'mismatch' | 'other';
+
+export type CodexAccountsResult =
+  | ({ ok: true } & CodexAccountsState)
+  | ({ ok: false; error: string; reason: CodexAccountsFailure } & CodexAccountsState);
+
+/**
+ * Progress of a ChatGPT sign-in PopBot runs for the user (Codex's own
+ * sign-in, in a private folder: main/agents/codexSignIn.ts), pushed on
+ * `pb:codex-accounts:sign-in-event`. There is nothing to paste: the user
+ * signs in on the page and the browser hands Codex the result. The
+ * tokens never reach the window: `signed-in` says the main process holds
+ * them, to be saved with addSignedIn / renewSignedIn.
+ */
+export type CodexSignInEvent =
+  /** The sign-in page for this attempt (also opened in the browser when
+   *  the sign-in was started with `openBrowser`). */
+  | { type: 'url'; url: string }
+  /** Signed in. `duplicateOf`: the id of the account that already holds
+   *  this ChatGPT account (adding it again is refused; renewing that
+   *  account with it is fine). `outOfUsageUntil`: signed in, but with no
+   *  usage left until then (ms). */
+  | { type: 'signed-in'; email: string | null; plan: string | null; duplicateOf?: string; outOfUsageUntil?: number }
+  /** The sign-in did not finish; this attempt is over (start another). */
+  | { type: 'failed'; message: string };
 export type AuthState = 'signed-in' | 'signed-out' | 'unknown';
 
 /** Push from a running CLI login (`pb:auth:login-event`). */
@@ -1178,6 +1349,58 @@ export interface PopBotApi {
     sendLoginInput(provider: AuthProvider, text: string): Promise<boolean>;
     cancelLogin(provider: AuthProvider): Promise<void>;
     onLoginEvent(handler: (event: AuthLoginEvent) => void): () => void;
+  };
+  /** PopBot's Claude accounts: every chat — here and on every host — runs
+   *  on the active one's long-lived token (`claude setup-token`). */
+  claudeAccounts: {
+    list(): Promise<ClaudeAccountsState>;
+    /** The accounts changed on their own (a failover, another window). */
+    onChanged(handler: (state: ClaudeAccountsState) => void): () => void;
+    /** Verify the token, then add the account (the first becomes active). */
+    add(label: string, token: string): Promise<ClaudeAccountsResult>;
+    /** Verify a new token for an account, then replace its old one. */
+    setToken(id: string, token: string): Promise<ClaudeAccountsResult>;
+    rename(id: string, label: string): Promise<ClaudeAccountsResult>;
+    remove(id: string): Promise<ClaudeAccountsResult>;
+    /** Switch every chat to this account (null: the CLI's own login). */
+    setActive(id: string | null): Promise<ClaudeAccountsResult>;
+    /** Start a sign-in PopBot runs itself. `openBrowser: false` leaves
+     *  opening the sign-in page to the window (to pick which account);
+     *  `cliOpensBrowser` says when the CLI opened one all the same (where
+     *  it can't be told not to). */
+    signInStart(opts?: { openBrowser?: boolean }): Promise<{ ok: true; cliOpensBrowser: boolean } | { ok: false; error: string }>;
+    /** Give the running sign-in the code from the sign-in page. */
+    signInCode(code: string): Promise<boolean>;
+    /** Stop the running sign-in and forget any token it produced. */
+    signInCancel(): Promise<void>;
+    onSignInEvent(handler: (event: ClaudeSignInEvent) => void): () => void;
+    /** Save the token the sign-in just produced as a new account. */
+    addSignedIn(label: string): Promise<ClaudeAccountsResult>;
+    /** Save the token the sign-in just produced as this account's token. */
+    setTokenSignedIn(id: string): Promise<ClaudeAccountsResult>;
+  };
+  /** PopBot's Codex accounts: every Codex chat — here and on every host —
+   *  runs on the active one's ChatGPT sign-in. */
+  codexAccounts: {
+    list(): Promise<CodexAccountsState>;
+    /** The accounts changed on their own (a failover, another window). */
+    onChanged(handler: (state: CodexAccountsState) => void): () => void;
+    rename(id: string, label: string): Promise<CodexAccountsResult>;
+    remove(id: string): Promise<CodexAccountsResult>;
+    /** Switch every Codex chat to this account (null: this computer's own
+     *  Codex sign-in). */
+    setActive(id: string | null): Promise<CodexAccountsResult>;
+    /** Start a ChatGPT sign-in. `openBrowser: false` leaves opening the
+     *  sign-in page to the window (the link arrives as a `url` event), so
+     *  the user can open it where the right ChatGPT account is signed in. */
+    signInStart(opts?: { openBrowser?: boolean }): Promise<{ ok: true } | { ok: false; error: string }>;
+    /** Stop the running sign-in and forget anything it produced. */
+    signInCancel(): Promise<void>;
+    onSignInEvent(handler: (event: CodexSignInEvent) => void): () => void;
+    /** Save the sign-in just made as a new account (the first becomes active). */
+    addSignedIn(label: string): Promise<CodexAccountsResult>;
+    /** Save the sign-in just made as this account's sign-in. */
+    renewSignedIn(id: string): Promise<CodexAccountsResult>;
   };
   cloud: {
     /** Which key and GitHub token cloud chats would run with. */

@@ -981,44 +981,14 @@ export const fr = {
   'prefs.footMeta': 'PopBot · pré-alpha',
 
   // Preferences — Agents pane.
-  'prefs.agents.title': 'Agents',
-  'prefs.agents.desc':
-    'Niveaux d’effort par défaut pour les chats nouvellement créés. Les chats existants conservent leur propre effort enregistré jusqu’à ce que vous les modifiiez dans le compositeur de chat.',
   'prefs.agents.newChats.title': 'Nouveaux chats',
-  'prefs.agents.newChats.desc':
-    'Utilisé par les chats génériques et les chats de ticket lorsque le sélecteur d’agent s’ouvre.',
   'prefs.agents.codeReviews.title': 'Revues de code',
-  'prefs.agents.codeReviews.desc':
-    'Utilisé par les chats de revue de PR, les chats de repli de nouvelle revue et les notifications de revue.',
   'prefs.agents.codexSteering.title': 'Guider Codex pendant qu’il travaille',
-  'prefs.agents.codexSteering.desc':
-    'Se connecte à Codex via son app-server plutôt que le SDK exec : un message envoyé pendant que Codex est occupé lui parvient à son étape suivante au lieu d’attendre la fin du tour. Alimente aussi la jauge de contexte des conversations Codex et active Compacter le contexte. Expérimental dans la CLI Codex ; nécessite codex 0.153 ou plus récent. S’applique dès le prochain message de chaque conversation.',
-  'prefs.agents.codexSteering.on': 'Activé — les messages parviennent à Codex en cours de tour',
-  'prefs.agents.codexSteering.off': 'Désactivé — les messages attendent la fin du tour',
-  'prefs.agents.mcp.title': 'Outils PopBot pour les agents',
-  'prefs.agents.mcp.desc':
-    'Donne à l’agent de chaque conversation un serveur MCP « popbot » : lister, créer, fermer et rouvrir des conversations, envoyer un message à une autre conversation et attendre sa réponse, lancer des revues de code et des conversations de ticket, lire et chercher dans les transcriptions. S’applique à partir de la prochaine session d’agent de chaque conversation.',
-  'prefs.agents.mcp.on': 'Activé — les agents peuvent piloter PopBot',
-  'prefs.agents.mcp.off': 'Désactivé — pas d’outils popbot',
   'prefs.agents.cloud.title': 'Chats cloud',
-  'prefs.agents.cloud.desc':
-    'Un chat créé avec la puce Cloud s’exécute sur Anthropic Managed Agents : une session dans un bac à sable cloud Anthropic, facturée au jeton sur votre compte Console, qui continue de travailler après la fermeture de PopBot.',
   'prefs.agents.cloud.apiKey.title': 'Clé API Anthropic',
-  'prefs.agents.cloud.apiKey.desc':
-    'Stockée localement dans la base de données de l’application. Laissez vide pour utiliser la variable d’environnement ANTHROPIC_API_KEY.',
-  'prefs.agents.cloud.getKey': 'Obtenir une clé',
-  'prefs.agents.cloud.githubToken.title': 'Jeton GitHub',
-  'prefs.agents.cloud.githubToken.desc':
-    'Le bac à sable clone vos dépôts avec ce jeton (portée repo). Laissez vide pour utiliser celui avec lequel gh est connecté.',
   'prefs.agents.cloud.workspace.title': 'ID du workspace',
-  'prefs.agents.cloud.workspace.desc':
-    'Uniquement pour une clé non rattachée à un workspace (la vérification le dit) : l’id wrkspc_… de la page Workspaces de la Console. Une clé créée dans un workspace n’en a pas besoin.',
   'prefs.agents.cloud.envKey': 'La variable d’environnement ANTHROPIC_API_KEY est utilisée.',
-  'prefs.agents.cloud.noKey': 'Pas encore de clé : les chats cloud sont indisponibles.',
-  'prefs.agents.cloud.ghToken': 'GitHub : jeton de la session gh utilisé.',
-  'prefs.agents.cloud.noGh': 'GitHub : aucun jeton. Enregistrez-en un ici ou exécutez gh auth login.',
   'prefs.agents.cloud.ok': 'La clé fonctionne.',
-  'prefs.agents.cloud.error': 'Enregistrée, mais la clé ne fonctionne pas : {error}',
   'prefs.hosts.title': 'Hôtes',
   'prefs.hosts.desc':
     'D’autres machines qui exécutent des conversations pour ce PopBot. Chacune fait tourner popbot-host : compilez-le, copiez dist-host/popbot-host.cjs et lancez-le une fois avec --init pour écrire sa configuration et afficher son jeton. La transcription, la recherche et les réglages de la conversation restent ici ; l’agent, ses outils et le checkout sont là-bas. Une machine distante se joint par un tunnel SSH : ssh -L 7677:127.0.0.1:7677 machine.',

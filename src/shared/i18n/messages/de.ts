@@ -981,44 +981,14 @@ export const de = {
   'prefs.footMeta': 'PopBot · pre-alpha',
 
   // Preferences — Agents pane.
-  'prefs.agents.title': 'Agenten',
-  'prefs.agents.desc':
-    'Standard-Aufwandsstufen für neu erstellte Chats. Bestehende Chats behalten ihren eigenen gespeicherten Aufwand, bis Sie ihn im Chat-Composer ändern.',
   'prefs.agents.newChats.title': 'Neue Chats',
-  'prefs.agents.newChats.desc':
-    'Wird von generischen Chats und Ticket-Chats verwendet, wenn der Agent-Auswähler geöffnet wird.',
   'prefs.agents.codeReviews.title': 'Code-Reviews',
-  'prefs.agents.codeReviews.desc':
-    'Wird von PR-Review-Chats, Re-Review-Fallback-Chats und Review-Benachrichtigungen verwendet.',
   'prefs.agents.codexSteering.title': 'Codex während der Arbeit steuern',
-  'prefs.agents.codexSteering.desc':
-    'Verbindet sich über den app-server mit Codex statt über das exec-SDK: Eine Nachricht, die du sendest, während Codex beschäftigt ist, erreicht es beim nächsten Schritt, statt auf das Ende des Zugs zu warten. Füllt außerdem die Kontextanzeige für Codex-Chats und aktiviert „Kontext komprimieren“. In der Codex-CLI experimentell; benötigt codex 0.153 oder neuer. Gilt ab der nächsten Nachricht jedes Chats.',
-  'prefs.agents.codexSteering.on': 'An — Nachrichten erreichen Codex mitten im Zug',
-  'prefs.agents.codexSteering.off': 'Aus — Nachrichten warten auf das Ende des Zugs',
-  'prefs.agents.mcp.title': 'PopBot-Tools für Agenten',
-  'prefs.agents.mcp.desc':
-    'Gibt dem Agenten jedes Chats einen „popbot“-MCP-Server: Chats auflisten, anlegen, schließen und wieder öffnen, anderen Chats Nachrichten schicken und auf ihre Antwort warten, Code-Reviews und Ticket-Chats starten sowie Transkripte lesen und durchsuchen. Gilt ab der nächsten Agent-Session jedes Chats.',
-  'prefs.agents.mcp.on': 'An — Agenten können PopBot steuern',
-  'prefs.agents.mcp.off': 'Aus — keine popbot-Tools',
   'prefs.agents.cloud.title': 'Cloud-Chats',
-  'prefs.agents.cloud.desc':
-    'Ein mit dem Cloud-Chip erstellter Chat läuft auf Anthropic Managed Agents: eine Session in einer Anthropic-Cloud-Sandbox, pro Token über dein Console-Konto abgerechnet, die weiterarbeitet, wenn PopBot beendet wird.',
   'prefs.agents.cloud.apiKey.title': 'Anthropic-API-Key',
-  'prefs.agents.cloud.apiKey.desc':
-    'Wird lokal in der Datenbank dieser App gespeichert. Leer lassen, um die Umgebungsvariable ANTHROPIC_API_KEY zu verwenden.',
-  'prefs.agents.cloud.getKey': 'Key holen',
-  'prefs.agents.cloud.githubToken.title': 'GitHub-Token',
-  'prefs.agents.cloud.githubToken.desc':
-    'Damit klont die Sandbox deine Repositories (Scope repo). Leer lassen, um das Token zu verwenden, mit dem gh angemeldet ist.',
   'prefs.agents.cloud.workspace.title': 'Workspace-ID',
-  'prefs.agents.cloud.workspace.desc':
-    'Nur für einen Key, der keinem Workspace zugeordnet ist (die Prüfung sagt es): die wrkspc_…-ID von der Workspaces-Seite der Console. Ein in einem Workspace erstellter Key braucht keine.',
   'prefs.agents.cloud.envKey': 'Die Umgebungsvariable ANTHROPIC_API_KEY wird verwendet.',
-  'prefs.agents.cloud.noKey': 'Noch kein Key – Cloud-Chats sind nicht verfügbar.',
-  'prefs.agents.cloud.ghToken': 'GitHub: das Token verwendet, mit dem gh angemeldet ist.',
-  'prefs.agents.cloud.noGh': 'GitHub: kein Token – hier speichern oder gh auth login ausführen.',
   'prefs.agents.cloud.ok': 'Der Key funktioniert.',
-  'prefs.agents.cloud.error': 'Gespeichert, aber der Key funktioniert nicht: {error}',
   'prefs.hosts.title': 'Hosts',
   'prefs.hosts.desc':
     'Andere Rechner, die Chats für dieses PopBot ausführen. Auf jedem läuft popbot-host: bauen, dist-host/popbot-host.cjs hinüberkopieren und einmal mit --init starten, um die Konfiguration zu schreiben und das Token auszugeben. Transkript, Suche und Einstellungen des Chats bleiben hier; Agent, Tools und Checkout sind dort. Ein entfernter Rechner wird über einen SSH-Tunnel erreicht: ssh -L 7677:127.0.0.1:7677 rechner.',

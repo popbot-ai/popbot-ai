@@ -473,6 +473,31 @@ const SCHEMA = [
       AND json_extract(value, '$.claudeModel') IS NOT NULL
       AND json_extract(value, '$.claudeModel') NOT IN ('claude-opus-5-5', 'claude-sonnet-5-5', 'claude-haiku-5-5', 'claude-fable-5-2');
   `,
+  // v32 — the current Codex line-up: GPT-6.2 Sol (and on the fast tier),
+  // GPT-6.1 Terra, GPT-6 Luna, GPT-6.2 Astra. Chats on an earlier version
+  // of a line move to its current model (normalizeCodexModel already reads
+  // them that way); saved choices that name an old id say the new one.
+  `
+  UPDATE chats SET codex_model = CASE
+      WHEN codex_model GLOB 'gpt-*-sol-fast' THEN 'gpt-6.2-sol-fast'
+      WHEN codex_model GLOB 'gpt-*-sol' THEN 'gpt-6.2-sol'
+      WHEN codex_model GLOB 'gpt-*-terra' OR codex_model = 'gpt-5.5' THEN 'gpt-6.1-terra'
+      WHEN codex_model GLOB 'gpt-*-luna' THEN 'gpt-6-luna'
+      WHEN codex_model GLOB 'gpt-*-astra' THEN 'gpt-6.2-astra'
+      ELSE codex_model END
+    WHERE codex_model NOT IN ('gpt-6.2-sol', 'gpt-6.2-sol-fast', 'gpt-6.1-terra', 'gpt-6-luna', 'gpt-6.2-astra');
+  UPDATE settings SET value =
+      replace(replace(replace(replace(replace(replace(replace(replace(value,
+        '"gpt-6.1-sol-fast"', '"gpt-6.2-sol-fast"'),
+        '"gpt-6.1-sol"', '"gpt-6.2-sol"'),
+        '"gpt-6-sol"', '"gpt-6.2-sol"'),
+        '"gpt-5.6-sol"', '"gpt-6.2-sol"'),
+        '"gpt-5.6-terra"', '"gpt-6.1-terra"'),
+        '"gpt-5.5"', '"gpt-6.1-terra"'),
+        '"gpt-5.6-luna"', '"gpt-6-luna"'),
+        '"gpt-6-astra"', '"gpt-6.2-astra"')
+    WHERE value LIKE '%"gpt-%';
+  `,
 ];
 
 export function initDb(): Database.Database {

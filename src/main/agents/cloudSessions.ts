@@ -16,6 +16,7 @@ import {
   cloudSettings,
   describeApiError,
   resolveCloudApiKey,
+  resolveCloudWorkspaceId,
   resolveGithubToken,
   testCloudApiKey,
 } from './managedAgentsClient';
@@ -38,6 +39,16 @@ export async function cloudStatus(): Promise<CloudStatus> {
 }
 
 export { testCloudApiKey };
+
+/** Check the key cloud chats run on now (saved, else the environment), with the
+ *  workspace given or, when none is given, the one in use. Preferences asks
+ *  this way so a key it never sees (the environment's) is checked too, and a
+ *  saved one never has to travel back to the window to be checked. */
+export function testCloudKeyInUse(workspaceId: string | null): Promise<{ ok: true } | { ok: false; error: string }> {
+  const key = resolveCloudApiKey();
+  if (!key) return Promise.resolve({ ok: false, error: 'no key given' });
+  return testCloudApiKey(key.key, workspaceId ?? resolveCloudWorkspaceId());
+}
 
 function note(chatId: string, emit: Emit, text: string): void {
   const row = appendMessage({ chatId, role: 'system', kind: 'system', body: { text } });

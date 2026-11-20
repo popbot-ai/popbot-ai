@@ -5,16 +5,21 @@ import {
   type Query as SdkQuery,
   type SDKAssistantMessageError,
   type SDKCompactBoundaryMessage,
+  type SDKRateLimitEvent,
   type SDKMessage,
   type SDKResultMessage,
   type SDKStatusMessage,
   type SDKUserMessage,
+  type SpawnedProcess,
+  type SpawnOptions,
 } from '@anthropic-ai/claude-agent-sdk';
 import type {
   ContentBlockParam,
   ImageBlockParam,
   MessageParam,
 } from '@anthropic-ai/sdk/resources/messages';
+import { spawn } from 'node:child_process';
+import type { Writable } from 'node:stream';
 import { extname } from 'node:path';
 import { promises as fsp } from 'node:fs';
 import type { AgentEvent, PermissionDecision } from '@shared/agent';
@@ -28,6 +33,7 @@ import { DEFAULT_CONTEXT_BUDGET } from '@shared/contextUsage';
 import type { AgentBackend, AgentSession, SpawnOpts } from './types';
 import type { SessionStore } from '@anthropic-ai/claude-agent-sdk';
 import { dlog } from '../diagLog';
+import { activeClaudeAccountId, activeClaudeToken, noteClaudeAccountRefused, USAGE_LIMIT_TEXT } from './claudeAuth';
 
 /** Anthropic image API only accepts these media types. The picker
  *  permits a wider set of extensions (heic/svg/avif) for UX, but if
@@ -179,6 +185,40 @@ function claudeCliEnv(extra?: Record<string, string>): Record<string, string | u
   return env;
 }
 
+/**
+ * Start the CLI on PopBot's active Claude account (claudeAuth.ts): the
+ * token goes in on file descriptor 3 — the CLI reads it once and closes
+ * it — so it is in no file and in no environment the agent's commands
+ * inherit. Windows has no /dev/fd, so there it goes in the CLI's
+ * environment instead.
+ */
+function spawnWithToken(token: string): (o: SpawnOptions) => SpawnedProcess {
+  return (o) => {
+    const env = { ...o.env };
+    delete env.CLAUDE_CODE_OAUTH_TOKEN;
+    delete env.ANTHROPIC_API_KEY;
+    delete env.ANTHROPIC_AUTH_TOKEN;
+    const viaFd = process.platform !== 'win32';
+    if (viaFd) env.CLAUDE_CODE_OAUTH_TOKEN_FILE_DESCRIPTOR = '3';
+    else env.CLAUDE_CODE_OAUTH_TOKEN = token;
+    const child = spawn(o.command, o.args, {
+      cwd: o.cwd,
+      env,
+      stdio: viaFd ? ['pipe', 'pipe', 'pipe', 'pipe'] : ['pipe', 'pipe', 'pipe'],
+      windowsHide: true,
+    });
+    if (viaFd) {
+      const fd = child.stdio[3] as Writable | null;
+      fd?.on('error', () => undefined);
+      fd?.end(token);
+    }
+    // Nothing reads the CLI's stderr; drain it so a chatty CLI can't block.
+    child.stderr?.resume();
+    o.signal.addEventListener('abort', () => { if (child.exitCode === null) child.kill('SIGTERM'); }, { once: true });
+    return child as unknown as SpawnedProcess;
+  };
+}
+
 class ClaudeSession implements AgentSession {
   private readonly chatId: string;
   private readonly cwd: string | null;
@@ -252,6 +292,13 @@ class ClaudeSession implements AgentSession {
    *  follows is a plain `success`, so without this it would also read
    *  as an empty turn and trigger a second retry. */
   private turnFailedByApi = false;
+  /** This turn hit its account's usage limit (reported once per turn). */
+  private turnUsageLimited = false;
+  /** PopBot's Claude account this session was started on, if any. */
+  private startedAccountId: string | null = null;
+  /** When it was started (ms): a sign-in refused here counts against the
+   *  account only if its token has not been replaced since. */
+  private startedAt = 0;
 
   constructor(opts: SpawnOpts) {
     this.chatId = opts.chatId;
@@ -296,6 +343,9 @@ class ClaudeSession implements AgentSession {
   }
 
   private start(): void {
+    const claudeToken = activeClaudeToken();
+    this.startedAccountId = claudeToken ? activeClaudeAccountId() : null;
+    this.startedAt = Date.now();
     const options: SdkOptions = {
       includePartialMessages: true,
       canUseTool: this.handleCanUseTool.bind(this),
@@ -319,6 +369,10 @@ class ClaudeSession implements AgentSession {
         ? { pathToClaudeCodeExecutable: this.pathToClaudeCodeExecutable }
         : {}),
       env: claudeCliEnv(this.extraEnv),
+      // On PopBot's Claude account when one is set: started with its token,
+      // and asked again — by the CLI itself — whenever that token fails,
+      // so a new sign-in or an account switch reaches a running session.
+      ...(claudeToken ? { spawnClaudeCodeProcess: spawnWithToken(claudeToken) } : {}),
       ...(this.appendSystemPrompt
         ? { systemPrompt: { type: 'preset' as const, preset: 'claude_code' as const, append: this.appendSystemPrompt, snapshot: false } }
         : {}),
@@ -335,6 +389,9 @@ class ClaudeSession implements AgentSession {
       // .mcp.json — each chat's agent connects to its own slot's editor.
       ...(this.mcpServers ? { mcpServers: this.mcpServers } : {}),
     };
+    // The SDK's (untyped) token-refresh hook: a CLI on a token asks for a
+    // fresh one at start and after a 401, and gets the active account's.
+    if (claudeToken) Object.assign(options, { getOAuthToken: async () => activeClaudeToken() });
     try {
       this.query = sdkQuery({ prompt: this.userMessages(), options });
     } catch (err) {
@@ -643,6 +700,19 @@ class ClaudeSession implements AgentSession {
       return;
     }
 
+    // The account's plan limits, as the CLI learns them. Rejected with no
+    // extra usage to fall back on: the account is out of usage, and
+    // PopBot moves every chat to another account (claudeAuth.ts).
+    if ((msg as { type: string }).type === 'rate_limit_event') {
+      const info = (msg as unknown as SDKRateLimitEvent).rate_limit_info;
+      const overage = info.overageStatus === 'allowed' || info.overageStatus === 'allowed_warning' || info.isUsingOverage === true;
+      dlog('claude.rate-limit', { chatId: this.chatId, status: info.status, limit: info.rateLimitType, resetsAt: info.resetsAt, overage: info.overageStatus });
+      if (info.status === 'rejected' && !overage) {
+        this.reportUsageLimit(typeof info.resetsAt === 'number' ? info.resetsAt * 1000 : null, info.rateLimitType, ts);
+      }
+      return;
+    }
+
     if (msg.type === 'system') {
       const subtype = (msg as { subtype?: string }).subtype;
       // Compaction progress: a status pair brackets the work, and a
@@ -666,6 +736,7 @@ class ClaudeSession implements AgentSession {
         });
         this.turnProducedOutput = false;
         this.turnFailedByApi = false;
+        this.turnUsageLimited = false;
         // The CLI has dequeued a message and is starting a turn on it.
         // AgentHost counts these against the messages we've handed over,
         // so it can tell "all caught up" from "your last message is
@@ -772,8 +843,11 @@ class ClaudeSession implements AgentSession {
         // Retry unless it's provably hopeless. A turn that failed
         // having produced nothing can always be redone safely, so the
         // only question is whether redoing it could ever help.
+        const usageLimit = this.turnUsageLimited || USAGE_LIMIT_TEXT.test(detailText);
+        if (usageLimit) this.reportUsageLimit(null, undefined, ts);
         const fatal = FATAL_TURN_ERROR.test(`${subtype} ${detailText}`);
-        const recoverable = !fatal && !this.turnProducedOutput;
+        // Out of usage is "fatal" on this account but not on the next one.
+        const recoverable = (usageLimit || !fatal) && !this.turnProducedOutput;
         const userMessage = detailText
           ? `${subtype}: ${detailText}`
           : `the agent's turn ended early (${subtype})`;
@@ -785,6 +859,7 @@ class ClaudeSession implements AgentSession {
           // user must wait out; red only for real breakage.
           level: !fatal ? 'notice' : EXPECTED_LIMIT.test(`${subtype} ${detailText}`) ? 'warning' : 'error',
           retryable: recoverable,
+          ...(usageLimit ? { usageLimit: true } : {}),
           ts,
         });
         // A retryable turn isn't a dead end — AgentHost is about to
@@ -868,6 +943,21 @@ class ClaudeSession implements AgentSession {
     });
   }
 
+  /** The account is out of usage: say so once per turn, for the failover. */
+  private reportUsageLimit(resetsAt: number | null, limitType: string | undefined, ts: number): void {
+    if (this.turnUsageLimited) return;
+    this.turnUsageLimited = true;
+    dlog('claude.usage-limit', { chatId: this.chatId, account: this.startedAccountId, resetsAt, limitType });
+    this.onEvent({
+      type: 'usage-limit',
+      chatId: this.chatId,
+      accountId: this.startedAccountId,
+      resetsAt,
+      ...(limitType ? { limitType } : {}),
+      ts,
+    });
+  }
+
   /** An API-level failure reported as an assistant message. Never shown
    *  as prose: it becomes the turn's error, retried or not per
    *  API_ERROR_TREATMENT, and the turn is marked failed so the plain
@@ -887,6 +977,24 @@ class ClaudeSession implements AgentSession {
       .slice(0, 300);
     this.turnFailedByApi = true;
     dlog('claude.api-error', { chatId: this.chatId, sessionId: this.knownSessionId, kind, said });
+    // Out of usage: replayed on the next account when there is one.
+    if ((kind === 'rate_limit' || kind === 'billing_error') && (this.turnUsageLimited || USAGE_LIMIT_TEXT.test(said))) {
+      this.reportUsageLimit(null, undefined, ts);
+      this.onEvent({
+        type: 'error',
+        chatId: this.chatId,
+        message: said || 'This Claude account is out of usage.',
+        level: 'warning',
+        usageLimit: true,
+        retryable: true,
+        ts,
+      });
+      return;
+    }
+    // On one of PopBot's accounts the refused sign-in is that account's:
+    // marked (claudeAuth.ts), so the user can be told which one to sign
+    // in again.
+    if (kind === 'authentication_failed' && this.startedAccountId) noteClaudeAccountRefused(this.startedAccountId, this.startedAt);
     const message = kind === 'authentication_failed'
       ? `Claude sign-in has expired${said ? ` (${said})` : ''}. Sign in again, then press Retry.`
       : said || `Claude API error: ${kind}`;

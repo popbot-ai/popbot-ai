@@ -10,6 +10,7 @@
  * and bots can still see and message each other with no desktop there.
  */
 import { resolveCliPath } from '../main/agents/resolveCli';
+import { adoptEnvClaudeToken } from '../main/agents/claudeAuth';
 import { dlog } from '../main/diagLog';
 import { resolveConfig } from './config';
 import { startBotMcp } from './botMcp';
@@ -27,6 +28,10 @@ declare const __POPBOT_HOST_VERSION__: string | undefined;
 const VERSION = typeof __POPBOT_HOST_VERSION__ === 'string' ? __POPBOT_HOST_VERSION__ : 'dev';
 
 async function main(): Promise<void> {
+  // The host's own Claude token, if its environment has one: the fallback
+  // account until a desktop sends its accounts — and out of the
+  // environment, so no agent's command inherits it (agents/claudeAuth.ts).
+  adoptEnvClaudeToken();
   const argv = process.argv.slice(2);
   if (argv.includes('--help') || argv.includes('-h')) {
     process.stdout.write(

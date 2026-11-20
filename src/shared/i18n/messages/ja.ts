@@ -975,43 +975,14 @@ export const ja = {
   'prefs.footMeta': 'PopBot · プレアルファ',
 
   // Preferences — Agents pane.
-  'prefs.agents.title': 'エージェント',
-  'prefs.agents.desc':
-    '新規作成されるチャットのデフォルトのエフォートレベルです。既存のチャットは、チャットコンポーザーで変更するまで、保存された独自のエフォートを保持します。',
   'prefs.agents.newChats.title': '新しいチャット',
-  'prefs.agents.newChats.desc':
-    'エージェントピッカーが開いたときに、汎用チャットとチケットチャットで使用されます。',
   'prefs.agents.codeReviews.title': 'コードレビュー',
-  'prefs.agents.codeReviews.desc':
-    'PR レビューチャット、再レビューのフォールバックチャット、レビュー通知で使用されます。',
   'prefs.agents.codexSteering.title': '作業中の Codex に指示を届ける',
-  'prefs.agents.codexSteering.desc':
-    'exec SDK の代わりに Codex の app-server 経由で接続します。Codex の作業中に送ったメッセージが、ターンの終了を待たずに次のステップで届きます。Codex チャットのコンテキストゲージも機能し、「コンテキストを圧縮」も使えるようになります。Codex CLI では実験的機能で、codex 0.153 以降が必要です。各チャットの次のメッセージから適用されます。',
-  'prefs.agents.codexSteering.on': 'オン — メッセージはターンの途中で Codex に届きます',
-  'prefs.agents.codexSteering.off': 'オフ — メッセージはターンの終了を待ちます',
-  'prefs.agents.mcp.title': 'エージェント向け PopBot ツール',
-  'prefs.agents.mcp.desc':
-    '各チャットのエージェントに「popbot」MCP サーバーを提供します。チャットの一覧・作成・クローズ・再オープン、他のチャットへのメッセージ送信と返答待ち、コードレビューやチケットチャットの開始、記録の閲覧と検索ができます。各チャットの次回のエージェントセッションから適用されます。',
-  'prefs.agents.mcp.on': 'オン — エージェントが PopBot を操作できます',
-  'prefs.agents.mcp.off': 'オフ — popbot ツールなし',
   'prefs.agents.cloud.title': 'クラウドチャット',
-  'prefs.agents.cloud.desc':
-    'Cloud チップを付けて作成したチャットは Anthropic Managed Agents で実行されます。Anthropic のクラウドサンドボックス内のセッションで、Console アカウントにトークン単位で課金され、PopBot を終了しても動き続けます。',
   'prefs.agents.cloud.apiKey.title': 'Anthropic API キー',
-  'prefs.agents.cloud.apiKey.desc': 'このアプリのデータベースにローカル保存されます。空のままにすると環境変数 ANTHROPIC_API_KEY を使います。',
-  'prefs.agents.cloud.getKey': 'キーを取得',
-  'prefs.agents.cloud.githubToken.title': 'GitHub トークン',
-  'prefs.agents.cloud.githubToken.desc':
-    'サンドボックスはこのトークンでリポジトリをクローンします（repo スコープ）。空のままにすると gh がサインインしているトークンを使います。',
   'prefs.agents.cloud.workspace.title': 'ワークスペース ID',
-  'prefs.agents.cloud.workspace.desc':
-    'ワークスペースに紐付いていないキーの場合のみ（検証がそう伝えます）: Console の Workspaces ページにある wrkspc_… の ID。ワークスペース内で作成したキーには不要です。',
   'prefs.agents.cloud.envKey': '環境変数 ANTHROPIC_API_KEY を使用中です。',
-  'prefs.agents.cloud.noKey': 'キーがまだありません。クラウドチャットは利用できません。',
-  'prefs.agents.cloud.ghToken': 'GitHub: gh がサインインしているトークンを使用中です。',
-  'prefs.agents.cloud.noGh': 'GitHub: トークンがありません。ここに保存するか gh auth login を実行してください。',
   'prefs.agents.cloud.ok': 'キーは有効です。',
-  'prefs.agents.cloud.error': '保存しましたが、キーが使えませんでした: {error}',
   'prefs.hosts.title': 'ホスト',
   'prefs.hosts.desc':
     'この PopBot のチャットを実行する他のマシンです。各マシンで popbot-host を動かします。ビルドして dist-host/popbot-host.cjs をコピーし、--init を付けて一度実行すると設定が書き出され、トークンが表示されます。チャットのトランスクリプト、検索、設定はここに残り、エージェント、ツール、チェックアウトは向こうにあります。リモートのマシンには SSH トンネルで接続します: ssh -L 7677:127.0.0.1:7677 machine',

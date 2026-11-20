@@ -24,9 +24,12 @@ import type {
   HostSpawnResult,
 } from '@shared/hostProtocol';
 import { ClaudeBackend } from '../main/agents/ClaudeBackend';
+import { CodexAppServerBackend } from '../main/agents/CodexAppServerBackend';
 import { CodexBackend } from '../main/agents/CodexBackend';
+import { activeCodexAccountId, activeCodexAuth, failOverCodexFromExhausted } from '../main/agents/codexAuth';
 import type { AgentSession } from '../main/agents/types';
 import { dlog } from '../main/diagLog';
+import { activeClaudeToken, failOverFromExhausted } from '../main/agents/claudeAuth';
 import { ChatRoster } from './chatRoster';
 import type { HostConfig } from './config';
 import { FrameLog } from './frameLog';
@@ -109,6 +112,10 @@ interface LiveChat {
   /** Which spawn's session this is: a replaced session's last events
    *  (an abort, a closing status) are dropped, not logged as current. */
   token: object;
+  /** A Claude session (not Codex): runs on the Claude account. */
+  claude: boolean;
+  /** The Claude account changed mid-turn: end it once the turn is over. */
+  restartAfterTurn: boolean;
 }
 
 export class HostSessions {
@@ -302,6 +309,8 @@ export class HostSessions {
       busy: false,
       lastAsk: null,
       token: {},
+      claude: bot ? true : body.agent !== 'codex',
+      restartAfterTurn: false,
     };
     const token = live.token;
     const current = (): boolean => this.chats.get(chatId)?.token === token;
@@ -309,7 +318,10 @@ export class HostSessions {
     // Frames of this session start after this seq.
     const startSeq = live.seq;
     const isCodex = !bot && body.agent === 'codex';
-    const backend = isCodex ? CodexBackend : ClaudeBackend;
+    // Codex on one of the desktop's accounts needs the app-server: it is
+    // the engine that can be handed an account's token (codexAuth.ts).
+    // Without an account, the exec engine and this computer's own sign-in.
+    const backend = isCodex ? (activeCodexAuth() ? CodexAppServerBackend : CodexBackend) : ClaudeBackend;
     const popbotMcp = !bot && body.popbotMcp && this.mcpUrlFor ? this.mcpUrlFor(chatId) : null;
     const mcpServers = bot
       ? bot.mcpServers
@@ -467,6 +479,38 @@ export class HostSessions {
     dlog('host.dispose', { chatId });
   }
 
+  /**
+   * The Claude account changed (the desktop sent another, claudeAuth.ts):
+   * every Claude session here moves to it — ended now when idle, after
+   * its turn otherwise. The desktop respawns a chat on its next message
+   * and a bot on its next trigger, each resuming its session.
+   */
+  restartClaude(): void {
+    for (const [chatId, live] of this.chats) {
+      if (!live.claude) continue;
+      if (live.busy) live.restartAfterTurn = true;
+      else void this.dispose(chatId);
+    }
+    dlog('host.claude-account-restart', { sessions: [...this.chats.values()].filter((c) => c.claude).length });
+  }
+
+  /**
+   * The Codex account in use changed (the desktop sent another, or none):
+   * every Codex session here moves — ended now when idle, after its turn
+   * otherwise; the desktop respawns a chat on its next message, resuming
+   * its thread on the new account.
+   */
+  restartCodex(): void {
+    let moved = 0;
+    for (const [chatId, live] of this.chats) {
+      if (live.claude) continue;
+      moved += 1;
+      if (live.busy) live.restartAfterTurn = true;
+      else void this.dispose(chatId);
+    }
+    dlog('host.codex-account-restart', { sessions: moved });
+  }
+
   async disposeAll(): Promise<void> {
     await Promise.all([...this.chats.keys()].map((id) => this.dispose(id)));
   }
@@ -504,6 +548,24 @@ export class HostSessions {
 
   /** Track whether a turn is in flight, and tell the bots when one ends. */
   private noteTurn(chatId: string, live: LiveChat, event: AgentEvent): void {
+    // The account ran out of usage: move every Claude session here to the
+    // next account that has some — at once, so loops carry on even with
+    // no desktop around (it does the same when it is, and they agree).
+    if (event.type === 'usage-limit') {
+      if (!live.claude) {
+        // A Codex session's limit moves the Codex sessions, the same way.
+        const was = activeCodexAccountId();
+        const outcome = failOverCodexFromExhausted(event.accountId, event.resetsAt);
+        dlog('host.codex-usage-limit', { chatId, outcome: outcome.kind, ...(outcome.kind === 'switched' ? { to: outcome.toLabel } : {}) });
+        if (activeCodexAccountId() !== was) this.restartCodex();
+        return;
+      }
+      const before = activeClaudeToken();
+      const outcome = failOverFromExhausted(event.accountId, event.resetsAt);
+      dlog('host.claude-usage-limit', { chatId, outcome: outcome.kind, ...(outcome.kind === 'switched' ? { to: outcome.toLabel } : {}) });
+      if (activeClaudeToken() !== before) this.restartClaude();
+      return;
+    }
     if (event.type === 'turn-start') {
       live.busy = true;
       this.turnStarts.set(chatId, Date.now());
@@ -513,6 +575,10 @@ export class HostSessions {
       if (!live.busy) return;
       live.busy = false;
       this.bots?.idle(chatId);
+      if (live.restartAfterTurn) {
+        live.restartAfterTurn = false;
+        setTimeout(() => void this.dispose(chatId), 0);
+      }
     }
   }
 

@@ -25,6 +25,8 @@ import {
   codexToolId as toolIdFor,
   codexWireReasoningEffort,
   stringifyForDisplay,
+  withHeldMessages,
+  type HeldMessage,
 } from './codexShared';
 
 /**
@@ -88,6 +90,12 @@ class CodexSession implements AgentSession {
   /** Incremented by Stop. Queued callbacks capture the generation they were
    * submitted in and become no-ops when that generation is cancelled. */
   private queueGeneration = 0;
+  /** Sent, but still waiting behind the running turn. */
+  private waiting: HeldMessage[] = [];
+  /** Were waiting when Stop was pressed: Codex never received them, and
+   *  the transcript shows them as sent. They go with the next message
+   *  (codexShared.ts, withHeldMessages) — a message is never lost. */
+  private held: HeldMessage[] = [];
 
   constructor(opts: SpawnOpts) {
     this.chatId = opts.chatId;
@@ -144,9 +152,14 @@ class CodexSession implements AgentSession {
   async sendUser(text: string, attachments?: PickedAttachment[]): Promise<void> {
     if (this.disposed) return;
     const generation = this.queueGeneration;
+    const message: HeldMessage = { text, ...(attachments ? { attachments } : {}) };
+    this.waiting.push(message);
     const turn = this.turnTail.then(async () => {
+      // Stopped while waiting: stop() has already put it with the held ones.
       if (this.disposed || generation !== this.queueGeneration) return;
-      await this.runTurn(text, attachments);
+      this.waiting = this.waiting.filter((m) => m !== message);
+      const whole = withHeldMessages(this.held.splice(0), message);
+      await this.runTurn(whole.text, whole.attachments);
     });
     // Accept the turn as soon as it is queued. AgentHost must be able to arm
     // its silence watchdog immediately; awaiting `runTurn` here means a hung
@@ -208,10 +221,14 @@ class CodexSession implements AgentSession {
 
   stop(): void {
     this.queueGeneration += 1;
+    // What was still waiting is not sent on — the user asked for a stop —
+    // and not forgotten either: it goes with their next message.
+    this.held.push(...this.waiting.splice(0));
     dlog('codex.stop', {
       chatId: this.chatId,
       generation: this.queueGeneration,
       hadActiveTurn: this.abortController !== null,
+      held: this.held.length,
     });
     this.abortController?.abort();
     this.emit({ type: 'session-status', chatId: this.chatId, status: 'idle', ts: Date.now() });
