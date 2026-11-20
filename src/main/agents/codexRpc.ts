@@ -165,8 +165,19 @@ export class CodexRpcClient {
  * stderr is where the CLI logs; the tail is kept so an unexpected exit
  * can say why (bad auth, unknown flag on an old CLI, ...).
  */
-export function spawnCodexAppServer(codexPath: string, extraPathDirs: string[] = []): LineTransport {
+export function spawnCodexAppServer(
+  codexPath: string,
+  extraPathDirs: string[] = [],
+  /** `args` follow `app-server` (no spaces or quotes in them: on Windows
+   *  they may pass through a shell). `env` is laid over this process's
+   *  environment; a key given as undefined is removed from it. */
+  opts: { args?: string[]; env?: Record<string, string | undefined> } = {},
+): LineTransport {
   const env: NodeJS.ProcessEnv = { ...process.env };
+  for (const [key, value] of Object.entries(opts.env ?? {})) {
+    if (value === undefined) delete env[key];
+    else env[key] = value;
+  }
   if (extraPathDirs.length > 0) {
     const sep = process.platform === 'win32' ? ';' : ':';
     env.PATH = [...extraPathDirs, env.PATH ?? ''].filter(Boolean).join(sep);
@@ -174,7 +185,7 @@ export function spawnCodexAppServer(codexPath: string, extraPathDirs: string[] =
   // An npm shim on Windows is a .cmd, which Node will only launch
   // through a shell. A native binary (what the probe prefers) is direct.
   const viaShell = process.platform === 'win32' && /\.(cmd|bat)$/i.test(codexPath);
-  const child = spawn(viaShell ? `"${codexPath}"` : codexPath, ['app-server'], {
+  const child = spawn(viaShell ? `"${codexPath}"` : codexPath, ['app-server', ...(opts.args ?? [])], {
     env,
     stdio: ['pipe', 'pipe', 'pipe'],
     shell: viaShell,

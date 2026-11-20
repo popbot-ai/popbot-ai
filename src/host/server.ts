@@ -23,6 +23,8 @@ import {
   type HostWorkspaceRequest,
 } from '@shared/hostProtocol';
 import { dlog } from '../main/diagLog';
+import { activeClaudeAccount, exhaustedAccounts, noteExhausted, setClaudeAccounts } from '../main/agents/claudeAuth';
+import { activeCodexAccount, exhaustedCodexAccounts, noteCodexExhausted, setCodexAccounts, type CodexAccountSecret } from '../main/agents/codexAuth';
 import type { HostBots } from './bots';
 import { removeRepo, upsertRepo, type HostConfig } from './config';
 import { listBranches } from './git';
@@ -115,6 +117,45 @@ export function createHostServer(opts: {
     sessions.noteDesktop();
     const parts = url.pathname.split('/').filter(Boolean);
     if (parts[0] !== 'v1') return json(res, 404, { error: 'not found' });
+
+    // The desktop's Claude accounts (agents/claudeAccountsSync.ts): held
+    // in memory only; a change of active token restarts the Claude
+    // sessions here onto it.
+    if (req.method === 'POST' && parts[1] === 'claude-accounts' && parts.length === 2) {
+      const b = (await readJson(req)) as { activeId?: unknown; accounts?: unknown; exhausted?: unknown };
+      if (b.exhausted && typeof b.exhausted === 'object') noteExhausted(b.exhausted as Record<string, number>);
+      const accounts = (Array.isArray(b.accounts) ? b.accounts : [])
+        .filter((a): a is { id: string; label: string; token: string } =>
+          !!a && typeof a === 'object' && typeof (a as { id?: unknown }).id === 'string'
+          && typeof (a as { token?: unknown }).token === 'string')
+        .map((a) => ({ id: a.id, label: typeof a.label === 'string' ? a.label : a.id, token: a.token }));
+      const changed = setClaudeAccounts(accounts, typeof b.activeId === 'string' ? b.activeId : null);
+      if (changed) sessions.restartClaude();
+      return json(res, 200, { ok: true, changed, active: activeClaudeAccount()?.label ?? null, exhausted: exhaustedAccounts() });
+    }
+
+    // The desktop's Codex accounts (agents/codexAccountsSync.ts): an
+    // access token each, held in memory only. Another account in use (or
+    // none) restarts the Codex sessions here onto it; a newer token for
+    // the same account does not — a session that needs it asks.
+    if (req.method === 'POST' && parts[1] === 'codex-accounts' && parts.length === 2) {
+      const b = (await readJson(req)) as { activeId?: unknown; accounts?: unknown; exhausted?: unknown };
+      if (b.exhausted && typeof b.exhausted === 'object') noteCodexExhausted(b.exhausted as Record<string, number>);
+      const str = (v: unknown): v is string => typeof v === 'string' && v.length > 0;
+      const accounts: CodexAccountSecret[] = (Array.isArray(b.accounts) ? b.accounts : [])
+        .filter((a): a is Record<string, unknown> => !!a && typeof a === 'object')
+        .filter((a) => str(a.id) && str(a.accessToken) && str(a.chatgptAccountId))
+        .map((a) => ({
+          id: a.id as string,
+          label: str(a.label) ? a.label : (a.id as string),
+          accessToken: a.accessToken as string,
+          chatgptAccountId: a.chatgptAccountId as string,
+          planType: str(a.planType) ? a.planType : null,
+        }));
+      const change = setCodexAccounts(accounts, typeof b.activeId === 'string' ? b.activeId : null);
+      if (change === 'account') sessions.restartCodex();
+      return json(res, 200, { ok: true, changed: change !== null, active: activeCodexAccount()?.label ?? null, exhausted: exhaustedCodexAccounts() });
+    }
 
     if (req.method === 'GET' && parts[1] === 'info' && parts.length === 2) {
       const info: HostInfo = {

@@ -23,8 +23,6 @@ import {
   ATTACHMENT_TTL_DAYS_DEFAULT,
   ATTACHMENT_TTL_DAYS_MAX,
   ATTACHMENT_TTL_DAYS_MIN,
-  CLAUDE_REASONING_EFFORTS,
-  CODEX_REASONING_EFFORTS,
   CLOUD_SETTINGS_KEY,
   CODEX_SETTINGS_KEY,
   POPBOT_MCP_SETTINGS_KEY,
@@ -62,7 +60,11 @@ import {
   type ReviewScope,
 } from '@shared/reviews';
 import { ConfirmDialog } from './ConfirmDialog';
-import type { BasePreflightInfo } from '@shared/ipc';
+import { PrefsClaudeAccounts, useClaudeAccountsAttention, useClaudeAccountsState } from './PrefsClaudeAccounts';
+import { PrefsCodexAccounts, useCodexAccountsAttention, useCodexAccountsState } from './PrefsCodexAccounts';
+import { AgentLogo, type LogoAgent } from './AgentLogo';
+import { accountInUse as codexAccountInUse, accountsPointer as codexAccountsPointer } from '../lib/codexAccountsView';
+import type { BasePreflightInfo, CloudStatus, CodexAccountsState } from '@shared/ipc';
 import type { HostInfo, HostRepo } from '@shared/hostProtocol';
 import type { HostRecord } from '@shared/persistence';
 import { isMcpTool, mcpServerOfTool, permissionRuleMatches } from '@shared/agent';
@@ -77,6 +79,53 @@ import {
   type AgentEffortDefaultsSettings,
 } from './AgentCreateControls';
 import { DEFAULT_REPO_COLOR, POPBOT_PALETTE } from '../lib/repoColor';
+import {
+  ICON,
+  CLAUDE_EFFORT_CHOICES,
+  CODEX_EFFORT_CHOICES,
+  accountsPointer,
+  apiKeyProblem,
+  cloudFooter,
+  cloudPill,
+  codexCli,
+  controlView,
+  effortOptionKey,
+  failedCheck,
+  githubNoteLine,
+  githubRow,
+  githubTokenProblem,
+  keyErrorKind,
+  keyFieldLine,
+  keyNoteLine,
+  keyRow,
+  lastKeyFailure,
+  leaveOutcome,
+  lineClass,
+  lineIcon,
+  markView,
+  secretMode,
+  shownCodexEffort,
+  steerView,
+  tokenCloseKey,
+  tokenFieldLine,
+  withApiKey,
+  withGithubToken,
+  withWorkspaceId,
+  withoutField,
+  workspaceLine,
+  workspaceView,
+  type FieldNote,
+  type GithubNote,
+  type KeyCheck,
+  type KeyDraftVerdict,
+  type KeyErrorKind,
+  type MarkKind,
+  type Pill,
+  type SecretMode,
+  type StateLine,
+  type SwitchView,
+  type TokenProblem,
+} from '../lib/agentsPaneView';
 import {
   CODE_REVIEW_TEMPLATE_VARS,
   DEFAULT_ADDRESS_CR_TEMPLATE,
@@ -109,14 +158,22 @@ interface PreferencesSheetProps {
    *  show up live instead of needing a reload. */
   onReposChanged?: () => void;
   /** Open with this section selected. Used to deep-link from elsewhere
-   *  in the app — e.g. the slot-not-configured prompt opens 'runtime'. */
+   *  in the app — e.g. the slot-not-configured prompt opens 'runtime'.
+   *  A part after `#` names a place inside the section: 'agents#cloud'
+   *  opens Agents at Cloud chats. */
   initialSection?: string;
+  /** Close Preferences and open New chat set up for a cloud chat — the
+   *  Cloud chats card offers it once a key works. */
+  onNewCloudChat?: () => void;
 }
 
 interface NavSection {
   id: string;
   /** i18n key for the nav label (translated at render time). */
   labelKey: MessageKey;
+  /** The agent whose mark stands in for the icon: the two accounts
+   *  entries would otherwise carry the same one. */
+  logo?: LogoAgent;
   icon: string;
 }
 
@@ -127,6 +184,8 @@ interface NavSection {
 // can put them back here as each one ships.
 const SECTIONS: NavSection[] = [
   { id: 'integ', labelKey: 'prefs.section.integ', icon: 'fa-plug' },
+  { id: 'accounts', labelKey: 'prefs.section.accounts', icon: 'fa-circle-user', logo: 'claude' },
+  { id: 'codexAccounts', labelKey: 'prefs.section.codexAccounts', icon: 'fa-circle-user', logo: 'codex' },
   { id: 'agents', labelKey: 'prefs.section.agents', icon: 'fa-robot' },
   { id: 'hosts', labelKey: 'prefs.section.hosts', icon: 'fa-server' },
   { id: 'runtime', labelKey: 'prefs.section.runtime', icon: 'fa-microchip' },
@@ -179,18 +238,29 @@ export function PreferencesSheet({
   onLinearChanged,
   onReposChanged,
   initialSection,
+  onNewCloudChat,
 }: PreferencesSheetProps): JSX.Element {
   // Fall back to the first section if we're handed (or deep-linked to) an
   // id that no longer has a render branch — otherwise the content pane
   // renders empty with nothing highlighted in the nav.
   const known = (id: string | undefined): string =>
     SECTIONS.some((s) => s.id === id) ? (id as string) : SECTIONS[0].id;
-  const [section, setSection] = useState(() => known(initialSection));
+  // 'section#anchor': the anchor is read once, when the sheet opens, and
+  // dropped as soon as the user picks a section themselves.
+  const [initialId, initialAnchor] = (initialSection ?? '').split('#');
+  const [section, setSection] = useState(() => known(initialId));
+  const [anchor, setAnchor] = useState<string | undefined>(initialAnchor || undefined);
   const { t } = useTranslation();
   const [version, setVersion] = useState('');
   useEffect(() => {
     void window.popbot.app.getVersion().then(setVersion).catch(() => {});
   }, []);
+  // The Claude accounts nav item carries a mark while the account chats
+  // run on can't run them (refused or expired sign-in, or every account
+  // out of usage), so the problem shows from any section.
+  const accountsAlert = useClaudeAccountsAttention();
+  // The Codex accounts item carries the same mark, for the same reason.
+  const codexAccountsAlert = useCodexAccountsAttention();
 
   return (
     <>
@@ -209,16 +279,23 @@ export function PreferencesSheet({
               <button
                 key={s.id}
                 className={`prefs-nav-item ${section === s.id ? 'active' : ''}`}
-                onClick={() => setSection(s.id)}
+                onClick={() => { setSection(s.id); setAnchor(undefined); }}
               >
-                <i className={`fa-solid ${s.icon}`} />
+                {s.logo
+                  ? <AgentLogo agent={s.logo} size={13} className="prefs-nav-logo" />
+                  : <i className={`fa-solid ${s.icon}`} />}
                 <span>{t(s.labelKey)}</span>
+                {((s.id === 'accounts' && accountsAlert) || (s.id === 'codexAccounts' && codexAccountsAlert)) && (
+                  <i className="fa-solid fa-circle-exclamation prefs-nav-alert" role="img" aria-label={t('prefs.accounts.navAlert')} />
+                )}
               </button>
             ))}
           </nav>
           <div className="prefs-content">
             {section === 'integ' && <PrefsIntegrations onLinearChanged={onLinearChanged} />}
-            {section === 'agents' && <PrefsAgents />}
+            {section === 'accounts' && <PrefsClaudeAccounts />}
+            {section === 'codexAccounts' && <PrefsCodexAccounts />}
+            {section === 'agents' && <PrefsAgents onGoTo={setSection} anchor={anchor} onNewCloudChat={onNewCloudChat} />}
             {section === 'hosts' && <PrefsHosts onGoTo={setSection} />}
             {section === 'runtime' && <PrefsAttachments />}
             {section === 'repos' && <PrefsRepos onReposChanged={onReposChanged} />}
@@ -309,7 +386,113 @@ function blurOnEnter(e: React.KeyboardEvent<HTMLInputElement>): void {
   }
 }
 
-function PrefsAgents(): JSX.Element {
+/** The pane's six features, in the order they are shown. Each is a
+ *  section with the id `agents-{id}`, which is what a deep link
+ *  (`agents#cloud`) names. */
+const AGENT_FEATURES = [
+  { id: 'accounts', title: 'prefs.agents.accounts.title' },
+  { id: 'codexAccounts', title: 'prefs.agents.codexAccounts.title' },
+  { id: 'effort', title: 'prefs.agents.effort.title' },
+  { id: 'steer', title: 'prefs.agents.codexSteering.title' },
+  { id: 'control', title: 'prefs.agents.control.title' },
+  { id: 'cloud', title: 'prefs.agents.cloud.title' },
+] as const satisfies ReadonlyArray<{ id: string; title: MessageKey }>;
+
+type AgentFeatureId = (typeof AGENT_FEATURES)[number]['id'];
+
+/** How long a section a deep link landed on keeps its accent edge. */
+const ARRIVED_MS = 2_000;
+/** How often the accounts pointer re-reads the clock: an out-of-usage
+ *  time that has passed counts as cleared, with nobody pressing anything. */
+const POINTER_TICK_MS = 30_000;
+/** Where an Anthropic API key is made. */
+const API_KEYS_URL = 'https://platform.claude.com/settings/keys';
+
+function errorMessage(err: unknown): string {
+  return err instanceof Error ? err.message : String(err);
+}
+
+/** One of the pane's features: a section named by its heading. */
+function FeatureSection({ id, arrived, children }: {
+  id: AgentFeatureId;
+  /** A deep link just landed here: the accent edge that fades. */
+  arrived?: boolean;
+  children: ReactNode;
+}): JSX.Element {
+  return (
+    <section className={`pref-section${arrived ? ' arrived' : ''}`} id={`agents-${id}`} aria-labelledby={`agents-${id}-h`}>
+      {children}
+    </section>
+  );
+}
+
+/**
+ * The head every feature shares: its name, the pill that says its state
+ * directly after the name (never at the far right, which is the control
+ * column), then its one control. The heading can take focus so a deep
+ * link has somewhere to land.
+ */
+function FeatureHead({ id, title, pill, children }: {
+  id: AgentFeatureId;
+  title: string;
+  pill?: Pill | null;
+  /** The one control at the right edge, if the feature has one. */
+  children?: ReactNode;
+}): JSX.Element {
+  const { t } = useTranslation();
+  return (
+    <div className="pref-head">
+      <h3 id={`agents-${id}-h`} tabIndex={-1}>{title}</h3>
+      {pill && (
+        <span className={`pill ${pill.tone}`}>
+          {pill.icon && <i className={pill.icon} aria-hidden />}
+          {t(pill.key, pill.vars)}
+        </span>
+      )}
+      {children && <span className="pref-head-control">{children}</span>}
+    </div>
+  );
+}
+
+/** A hint, a timing line or a verdict: the icon is decoration, the
+ *  words carry it. `children` is read on after the sentence. */
+function StateLineView({ line, children }: { line: StateLine; children?: ReactNode }): JSX.Element {
+  const { t } = useTranslation();
+  return (
+    <p className={`pref-state ${lineClass(line.tone)}`}>
+      <i className={lineIcon(line.tone)} aria-hidden />
+      <span>{t(line.key, line.vars)}{children}</span>
+    </p>
+  );
+}
+
+/** The current time, re-read every `ms` while mounted. */
+function useNowEvery(ms: number): number {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(Date.now()), ms);
+    return () => window.clearInterval(timer);
+  }, [ms]);
+  return now;
+}
+
+/**
+ * Preferences ▸ Agents: five headed features, each built the same way —
+ * its name, a pill that says its state in words, then its one control at
+ * the right edge; under that one sentence of benefit with any cost or
+ * risk in it; then a state line only where it adds something the pill
+ * does not say. Switches and pickers apply at once; nothing else
+ * commits by surprise. Which pill, which line and which wording is
+ * decided in lib/agentsPaneView.ts, where it is tested.
+ */
+function PrefsAgents({ onGoTo, anchor, onNewCloudChat }: {
+  onGoTo: (section: string) => void;
+  /** The feature a deep link asked for (`agents#cloud`): scrolled into
+   *  view, marked for a moment, and given focus. */
+  anchor?: string;
+  /** Close Preferences and open New chat set up for a cloud chat. */
+  onNewCloudChat?: () => void;
+}): JSX.Element {
   const { t } = useTranslation();
   const { get, set, loading } = useSettings();
   const saved = normalizeAgentEffortDefaults(
@@ -336,324 +519,1324 @@ function PrefsAgents(): JSX.Element {
     void commit(patch);
   };
 
-  if (loading) return <div className="pref-section"><h3>{t('prefs.agents.title')}</h3></div>;
+  const codexAccounts = useCodexAccountsState();
+  // The Codex CLI installed on this computer, asked once when the pane
+  // opens. Until it answers (and when none is installed) the steering
+  // feature says nothing about versions.
+  const [codex, setCodex] = useState<{ ok: boolean; version?: string } | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    void window.popbot.agent.backendsStatus()
+      .then((status) => { if (!cancelled) setCodex(status.codex); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, []);
 
-  const codexAppServer = codexUsesAppServer(get<CodexSettings>(CODEX_SETTINGS_KEY));
-  const mcpOn = popbotMcpEnabled(get<PopbotMcpSettings>(POPBOT_MCP_SETTINGS_KEY));
+  // A deep link: bring its feature into view, mark it, and put focus on
+  // its heading (the Cloud chats card moves it on to the key field when
+  // that is open). Waits for the settings, since the sections under a
+  // loading pane have no height yet.
+  const [arrived, setArrived] = useState<AgentFeatureId | null>(null);
+  useEffect(() => {
+    if (loading) return;
+    const id = AGENT_FEATURES.find((f) => f.id === anchor)?.id;
+    const section = id ? document.getElementById(`agents-${id}`) : null;
+    if (!id || !section) {
+      setArrived(null);
+      return;
+    }
+    section.scrollIntoView({ block: 'start' });
+    document.getElementById(`agents-${id}-h`)?.focus({ preventScroll: true });
+    setArrived(id);
+    const timer = window.setTimeout(() => setArrived(null), ARRIVED_MS);
+    return () => window.clearTimeout(timer);
+  }, [loading, anchor]);
+
+  // While the settings load: the five heads, with no pills and no
+  // controls, so the pane already reads as what it is.
+  if (loading) {
+    return (
+      <div className="agents-pane">
+        {AGENT_FEATURES.map((f) => (
+          <FeatureSection key={f.id} id={f.id}>
+            <FeatureHead id={f.id} title={t(f.title)} />
+          </FeatureSection>
+        ))}
+      </div>
+    );
+  }
+
+  const steerOn = codexUsesAppServer(get<CodexSettings>(CODEX_SETTINGS_KEY));
+  // While a Codex account is in use, Codex chats run through the app
+  // server whatever the switch says: it is shown on, and not offered.
+  const steerForced = codexAccountInUse(codexAccounts);
+  const controlOn = popbotMcpEnabled(get<PopbotMcpSettings>(POPBOT_MCP_SETTINGS_KEY));
+  const cli = codexCli(codex);
+  const newChats = t('prefs.agents.newChats.title');
+  const codeReviews = t('prefs.agents.codeReviews.title');
 
   return (
-    <div className="pref-section">
-      <h3>{t('prefs.agents.title')}</h3>
-      <p className="pref-section-desc">
-        {t('prefs.agents.desc')}
-      </p>
-      <div className="pref-rows">
-        <div className="pref-row">
-          <div className="pref-label">
-            <div className="pref-label-title">{t('prefs.agents.newChats.title')}</div>
-            <div className="pref-label-desc">
-              {t('prefs.agents.newChats.desc')}
-            </div>
-          </div>
-          <div className="pref-control" style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+    <div className="agents-pane">
+      <AccountsPointer onGoTo={onGoTo} arrived={arrived === 'accounts'} />
+      <CodexAccountsPointer state={codexAccounts} onGoTo={onGoTo} arrived={arrived === 'codexAccounts'} />
+
+      <FeatureSection id="effort" arrived={arrived === 'effort'}>
+        <FeatureHead id="effort" title={t('prefs.agents.effort.title')} />
+        <p className="pref-section-desc">{t('prefs.agents.effort.desc')}</p>
+        {/* The column heads are for the eye; each picker carries its own
+            name ("Claude effort for New chats") for a screen reader. */}
+        <div className="effort-head" aria-hidden>
+          <span />
+          <span>Claude</span>
+          <span>Codex</span>
+        </div>
+        <div className="pref-rows effort-grid">
+          <div className="pref-row">
+            <div className="pref-label-title">{newChats}</div>
             <AgentEffortField
-              label="Claude"
+              agent="Claude"
+              row={newChats}
               value={values.claudeReasoningEffort}
-              options={CLAUDE_REASONING_EFFORTS}
+              options={CLAUDE_EFFORT_CHOICES}
               onChange={(claudeReasoningEffort) => pick({ claudeReasoningEffort })}
             />
             <AgentEffortField
-              label="Codex"
-              value={values.codexReasoningEffort}
-              options={CODEX_REASONING_EFFORTS}
+              agent="Codex"
+              row={newChats}
+              value={shownCodexEffort(values.codexReasoningEffort)}
+              options={CODEX_EFFORT_CHOICES}
               onChange={(codexReasoningEffort) => pick({ codexReasoningEffort })}
             />
           </div>
-        </div>
-
-        <div className="pref-row">
-          <div className="pref-label">
-            <div className="pref-label-title">{t('prefs.agents.codeReviews.title')}</div>
-            <div className="pref-label-desc">
-              {t('prefs.agents.codeReviews.desc')}
-            </div>
-          </div>
-          <div className="pref-control" style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+          <div className="pref-row">
+            <div className="pref-label-title">{codeReviews}</div>
             <AgentEffortField
-              label="Claude"
+              agent="Claude"
+              row={codeReviews}
               value={values.codeReviewClaudeReasoningEffort}
-              options={CLAUDE_REASONING_EFFORTS}
+              options={CLAUDE_EFFORT_CHOICES}
               onChange={(codeReviewClaudeReasoningEffort) => pick({ codeReviewClaudeReasoningEffort })}
             />
             <AgentEffortField
-              label="Codex"
-              value={values.codeReviewCodexReasoningEffort}
-              options={CODEX_REASONING_EFFORTS}
+              agent="Codex"
+              row={codeReviews}
+              value={shownCodexEffort(values.codeReviewCodexReasoningEffort)}
+              options={CODEX_EFFORT_CHOICES}
               onChange={(codeReviewCodexReasoningEffort) => pick({ codeReviewCodexReasoningEffort })}
             />
           </div>
         </div>
+        <p className="pref-section-desc">{t('prefs.agents.effort.scope')}</p>
+      </FeatureSection>
 
-        <div className="pref-row">
-          <div className="pref-label">
-            <div className="pref-label-title">{t('prefs.agents.codexSteering.title')}</div>
-            <div className="pref-label-desc">{t('prefs.agents.codexSteering.desc')}</div>
-          </div>
-          <div className="pref-control" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <button
-              type="button"
-              className={`pref-toggle ${codexAppServer ? 'on' : ''}`}
-              onClick={() => void set(CODEX_SETTINGS_KEY, {
-                ...(get<CodexSettings>(CODEX_SETTINGS_KEY) ?? {}),
-                appServer: !codexAppServer,
-              } satisfies CodexSettings)}
-              aria-pressed={codexAppServer}
-              aria-label={t('prefs.agents.codexSteering.title')}
-            >
-              <span className="pref-toggle-thumb" />
-            </button>
-            <span style={{ color: 'var(--fg-2)', fontSize: 12 }}>
-              {codexAppServer ? t('prefs.agents.codexSteering.on') : t('prefs.agents.codexSteering.off')}
-            </span>
-          </div>
-        </div>
+      <SwitchSection
+        id="steer"
+        title={t('prefs.agents.codexSteering.title')}
+        // Locked on, the advice to turn it off (and "this computer only")
+        // would be wrong: only what steering does is said.
+        desc={t(steerForced ? 'prefs.agents.steer.descForced' : 'prefs.agents.steer.desc')}
+        on={steerOn || steerForced}
+        locked={steerForced ? t('prefs.agents.steer.forcedSwitch') : undefined}
+        arrived={arrived === 'steer'}
+        view={(changed) => steerView(steerOn, cli, changed, steerForced)}
+        onToggle={() => void set(CODEX_SETTINGS_KEY, {
+          ...(get<CodexSettings>(CODEX_SETTINGS_KEY) ?? {}),
+          appServer: !steerOn,
+        } satisfies CodexSettings)}
+      />
 
-        {/* The popbot MCP server every chat's agent gets. Applies on its
-            own, from each chat's next session. */}
-        <div className="pref-row">
-          <div className="pref-label">
-            <div className="pref-label-title">{t('prefs.agents.mcp.title')}</div>
-            <div className="pref-label-desc">{t('prefs.agents.mcp.desc')}</div>
-          </div>
-          <div className="pref-control" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <button
-              type="button"
-              className={`pref-toggle ${mcpOn ? 'on' : ''}`}
-              onClick={() => void set(POPBOT_MCP_SETTINGS_KEY, {
-                ...(get<PopbotMcpSettings>(POPBOT_MCP_SETTINGS_KEY) ?? {}),
-                enabled: !mcpOn,
-              } satisfies PopbotMcpSettings)}
-              aria-pressed={mcpOn}
-              aria-label={t('prefs.agents.mcp.title')}
-            >
-              <span className="pref-toggle-thumb" />
-            </button>
-            <span style={{ color: 'var(--fg-2)', fontSize: 12 }}>
-              {mcpOn ? t('prefs.agents.mcp.on') : t('prefs.agents.mcp.off')}
-            </span>
-          </div>
-        </div>
+      {/* The popbot tools every chat's agent gets. The setting is read
+          when a chat's agent starts, so the lines under it say what
+          happens to an agent that is already running. */}
+      <SwitchSection
+        id="control"
+        title={t('prefs.agents.control.title')}
+        desc={t('prefs.agents.control.desc')}
+        on={controlOn}
+        arrived={arrived === 'control'}
+        view={(changed) => controlView(controlOn, changed)}
+        onToggle={() => void set(POPBOT_MCP_SETTINGS_KEY, {
+          ...(get<PopbotMcpSettings>(POPBOT_MCP_SETTINGS_KEY) ?? {}),
+          enabled: !controlOn,
+        } satisfies PopbotMcpSettings)}
+      />
 
-        <CloudChatsRows
-          initial={get<CloudSettings>(CLOUD_SETTINGS_KEY) ?? {}}
-          onSave={(next) => set(CLOUD_SETTINGS_KEY, next)}
-        />
-      </div>
+      <CloudChatsSection
+        saved={get<CloudSettings>(CLOUD_SETTINGS_KEY) ?? {}}
+        onSave={(next) => set(CLOUD_SETTINGS_KEY, next)}
+        arrived={arrived === 'cloud'}
+        focusKey={anchor === 'cloud'}
+        onNewCloudChat={onNewCloudChat}
+      />
     </div>
   );
 }
 
 /**
- * Cloud chats (Anthropic Managed Agents): the API key the sessions run
- * on and the GitHub token the sandbox clones with. Both optional here —
- * the environment variable and `gh` stand in — and both saved together.
- * Saving with a key checks it first.
+ * The pointer to the Claude accounts section, first in the pane: which
+ * account chats run on, in one line, and the way to the section that
+ * manages them. The accounts themselves live there.
  */
-function CloudChatsRows({
-  initial,
-  onSave,
-}: {
-  initial: CloudSettings;
-  onSave: (next: CloudSettings) => Promise<void>;
+function AccountsPointer({ onGoTo, arrived }: {
+  onGoTo: (section: string) => void;
+  arrived: boolean;
 }): JSX.Element {
   const { t } = useTranslation();
-  const [apiKey, setApiKey] = useState(initial.apiKey ?? '');
-  const [githubToken, setGithubToken] = useState(initial.githubToken ?? '');
-  const [workspaceId, setWorkspaceId] = useState(initial.workspaceId ?? '');
-  const [saving, setSaving] = useState(false);
-  const [result, setResult] = useState<{ ok: boolean; text: string } | null>(null);
-  // What the cloud would run with right now: the saved key or the
-  // environment, `gh` for GitHub. Refreshed after every save.
-  const [status, setStatus] = useState<{ apiKey: 'settings' | 'env' | null; githubToken: 'settings' | 'gh' | null } | null>(null);
-  const [statusAt, setStatusAt] = useState(0);
-  useEffect(() => {
-    let cancelled = false;
-    void window.popbot.cloud.status().then((s) => { if (!cancelled) setStatus(s); });
-    return () => { cancelled = true; };
-  }, [statusAt]);
-  // The latest field values and saved values, for a commit that runs
-  // from a blur, from Enter, or from the sheet closing under the field.
-  const latest = useRef({ apiKey, githubToken, workspaceId, initial });
-  latest.current = { apiKey, githubToken, workspaceId, initial };
-  // Values currently being written — a blur followed by a close must
-  // not write the same thing twice.
-  const inFlight = useRef<string | null>(null);
+  const state = useClaudeAccountsState();
+  const view = accountsPointer(state, useNowEvery(POINTER_TICK_MS));
+  const lineId = 'agents-accounts-line';
+  return (
+    <FeatureSection id="accounts" arrived={arrived}>
+      <FeatureHead
+        id="accounts"
+        title={t('prefs.agents.accounts.title')}
+        pill={view && { tone: view.tone, icon: view.icon, key: view.pill, vars: view.pillVars }}
+      >
+        <button
+          type="button"
+          className={`btn sm${view?.attention ? ' primary' : ''}`}
+          aria-describedby={lineId}
+          onClick={() => onGoTo('accounts')}
+        >
+          {t('prefs.agents.accounts.open')}
+        </button>
+      </FeatureHead>
+      {/* Until the accounts are known the line is held empty, so the
+          features below do not jump when the answer arrives. */}
+      <p className="pref-section-desc" id={lineId}>{view ? t(view.line, view.vars) : ' '}</p>
+    </FeatureSection>
+  );
+}
 
-  // No Save button: the fields save themselves when left (or on Enter,
-  // or when the sheet closes), like the switches above them apply on
-  // their own. The key is stored whatever its check says — the check is
-  // a courtesy that tells you now rather than at the first cloud chat —
-  // and only a changed key is checked, so editing the token does not
-  // re-verify the key.
-  const commit = async () => {
-    const key = latest.current.apiKey.trim();
-    const token = latest.current.githubToken.trim();
-    const workspace = latest.current.workspaceId.trim();
-    const saved = latest.current.initial;
-    // The workspace is part of what the key check exercises.
-    const keyChanged = key !== (saved.apiKey ?? '') || workspace !== (saved.workspaceId ?? '');
-    const tokenChanged = token !== (saved.githubToken ?? '');
-    if (!keyChanged && !tokenChanged) return;
-    const signature = `${key}\n${token}\n${workspace}`;
-    if (inFlight.current === signature) return;
-    inFlight.current = signature;
-    setSaving(true);
-    setResult(null);
-    window.popbot.diag.log('prefs.cloud.save', { keyLen: key.length, tokenLen: token.length, workspace: !!workspace, keyChanged, tokenChanged });
+/**
+ * The pointer to the Codex accounts section, directly under the Claude
+ * one and built the same way. The state is the pane's own copy (it also
+ * decides what the steering switch shows), so both read the same answer.
+ */
+function CodexAccountsPointer({ state, onGoTo, arrived }: {
+  state: CodexAccountsState | null;
+  onGoTo: (section: string) => void;
+  arrived: boolean;
+}): JSX.Element {
+  const { t } = useTranslation();
+  const view = codexAccountsPointer(state, useNowEvery(POINTER_TICK_MS));
+  const lineId = 'agents-codexAccounts-line';
+  return (
+    <FeatureSection id="codexAccounts" arrived={arrived}>
+      <FeatureHead
+        id="codexAccounts"
+        title={t('prefs.agents.codexAccounts.title')}
+        pill={view && { tone: view.tone, icon: ICON[view.icon], key: view.pill, vars: view.pillVars }}
+      >
+        <button
+          type="button"
+          className={`btn sm${view?.attention ? ' primary' : ''}`}
+          aria-describedby={lineId}
+          onClick={() => onGoTo('codexAccounts')}
+        >
+          {t('prefs.agents.codexAccounts.open')}
+        </button>
+      </FeatureHead>
+      <p className="pref-section-desc" id={lineId}>{view ? t(view.line, view.vars) : ' '}</p>
+    </FeatureSection>
+  );
+}
+
+/** One default-effort picker. Its value is its own feedback: a pick is
+ *  written at once and nothing else on the pane changes. */
+function AgentEffortField<T extends ClaudeReasoningEffort | CodexReasoningEffort>({
+  agent,
+  row,
+  value,
+  options,
+  onChange,
+}: {
+  /** The product name ("Claude", "Codex") — with `row`, the picker's
+   *  accessible name. */
+  agent: string;
+  row: string;
+  value: T;
+  options: readonly T[];
+  onChange: (value: T) => void;
+}): JSX.Element {
+  const { t } = useTranslation();
+  return (
+    <select
+      className="pref-select"
+      aria-label={t('prefs.agents.effort.aria', { agent, row })}
+      value={value}
+      onChange={(e) => onChange(e.currentTarget.value as T)}
+    >
+      {options.map((item) => {
+        // The two levels that hand work to helper agents say so in the
+        // list, where it is read before the pick.
+        const costly = effortOptionKey(item);
+        return <option key={item} value={item}>{costly ? t(costly) : reasoningEffortLabel(item, t)}</option>;
+      })}
+    </select>
+  );
+}
+
+/**
+ * A feature that is one switch. The switch is named by the heading and
+ * described by the sentence and the lines under it, which sit in a live
+ * region that is there before any line arrives, so a line that appears
+ * when the switch is flipped is announced. Never disabled.
+ */
+function SwitchSection({ id, title, desc, on, locked, arrived, view, onToggle }: {
+  id: AgentFeatureId;
+  title: string;
+  desc: string;
+  on: boolean;
+  /** Something else decides this for now: the switch shows `on` and can't
+   *  be flipped. The text says so to whoever hovers or tabs to it; the
+   *  lines under the description say why. */
+  locked?: string;
+  arrived: boolean;
+  /** The pill and the lines, given whether the switch has been flipped
+   *  on this visit. */
+  view: (changed: boolean) => SwitchView;
+  onToggle: () => void;
+}): JSX.Element {
+  // Set by the first flip and kept until the pane closes: it picks the
+  // line that says when the change takes effect.
+  const [changed, setChanged] = useState(false);
+  const { pill, lines } = view(changed);
+  const hId = `agents-${id}-h`;
+  const descId = `agents-${id}-desc`;
+  const stateId = `agents-${id}-state`;
+  return (
+    <FeatureSection id={id} arrived={arrived}>
+      <FeatureHead id={id} title={title} pill={pill}>
+        <button
+          type="button"
+          role="switch"
+          aria-checked={on}
+          aria-labelledby={hId}
+          aria-describedby={`${descId} ${stateId}`}
+          className={`pref-switch${locked ? ' locked' : ''}`}
+          title={locked}
+          aria-disabled={locked ? true : undefined}
+          onClick={() => {
+            if (locked) return;
+            setChanged(true);
+            onToggle();
+          }}
+        >
+          <span className={`pref-toggle${on ? ' on' : ''}`}><span className="pref-toggle-thumb" /></span>
+        </button>
+      </FeatureHead>
+      <p className="pref-section-desc" id={descId}>{desc}</p>
+      <div id={stateId} role="status">
+        {lines.map((line) => <StateLineView key={line.key} line={line} />)}
+      </div>
+    </FeatureSection>
+  );
+}
+
+/** The mark left of a requirement: its number while it is still to do,
+ *  then what became of it. The number is real text; an icon is
+ *  decoration, and the row's sentence says the same in words. */
+function SetupMark({ kind, step }: { kind: MarkKind; step: number }): JSX.Element {
+  const { cls, icon } = markView(kind);
+  return (
+    <span className={`setup-mark ${cls}`}>
+      {icon ? <i className={icon} aria-hidden /> : step}
+    </span>
+  );
+}
+
+/** How an apply was started. Only Enter and the button move focus
+ *  afterwards: after a blur or a close, focus is already elsewhere. */
+type ApplyVia = 'enter' | 'button' | 'leave' | 'close';
+
+/** Where focus goes once the card has re-rendered. */
+type CloudFocus = 'keyAction' | 'keyField' | 'workspaceField' | 'githubAction' | 'githubField';
+
+/**
+ * What a row has to say on the next visit about text that was in a
+ * field when Preferences closed: a first secret is applied on the way
+ * out and may fail after the pane is gone; a replacement is let go.
+ */
+const cloudCarried: { key: FieldNote | null; token: FieldNote | null } = { key: null, token: null };
+
+/**
+ * Cloud chats: one card with the two things a cloud chat needs — an
+ * Anthropic API key and GitHub access — and, once the key works, how to
+ * start one.
+ *
+ * - The heading pill is the verdict. "Ready" needs the key in use to
+ *   have passed its check on this visit, wherever it comes from; the
+ *   card asks main to check it without ever seeing a saved or
+ *   environment key (`testKey('')`).
+ * - A field is on screen only when filling it is the next step. A saved
+ *   secret is a sentence with Replace and Remove; it is never put back
+ *   into a field, not as dots either.
+ * - Nothing commits by surprise. A first secret applies on Enter, its
+ *   button, or when focus leaves its row (only a key that passes its
+ *   check, or text that looks like a GitHub token, is saved). One that
+ *   replaces something in use applies only on Enter or its button;
+ *   leaving, Esc or closing Preferences lets it go, and the row says so.
+ * - Each field owns the line directly under it. No verdict is shared.
+ */
+function CloudChatsSection({ saved, onSave, arrived, focusKey, onNewCloudChat }: {
+  /** What is stored. Used to merge on save and to show the saved
+   *  Workspace ID; a saved key or token never reaches an input or main. */
+  saved: CloudSettings;
+  onSave: (next: CloudSettings) => Promise<void>;
+  arrived: boolean;
+  /** A deep link asked for this card: focus goes to the key field when
+   *  there is no key yet. */
+  focusKey: boolean;
+  onNewCloudChat?: () => void;
+}): JSX.Element {
+  const { t } = useTranslation();
+  // What cloud chats would run with right now, and whether the key in
+  // use passed its check on this visit.
+  const [status, setStatus] = useState<CloudStatus | null>(null);
+  const [check, setCheck] = useState<KeyCheck | null>(null);
+  const [rechecking, setRechecking] = useState(false);
+
+  // The API key row. `keyOpen` is the replacement field; a first key's
+  // field is open for as long as there is no key.
+  const [keyOpen, setKeyOpen] = useState(false);
+  const [keyDraft, setKeyDraft] = useState('');
+  const [keyBusy, setKeyBusy] = useState(false);
+  const [keyVerdict, setKeyVerdict] = useState<KeyDraftVerdict | null>(null);
+  // How the last check of a typed key failed. Outlives the red line (which
+  // clears on the first edit) so the way to a Workspace ID stays put.
+  const [draftKind, setDraftKind] = useState<KeyErrorKind | null>(null);
+  const [keyNote, setKeyNote] = useState<FieldNote | null>(() => cloudCarried.key);
+
+  // The Workspace ID, under the key.
+  const [wsEditing, setWsEditing] = useState(false);
+  const [wsDraft, setWsDraft] = useState('');
+  const [wsBusy, setWsBusy] = useState(false);
+  const [wsVerdict, setWsVerdict] = useState<'ok' | 'fail' | null>(null);
+  const [wsDetail, setWsDetail] = useState<string | null>(null);
+  const [wsNote, setWsNote] = useState<'notChanged' | null>(null);
+
+  // The GitHub access row.
+  const [tokenOpen, setTokenOpen] = useState(false);
+  const [tokenDraft, setTokenDraft] = useState('');
+  const [tokenProblem, setTokenProblem] = useState<TokenProblem | null>(null);
+  const [tokenError, setTokenError] = useState<string | null>(null);
+  const [githubNote, setGithubNote] = useState<GithubNote | null>(() => cloudCarried.token);
+  const [looking, setLooking] = useState(false);
+
+  const [removing, setRemoving] = useState<'key' | 'token' | 'workspace' | null>(null);
+  const [focusRequest, setFocusRequest] = useState<{ target: CloudFocus } | null>(null);
+
+  const keyRowRef = useRef<HTMLDivElement>(null);
+  const githubRowRef = useRef<HTMLDivElement>(null);
+  const keyInputRef = useRef<HTMLInputElement>(null);
+  const wsInputRef = useRef<HTMLInputElement>(null);
+  const tokenInputRef = useRef<HTMLInputElement>(null);
+  // The button a Remove dialog was opened from, to give focus back to.
+  const removeOpener = useRef<HTMLElement | null>(null);
+  const removeAsked = useRef<'key' | 'token' | 'workspace' | null>(null);
+
+  const mounted = useRef(true);
+  // Answers that arrive out of order are dropped: only the last request
+  // of each kind may set what is shown.
+  const statusSeq = useRef(0);
+  const checkSeq = useRef(0);
+  // One apply at a time per field: a second trigger (a blur right after
+  // Enter, a close right after a blur) is ignored.
+  const keyInFlight = useRef(false);
+  const wsInFlight = useRef(false);
+  const tokenInFlight = useRef(false);
+
+  const keyView = keyRow(status, check, rechecking);
+  const githubView = githubRow(status, check);
+  const keySource = status?.apiKey ?? null;
+  const githubSource = status?.githubToken ?? null;
+  const keyFieldOpen = keyView.mode === 'first' || (keyView.mode === 'replace' && keyOpen);
+  const tokenFieldOpen = githubView.mode !== null && tokenOpen;
+  const savedWorkspace = saved.workspaceId?.trim() || undefined;
+  const workspace = workspaceView({
+    savedId: savedWorkspace,
+    editing: wsEditing,
+    lastKind: lastKeyFailure(keyFieldOpen ? draftKind : null, check),
+  });
+  const wsFieldOpen = workspace === 'field';
+  const wsMode: SecretMode = savedWorkspace ? 'replace' : 'first';
+  // A Workspace ID typed beside a typed key is checked with that key.
+  const keyTyped = keyFieldOpen && keyDraft.trim() !== '';
+
+  // What a blur, Enter or the sheet closing under a field must see: the
+  // values of the last render, not of the render the handler was made in.
+  const latest = useRef({ status, saved, keyDraft, wsDraft, tokenDraft, keyFieldOpen, wsFieldOpen, tokenFieldOpen, wsMode });
+  latest.current = { status, saved, keyDraft, wsDraft, tokenDraft, keyFieldOpen, wsFieldOpen, tokenFieldOpen, wsMode };
+
+  const loadStatus = useCallback(async (): Promise<CloudStatus | null> => {
+    const seq = ++statusSeq.current;
     try {
-      let verdict: { ok: boolean; text: string } | null = null;
-      if (key && keyChanged) {
-        try {
-          const check = await window.popbot.cloud.testKey(key, workspace || undefined);
-          window.popbot.diag.log('prefs.cloud.checked', { ok: check.ok, ...(check.ok ? {} : { error: check.error }) });
-          verdict = check.ok
-            ? { ok: true, text: t('prefs.agents.cloud.ok') }
-            : { ok: false, text: t('prefs.agents.cloud.error', { error: check.error }) };
-        } catch (err) {
-          verdict = { ok: false, text: t('prefs.agents.cloud.error', { error: err instanceof Error ? err.message : String(err) }) };
-        }
-      }
-      await onSave({
-        ...(key ? { apiKey: key } : {}),
-        ...(token ? { githubToken: token } : {}),
-        ...(workspace ? { workspaceId: workspace } : {}),
-      });
-      window.popbot.diag.log('prefs.cloud.saved', { keyLen: key.length });
-      setResult(verdict ?? { ok: true, text: t('common.saved') });
-      setStatusAt(Date.now());
-    } catch (err) {
-      window.popbot.diag.log('prefs.cloud.save.failed', { error: err instanceof Error ? err.message : String(err) });
-      setResult({ ok: false, text: err instanceof Error ? err.message : String(err) });
-    } finally {
-      inFlight.current = null;
-      setSaving(false);
+      const next = await window.popbot.cloud.status();
+      if (!mounted.current || seq !== statusSeq.current) return null;
+      setStatus(next);
+      return next;
+    } catch {
+      return null;
     }
-  };
-  const commitRef = useRef(commit);
-  commitRef.current = commit;
-  useEffect(() => {
-    window.popbot.diag.log('prefs.cloud.mount', { hasInitialKey: !!latest.current.initial.apiKey });
-    // Closing the sheet with the field still focused (Escape, a
-    // shortcut) never blurs it: write what is there on the way out.
-    return () => {
-      window.popbot.diag.log('prefs.cloud.unmount', {});
-      void commitRef.current();
-    };
   }, []);
-  const onEnter = (e: React.KeyboardEvent<HTMLInputElement>): void => {
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      e.currentTarget.blur();
+
+  /** Ask main whether the key cloud chats run on now works. The key
+   *  itself stays in main: an empty key means "the one in use". */
+  const checkKeyInUse = useCallback(async (): Promise<void> => {
+    const seq = ++checkSeq.current;
+    setCheck({ state: 'checking' });
+    let result: { ok: true } | { ok: false; error: string };
+    try {
+      result = await window.popbot.cloud.testKey('');
+    } catch (err) {
+      result = { ok: false, error: errorMessage(err) };
     }
+    window.popbot.diag.log('prefs.cloud.inUse.checked', { ok: result.ok, ...(result.ok ? {} : { error: result.error }) });
+    if (!mounted.current || seq !== checkSeq.current) return;
+    setCheck(result.ok ? { state: 'ok' } : failedCheck(result.error));
+  }, []);
+
+  /** Re-read where the key and GitHub access come from, then check the
+   *  key if there is one. */
+  const refresh = useCallback(async (): Promise<void> => {
+    const next = await loadStatus();
+    if (!next) return;
+    if (next.apiKey === null) {
+      checkSeq.current += 1;
+      setCheck(null);
+      return;
+    }
+    await checkKeyInUse();
+  }, [loadStatus, checkKeyInUse]);
+
+  // Only a key that passes its check is saved. A draft that fails stays
+  // in the field with the reason under it; the key in use is untouched.
+  const applyKey = async (via: ApplyVia): Promise<void> => {
+    const draft = latest.current.keyDraft.trim();
+    if (!draft || keyInFlight.current) return;
+    const fromUser = via === 'enter' || via === 'button';
+    // Plainly not a key: refused here, before any network call.
+    const problem = apiKeyProblem(draft);
+    if (problem) {
+      window.popbot.diag.log('prefs.cloud.key.refused', { keyLen: draft.length, problem, via });
+      if (!mounted.current) {
+        cloudCarried.key = 'lastFailed';
+        return;
+      }
+      setKeyVerdict({ kind: problem });
+      if (fromUser) setFocusRequest({ target: 'keyField' });
+      return;
+    }
+    const typedWorkspace = latest.current.wsFieldOpen ? latest.current.wsDraft.trim() : '';
+    const workspaceId = typedWorkspace || latest.current.saved.workspaceId?.trim() || undefined;
+    keyInFlight.current = true;
+    if (mounted.current) {
+      setKeyBusy(true);
+      setKeyVerdict(null);
+      setKeyNote(null);
+    }
+    window.popbot.diag.log('prefs.cloud.save', { keyLen: draft.length, workspace: !!workspaceId, via });
+    let result: { ok: true } | { ok: false; error: string };
+    try {
+      result = await window.popbot.cloud.testKey(draft, workspaceId);
+    } catch (err) {
+      result = { ok: false, error: errorMessage(err) };
+    }
+    window.popbot.diag.log('prefs.cloud.checked', { ok: result.ok, ...(result.ok ? {} : { error: result.error }) });
+    if (result.ok) {
+      try {
+        await onSave(withApiKey(latest.current.saved, draft, typedWorkspace || undefined));
+        window.popbot.diag.log('prefs.cloud.saved', { keyLen: draft.length });
+      } catch (err) {
+        result = { ok: false, error: errorMessage(err) };
+        window.popbot.diag.log('prefs.cloud.save.failed', { error: result.error });
+      }
+    }
+    keyInFlight.current = false;
+    if (!mounted.current) {
+      // Preferences closed while the check ran: its verdict waits for
+      // the next visit.
+      if (!result.ok) cloudCarried.key = 'lastFailed';
+      return;
+    }
+    setKeyBusy(false);
+    if (!result.ok) {
+      const kind = keyErrorKind(result.error);
+      setKeyVerdict({ kind, error: result.error });
+      setDraftKind(kind);
+      if (kind === 'workspace') {
+        // The check asks for a Workspace ID: its field opens by itself.
+        setWsEditing(true);
+        setWsDraft((prev) => prev || latest.current.saved.workspaceId?.trim() || '');
+        if (fromUser) setFocusRequest({ target: 'workspaceField' });
+      } else if (fromUser) {
+        setFocusRequest({ target: 'keyField' });
+      }
+      return;
+    }
+    // The draft has just passed: that is the check of the key now in
+    // use, so no second call. Shown at once; the status re-read confirms it.
+    checkSeq.current += 1;
+    setCheck({ state: 'ok' });
+    setStatus((prev) => (prev ? { ...prev, apiKey: 'settings', hasSettingsKey: true } : prev));
+    setKeyOpen(false);
+    setKeyDraft('');
+    setKeyVerdict(null);
+    setDraftKind(null);
+    setWsEditing(false);
+    setWsDraft('');
+    setWsVerdict(null);
+    setWsNote(null);
+    if (fromUser) setFocusRequest({ target: 'keyAction' });
+    void loadStatus();
   };
 
-  const keyLine = status
-    ? status.apiKey === 'env'
-      ? t('prefs.agents.cloud.envKey')
-      : status.apiKey === null
-        ? t('prefs.agents.cloud.noKey')
-        : null
-    : null;
-  const ghLine = status
-    ? status.githubToken === 'gh'
-      ? t('prefs.agents.cloud.ghToken')
-      : status.githubToken === null
-        ? t('prefs.agents.cloud.noGh')
-        : null
-    : null;
+  // A Workspace ID for the key in use: saved only if the key passes its
+  // check with it. Typed beside a key draft it is not applied on its
+  // own — the key's check carries it.
+  const applyWorkspace = async (via: ApplyVia): Promise<void> => {
+    if (latest.current.keyFieldOpen && latest.current.keyDraft.trim()) {
+      await applyKey(via);
+      return;
+    }
+    const workspaceId = latest.current.wsDraft.trim();
+    if (!workspaceId || !latest.current.status?.apiKey || wsInFlight.current) return;
+    const fromUser = via === 'enter' || via === 'button';
+    wsInFlight.current = true;
+    if (mounted.current) {
+      setWsBusy(true);
+      setWsVerdict(null);
+      setWsDetail(null);
+      setWsNote(null);
+    }
+    let result: { ok: true } | { ok: false; error: string };
+    try {
+      result = await window.popbot.cloud.testKey('', workspaceId);
+    } catch (err) {
+      result = { ok: false, error: errorMessage(err) };
+    }
+    window.popbot.diag.log('prefs.cloud.workspace.checked', { ok: result.ok, via, ...(result.ok ? {} : { error: result.error }) });
+    if (result.ok) {
+      try {
+        await onSave(withWorkspaceId(latest.current.saved, workspaceId));
+      } catch (err) {
+        result = { ok: false, error: errorMessage(err) };
+      }
+    }
+    wsInFlight.current = false;
+    if (!mounted.current) return;
+    setWsBusy(false);
+    if (!result.ok) {
+      // The key in use and its ID are as they were: only this ID failed.
+      setWsVerdict('fail');
+      setWsDetail(result.error);
+      if (fromUser) setFocusRequest({ target: 'workspaceField' });
+      return;
+    }
+    checkSeq.current += 1;
+    setCheck({ state: 'ok' });
+    setWsVerdict('ok');
+    setWsEditing(false);
+    setWsDraft('');
+    setDraftKind(null);
+    if (fromUser) setFocusRequest({ target: 'keyAction' });
+  };
+
+  // There is no call that tests a GitHub token, so the only check is
+  // what it looks like: plainly something else is refused, the rest is
+  // saved and the row says "not checked".
+  const applyToken = async (via: ApplyVia): Promise<void> => {
+    const draft = latest.current.tokenDraft.trim();
+    if (!draft || tokenInFlight.current) return;
+    const fromUser = via === 'enter' || via === 'button';
+    const problem = githubTokenProblem(draft);
+    window.popbot.diag.log('prefs.cloud.token', { tokenLen: draft.length, problem: problem ?? 'none', via });
+    if (problem) {
+      if (!mounted.current) {
+        cloudCarried.token = 'lastFailed';
+        return;
+      }
+      setTokenProblem(problem);
+      if (fromUser) setFocusRequest({ target: 'githubField' });
+      return;
+    }
+    tokenInFlight.current = true;
+    let error: string | null = null;
+    try {
+      await onSave(withGithubToken(latest.current.saved, draft));
+    } catch (err) {
+      error = errorMessage(err);
+      window.popbot.diag.log('prefs.cloud.token.failed', { error });
+    }
+    tokenInFlight.current = false;
+    if (!mounted.current) return;
+    if (error) {
+      setTokenError(error);
+      if (fromUser) setFocusRequest({ target: 'githubField' });
+      return;
+    }
+    setStatus((prev) => (prev ? { ...prev, githubToken: 'settings' } : prev));
+    setTokenOpen(false);
+    setTokenDraft('');
+    setTokenProblem(null);
+    setTokenError(null);
+    setGithubNote('savedNow');
+    if (fromUser) setFocusRequest({ target: 'githubAction' });
+    void loadStatus();
+  };
+
+  const openKeyField = (): void => {
+    setKeyOpen(true);
+    setKeyDraft('');
+    setKeyVerdict(null);
+    setDraftKind(null);
+    setKeyNote(null);
+    setFocusRequest({ target: 'keyField' });
+  };
+
+  /** Let a replacement key go: the field closes and the row says that
+   *  nothing changed. `byUser` is false when focus simply left the row. */
+  const closeKeyField = (byUser: boolean): void => {
+    setKeyOpen(false);
+    setKeyDraft('');
+    setKeyVerdict(null);
+    setDraftKind(null);
+    setKeyNote('notChanged');
+    setWsEditing(false);
+    setWsDraft('');
+    setWsVerdict(null);
+    if (byUser) setFocusRequest({ target: 'keyAction' });
+  };
+
+  const openWorkspaceField = (): void => {
+    setWsEditing(true);
+    setWsDraft(latest.current.saved.workspaceId?.trim() ?? '');
+    setWsVerdict(null);
+    setWsDetail(null);
+    setWsNote(null);
+    setFocusRequest({ target: 'workspaceField' });
+  };
+
+  const closeWorkspaceField = (byUser: boolean): void => {
+    setWsEditing(false);
+    setWsDraft('');
+    setWsVerdict(null);
+    setWsDetail(null);
+    // "Not changed" only where there is an ID for that to be true of.
+    setWsNote(latest.current.wsMode === 'replace' ? 'notChanged' : null);
+    if (byUser) setFocusRequest({ target: latest.current.keyFieldOpen ? 'keyField' : 'keyAction' });
+  };
+
+  const openTokenField = (): void => {
+    setTokenOpen(true);
+    setTokenDraft('');
+    setTokenProblem(null);
+    setTokenError(null);
+    setGithubNote(null);
+    setFocusRequest({ target: 'githubField' });
+  };
+
+  const closeTokenField = (byUser: boolean): void => {
+    const replacing = secretMode(latest.current.status?.githubToken ?? null) === 'replace';
+    setTokenOpen(false);
+    setTokenDraft('');
+    setTokenProblem(null);
+    setTokenError(null);
+    setGithubNote(replacing ? 'notChanged' : null);
+    if (byUser) setFocusRequest({ target: 'githubAction' });
+  };
+
+  // What happens to a field's text when focus has moved to something
+  // else in PopBot outside its row (see leaveOutcome).
+  const keyRowLeft = (): void => {
+    const now = latest.current;
+    if (now.keyFieldOpen) {
+      const outcome = leaveOutcome(secretMode(now.status?.apiKey ?? null), now.keyDraft, keyInFlight.current);
+      if (outcome === 'apply') {
+        void applyKey('leave');
+        return;
+      }
+      if (outcome === 'discard') {
+        closeKeyField(false);
+        return;
+      }
+      if (now.keyDraft.trim()) return;
+    }
+    if (!now.wsFieldOpen) return;
+    const outcome = leaveOutcome(now.wsMode, now.wsDraft, wsInFlight.current);
+    if (outcome === 'apply') void applyWorkspace('leave');
+    else if (outcome === 'discard') closeWorkspaceField(false);
+  };
+
+  const githubRowLeft = (): void => {
+    const now = latest.current;
+    if (!now.tokenFieldOpen) return;
+    const outcome = leaveOutcome(secretMode(now.status?.githubToken ?? null), now.tokenDraft, tokenInFlight.current);
+    if (outcome === 'apply') void applyToken('leave');
+    else if (outcome === 'discard') closeTokenField(false);
+  };
+
+  // "Leaving the row" is read after the blur, when it is known where
+  // focus went: still inside the row is not leaving, and neither is
+  // switching to another application (the document has no focus then).
+  const onRowBlur = (row: { current: HTMLElement | null }, left: () => void) => (): void => {
+    window.setTimeout(() => {
+      const el = row.current;
+      if (!mounted.current || !el) return;
+      if (!document.hasFocus() || el.contains(document.activeElement)) return;
+      left();
+    }, 0);
+  };
+
+  // Preferences closing over a field never blurs it. A first secret is
+  // applied on the way out, as if its row had been left; a replacement
+  // is let go, and the row says so on the next visit.
+  const closing = (): void => {
+    const now = latest.current;
+    if (now.keyFieldOpen) {
+      const outcome = leaveOutcome(secretMode(now.status?.apiKey ?? null), now.keyDraft, keyInFlight.current);
+      if (outcome === 'apply') void applyKey('close');
+      else if (outcome === 'discard' && now.keyDraft.trim()) cloudCarried.key = 'notChanged';
+    }
+    if (now.wsFieldOpen && !(now.keyFieldOpen && now.keyDraft.trim())
+      && leaveOutcome(now.wsMode, now.wsDraft, wsInFlight.current) === 'apply') {
+      void applyWorkspace('close');
+    }
+    if (now.tokenFieldOpen) {
+      const outcome = leaveOutcome(secretMode(now.status?.githubToken ?? null), now.tokenDraft, tokenInFlight.current);
+      if (outcome === 'apply') void applyToken('close');
+      else if (outcome === 'discard' && now.tokenDraft.trim()) cloudCarried.token = 'notChanged';
+    }
+  };
+  const closingRef = useRef(closing);
+  closingRef.current = closing;
+
+  useEffect(() => {
+    mounted.current = true;
+    window.popbot.diag.log('prefs.cloud.mount', {});
+    void refresh();
+    // What the last visit left to say is on screen now.
+    cloudCarried.key = null;
+    cloudCarried.token = null;
+    return () => {
+      mounted.current = false;
+      window.popbot.diag.log('prefs.cloud.unmount', {});
+      closingRef.current();
+    };
+  }, [refresh]);
+
+  // While GitHub access is not found, look again whenever the PopBot
+  // window gets focus back: signing in with gh in a terminal then ticks
+  // the row without a click.
+  const githubMissing = status !== null && status.githubToken === null;
+  useEffect(() => {
+    if (!githubMissing) return;
+    const onFocus = (): void => { void loadStatus(); };
+    window.addEventListener('focus', onFocus);
+    return () => window.removeEventListener('focus', onFocus);
+  }, [githubMissing, loadStatus]);
+
+  // A deep link from New chat's missing-key note. The pane scrolled here
+  // while the card was still empty; now that it has its real height it
+  // is brought into view again, and once it is known that there is no
+  // key, focus goes on from the heading to the key field.
+  const landing = useRef(focusKey);
+  useEffect(() => {
+    if (!landing.current || !status) return;
+    landing.current = false;
+    document.getElementById('agents-cloud')?.scrollIntoView({ block: 'start' });
+    if (status.apiKey === null) keyInputRef.current?.focus({ preventScroll: true });
+  }, [status]);
+
+  // Focus is never dropped: when a field closes or a button goes away,
+  // focus moves to what took its place — unless the user has already
+  // put it somewhere else.
+  useEffect(() => {
+    if (!focusRequest) return;
+    const { target } = focusRequest;
+    const row = target === 'githubAction' || target === 'githubField' ? githubRowRef.current : keyRowRef.current;
+    if (!row) return;
+    const active = document.activeElement;
+    if (active && active !== document.body && !row.contains(active)) return;
+    if (target === 'keyField' || target === 'workspaceField' || target === 'githubField') {
+      const input = (target === 'keyField' ? keyInputRef : target === 'workspaceField' ? wsInputRef : tokenInputRef).current;
+      // Selected, so the next paste replaces what is there.
+      input?.focus();
+      input?.select();
+      return;
+    }
+    const first = row.querySelector<HTMLElement>('.setup-actions button, .setup-actions a')
+      ?? row.querySelector<HTMLElement>('input');
+    (first ?? row).focus();
+  }, [focusRequest]);
+
+  const checkAgain = async (): Promise<void> => {
+    if (rechecking) return;
+    setRechecking(true);
+    await checkKeyInUse();
+    if (!mounted.current) return;
+    setRechecking(false);
+    setFocusRequest({ target: 'keyAction' });
+  };
+
+  const lookAgain = async (): Promise<void> => {
+    if (looking) return;
+    setLooking(true);
+    setGithubNote(null);
+    const next = await loadStatus();
+    if (!mounted.current) return;
+    setLooking(false);
+    if (!next) return;
+    if (next.githubToken === null) setGithubNote('stillNone');
+    else setFocusRequest({ target: 'githubAction' });
+  };
+
+  const askRemove = (what: 'key' | 'token' | 'workspace'): void => {
+    removeOpener.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    removeAsked.current = what;
+    setRemoving(what);
+  };
+
+  const keepIt = (): void => {
+    if (!removeAsked.current) return;
+    removeAsked.current = null;
+    setRemoving(null);
+    removeOpener.current?.focus();
+  };
+
+  const removeIt = async (): Promise<void> => {
+    // ConfirmDialog confirms on Enter wherever focus is. Enter on its
+    // keep button must keep.
+    const focused = document.activeElement;
+    if (focused instanceof HTMLElement && focused.closest('.confirm-foot') && !focused.classList.contains('danger')) {
+      keepIt();
+      return;
+    }
+    // Enter reaches the dialog twice (its key handler, then the button's
+    // click): the first call takes the request.
+    const what = removeAsked.current;
+    if (!what) return;
+    removeAsked.current = null;
+    setRemoving(null);
+    window.popbot.diag.log('prefs.cloud.remove', { what });
+    const field = what === 'key' ? 'apiKey' : what === 'token' ? 'githubToken' : 'workspaceId';
+    try {
+      await onSave(withoutField(latest.current.saved, field));
+    } catch (err) {
+      window.popbot.diag.log('prefs.cloud.remove.failed', { what, error: errorMessage(err) });
+    }
+    if (!mounted.current) return;
+    if (what === 'token') {
+      setGithubNote(null);
+      await loadStatus();
+      if (mounted.current) setFocusRequest({ target: 'githubAction' });
+      return;
+    }
+    if (what === 'key') {
+      // Only the saved key goes. If the environment has one, cloud
+      // chats run on that now, so it is checked.
+      setKeyNote(null);
+      await refresh();
+    } else {
+      setWsVerdict(null);
+      setWsNote(null);
+      if (latest.current.status?.apiKey) await checkKeyInUse();
+    }
+    if (mounted.current) setFocusRequest({ target: 'keyAction' });
+  };
+
+  const footer = cloudFooter(status, check);
+  const keyLine = keyFieldLine({ source: keySource, draft: keyDraft, checking: keyBusy, verdict: keyVerdict, note: keyNote });
+  const keyNoteShown = keyFieldOpen ? null : keyNoteLine(keyNote, keySource);
+  const wsLine = workspaceLine({ fieldOpen: wsFieldOpen, draft: wsDraft, busy: wsBusy, verdict: wsVerdict, note: wsNote });
+  const tokenLine = tokenFieldLine({ source: githubSource, draft: tokenDraft, problem: tokenProblem });
+  const githubNoteShown = tokenFieldOpen ? null : githubNoteLine(githubNote, githubSource);
+  const removal = removing && {
+    key: {
+      title: t('prefs.agents.cloud.key.remove.title'),
+      message: t('prefs.agents.cloud.key.remove.body'),
+      confirm: t('prefs.agents.cloud.key.remove.confirm'),
+      cancel: t('prefs.agents.cloud.key.remove.cancel'),
+    },
+    token: {
+      title: t('prefs.agents.cloud.github.remove.title'),
+      message: t('prefs.agents.cloud.github.remove.body'),
+      confirm: t('prefs.agents.cloud.github.remove.confirm'),
+      cancel: t('prefs.agents.cloud.github.remove.cancel'),
+    },
+    workspace: {
+      title: t('prefs.agents.cloud.ws.remove.title'),
+      message: t('prefs.agents.cloud.ws.remove.body'),
+      confirm: t('prefs.agents.cloud.ws.remove.confirm'),
+      cancel: t('prefs.agents.cloud.ws.remove.cancel'),
+    },
+  }[removing];
+
+  const keyTitleId = 'agents-cloud-key-title';
+  const keyLineId = 'agents-cloud-key-line';
+  const wsInputId = 'agents-cloud-ws-input';
+  const wsSavedId = 'agents-cloud-ws-saved';
+  const wsLineId = 'agents-cloud-ws-line';
+  const githubTitleId = 'agents-cloud-github-title';
+  const githubLineId = 'agents-cloud-github-line';
 
   return (
-    <>
-      <div className="pref-row wide">
-        <div className="pref-label" style={{ width: '100%' }}>
-          <div className="pref-label-title">
-            <i className="fa-solid fa-cloud" aria-hidden style={{ color: '#cf9d6a', marginRight: 6 }} />
-            {t('prefs.agents.cloud.title')}
+    <FeatureSection id="cloud" arrived={arrived}>
+      <FeatureHead
+        id="cloud"
+        title={t('prefs.agents.cloud.title')}
+        pill={cloudPill(status, check)}
+      />
+      <p className="pref-section-desc">{t('prefs.agents.cloud.about')}</p>
+
+      <div className="host-card setup-card">
+        {/* The row takes focus itself (it is no tab stop) so that a click
+            on its own text — selecting the message Anthropic sent, say —
+            is not read as leaving it. */}
+        <div className="setup-row" ref={keyRowRef} tabIndex={-1} onBlur={onRowBlur(keyRowRef, keyRowLeft)}>
+          <SetupMark kind={keyView.mark} step={1} />
+          <div>
+            <div className="pref-label-title" id={keyTitleId}>{t('prefs.agents.cloud.apiKey.title')}</div>
+            <div className="pref-label-desc" role="status">
+              {keyView.sentence.map((key) => t(key)).join(' ')}
+            </div>
+            {keyView.detail && <div className="pref-state-detail">{keyView.detail}</div>}
           </div>
-          <div className="pref-label-desc">{t('prefs.agents.cloud.desc')}</div>
-        </div>
-      </div>
-      <div className="pref-row">
-        <div className="pref-label">
-          <div className="pref-label-title">{t('prefs.agents.cloud.apiKey.title')}</div>
-          <div className="pref-label-desc">
-            {t('prefs.agents.cloud.apiKey.desc')}{' '}
-            <a
-              href="https://platform.claude.com/settings/keys"
-              onClick={(e) => { e.preventDefault(); window.open('https://platform.claude.com/settings/keys', '_blank'); }}
-              style={{ color: 'var(--acc)', cursor: 'pointer' }}
-            >
-              {t('prefs.agents.cloud.getKey')}
-            </a>
-            {keyLine && !result && !saving && <div style={{ marginTop: 4 }}>{keyLine}</div>}
-            {saving && <div style={{ marginTop: 4 }}>{t('common.saving')}</div>}
-            {result && !saving && (
-              <div style={{ marginTop: 4, color: result.ok ? 'var(--st-done)' : '#e89696' }}>{result.text}</div>
+          <div className="setup-actions">
+            {keyView.mode === 'replace' && keyOpen ? (
+              <button type="button" className="btn sm" onClick={() => closeKeyField(true)}>
+                {t('prefs.agents.cloud.key.keep')}
+              </button>
+            ) : keyView.actions.map((action) => {
+              switch (action) {
+                case 'getKey':
+                  // Leaves the app: the arrow says so.
+                  return (
+                    <a
+                      key={action}
+                      className="btn-link"
+                      href={API_KEYS_URL}
+                      onClick={(e) => { e.preventDefault(); window.open(API_KEYS_URL, '_blank'); }}
+                    >
+                      {t('prefs.agents.cloud.key.get')} <i className="fa-solid fa-arrow-up-right-from-square" aria-hidden />
+                    </a>
+                  );
+                case 'checkAgain':
+                  // aria-disabled, not disabled: focus stays on it while the check runs.
+                  return (
+                    <button key={action} type="button" className="btn sm" aria-disabled={rechecking || undefined} onClick={() => void checkAgain()}>
+                      {t('prefs.agents.cloud.action.checkAgain')}
+                    </button>
+                  );
+                case 'useOther':
+                  return (
+                    <button key={action} type="button" className="btn sm" onClick={openKeyField}>
+                      {t('prefs.agents.cloud.key.useOther')}
+                    </button>
+                  );
+                case 'replace':
+                  return (
+                    <button key={action} type="button" className="btn sm" aria-describedby={keyTitleId} onClick={openKeyField}>
+                      {t('prefs.agents.cloud.action.replace')}
+                    </button>
+                  );
+                default:
+                  return (
+                    <button key={action} type="button" className="btn sm ghost" aria-describedby={keyTitleId} onClick={() => askRemove('key')}>
+                      {t('prefs.agents.cloud.action.remove')}
+                    </button>
+                  );
+              }
+            })}
+          </div>
+          <div className="setup-more">
+            {keyFieldOpen && (
+              <div className="setup-field">
+                <input
+                  ref={keyInputRef}
+                  className="pref-input mono"
+                  type="password"
+                  autoComplete="off"
+                  spellCheck={false}
+                  placeholder="sk-ant-…"
+                  value={keyDraft}
+                  readOnly={keyBusy}
+                  aria-labelledby={keyTitleId}
+                  aria-describedby={keyLineId}
+                  aria-invalid={keyLine.invalid || undefined}
+                  onChange={(e) => {
+                    // The red line is about what was there: it clears on the first edit.
+                    setKeyDraft(e.target.value);
+                    setKeyVerdict(null);
+                    setKeyNote(null);
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      void applyKey('enter');
+                    } else if (e.key === 'Escape' && !keyBusy) {
+                      // Esc keeps the current key; with none yet, it empties the field.
+                      e.preventDefault();
+                      e.stopPropagation();
+                      if (keyView.mode === 'replace') closeKeyField(true);
+                      else {
+                        setKeyDraft('');
+                        setKeyVerdict(null);
+                      }
+                    }
+                  }}
+                />
+                <button
+                  type="button"
+                  className={`btn sm${keyDraft.trim() && !keyBusy ? ' primary' : ''}`}
+                  disabled={!keyDraft.trim()}
+                  aria-disabled={keyBusy || undefined}
+                  onClick={() => void applyKey('button')}
+                >
+                  {keyBusy
+                    ? <><i className="fa-solid fa-spinner fa-spin" aria-hidden /> {t('prefs.agents.cloud.key.checkingBtn')}</>
+                    : t('prefs.agents.cloud.key.check')}
+                </button>
+              </div>
             )}
+            <div id={keyLineId} role="status">
+              {keyFieldOpen && (
+                <>
+                  <StateLineView line={keyLine.line}>
+                    {keyLine.stillInUse && <>{' '}{t('prefs.agents.cloud.key.stillInUse')}</>}
+                  </StateLineView>
+                  {keyLine.detail && <div className="pref-state-detail">{keyLine.detail}</div>}
+                </>
+              )}
+              {keyNoteShown && <StateLineView line={keyNoteShown} />}
+            </div>
+
+            {workspace === 'sentence' && (
+              <div className="setup-sub">
+                <span id={wsSavedId}>{t('prefs.agents.cloud.ws.saved', { id: savedWorkspace ?? '' })}</span>
+                <button type="button" className="btn-link" aria-describedby={wsSavedId} onClick={openWorkspaceField}>
+                  {t('prefs.agents.cloud.ws.change')}
+                </button>
+                <button type="button" className="btn-link" aria-describedby={wsSavedId} onClick={() => askRemove('workspace')}>
+                  {t('prefs.agents.cloud.action.remove')}
+                </button>
+              </div>
+            )}
+            {workspace === 'addLink' && (
+              <div className="setup-sub">
+                <button type="button" className="btn-link" onClick={openWorkspaceField}>
+                  {t('prefs.agents.cloud.ws.add')}
+                </button>
+              </div>
+            )}
+            {wsFieldOpen && (
+              <div className="setup-field">
+                <label htmlFor={wsInputId}>{t('prefs.agents.cloud.workspace.title')}</label>
+                <input
+                  ref={wsInputRef}
+                  id={wsInputId}
+                  className="pref-input mono"
+                  autoComplete="off"
+                  spellCheck={false}
+                  placeholder="wrkspc_…"
+                  value={wsDraft}
+                  readOnly={wsBusy || keyBusy}
+                  aria-describedby={wsLineId}
+                  aria-invalid={wsVerdict === 'fail' || undefined}
+                  onChange={(e) => {
+                    setWsDraft(e.target.value);
+                    setWsVerdict(null);
+                    setWsDetail(null);
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !e.nativeEvent.isComposing) {
+                      e.preventDefault();
+                      void applyWorkspace('enter');
+                    } else if (e.key === 'Escape' && !wsBusy && !keyBusy) {
+                      // Esc keeps the current ID; with none yet, it puts the field away.
+                      e.preventDefault();
+                      e.stopPropagation();
+                      closeWorkspaceField(true);
+                    }
+                  }}
+                />
+                {/* Beside a typed key, the key's own button checks both;
+                    with no key at all there is nothing to check yet. */}
+                {!keyTyped && keySource !== null && (
+                  <button
+                    type="button"
+                    className={`btn sm${wsDraft.trim() && !wsBusy ? ' primary' : ''}`}
+                    disabled={!wsDraft.trim()}
+                    aria-disabled={wsBusy || undefined}
+                    onClick={() => void applyWorkspace('button')}
+                  >
+                    {wsBusy
+                      ? <><i className="fa-solid fa-spinner fa-spin" aria-hidden /> {t('prefs.agents.cloud.key.checkingBtn')}</>
+                      : t('prefs.agents.cloud.key.check')}
+                  </button>
+                )}
+                {wsMode === 'replace' && (
+                  <button type="button" className="btn sm" onClick={() => closeWorkspaceField(true)}>
+                    {t('prefs.agents.cloud.ws.keep')}
+                  </button>
+                )}
+              </div>
+            )}
+            <div id={wsLineId} role="status">
+              {wsLine && <StateLineView line={wsLine} />}
+              {wsFieldOpen && wsVerdict === 'fail' && wsDetail && <div className="pref-state-detail">{wsDetail}</div>}
+            </div>
           </div>
         </div>
-        <div className="pref-control" style={{ flex: 1, minWidth: 280 }}>
-          <input
-            className="pref-input mono"
-            type="password"
-            placeholder="sk-ant-…"
-            value={apiKey}
-            onChange={(e) => { setApiKey(e.target.value); setResult(null); }}
-            onBlur={() => void commit()}
-            onKeyDown={onEnter}
-            style={{ width: '100%' }}
-          />
-        </div>
-      </div>
-      <div className="pref-row">
-        <div className="pref-label">
-          <div className="pref-label-title">{t('prefs.agents.cloud.workspace.title')}</div>
-          <div className="pref-label-desc">{t('prefs.agents.cloud.workspace.desc')}</div>
-        </div>
-        <div className="pref-control" style={{ flex: 1, minWidth: 280 }}>
-          <input
-            className="pref-input mono"
-            placeholder="wrkspc_…"
-            value={workspaceId}
-            onChange={(e) => { setWorkspaceId(e.target.value); setResult(null); }}
-            onBlur={() => void commit()}
-            onKeyDown={onEnter}
-            style={{ width: '100%' }}
-          />
-        </div>
-      </div>
-      <div className="pref-row">
-        <div className="pref-label">
-          <div className="pref-label-title">{t('prefs.agents.cloud.githubToken.title')}</div>
-          <div className="pref-label-desc">
-            {t('prefs.agents.cloud.githubToken.desc')}
-            {ghLine && <div style={{ marginTop: 4 }}>{ghLine}</div>}
+
+        <div className="setup-row" ref={githubRowRef} tabIndex={-1} onBlur={onRowBlur(githubRowRef, githubRowLeft)}>
+          <SetupMark kind={looking ? 'checking' : githubView.mark} step={2} />
+          <div>
+            <div className="pref-label-title" id={githubTitleId}>{t('prefs.agents.cloud.github.title')}</div>
+            <div className="pref-label-desc" role="status">
+              {githubView.sentence ? t(githubView.sentence) : ''}
+            </div>
+          </div>
+          <div className="setup-actions">
+            {tokenFieldOpen ? (
+              <button type="button" className="btn sm" onClick={() => closeTokenField(true)}>
+                {t(tokenCloseKey(githubSource))}
+              </button>
+            ) : githubView.actions.map((action) => {
+              switch (action) {
+                case 'lookAgain':
+                  return (
+                    <button key={action} type="button" className="btn sm" aria-disabled={looking || undefined} onClick={() => void lookAgain()}>
+                      {looking ? t('prefs.agents.cloud.github.looking') : t('prefs.agents.cloud.github.lookAgain')}
+                    </button>
+                  );
+                case 'paste':
+                  return (
+                    <button key={action} type="button" className="btn sm" onClick={openTokenField}>
+                      {t('prefs.agents.cloud.github.paste')}
+                    </button>
+                  );
+                case 'useToken':
+                  return (
+                    <button key={action} type="button" className="btn sm" onClick={openTokenField}>
+                      {t('prefs.agents.cloud.github.useToken')}
+                    </button>
+                  );
+                case 'replace':
+                  return (
+                    <button key={action} type="button" className="btn sm" aria-describedby={githubTitleId} onClick={openTokenField}>
+                      {t('prefs.agents.cloud.action.replace')}
+                    </button>
+                  );
+                default:
+                  return (
+                    <button key={action} type="button" className="btn sm ghost" aria-describedby={githubTitleId} onClick={() => askRemove('token')}>
+                      {t('prefs.agents.cloud.action.remove')}
+                    </button>
+                  );
+              }
+            })}
+          </div>
+          <div className="setup-more">
+            {githubView.howTo && !tokenFieldOpen && (
+              <p className="pref-state">
+                <i className={lineIcon('hint')} aria-hidden />
+                <span>
+                  {t('prefs.agents.cloud.github.howTo.before')}{' '}
+                  <code className="pref-code">gh auth login</code>{' '}
+                  {t('prefs.agents.cloud.github.howTo.after')}
+                </span>
+              </p>
+            )}
+            {tokenFieldOpen && (
+              <div className="setup-field">
+                <input
+                  ref={tokenInputRef}
+                  className="pref-input mono"
+                  type="password"
+                  autoComplete="off"
+                  spellCheck={false}
+                  placeholder="ghp_… or github_pat_…"
+                  value={tokenDraft}
+                  aria-labelledby={githubTitleId}
+                  aria-describedby={githubLineId}
+                  aria-invalid={tokenLine.invalid || undefined}
+                  onChange={(e) => {
+                    setTokenDraft(e.target.value);
+                    setTokenProblem(null);
+                    setTokenError(null);
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      void applyToken('enter');
+                    } else if (e.key === 'Escape') {
+                      // Esc keeps what is in use; with nothing yet, it puts the field away.
+                      e.preventDefault();
+                      e.stopPropagation();
+                      closeTokenField(true);
+                    }
+                  }}
+                />
+                <button
+                  type="button"
+                  className={`btn sm${tokenDraft.trim() ? ' primary' : ''}`}
+                  disabled={!tokenDraft.trim()}
+                  onClick={() => void applyToken('button')}
+                >
+                  {t('prefs.agents.cloud.github.use')}
+                </button>
+              </div>
+            )}
+            <div id={githubLineId} role="status">
+              {tokenFieldOpen && !tokenError && <StateLineView line={tokenLine.line} />}
+              {/* Only a failed write to the settings store ends up here:
+                  there is nothing to say but what it said. */}
+              {tokenFieldOpen && tokenError && (
+                <p className="pref-state error">
+                  <i className={lineIcon('error')} aria-hidden />
+                  <span>{tokenError}</span>
+                </p>
+              )}
+              {githubNoteShown && <StateLineView line={githubNoteShown} />}
+            </div>
           </div>
         </div>
-        <div className="pref-control" style={{ flex: 1, minWidth: 280 }}>
-          <input
-            className="pref-input mono"
-            type="password"
-            placeholder="ghp_… / github_pat_…"
-            value={githubToken}
-            onChange={(e) => { setGithubToken(e.target.value); setResult(null); }}
-            onBlur={() => void commit()}
-            onKeyDown={onEnter}
-            style={{ width: '100%' }}
-          />
-        </div>
+
+        {footer && (
+          <div className="setup-next">
+            {onNewCloudChat && (
+              <button type="button" className="btn sm primary" onClick={onNewCloudChat}>
+                <i className="fa-solid fa-cloud" aria-hidden /> {t('prefs.agents.cloud.next.newChat')}
+              </button>
+            )}
+            {/* Plain words that match the real controls: their names are
+                read from the strings those controls use. */}
+            <span className="setup-next-how">
+              {footer === 'ready'
+                ? t('prefs.agents.cloud.next.manual', { newChat: t('common.newChat'), cloud: t('agent.cloudToggle') })
+                : t('prefs.agents.cloud.next.noGithub')}
+            </span>
+            <span className="setup-next-note">
+              {t('prefs.agents.cloud.next.stop', { item: t('chat.cloud.shutdown') })}
+            </span>
+          </div>
+        )}
       </div>
-    </>
+
+      {removal && (
+        <ConfirmDialog
+          title={removal.title}
+          message={removal.message}
+          confirmLabel={removal.confirm}
+          cancelLabel={removal.cancel}
+          destructive
+          onConfirm={() => void removeIt()}
+          onCancel={keepIt}
+        />
+      )}
+    </FeatureSection>
   );
 }
 
@@ -1000,35 +2183,6 @@ function AddHostRepo({ hostId, onAdded }: { hostId: string; onAdded: () => void 
       </button>
       {error && <div className="host-card-status error" style={{ flexBasis: '100%' }}>{t('prefs.hosts.repos.error', { error })}</div>}
     </div>
-  );
-}
-
-function AgentEffortField<T extends ClaudeReasoningEffort | CodexReasoningEffort>({
-  label,
-  value,
-  options,
-  onChange,
-}: {
-  label: string;
-  value: T;
-  options: readonly T[];
-  onChange: (value: T) => void;
-}): JSX.Element {
-  const { t } = useTranslation();
-  return (
-    <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-      <span className="mono" style={{ color: 'var(--fg-2)', fontSize: 11 }}>{label}</span>
-      <select
-        className="pref-input"
-        value={value}
-        onChange={(e) => onChange(e.currentTarget.value as T)}
-        style={{ width: 112 }}
-      >
-        {options.map((item) => (
-          <option key={item} value={item}>{reasoningEffortLabel(item, t)}</option>
-        ))}
-      </select>
-    </label>
   );
 }
 

@@ -975,42 +975,14 @@ export const ko = {
   'prefs.footMeta': 'PopBot · 프리알파',
 
   // Preferences — Agents pane.
-  'prefs.agents.title': '에이전트',
-  'prefs.agents.desc':
-    '새로 생성되는 채팅의 기본 노력 수준입니다. 기존 채팅은 채팅 작성기에서 변경할 때까지 저장된 자체 노력 수준을 유지합니다.',
   'prefs.agents.newChats.title': '새 채팅',
-  'prefs.agents.newChats.desc':
-    '에이전트 선택기가 열릴 때 일반 채팅과 티켓 채팅에서 사용됩니다.',
   'prefs.agents.codeReviews.title': '코드 리뷰',
-  'prefs.agents.codeReviews.desc':
-    'PR 리뷰 채팅, 재리뷰 대체 채팅, 리뷰 알림에서 사용됩니다.',
   'prefs.agents.codexSteering.title': '작업 중인 Codex에 지시 전달',
-  'prefs.agents.codexSteering.desc':
-    'exec SDK 대신 Codex의 app-server로 연결합니다. Codex가 작업하는 동안 보낸 메시지가 턴이 끝나길 기다리지 않고 다음 단계에서 전달됩니다. Codex 채팅의 컨텍스트 게이지가 채워지고 컨텍스트 압축도 사용할 수 있습니다. Codex CLI에서는 실험적 기능이며 codex 0.153 이상이 필요합니다. 각 채팅의 다음 메시지부터 적용됩니다.',
-  'prefs.agents.codexSteering.on': '켜짐 — 메시지가 턴 도중 Codex에 전달됩니다',
-  'prefs.agents.codexSteering.off': '꺼짐 — 메시지가 턴이 끝날 때까지 기다립니다',
-  'prefs.agents.mcp.title': '에이전트용 PopBot 도구',
-  'prefs.agents.mcp.desc':
-    '각 채팅의 에이전트에게 “popbot” MCP 서버를 제공합니다. 채팅 목록 조회·생성·닫기·다시 열기, 다른 채팅에 메시지를 보내고 답을 기다리기, 코드 리뷰와 티켓 채팅 시작, 기록 읽기와 검색을 할 수 있습니다. 각 채팅의 다음 에이전트 세션부터 적용됩니다.',
-  'prefs.agents.mcp.on': '켜짐 — 에이전트가 PopBot을 조작할 수 있음',
-  'prefs.agents.mcp.off': '꺼짐 — popbot 도구 없음',
   'prefs.agents.cloud.title': '클라우드 채팅',
-  'prefs.agents.cloud.desc':
-    'Cloud 칩으로 만든 채팅은 Anthropic Managed Agents에서 실행됩니다. Anthropic 클라우드 샌드박스의 세션으로, Console 계정에 토큰 단위로 과금되며 PopBot을 종료해도 계속 작업합니다.',
   'prefs.agents.cloud.apiKey.title': 'Anthropic API 키',
-  'prefs.agents.cloud.apiKey.desc': '이 앱의 데이터베이스에 로컬로 저장됩니다. 비워 두면 환경 변수 ANTHROPIC_API_KEY를 사용합니다.',
-  'prefs.agents.cloud.getKey': '키 받기',
-  'prefs.agents.cloud.githubToken.title': 'GitHub 토큰',
-  'prefs.agents.cloud.githubToken.desc': '샌드박스가 이 토큰으로 리포지토리를 클론합니다(repo 범위). 비워 두면 gh가 로그인한 토큰을 사용합니다.',
   'prefs.agents.cloud.workspace.title': '워크스페이스 ID',
-  'prefs.agents.cloud.workspace.desc':
-    '워크스페이스에 속하지 않은 키에만 필요합니다(검사가 알려줍니다): Console의 Workspaces 페이지에 있는 wrkspc_… ID. 워크스페이스 안에서 만든 키에는 필요 없습니다.',
   'prefs.agents.cloud.envKey': '환경 변수 ANTHROPIC_API_KEY를 사용 중입니다.',
-  'prefs.agents.cloud.noKey': '아직 키가 없습니다. 클라우드 채팅을 사용할 수 없습니다.',
-  'prefs.agents.cloud.ghToken': 'GitHub: gh가 로그인한 토큰을 사용 중입니다.',
-  'prefs.agents.cloud.noGh': 'GitHub: 토큰이 없습니다. 여기에 저장하거나 gh auth login을 실행하세요.',
   'prefs.agents.cloud.ok': '키가 정상 작동합니다.',
-  'prefs.agents.cloud.error': '저장했지만 키가 작동하지 않았습니다: {error}',
   'prefs.hosts.title': '호스트',
   'prefs.hosts.desc':
     '이 PopBot의 채팅을 실행하는 다른 컴퓨터입니다. 각 컴퓨터에서 popbot-host를 실행합니다. 빌드한 뒤 dist-host/popbot-host.cjs를 복사하고 --init 옵션으로 한 번 실행하면 설정이 기록되고 토큰이 출력됩니다. 채팅의 대화 기록, 검색, 설정은 여기에 남고 에이전트, 도구, 체크아웃은 그쪽에 있습니다. 원격 컴퓨터는 SSH 터널로 연결합니다: ssh -L 7677:127.0.0.1:7677 machine',

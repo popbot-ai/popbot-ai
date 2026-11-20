@@ -10,6 +10,7 @@ import {
   closestReasoningEffort,
   codexReasoningEffortsForModel,
 } from '@shared/persistence';
+import type { PickedAttachment } from '@shared/ipc';
 import type { SpawnOpts } from './types';
 
 /**
@@ -120,3 +121,37 @@ export function stringifyForDisplay(value: unknown): string {
     return String(value);
   }
 }
+
+// ── Messages Codex never received ────────────────────────────────────
+//
+// A message sent while Codex is working waits for the turn (or is
+// steered into it). If the turn is stopped — or fails — first, Codex
+// never receives it, yet the transcript shows it as sent. Such messages
+// are held and go with the user's next one, marked as earlier ones:
+// Codex must never answer as if something the user wrote was not written.
+
+/** Said before the held messages, in PopBot's voice so Codex can tell it
+ *  from the user's own words. */
+export const HELD_LEAD =
+  '[PopBot: the user sent the following while you were working. That turn ended before these messages reached you, so read them now.]';
+/** Said between the held messages and the one being sent. */
+export const HELD_NOW = '[PopBot: and this is the user\'s newest message.]';
+
+/** A user message as a backend takes it. */
+export interface HeldMessage {
+  text: string;
+  attachments?: PickedAttachment[];
+}
+
+/** `next` with the held messages ahead of it, oldest first; their
+ *  attachments come along. With nothing held, `next` as it is. */
+export function withHeldMessages(held: HeldMessage[], next: HeldMessage): HeldMessage {
+  if (held.length === 0) return next;
+  const earlier = held.map((m) => m.text.trim()).filter(Boolean);
+  const attachments = [...held.flatMap((m) => m.attachments ?? []), ...(next.attachments ?? [])];
+  const text = earlier.length === 0
+    ? next.text
+    : [HELD_LEAD, ...earlier, ...(next.text.trim() ? [HELD_NOW, next.text] : [])].join('\n\n');
+  return { text, ...(attachments.length > 0 ? { attachments } : {}) };
+}
+

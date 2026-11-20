@@ -981,44 +981,14 @@ export const es = {
   'prefs.footMeta': 'PopBot · pre-alpha',
 
   // Preferences — Agents pane.
-  'prefs.agents.title': 'Agentes',
-  'prefs.agents.desc':
-    'Niveles de esfuerzo predeterminados para los chats recién creados. Los chats existentes conservan su propio esfuerzo guardado hasta que lo cambies en el compositor del chat.',
   'prefs.agents.newChats.title': 'Chats nuevos',
-  'prefs.agents.newChats.desc':
-    'Usado por los chats genéricos y los chats de ticket cuando se abre el selector de agente.',
   'prefs.agents.codeReviews.title': 'Revisiones de código',
-  'prefs.agents.codeReviews.desc':
-    'Usado por los chats de revisión de PR, los chats de respaldo de re-revisión y las notificaciones de revisión.',
   'prefs.agents.codexSteering.title': 'Dirigir a Codex mientras trabaja',
-  'prefs.agents.codexSteering.desc':
-    'Se conecta a Codex mediante su app-server en lugar del SDK exec, de modo que un mensaje enviado mientras Codex está ocupado le llega en su siguiente paso en vez de esperar a que termine el turno. También alimenta el indicador de contexto en los chats de Codex y habilita Compactar contexto. Experimental en la CLI de Codex; requiere codex 0.153 o posterior. Se aplica a partir del siguiente mensaje de cada chat.',
-  'prefs.agents.codexSteering.on': 'Activado: los mensajes llegan a Codex a mitad de turno',
-  'prefs.agents.codexSteering.off': 'Desactivado: los mensajes esperan a que termine el turno',
-  'prefs.agents.mcp.title': 'Herramientas de PopBot para los agentes',
-  'prefs.agents.mcp.desc':
-    'Da a cada agente un servidor MCP «popbot»: listar, crear, cerrar y reabrir chats, enviar mensajes a otros chats y esperar su respuesta, iniciar revisiones de código y chats de tickets, y leer y buscar en las transcripciones. Se aplica a partir de la siguiente sesión de agente de cada chat.',
-  'prefs.agents.mcp.on': 'Activado — los agentes pueden manejar PopBot',
-  'prefs.agents.mcp.off': 'Desactivado — sin herramientas popbot',
   'prefs.agents.cloud.title': 'Chats en la nube',
-  'prefs.agents.cloud.desc':
-    'Un chat creado con el chip Cloud se ejecuta en Anthropic Managed Agents: una sesión en un sandbox en la nube de Anthropic, facturada por token a tu cuenta de Console, que sigue trabajando cuando PopBot se cierra.',
   'prefs.agents.cloud.apiKey.title': 'Clave de API de Anthropic',
-  'prefs.agents.cloud.apiKey.desc':
-    'Se guarda localmente en la base de datos de esta app. Déjala vacía para usar la variable de entorno ANTHROPIC_API_KEY.',
-  'prefs.agents.cloud.getKey': 'Obtener una clave',
-  'prefs.agents.cloud.githubToken.title': 'Token de GitHub',
-  'prefs.agents.cloud.githubToken.desc':
-    'El sandbox clona tus repositorios con él (ámbito repo). Déjalo vacío para usar el token con el que gh tiene la sesión iniciada.',
   'prefs.agents.cloud.workspace.title': 'ID del workspace',
-  'prefs.agents.cloud.workspace.desc':
-    'Solo para una clave que no está asociada a un workspace (la comprobación lo indica): el id wrkspc_… de la página Workspaces de la Console. Una clave creada dentro de un workspace no lo necesita.',
   'prefs.agents.cloud.envKey': 'Se usa la variable de entorno ANTHROPIC_API_KEY.',
-  'prefs.agents.cloud.noKey': 'Aún no hay clave: los chats en la nube no están disponibles.',
-  'prefs.agents.cloud.ghToken': 'GitHub: se usa el token con el que gh tiene la sesión iniciada.',
-  'prefs.agents.cloud.noGh': 'GitHub: sin token. Guarda uno aquí o ejecuta gh auth login.',
   'prefs.agents.cloud.ok': 'La clave funciona.',
-  'prefs.agents.cloud.error': 'Guardada, pero la clave no funcionó: {error}',
   'prefs.hosts.title': 'Hosts',
   'prefs.hosts.desc':
     'Otros equipos que ejecutan chats para este PopBot. Cada uno corre popbot-host: compílalo, copia dist-host/popbot-host.cjs y ejecútalo una vez con --init para escribir su configuración e imprimir su token. La transcripción, la búsqueda y los ajustes del chat se quedan aquí; el agente, sus herramientas y el checkout están allí. A un equipo remoto se llega por un túnel SSH: ssh -L 7677:127.0.0.1:7677 equipo.',

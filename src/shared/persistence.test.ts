@@ -15,68 +15,58 @@ import {
 } from './persistence';
 
 describe('model registry', () => {
-  it('defaults new Codex chats to GPT-6.1 Sol', () => {
-    expect(DEFAULT_CODEX_MODEL).toBe('gpt-6.1-sol');
-    expect(normalizeCodexModel(null)).toBe('gpt-6.1-sol');
-    expect(normalizeCodexModel('gpt-4o')).toBe('gpt-6.1-sol');
+  it('defaults new Codex chats to GPT-6.2 Sol', () => {
+    expect(DEFAULT_CODEX_MODEL).toBe('gpt-6.2-sol');
+    expect(normalizeCodexModel(null)).toBe('gpt-6.2-sol');
+    expect(normalizeCodexModel(undefined)).toBe('gpt-6.2-sol');
+    expect(normalizeCodexModel('gpt-4o')).toBe('gpt-6.2-sol');
   });
 
-  it('moves chats on any earlier Sol up to GPT-6.1 Sol, quietly', () => {
-    // Sol supersedes itself, like Opus: GPT-6.1 Sol replaces GPT-5.6 Sol.
-    for (const prior of ['gpt-5.6-sol', 'gpt-6-sol', 'gpt-5.5-sol']) {
-      expect(normalizeCodexModel(prior)).toBe('gpt-6.1-sol');
+  it('offers the current Codex line-up — 6.2 Sol (and Fast), 6.1 Terra, 6 Luna, 6.2 Astra', () => {
+    expect(CODEX_MODELS).toEqual(['gpt-6.2-sol', 'gpt-6.2-sol-fast', 'gpt-6.1-terra', 'gpt-6-luna', 'gpt-6.2-astra']);
+    for (const current of CODEX_MODELS) expect(normalizeCodexModel(current)).toBe(current);
+  });
+
+  it('moves every earlier Codex version up to the current model of its own line', () => {
+    for (const prior of ['gpt-6.1-sol', 'gpt-6-sol', 'gpt-5.6-sol', 'gpt-5.5-sol']) {
+      expect(normalizeCodexModel(prior)).toBe('gpt-6.2-sol');
     }
-    expect(CODEX_MODELS).not.toContain('gpt-5.6-sol');
+    expect(normalizeCodexModel('gpt-6.1-sol-fast')).toBe('gpt-6.2-sol-fast');
+    expect(normalizeCodexModel('gpt-5.6-terra')).toBe('gpt-6.1-terra');
+    expect(normalizeCodexModel('gpt-5.6-luna')).toBe('gpt-6-luna');
+    expect(normalizeCodexModel('gpt-6-astra')).toBe('gpt-6.2-astra');
+    // A retired model with no line of its own maps to its closest tier.
+    expect(normalizeCodexModel('gpt-5.5')).toBe('gpt-6.1-terra');
     // Another tier on the Sol line is not an earlier Sol.
-    expect(normalizeCodexModel('gpt-6.1-sol-pro')).toBe(DEFAULT_CODEX_MODEL);
-    // Terra, Luna and Astra are separate models and stay where they are.
-    for (const other of ['gpt-5.6-terra', 'gpt-5.6-luna', 'gpt-6-astra'] as const) {
-      expect(normalizeCodexModel(other)).toBe(other);
+    expect(normalizeCodexModel('gpt-6.2-sol-pro')).toBe(DEFAULT_CODEX_MODEL);
+  });
+
+  it('keeps Astra opt-in: never the default, reached only from an earlier Astra', () => {
+    expect(DEFAULT_CODEX_MODEL).not.toBe('gpt-6.2-astra');
+    for (const other of ['gpt-6.1-sol', 'gpt-5.6-terra', 'gpt-5.6-luna', 'gpt-5.5', 'gpt-4o']) {
+      expect(normalizeCodexModel(other)).not.toBe('gpt-6.2-astra');
     }
   });
 
-  it('rolls retired gpt-5.5 chats forward to Terra, its price/performance equal', () => {
-    // Not Sol: rolling a mid-tier chat onto the flagship would quietly raise
-    // its cost, so retired models map to the closest tier, not the default.
-    expect(normalizeCodexModel('gpt-5.5')).toBe('gpt-5.6-terra');
-    expect(CODEX_MODELS).not.toContain('gpt-5.5');
-  });
-
-  it('offers GPT-6.1 Sol Fast: Sol on the priority tier, opt-in only', () => {
-    expect(CODEX_MODELS).toContain('gpt-6.1-sol-fast');
-    expect(CODEX_MODEL_LABELS['gpt-6.1-sol-fast']).toBe('GPT-6.1 Sol Fast');
-    expect(codexWireModel('gpt-6.1-sol-fast')).toEqual({ model: 'gpt-6.1-sol', serviceTier: 'priority' });
-    expect(codexWireModel('gpt-6.1-sol')).toEqual({ model: 'gpt-6.1-sol', serviceTier: null });
-    expect(codexReasoningEffortsForModel('gpt-6.1-sol-fast')).toEqual(codexReasoningEffortsForModel('gpt-6.1-sol'));
-    // Never a default, and nothing rolls onto it.
-    expect(DEFAULT_CODEX_MODEL).not.toBe('gpt-6.1-sol-fast');
-    expect(normalizeCodexModel('gpt-6.1-sol-fast')).toBe('gpt-6.1-sol-fast');
-    expect(normalizeCodexModel('gpt-5.6-sol')).toBe('gpt-6.1-sol');
-  });
-
-  it('exposes GPT-6.1 Sol and the GPT-5.6 tiers', () => {
-    expect(CODEX_MODELS).toContain('gpt-6.1-sol');
-    expect(CODEX_MODELS).toContain('gpt-5.6-terra');
-    expect(CODEX_MODELS).toContain('gpt-5.6-luna');
+  it('offers GPT-6.2 Sol Fast: Sol on the priority tier, opt-in only', () => {
+    expect(CODEX_MODEL_LABELS['gpt-6.2-sol-fast']).toBe('GPT-6.2 Sol Fast');
+    expect(codexWireModel('gpt-6.2-sol-fast')).toEqual({ model: 'gpt-6.2-sol', serviceTier: 'priority' });
+    expect(codexWireModel('gpt-6.2-sol')).toEqual({ model: 'gpt-6.2-sol', serviceTier: null });
+    expect(codexReasoningEffortsForModel('gpt-6.2-sol-fast')).toEqual(codexReasoningEffortsForModel('gpt-6.2-sol'));
+    expect(DEFAULT_CODEX_MODEL).not.toBe('gpt-6.2-sol-fast');
+    // A plain Sol never lands on the fast tier.
+    expect(normalizeCodexModel('gpt-6.1-sol')).not.toBe('gpt-6.2-sol-fast');
   });
 
   it('offers Anthropic\'s current line-up — Opus 5.5, Sonnet 5.5, Haiku 5.5, Fable 5.2', () => {
     expect(CLAUDE_MODELS).toEqual(['claude-opus-5-5', 'claude-sonnet-5-5', 'claude-haiku-5-5', 'claude-fable-5-2']);
-    expect(CODEX_MODELS).toEqual(['gpt-6.1-sol', 'gpt-6.1-sol-fast', 'gpt-5.6-terra', 'gpt-5.6-luna', 'gpt-6-astra']);
   });
 
-  it('defaults new chats to Opus 5.5 and Sol; Astra stays opt-in', () => {
+  it('defaults new Claude chats to Opus 5.5', () => {
     expect(DEFAULT_CLAUDE_MODEL).toBe('claude-opus-5-5');
     expect(normalizeClaudeModel(undefined)).toBe('claude-opus-5-5');
     expect(normalizeClaudeModel(null)).toBe('claude-opus-5-5');
     expect(normalizeClaudeModel('gpt-4o')).toBe('claude-opus-5-5');
-    expect(DEFAULT_CODEX_MODEL).not.toBe('gpt-6-astra');
-    expect(normalizeCodexModel(undefined)).toBe('gpt-6.1-sol');
-    expect(normalizeCodexModel('gpt-6-astra')).toBe('gpt-6-astra');
-    for (const current of ['gpt-6.1-sol', 'gpt-5.6-terra', 'gpt-5.6-luna'] as const) {
-      expect(normalizeCodexModel(current)).toBe(current);
-    }
-    expect(normalizeCodexModel('gpt-5.5')).toBe('gpt-5.6-terra');
   });
 
   it('keeps a chat on any current model it chose', () => {

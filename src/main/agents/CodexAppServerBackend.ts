@@ -24,13 +24,14 @@ import { existsSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { dirname, join } from 'node:path';
 import { randomUUID } from 'node:crypto';
-import { app } from 'electron';
 import type { AgentEvent, PermissionDecision } from '@shared/agent';
 import type { PickedAttachment } from '@shared/ipc';
 import { DEFAULT_CONTEXT_BUDGET } from '@shared/contextUsage';
 import { DEFAULT_CODEX_MODEL, DEFAULT_CODEX_REASONING_EFFORT, codexWireModel } from '@shared/persistence';
 import type { AgentBackend, AgentSession, SpawnOpts } from './types';
 import { dlog } from '../diagLog';
+import { activeCodexAuth, freshCodexAuth, noteCodexAccountRefused, type CodexAuth } from './codexAuth';
+import { codexOutOfUsage } from './codexSignIn';
 import {
   CodexRpcClient,
   CodexRpcError,
@@ -47,6 +48,8 @@ import {
   codexToolId,
   codexWireReasoningEffort,
   stringifyForDisplay,
+  HELD_LEAD,
+  HELD_NOW,
 } from './codexShared';
 
 // --- Wire shapes. Only what this file reads; generate the full set with
@@ -100,20 +103,40 @@ export const CodexAppServerBackend: AgentBackend = {
   capabilities: { skills: true, memory: true, subAgents: true, mcpHttp: true },
 
   spawn(opts: SpawnOpts): AgentSession {
+    // The account this session runs on is the one in use as it starts;
+    // a later switch restarts the session (AgentHost, host/sessions.ts).
+    const auth = activeCodexAuth();
     return new CodexAppServerSession(opts, () => {
       const bin = resolveCodexBinary(opts.pathToCodexExecutable ?? null);
-      return spawnCodexAppServer(bin.path, bin.pathDirs);
-    });
+      return spawnCodexAppServer(bin.path, bin.pathDirs, auth ? ON_AN_ACCOUNT : {});
+    }, auth);
   },
 };
 
-/** Test seam: the same session against a scripted transport. */
+/**
+ * How Codex is started to run on one of PopBot's accounts (codexAuth.ts):
+ * its sign-in store is memory only, so it neither reads this computer's
+ * own Codex sign-in nor writes the account's token anywhere; and no
+ * credential in PopBot's environment may win over the account's.
+ */
+const ON_AN_ACCOUNT = {
+  args: ['-c', 'cli_auth_credentials_store=ephemeral'],
+  env: { CODEX_API_KEY: undefined, CODEX_ACCESS_TOKEN: undefined },
+};
+
+/** Test seam: the same session against a scripted transport (and, with
+ *  `auth`, on an account). */
 export function createCodexAppServerSession(
   opts: SpawnOpts,
   connect: () => LineTransport,
+  auth: CodexAuth | null = null,
 ): AgentSession {
-  return new CodexAppServerSession(opts, connect);
+  return new CodexAppServerSession(opts, connect, auth);
 }
+
+/** How Codex words an account with no usage left, when it gives no code
+ *  for it. Not a passing "rate limit": that clears by itself. */
+const CODEX_USAGE_LIMIT_TEXT = /usage limit|out of (?:usage|credits)|credits (?:are |have been )?(?:depleted|exhausted)/i;
 
 class CodexAppServerSession implements AgentSession {
   private readonly chatId: string;
@@ -143,6 +166,20 @@ class CodexAppServerSession implements AgentSession {
   /** Messages that could not be steered (a compact or review turn, or an
    *  old CLI) — sent together as the next turn when this one ends. */
   private deferred: WireInput[][] = [];
+  /** Sent, but never received by Codex: still waiting when Stop was
+   *  pressed, or left over from a turn that failed. The transcript shows
+   *  them as sent, so they go with the next message (withHeld) instead of
+   *  being dropped. A steer keeps its id: if Codex shows it was injected
+   *  after all, it is no longer held. */
+  private held: Array<{ input: WireInput[]; clientId?: string }> = [];
+
+  /** The PopBot account this session runs on, or null: this computer's
+   *  own Codex sign-in. Fixed for the session's life. */
+  private readonly auth: CodexAuth | null;
+  /** The access token Codex was last given: what a refusal is a refusal of. */
+  private suppliedToken: string | null = null;
+  /** What the server last said of the running turn's failure, beyond its words. */
+  private lastTurnErrorInfo: unknown = null;
 
   private turnHadVisibleActivity = false;
   /** Latest context fill, for a compaction's before/after. */
@@ -157,7 +194,8 @@ class CodexAppServerSession implements AgentSession {
   private readonly openTools = new Set<string>();
   private planToolTurn: string | null = null;
 
-  constructor(opts: SpawnOpts, connect: () => LineTransport) {
+  constructor(opts: SpawnOpts, connect: () => LineTransport, auth: CodexAuth | null = null) {
+    this.auth = auth;
     this.chatId = opts.chatId;
     this.onEvent = opts.onEvent;
     this.onSessionId = opts.onSessionId;
@@ -192,9 +230,12 @@ class CodexAppServerSession implements AgentSession {
     const mcpConfig = codexMcpConfig(opts.mcpServers);
     await this.rpc.request('initialize', {
       clientInfo: { name: 'popbot', title: 'PopBot', version: safeAppVersion() },
-      capabilities: null,
+      // Being handed a token is, for now, part of Codex's experimental
+      // interface: it is refused without this.
+      capabilities: this.auth ? { experimentalApi: true, requestAttestation: false } : null,
     });
     this.rpc.notify('initialized');
+    if (this.auth) await this.signIn(this.auth);
 
     // A fast entry is its model on the priority tier (Codex's /fast).
     const wire = codexWireModel(this.model);
@@ -243,6 +284,48 @@ class CodexAppServerSession implements AgentSession {
     if (this.threadId) this.onSessionId?.(this.threadId);
   }
 
+  /** Hand Codex the account's token: from here on it runs as that account. */
+  private async signIn(auth: CodexAuth): Promise<void> {
+    try {
+      await this.rpc.request('account/login/start', {
+        type: 'chatgptAuthTokens',
+        accessToken: auth.accessToken,
+        chatgptAccountId: auth.chatgptAccountId,
+        chatgptPlanType: auth.planType,
+      });
+    } catch (err) {
+      const why = errorText(err);
+      // Codex going away mid-request says nothing about the token.
+      if (err instanceof CodexRpcError && err.code === RPC_CLOSED) throw err;
+      // A token Codex will not even take is no token: the account needs signing in again.
+      noteCodexAccountRefused(auth.accountId, auth.accessToken);
+      throw new Error(`Codex would not take this account’s sign-in (${why}). Sign the account in again in Preferences ▸ Codex accounts.`);
+    }
+    this.suppliedToken = auth.accessToken;
+    dlog('codex.app-server.on-account', { chatId: this.chatId, account: auth.accountId });
+  }
+
+  /**
+   * OpenAI turned the token down mid-session and Codex asks for another
+   * (`account/chatgptAuthTokens/refresh`). The desktop renews the sign-in;
+   * a host answers with what the desktop last sent. With nothing newer,
+   * Codex is told so and the turn fails as unauthorised.
+   */
+  private async answerTokenRefresh(id: number | string): Promise<void> {
+    const auth = this.auth;
+    const stale = this.suppliedToken;
+    const next = auth && stale ? await freshCodexAuth(auth.accountId, stale) : null;
+    if (this.disposed) return;
+    if (!next) {
+      dlog('codex.app-server.token-refresh', { chatId: this.chatId, account: auth?.accountId ?? null, fresh: false });
+      this.rpc.respondError(id, -32000, 'PopBot has no newer sign-in for this account');
+      return;
+    }
+    this.suppliedToken = next.accessToken;
+    dlog('codex.app-server.token-refresh', { chatId: this.chatId, account: next.accountId, fresh: true });
+    this.rpc.respond(id, { accessToken: next.accessToken, chatgptAccountId: next.chatgptAccountId, chatgptPlanType: next.planType });
+  }
+
   async sendUser(text: string, attachments?: PickedAttachment[]): Promise<void> {
     if (this.disposed) return;
     const generation = this.generation;
@@ -255,9 +338,15 @@ class CodexAppServerSession implements AgentSession {
       .catch((err) => this.failSend(err));
   }
 
-  private async deliver(input: WireInput[], generation: number): Promise<void> {
+  private async deliver(message: WireInput[], generation: number): Promise<void> {
     await this.ready;
-    if (this.disposed || generation !== this.generation) return;
+    if (this.disposed) return;
+    if (generation !== this.generation) {
+      // Stopped before it was even tried: kept for the next message.
+      this.held.push({ input: message });
+      return;
+    }
+    const input = this.withHeld(message);
 
     if (this.activeTurnId) {
       if (!this.steerSupported) {
@@ -275,6 +364,9 @@ class CodexAppServerSession implements AgentSession {
           input,
         });
         steer.accepted = true;
+        // Stopped while we were asking: stop() holds it until Codex shows
+        // it was injected. Nothing more to do with it here.
+        if (generation !== this.generation) return;
         const surfaced = !this.pendingSteers.includes(steer);
         if (surfaced || this.activeTurnId === expectedTurnId) {
           dlog('codex.app-server.steered', { chatId: this.chatId, turnId: expectedTurnId });
@@ -295,6 +387,8 @@ class CodexAppServerSession implements AgentSession {
           error: errorText(err),
         });
         if (why === 'unsupported') this.steerSupported = false;
+        // Stopped while we were asking: stop() already holds it.
+        if (generation !== this.generation) return;
         if (why === 'unsupported' || why === 'not-steerable') {
           // The turn carries on without it; it goes next.
           this.deferred.push(input);
@@ -314,6 +408,22 @@ class CodexAppServerSession implements AgentSession {
     }
     if (this.disposed || generation !== this.generation) return;
     await this.startTurn(input);
+  }
+
+  /**
+   * `message` with every held message ahead of it, oldest first, marked
+   * as earlier ones (codexShared.ts). The markers of a message that was
+   * itself held with earlier ones are not repeated.
+   */
+  private withHeld(message: WireInput[]): WireInput[] {
+    if (this.held.length === 0) return message;
+    const marker = (i: WireInput): boolean => i.type === 'text' && (i.text === HELD_LEAD || i.text === HELD_NOW);
+    const earlier = this.held.flatMap((h) => h.input).filter((i) => !marker(i));
+    const now = message.filter((i) => !marker(i));
+    this.held = [];
+    dlog('codex.app-server.held-sent', { chatId: this.chatId, items: earlier.length });
+    const say = (text: string): WireInput => ({ type: 'text', text, text_elements: [] });
+    return [say(HELD_LEAD), ...earlier, say(HELD_NOW), ...now];
   }
 
   private async startTurn(input: WireInput[]): Promise<void> {
@@ -348,10 +458,16 @@ class CodexAppServerSession implements AgentSession {
 
   stop(): void {
     this.generation += 1;
+    // What had not reached Codex is not sent on — the user asked for a
+    // stop — and not forgotten either: it goes with their next message.
+    this.held.push(
+      ...this.pendingSteers.map((s) => ({ input: s.input, clientId: s.clientId })),
+      ...this.deferred.map((input) => ({ input })),
+    );
     this.deferred = [];
     this.pendingSteers = [];
     const turnId = this.activeTurnId;
-    dlog('codex.app-server.stop', { chatId: this.chatId, turnId });
+    dlog('codex.app-server.stop', { chatId: this.chatId, turnId, held: this.held.length });
     if (turnId && this.threadId) {
       this.rpc
         .request('turn/interrupt', { threadId: this.threadId, turnId })
@@ -414,6 +530,10 @@ class CodexAppServerSession implements AgentSession {
       this.rpc.respond(id, { decision: 'decline' });
       return;
     }
+    if (method === 'account/chatgptAuthTokens/refresh') {
+      void this.answerTokenRefresh(id);
+      return;
+    }
     this.rpc.respondError(id, RPC_METHOD_NOT_FOUND, `PopBot does not handle ${method}`);
   }
 
@@ -430,6 +550,7 @@ class CodexAppServerSession implements AgentSession {
         this.activeTurnId = turn.id;
         this.turnHadVisibleActivity = false;
         this.lastTurnError = null;
+        this.lastTurnErrorInfo = null;
         this.planToolTurn = null;
         // Stronger than the optimistic 'running' emitted on send: Codex has
         // actually picked the prompt up. Clears AgentHost's queued count.
@@ -468,7 +589,10 @@ class CodexAppServerSession implements AgentSession {
         dlog('codex.app-server.error', { chatId: this.chatId, willRetry: p.willRetry === true, message });
         // Codex retries these itself; only the last word matters, and
         // that arrives on the failed turn.
-        if (p.willRetry !== true) this.lastTurnError = message;
+        if (p.willRetry !== true) {
+          this.lastTurnError = message;
+          this.lastTurnErrorInfo = (p.error as { codexErrorInfo?: unknown } | undefined)?.codexErrorInfo ?? null;
+        }
         return;
       }
       case 'turn/completed':
@@ -477,6 +601,30 @@ class CodexAppServerSession implements AgentSession {
       default:
         return;
     }
+  }
+
+  /**
+   * The account has no usage left. Say which account and — asked of Codex,
+   * briefly — until when, then fail the turn as one a retry on another
+   * account can redo.
+   */
+  private async reportUsageLimit(auth: CodexAuth, message: string): Promise<void> {
+    let resetsAt: number | null = null;
+    try {
+      const limits = await Promise.race([
+        this.rpc.request<Parameters<typeof codexOutOfUsage>[0]>('account/rateLimits/read', {}),
+        new Promise<null>((resolve) => { setTimeout(() => resolve(null), 5_000).unref?.(); }),
+      ]);
+      resetsAt = codexOutOfUsage(limits)?.resetsAt ?? null;
+    } catch {
+      // Not knowing when is no reason not to move.
+    }
+    if (this.disposed) return;
+    const ts = Date.now();
+    dlog('codex.usage-limit', { chatId: this.chatId, account: auth.accountId, resetsAt });
+    this.emit({ type: 'usage-limit', chatId: this.chatId, accountId: auth.accountId, resetsAt, ts });
+    this.emit({ type: 'error', chatId: this.chatId, message, level: 'warning', usageLimit: true, ts });
+    this.emit({ type: 'session-status', chatId: this.chatId, status: 'errored', ts });
   }
 
   private handleTurnCompleted(turn: WireTurn | undefined, ts: number): void {
@@ -496,8 +644,21 @@ class CodexAppServerSession implements AgentSession {
     this.deferred = [];
 
     if (turn.status === 'failed') {
+      // Not sent on after a failure — it would likely fail the same way —
+      // but kept: what never made it into the turn goes with the next message.
+      this.held.push(...leftovers.map((input) => ({ input })));
       const message = turn.error?.message ?? this.lastTurnError ?? 'Codex turn failed';
-      dlog('codex.app-server.turn-failed', { chatId: this.chatId, turnId: turn.id, message });
+      const info = turn.error?.codexErrorInfo ?? this.lastTurnErrorInfo;
+      dlog('codex.app-server.turn-failed', { chatId: this.chatId, turnId: turn.id, message, info: typeof info === 'string' ? info : null });
+      const auth = this.auth;
+      if (auth && info === 'unauthorized' && this.suppliedToken) noteCodexAccountRefused(auth.accountId, this.suppliedToken);
+      // Out of usage on one of PopBot's accounts: the host moves every
+      // chat to the next one and replays this turn there. On this
+      // computer's own sign-in there is nowhere to move, so it is only said.
+      if (auth && (info === 'usageLimitExceeded' || CODEX_USAGE_LIMIT_TEXT.test(message))) {
+        void this.reportUsageLimit(auth, message);
+        return;
+      }
       this.emit({
         type: 'error',
         chatId: this.chatId,
@@ -511,8 +672,9 @@ class CodexAppServerSession implements AgentSession {
       return;
     }
 
-    // Also after an interrupt: Stop clears its own queue, so anything
-    // still here was sent AFTER the Stop and is a fresh instruction.
+    // Also after an interrupt: Stop takes what was waiting (it is held
+    // for the next message), so anything still here was sent AFTER the
+    // Stop and is a fresh instruction.
     if (leftovers.length > 0) {
       const generation = this.generation;
       dlog('codex.app-server.deferred-turn', { chatId: this.chatId, messages: leftovers.length });
@@ -554,6 +716,8 @@ class CodexAppServerSession implements AgentSession {
         // has the user's bubble, so there is nothing to render.
         if (item.clientId) {
           this.pendingSteers = this.pendingSteers.filter((s) => s.clientId !== item.clientId);
+          // Injected after all, though Stop came first: Codex has it.
+          this.held = this.held.filter((h) => h.clientId !== item.clientId);
         }
         return;
       case 'agentMessage':
@@ -770,11 +934,7 @@ function errorText(err: unknown): string {
 }
 
 function safeAppVersion(): string {
-  try {
-    return app.getVersion();
-  } catch {
-    return '0.0.0';
-  }
+  return electronApp()?.getVersion?.() ?? '0.0.0';
 }
 
 /** A transport that was never there — so a failed spawn surfaces through
@@ -807,13 +967,32 @@ const PLATFORM_PACKAGE: Record<string, { pkg: string; triple: string }> = {
  * binary that ships with the SDK dependency (same lookup the SDK does),
  * and failing that, whatever `codex` resolves to on PATH.
  */
+/** Where the desktop app's files are, when this runs inside it. The host
+ *  daemon runs under plain Node, where the `electron` module is absent
+ *  (or is only the path of its binary) — hence not a top-level import. */
+function electronApp(): { getAppPath?: () => string; getVersion?: () => string } | null {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const mod = require('electron') as { app?: { getAppPath?: () => string; getVersion?: () => string } } | string;
+    return typeof mod === 'object' && mod.app ? mod.app : null;
+  } catch {
+    return null;
+  }
+}
+
+function electronAppPath(): string | null {
+  try {
+    return electronApp()?.getAppPath?.() ?? null;
+  } catch {
+    return null;
+  }
+}
+
 export function resolveCodexBinary(userPath: string | null): { path: string; pathDirs: string[] } {
   if (userPath) return { path: userPath, pathDirs: [] };
   try {
     const target = PLATFORM_PACKAGE[`${process.platform}-${process.arch}`];
-    const appRoot = typeof (app as { getAppPath?: () => string }).getAppPath === 'function'
-      ? app.getAppPath()
-      : process.cwd();
+    const appRoot = electronAppPath() ?? process.cwd();
     if (target) {
       const fromApp = createRequire(join(appRoot, 'package.json'));
       const fromCodex = createRequire(fromApp.resolve('@openai/codex/package.json'));

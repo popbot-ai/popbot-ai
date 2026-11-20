@@ -181,6 +181,9 @@ export interface ErrorEvent {
    *    tokens is), it belongs in 'warning', not here.
    */
   level?: 'error' | 'warning' | 'notice';
+  /** The turn failed because its Claude account is out of usage: replayed
+   *  on the next account if there is one (claudeAuth.ts). */
+  usageLimit?: boolean;
   /**
    * True when the turn produced NOTHING before failing — no text, no
    * tool calls, nothing persisted. That makes replaying the user's
@@ -269,6 +272,22 @@ export interface MessageRemovedEvent {
   ts: number;
 }
 
+/**
+ * The Claude account this chat runs on is out of usage (the CLI's rate
+ * limit came back rejected, with no extra usage allowed): PopBot moves
+ * every chat to the next account that has some (claudeAuth.ts).
+ * `accountId` is the account the session was started on, when PopBot's;
+ * `resetsAt` (ms) when the limit said.
+ */
+export interface UsageLimitEvent {
+  type: 'usage-limit';
+  chatId: string;
+  accountId: string | null;
+  resetsAt: number | null;
+  limitType?: string;
+  ts: number;
+}
+
 /** A chat's history was cleared (ipc/clearChat.ts): the chat log empties. */
 export interface MessagesClearedEvent {
   type: 'messages-cleared';
@@ -287,6 +306,7 @@ export type AgentEvent =
   | MessageAddedEvent
   | MessageRemovedEvent
   | MessagesClearedEvent
+  | UsageLimitEvent
   | ChatUpdatedEvent
   | ChatsChangedEvent
   | GoToMessageEvent

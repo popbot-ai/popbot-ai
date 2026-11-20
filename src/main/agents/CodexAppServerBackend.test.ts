@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import type { AgentEvent } from '@shared/agent';
 import { createCodexAppServerSession } from './CodexAppServerBackend';
+import { HELD_LEAD, HELD_NOW } from './codexShared';
+import * as codexAuth from './codexAuth';
+import type { CodexAuth } from './codexAuth';
 import type { LineTransport } from './codexRpc';
 import type { SpawnOpts } from './types';
 
@@ -46,6 +49,18 @@ class FakeServer implements LineTransport {
   notify(method: string, params: unknown): void {
     this.lineHandler(JSON.stringify({ method, params }));
   }
+  /** A request FROM the server (it expects an answer by this id). */
+  ask(id: number, method: string, params: unknown): void {
+    this.lineHandler(JSON.stringify({ id, method, params }));
+  }
+  /** What the client answered to a server request. */
+  answerTo(id: number): Sent | undefined {
+    return this.sent.find((m) => m.id === id && m.method === undefined);
+  }
+  /** Answer a request `answer` left unanswered (it returned null). */
+  reply(id: number, reply: { result?: unknown; error?: { code: number; message: string; data?: unknown } }): void {
+    this.lineHandler(JSON.stringify({ id, ...reply }));
+  }
   die(reason: string): void {
     this.closeHandler(reason);
   }
@@ -72,12 +87,16 @@ function defaultAnswer(msg: Sent): { result: unknown } {
   }
 }
 
+/** The text items of a request's input, in order. */
+const texts = (msg: Sent): string[] =>
+  ((msg.params?.input ?? []) as Array<{ type: string; text?: string }>).filter((i) => i.type === 'text').map((i) => i.text ?? '');
+
 const flush = async (): Promise<void> => {
   for (let i = 0; i < 12; i += 1) await Promise.resolve();
   await new Promise((r) => setTimeout(r, 0));
 };
 
-function harness(over: Partial<SpawnOpts> = {}) {
+function harness(over: Partial<SpawnOpts> = {}, auth: CodexAuth | null = null) {
   const server = new FakeServer();
   const events: AgentEvent[] = [];
   const sessionIds: string[] = [];
@@ -86,7 +105,7 @@ function harness(over: Partial<SpawnOpts> = {}) {
       chatId: 'chat_1',
       history: [],
       cwd: '/work',
-      codexModel: 'gpt-6.1-sol',
+      codexModel: 'gpt-6.2-sol',
       codexReasoningEffort: 'high',
       onEvent: (e) => events.push(e),
       onSessionId: (id) => sessionIds.push(id),
@@ -94,6 +113,7 @@ function harness(over: Partial<SpawnOpts> = {}) {
       ...over,
     },
     () => server,
+    auth,
   );
   const types = (): string[] => events.map((e) => (e.type === 'session-status' ? `status:${e.status}` : e.type));
   const startTurn = async (id = 'turn-1'): Promise<void> => {
@@ -116,7 +136,7 @@ describe('Codex app-server session', () => {
     expect(h.server.methods()).toEqual(['initialize', 'initialized', 'thread/start', 'turn/start']);
     const start = h.server.last('thread/start').params!;
     expect(start).toMatchObject({
-      model: 'gpt-6.1-sol',
+      model: 'gpt-6.2-sol',
       cwd: '/work',
       approvalPolicy: 'never',
       // No rule allows writes, so the policy fails closed.
@@ -135,11 +155,11 @@ describe('Codex app-server session', () => {
   });
 
   it('runs GPT-6.1 Sol Fast as Sol on the priority tier', async () => {
-    const h = harness({ codexModel: 'gpt-6.1-sol-fast' });
+    const h = harness({ codexModel: 'gpt-6.2-sol-fast' });
     await h.session.sendUser('hello');
     await flush();
     expect(h.server.last('thread/start').params).toMatchObject({
-      model: 'gpt-6.1-sol',
+      model: 'gpt-6.2-sol',
       config: { model_reasoning_effort: 'high', service_tier: 'priority' },
     });
   });
@@ -150,7 +170,7 @@ describe('Codex app-server session', () => {
     await flush();
     expect(h.server.methods()).toContain('thread/resume');
     expect(h.server.methods()).not.toContain('thread/start');
-    expect(h.server.last('thread/resume').params).toMatchObject({ threadId: 'thread-old', model: 'gpt-6.1-sol' });
+    expect(h.server.last('thread/resume').params).toMatchObject({ threadId: 'thread-old', model: 'gpt-6.2-sol' });
     expect(h.server.last('turn/start').params).toMatchObject({ threadId: 'thread-old' });
   });
 
@@ -291,7 +311,7 @@ describe('Codex app-server session', () => {
     });
   });
 
-  it('Stop interrupts the turn and drops anything still waiting', async () => {
+  it('Stop interrupts the turn and sends nothing more; what was still waiting goes with the next message', async () => {
     const h = harness();
     await h.session.sendUser('first');
     await flush();
@@ -300,6 +320,7 @@ describe('Codex app-server session', () => {
       ? { error: { code: -32601, message: 'method not found' } }
       : defaultAnswer(msg));
     await h.session.sendUser('queued behind it');
+    await h.session.sendUser('and this too');
     await flush();
 
     h.session.stop();
@@ -307,9 +328,130 @@ describe('Codex app-server session', () => {
     expect(h.server.last('turn/interrupt').params).toEqual({ threadId: 'thread-1', turnId: 'turn-1' });
     await h.completeTurn('turn-1', 'interrupted');
 
+    // Stop means stop: nothing starts by itself.
     expect(h.server.sent.filter((m) => m.method === 'turn/start')).toHaveLength(1);
     expect(h.types().filter((t) => t === 'status:errored')).toHaveLength(0);
     expect(h.types().at(-1)).toBe('status:idle');
+
+    // The next message brings along what Codex never received, in order,
+    // told apart from the new one.
+    await h.session.sendUser('ok, carry on');
+    await flush();
+    const starts = h.server.sent.filter((m) => m.method === 'turn/start');
+    expect(starts).toHaveLength(2);
+    expect(texts(starts[1])).toEqual([HELD_LEAD, 'queued behind it', 'and this too', HELD_NOW, 'ok, carry on']);
+
+    // Once sent, they are not sent again.
+    await h.startTurn('turn-2');
+    await h.completeTurn('turn-2');
+    await h.session.sendUser('next');
+    await flush();
+    expect(texts(h.server.sent.filter((m) => m.method === 'turn/start')[2])).toEqual(['next']);
+  });
+
+  it('holds a steered message Codex accepted but had not injected when Stop came', async () => {
+    const h = harness();
+    await h.session.sendUser('first');
+    await flush();
+    await h.startTurn();
+    await h.session.sendUser('steer me');
+    await flush();
+    expect(h.types()).toContain('turn-steered');
+
+    h.session.stop();
+    await h.completeTurn('turn-1', 'interrupted');
+    await h.session.sendUser('again');
+    await flush();
+    expect(texts(h.server.sent.filter((m) => m.method === 'turn/start')[1])).toEqual([HELD_LEAD, 'steer me', HELD_NOW, 'again']);
+  });
+
+  it('does not repeat a steered message that Codex injected after all, Stop or not', async () => {
+    const h = harness();
+    await h.session.sendUser('first');
+    await flush();
+    await h.startTurn();
+    await h.session.sendUser('steer me');
+    await flush();
+    const clientId = h.server.last('turn/steer').params!.clientUserMessageId;
+
+    h.session.stop();
+    // The interrupt lands a moment later; before it does, the message surfaces.
+    h.server.notify('item/started', { turnId: 'turn-1', item: { type: 'userMessage', id: 'u2', clientId, content: [] } });
+    await h.completeTurn('turn-1', 'interrupted');
+    await h.session.sendUser('again');
+    await flush();
+    expect(texts(h.server.sent.filter((m) => m.method === 'turn/start')[1])).toEqual(['again']);
+  });
+
+  it('holds a steer still being asked when Stop came, whatever the answer', async () => {
+    for (const answer of ['accepted', 'refused'] as const) {
+      const h = harness();
+      await h.session.sendUser('first');
+      await flush();
+      await h.startTurn();
+      let reply: (() => void) | null = null;
+      h.server.answer = (msg) => {
+        if (msg.method !== 'turn/steer') return defaultAnswer(msg);
+        // Held back until after the Stop.
+        reply = () => h.server.reply(msg.id!, answer === 'accepted'
+          ? { result: { turnId: 'turn-1' } }
+          : { error: { code: -32600, message: 'no active turn to steer' } });
+        return null;
+      };
+      await h.session.sendUser('in flight');
+      await flush();
+      h.session.stop();
+      reply!();
+      await flush();
+      await h.completeTurn('turn-1', 'interrupted');
+      // Not sent on by itself, and not reported as steered.
+      expect(h.server.sent.filter((m) => m.method === 'turn/start')).toHaveLength(1);
+      expect(h.types()).not.toContain('turn-steered');
+
+      await h.session.sendUser('again');
+      await flush();
+      expect(texts(h.server.sent.filter((m) => m.method === 'turn/start')[1])).toEqual([HELD_LEAD, 'in flight', HELD_NOW, 'again']);
+    }
+  });
+
+  it('keeps what never made it into a turn that failed, for the next message', async () => {
+    const h = harness();
+    await h.session.sendUser('first');
+    await flush();
+    await h.startTurn();
+    h.server.answer = (msg) => (msg.method === 'turn/steer'
+      ? { error: { code: -32601, message: 'method not found' } }
+      : defaultAnswer(msg));
+    await h.session.sendUser('waiting');
+    await flush();
+    await h.completeTurn('turn-1', 'failed', { message: 'stream disconnected' });
+    // A failure does not start the waiting message by itself…
+    expect(h.server.sent.filter((m) => m.method === 'turn/start')).toHaveLength(1);
+    expect(h.types().at(-1)).toBe('status:errored');
+    // …and does not lose it.
+    await h.session.sendUser('try again');
+    await flush();
+    expect(texts(h.server.sent.filter((m) => m.method === 'turn/start')[1])).toEqual([HELD_LEAD, 'waiting', HELD_NOW, 'try again']);
+  });
+
+  it('a message sent after Stop, while the turn is still winding down, is a fresh instruction and brings the held ones', async () => {
+    const h = harness();
+    await h.session.sendUser('first');
+    await flush();
+    await h.startTurn();
+    h.server.answer = (msg) => (msg.method === 'turn/steer'
+      ? { error: { code: -32601, message: 'method not found' } }
+      : defaultAnswer(msg));
+    await h.session.sendUser('before stop');
+    await flush();
+    h.session.stop();
+    await h.session.sendUser('after stop');
+    await flush();
+    await h.completeTurn('turn-1', 'interrupted');
+
+    const starts = h.server.sent.filter((m) => m.method === 'turn/start');
+    expect(starts).toHaveLength(2);
+    expect(texts(starts[1])).toEqual([HELD_LEAD, 'before stop', HELD_NOW, 'after stop']);
   });
 
   it('streams agent text from deltas and does not repeat it from the completed item', async () => {
@@ -480,3 +622,120 @@ describe('Codex app-server session', () => {
     expect(h.session.isAlive()).toBe(false);
   });
 });
+
+describe('Codex app-server session on one of PopBot’s accounts', () => {
+  const account = (id: string, token = `tok-${id}`): codexAuth.CodexAccountSecret => ({ id, label: id, accessToken: token, chatgptAccountId: `ws-${id}`, planType: 'pro' });
+  /** The account in use, as the session is handed it when it starts. */
+  const using = (id: string, token?: string): CodexAuth => {
+    codexAuth.setCodexAccounts([account(id, token)], id);
+    return codexAuth.activeCodexAuth()!;
+  };
+
+  it('hands Codex the account’s token before it starts the thread, through the experimental interface', async () => {
+    const h = harness({}, using('acct-1'));
+    await h.session.sendUser('hello');
+    await flush();
+    expect(h.server.methods().slice(0, 5)).toEqual(['initialize', 'initialized', 'account/login/start', 'thread/start', 'turn/start']);
+    expect(h.server.last('initialize').params).toMatchObject({ capabilities: { experimentalApi: true } });
+    expect(h.server.last('account/login/start').params).toEqual({
+      type: 'chatgptAuthTokens',
+      accessToken: 'tok-acct-1',
+      chatgptAccountId: 'ws-acct-1',
+      chatgptPlanType: 'pro',
+    });
+  });
+
+  it('signs in to nothing when no account is in use: this computer’s own Codex sign-in applies', async () => {
+    const h = harness();
+    await h.session.sendUser('hello');
+    await flush();
+    expect(h.server.methods()).not.toContain('account/login/start');
+    expect(h.server.last('initialize').params).toMatchObject({ capabilities: null });
+  });
+
+  it('fails the send, and marks the account, when Codex will not take its token', async () => {
+    const auth = using('acct-bad');
+    const h = harness({}, auth);
+    h.server.answer = (msg) => (msg.method === 'account/login/start'
+      ? { error: { code: -32603, message: 'failed to set external auth: invalid ID token format' } }
+      : defaultAnswer(msg));
+    await h.session.sendUser('hello');
+    await flush();
+    expect(h.server.methods()).not.toContain('thread/start');
+    const error = h.events.find((e) => e.type === 'error') as { message: string } | undefined;
+    expect(error?.message).toMatch(/would not take this account’s sign-in/);
+    expect(codexAuth.refusedCodexAccounts()).toContain('acct-bad');
+  });
+
+  it('answers Codex’s request for another token with the newer one the account has', async () => {
+    const h = harness({}, using('acct-2', 'old-token'));
+    await h.session.sendUser('hello');
+    await flush();
+    // The desktop renewed the sign-in meanwhile.
+    codexAuth.setCodexAccounts([account('acct-2', 'new-token')], 'acct-2');
+    h.server.ask(77, 'account/chatgptAuthTokens/refresh', { reason: 'unauthorized', previousAccountId: 'ws-acct-2' });
+    await flush();
+    expect(h.server.answerTo(77)?.result).toEqual({ accessToken: 'new-token', chatgptAccountId: 'ws-acct-2', chatgptPlanType: 'pro' });
+  });
+
+  it('tells Codex there is no newer token when there is none, and the account is marked', async () => {
+    const h = harness({}, using('acct-3', 'only-token'));
+    await h.session.sendUser('hello');
+    await flush();
+    h.server.ask(78, 'account/chatgptAuthTokens/refresh', { reason: 'unauthorized' });
+    await flush();
+    expect(h.server.answerTo(78)?.error).toMatchObject({ message: expect.stringMatching(/no newer sign-in/) });
+    expect(codexAuth.refusedCodexAccounts()).toContain('acct-3');
+  });
+
+  it('reports an account out of usage — which, and until when — so the turn can be redone on another', async () => {
+    const h = harness({}, using('acct-4'));
+    const reset = Math.floor(Date.now() / 1000) + 3600;
+    h.server.answer = (msg) => (msg.method === 'account/rateLimits/read'
+      ? { result: { ordinaryUsageAllowed: false, rateLimits: { primary: { usedPercent: 100, resetsAt: reset }, secondary: null, rateLimitReachedType: 'rate_limit_reached' } } }
+      : defaultAnswer(msg));
+    await h.session.sendUser('hello');
+    await flush();
+    await h.startTurn();
+    await h.completeTurn('turn-1', 'failed', { message: 'You’ve hit your usage limit. Try again later.', codexErrorInfo: 'usageLimitExceeded' });
+    const limit = h.events.find((e) => e.type === 'usage-limit');
+    expect(limit).toMatchObject({ accountId: 'acct-4', resetsAt: reset * 1000 });
+    const error = h.events.find((e) => e.type === 'error');
+    expect(error).toMatchObject({ usageLimit: true, level: 'warning' });
+    // In that order: the host decides where to move before it sees the failure.
+    expect(h.events.indexOf(limit!)).toBeLessThan(h.events.indexOf(error!));
+    expect(h.types().at(-1)).toBe('status:errored');
+  });
+
+  it('knows a usage limit by its words when Codex gives no code, and not knowing when is no obstacle', async () => {
+    const h = harness({}, using('acct-5'));
+    h.server.answer = (msg) => (msg.method === 'account/rateLimits/read' ? { error: { code: -32603, message: 'unavailable' } } : defaultAnswer(msg));
+    await h.session.sendUser('hello');
+    await flush();
+    await h.startTurn();
+    await h.completeTurn('turn-1', 'failed', { message: 'You have hit your usage limit for this week.' });
+    expect(h.events.find((e) => e.type === 'usage-limit')).toMatchObject({ accountId: 'acct-5', resetsAt: null });
+  });
+
+  it('does not call a usage limit on this computer’s own sign-in a reason to move: there is nowhere to', async () => {
+    const h = harness();
+    await h.session.sendUser('hello');
+    await flush();
+    await h.startTurn();
+    await h.completeTurn('turn-1', 'failed', { message: 'You’ve hit your usage limit.', codexErrorInfo: 'usageLimitExceeded' });
+    expect(h.events.some((e) => e.type === 'usage-limit')).toBe(false);
+    expect(h.events.find((e) => e.type === 'error')).toMatchObject({ level: 'warning' });
+    expect((h.events.find((e) => e.type === 'error') as { usageLimit?: boolean }).usageLimit).toBeUndefined();
+  });
+
+  it('marks the account when a turn fails as unauthorised', async () => {
+    const h = harness({}, using('acct-6'));
+    await h.session.sendUser('hello');
+    await flush();
+    await h.startTurn();
+    await h.completeTurn('turn-1', 'failed', { message: 'unauthorized', codexErrorInfo: 'unauthorized' });
+    expect(codexAuth.refusedCodexAccounts()).toContain('acct-6');
+    expect(h.types().at(-1)).toBe('status:errored');
+  });
+});
+

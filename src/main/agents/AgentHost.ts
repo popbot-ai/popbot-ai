@@ -53,6 +53,12 @@ import { RemoteBackend } from './RemoteBackend';
 import { endHostSession } from './hostClient';
 import type { RemoteSpawnOpts } from './types';
 import { dlog } from '../diagLog';
+import { failOverClaudeAccount } from './claudeAccounts';
+import { pushClaudeAccountsNow } from './claudeAccountsSync';
+import { failOverCodexAccount } from './codexAccounts';
+import { pushCodexAccountsNow } from './codexAccountsSync';
+import { activeCodexAuth } from './codexAuth';
+import type { UsageFailover } from './claudeAuth';
 import { getClaudeBinaryPath } from './claudeProbe';
 import { popbotMcpUrlForChat } from '../mcp/registry';
 import { POPBOT_PRIMER } from '../mcp/popbotPrimer';
@@ -709,13 +715,18 @@ class AgentHostImpl {
     const { text, attachments } = this.lastUserTurn(chatId);
     if (!text.trim() && attachments.length === 0) return false;
     this.autoRetries.set(chatId, used + 1);
-    dlog('agent.auto-retry', { chatId, attempt: used + 1, why });
+    const onNewAccount = this.usageRetry.delete(chatId);
+    // A retry replaces whatever session a pending account restart named.
+    this.restartWhenIdle.delete(chatId);
+    dlog('agent.auto-retry', { chatId, attempt: used + 1, why, onNewAccount });
     // Account for the silence while it's happening. Ephemeral: the
     // renderer drops it the instant the retry produces a reply.
     this.surfaceDiagnostic(
       chatId,
       'notice',
-      `No response, retrying… (${used + 1}/${AgentHostImpl.MAX_AUTO_RETRIES})`,
+      onNewAccount
+        ? `Out of usage — continuing on the next ${getChat(chatId)?.agent === 'codex' ? 'Codex' : 'Claude'} account…`
+        : `No response, retrying… (${used + 1}/${AgentHostImpl.MAX_AUTO_RETRIES})`,
     );
     // Keep the chat looking busy — from the user's side this is still
     // the same request being worked on.
@@ -724,12 +735,19 @@ class AgentHostImpl {
     void (async () => {
       try {
         const agent = getChat(chatId)?.agent ?? 'claude';
-        if (agent === 'codex') {
+        if (agent === 'codex' && !onNewAccount) {
           // An empty Codex completion commonly means the native thread itself
           // is poisoned. Resuming it repeats the same empty success, so replace
           // it and restore the whole conversation from SQLite in one step.
+          // (Out of usage is not that: the thread is fine, and the turn is
+          // simply redone on the next account, below.)
           await this.restartWithContext(chatId, { continueLatestInstruction: true });
           return;
+        }
+        // A host chat respawns on its host: let the host have the new
+        // account first.
+        if (onNewAccount && getChat(chatId)?.host) {
+          await (agent === 'codex' ? pushCodexAccountsNow() : pushClaudeAccountsNow()).catch(() => undefined);
         }
         await this.dispose(chatId);
         const session = await this.getOrSpawnSession(chatId);
@@ -1275,6 +1293,59 @@ class AgentHostImpl {
 
   /** Tear down the session for a chat (e.g. on close). Awaits the
    *  backend's flush so we don't lose in-flight session JSONL writes. */
+  /** Claude chats to restart once their turn ends (the account changed),
+   *  with the session that was running — a retry may have replaced it. */
+  private readonly restartWhenIdle = new Map<string, AgentSession>();
+  /** What the last usage limit of each chat's account led to. */
+  private readonly usageOutcome = new Map<string, UsageFailover>();
+  /** Chats whose next auto-retry is the replay on a new account. */
+  private readonly usageRetry = new Set<string>();
+
+  /**
+   * The active Claude account changed (claudeAccounts.ts): every Claude
+   * chat here moves to it — at once when idle, when its turn ends
+   * otherwise. Each resumes its own session, so the conversation carries
+   * on; a chat that failed on its sign-in is retried. Host chats are
+   * restarted by their host, cloud chats don't run on these accounts.
+   */
+  restartClaudeSessions(): void {
+    for (const chatId of [...this.sessions.keys()]) {
+      const chat = getChat(chatId);
+      if (!chat || chat.agent === 'codex' || chat.host || chat.cloud) continue;
+      if (/authenticat|oauth|sign-in has expired|token/i.test(this.lastErrorText.get(chatId) ?? '')) {
+        dlog('agent.account-restart.retry', { chatId });
+        void this.recoverChat(chatId);
+      } else if (chat.status === 'run' || this.activeTurns.has(chatId)) {
+        const session = this.sessions.get(chatId);
+        if (session) this.restartWhenIdle.set(chatId, session);
+      } else {
+        dlog('agent.account-restart', { chatId });
+        void this.dispose(chatId);
+      }
+    }
+  }
+
+  /**
+   * The Codex account in use changed (codexAccounts.ts) — another
+   * account, or accounts turned on or off: every Codex chat here moves,
+   * at once when idle, when its turn ends otherwise. Each resumes its own
+   * thread, on whichever engine the new state calls for (pickBackend).
+   * Host chats are restarted by their host.
+   */
+  restartCodexSessions(): void {
+    for (const chatId of [...this.sessions.keys()]) {
+      const chat = getChat(chatId);
+      if (!chat || chat.agent !== 'codex' || chat.host || chat.cloud) continue;
+      if (chat.status === 'run' || this.activeTurns.has(chatId)) {
+        const session = this.sessions.get(chatId);
+        if (session) this.restartWhenIdle.set(chatId, session);
+      } else {
+        dlog('agent.account-restart', { chatId, agent: 'codex' });
+        void this.dispose(chatId);
+      }
+    }
+  }
+
   /** Forget what was learned about a chat's conversation — its last
    *  error, the session ids that failed to resume, retry budgets — once
    *  its history is cleared (ipc/clearChat.ts). */
@@ -1771,6 +1842,12 @@ class AgentHostImpl {
       || lower.includes('thread') && (lower.includes('not found') || lower.includes('missing'))
       || lower.includes('session') && (lower.includes('not found') || lower.includes('missing'))
       || lower.includes('resume') && (lower.includes('failed') || lower.includes('not found'))
+      // A thread carried to another account (a switch, a failover): its
+      // earlier reasoning is sealed for the account that made it, and
+      // OpenAI may refuse to read it back for another. The conversation
+      // itself is PopBot's to restore, so it starts a thread of its own.
+      || lower.includes('invalid_encrypted_content')
+      || lower.includes('encrypted content') && /could not be|cannot be|invalid|decrypt|verif/.test(lower)
     );
   }
 
@@ -1941,8 +2018,10 @@ class AgentHostImpl {
     if (chat.agent === 'claude') return ClaudeBackend;
     if (chat.agent === 'codex') {
       // Opt-in (Preferences ▸ Agents): the app-server protocol, which can
-      // steer a running turn. Default is the exec SDK, unchanged.
-      return codexUsesAppServer(getSetting<CodexSettings>(CODEX_SETTINGS_KEY))
+      // steer a running turn. Default is the exec SDK, unchanged — except
+      // while one of PopBot's Codex accounts is in use: only the
+      // app-server can be handed an account's token (codexAuth.ts).
+      return activeCodexAuth() || codexUsesAppServer(getSetting<CodexSettings>(CODEX_SETTINGS_KEY))
         ? CodexAppServerBackend
         : CodexBackend;
     }
@@ -1954,7 +2033,59 @@ class AgentHostImpl {
    * broadcasts. Order matters: persist first so a renderer that reloads
    * mid-stream sees a consistent view.
    */
-  private handleEvent(event: AgentEvent): void {
+  private handleEvent(incoming: AgentEvent): void {
+    let event = incoming;
+    if (event.type === 'session-status' && (event.status === 'idle' || event.status === 'complete')) {
+      const flagged = this.restartWhenIdle.get(event.chatId);
+      if (flagged) {
+        this.restartWhenIdle.delete(event.chatId);
+        // Its turn is over: now it can move to the new account — unless a
+        // retry has already put a fresh session in its place.
+        dlog('agent.account-restart', { chatId: event.chatId, afterTurn: true });
+        setTimeout(() => { if (this.sessions.get(event.chatId) === flagged) void this.dispose(event.chatId); }, 0);
+      }
+    }
+    // Out of usage: every chat moves to the next account with usage
+    // (claudeAccounts.ts); the turn that hit the limit is replayed there.
+    if (event.type === 'usage-limit') {
+      const limited = getChat(event.chatId);
+      if (limited && !limited.cloud) {
+        // Each agent has its own accounts: a Codex chat's limit moves the
+        // Codex chats, a Claude chat's the Claude ones.
+        const codex = limited.agent === 'codex';
+        const outcome = codex
+          ? failOverCodexAccount(event.accountId, event.resetsAt)
+          : failOverClaudeAccount(event.accountId, event.resetsAt);
+        this.usageOutcome.set(event.chatId, outcome);
+        if (outcome.kind === 'switched') {
+          this.surfaceDiagnostic(
+            event.chatId,
+            'notice',
+            codex
+              ? `This Codex account is out of usage — every Codex chat moves to ${outcome.toLabel}.`
+              : `This Claude account is out of usage — every chat moves to ${outcome.toLabel}.`,
+          );
+        }
+      }
+      return;
+    }
+    if (event.type === 'error' && event.usageLimit) {
+      const codex = getChat(event.chatId)?.agent === 'codex';
+      const outcome = this.usageOutcome.get(event.chatId)
+        ?? (codex ? failOverCodexAccount(null, null) : failOverClaudeAccount(null, null));
+      this.usageOutcome.delete(event.chatId);
+      if (outcome.kind === 'switched') {
+        this.usageRetry.add(event.chatId);
+        event = { ...event, retryable: true };
+      } else if (outcome.kind === 'none-left') {
+        const when = outcome.earliestReset ? ` The first resets at ${new Date(outcome.earliestReset).toLocaleString()}.` : '';
+        event = { ...event, retryable: false, level: 'warning', message: `Every ${codex ? 'Codex' : 'Claude'} account is out of usage.${when}` };
+      } else {
+        // The CLI's own sign-in: no other account to move to, and
+        // retrying the same one only fails again.
+        event = { ...event, retryable: false, level: 'warning' };
+      }
+    }
     // The SDK can keep emitting events for a beat after disposeAll on
     // app quit, after closeDb has already nulled out the connection.
     // Drop those silently — there's no UI to broadcast to either.

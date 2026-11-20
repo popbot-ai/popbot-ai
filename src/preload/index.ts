@@ -20,6 +20,10 @@ import {
   type CreateChatInput,
   type AuthProvider,
   type AuthLoginEvent,
+  type ClaudeAccountsState,
+  type ClaudeSignInEvent,
+  type CodexAccountsState,
+  type CodexSignInEvent,
   type ForkChatInput,
   type TranscriptSearchOptions,
   type CreateRepoInput,
@@ -261,6 +265,49 @@ const api: PopBotApi = {
       ipcRenderer.on(IpcChannel.AuthLoginEvent, listener);
       return () => ipcRenderer.removeListener(IpcChannel.AuthLoginEvent, listener);
     },
+  },
+  claudeAccounts: {
+    list: () => ipcRenderer.invoke(IpcChannel.ClaudeAccountsList),
+    onChanged: (handler: (state: ClaudeAccountsState) => void) => {
+      const listener = (_e: IpcRendererEvent, state: ClaudeAccountsState) => handler(state);
+      ipcRenderer.on(IpcChannel.ClaudeAccountsChanged, listener);
+      return () => ipcRenderer.removeListener(IpcChannel.ClaudeAccountsChanged, listener);
+    },
+    add: (label: string, token: string) => ipcRenderer.invoke(IpcChannel.ClaudeAccountsAdd, label, token),
+    setToken: (id: string, token: string) => ipcRenderer.invoke(IpcChannel.ClaudeAccountsSetToken, id, token),
+    rename: (id: string, label: string) => ipcRenderer.invoke(IpcChannel.ClaudeAccountsRename, id, label),
+    remove: (id: string) => ipcRenderer.invoke(IpcChannel.ClaudeAccountsRemove, id),
+    setActive: (id: string | null) => ipcRenderer.invoke(IpcChannel.ClaudeAccountsSetActive, id),
+    signInStart: (opts?: { openBrowser?: boolean }) => ipcRenderer.invoke(IpcChannel.ClaudeAccountsSignInStart, opts),
+    signInCode: (code: string) => ipcRenderer.invoke(IpcChannel.ClaudeAccountsSignInCode, code),
+    signInCancel: () => ipcRenderer.invoke(IpcChannel.ClaudeAccountsSignInCancel),
+    onSignInEvent: (handler: (event: ClaudeSignInEvent) => void) => {
+      const listener = (_e: IpcRendererEvent, event: ClaudeSignInEvent) => handler(event);
+      ipcRenderer.on(IpcChannel.ClaudeAccountsSignInEvent, listener);
+      return () => ipcRenderer.removeListener(IpcChannel.ClaudeAccountsSignInEvent, listener);
+    },
+    addSignedIn: (label: string) => ipcRenderer.invoke(IpcChannel.ClaudeAccountsAddSignedIn, label),
+    setTokenSignedIn: (id: string) => ipcRenderer.invoke(IpcChannel.ClaudeAccountsSetTokenSignedIn, id),
+  },
+  codexAccounts: {
+    list: () => ipcRenderer.invoke(IpcChannel.CodexAccountsList),
+    onChanged: (handler: (state: CodexAccountsState) => void) => {
+      const listener = (_e: IpcRendererEvent, state: CodexAccountsState) => handler(state);
+      ipcRenderer.on(IpcChannel.CodexAccountsChanged, listener);
+      return () => ipcRenderer.removeListener(IpcChannel.CodexAccountsChanged, listener);
+    },
+    rename: (id: string, label: string) => ipcRenderer.invoke(IpcChannel.CodexAccountsRename, id, label),
+    remove: (id: string) => ipcRenderer.invoke(IpcChannel.CodexAccountsRemove, id),
+    setActive: (id: string | null) => ipcRenderer.invoke(IpcChannel.CodexAccountsSetActive, id),
+    signInStart: (opts?: { openBrowser?: boolean }) => ipcRenderer.invoke(IpcChannel.CodexAccountsSignInStart, opts),
+    signInCancel: () => ipcRenderer.invoke(IpcChannel.CodexAccountsSignInCancel),
+    onSignInEvent: (handler: (event: CodexSignInEvent) => void) => {
+      const listener = (_e: IpcRendererEvent, event: CodexSignInEvent) => handler(event);
+      ipcRenderer.on(IpcChannel.CodexAccountsSignInEvent, listener);
+      return () => ipcRenderer.removeListener(IpcChannel.CodexAccountsSignInEvent, listener);
+    },
+    addSignedIn: (label: string) => ipcRenderer.invoke(IpcChannel.CodexAccountsAddSignedIn, label),
+    renewSignedIn: (id: string) => ipcRenderer.invoke(IpcChannel.CodexAccountsRenewSignedIn, id),
   },
   cloud: {
     status: () => ipcRenderer.invoke(IpcChannel.CloudStatus),

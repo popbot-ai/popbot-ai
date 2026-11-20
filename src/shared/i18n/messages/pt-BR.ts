@@ -981,44 +981,14 @@ export const ptBR = {
   'prefs.footMeta': 'PopBot · pré-alfa',
 
   // Preferences — Agents pane.
-  'prefs.agents.title': 'Agentes',
-  'prefs.agents.desc':
-    'Níveis de esforço padrão para chats recém-criados. Os chats existentes mantêm o próprio esforço salvo até que você os altere no compositor do chat.',
   'prefs.agents.newChats.title': 'Novos chats',
-  'prefs.agents.newChats.desc':
-    'Usado por chats genéricos e chats de ticket quando o seletor de agente abre.',
   'prefs.agents.codeReviews.title': 'Revisões de código',
-  'prefs.agents.codeReviews.desc':
-    'Usado por chats de revisão de PR, chats de re-revisão de fallback e notificações de revisão.',
   'prefs.agents.codexSteering.title': 'Orientar o Codex enquanto ele trabalha',
-  'prefs.agents.codexSteering.desc':
-    'Conecta-se ao Codex pelo app-server em vez do SDK exec, de modo que uma mensagem enviada enquanto o Codex está ocupado chega a ele no próximo passo, em vez de esperar o turno terminar. Também alimenta o medidor de contexto nos chats do Codex e habilita Compactar contexto. Experimental na CLI do Codex; requer codex 0.153 ou mais recente. Vale a partir da próxima mensagem de cada chat.',
-  'prefs.agents.codexSteering.on': 'Ativado — as mensagens chegam ao Codex no meio do turno',
-  'prefs.agents.codexSteering.off': 'Desativado — as mensagens esperam o turno terminar',
-  'prefs.agents.mcp.title': 'Ferramentas do PopBot para agentes',
-  'prefs.agents.mcp.desc':
-    'Dá ao agente de cada chat um servidor MCP “popbot”: listar, criar, fechar e reabrir chats, enviar mensagens a outros chats e aguardar a resposta, iniciar code reviews e chats de tickets, e ler e pesquisar transcrições. Vale a partir da próxima sessão de agente de cada chat.',
-  'prefs.agents.mcp.on': 'Ligado — os agentes podem operar o PopBot',
-  'prefs.agents.mcp.off': 'Desligado — sem ferramentas popbot',
   'prefs.agents.cloud.title': 'Chats na nuvem',
-  'prefs.agents.cloud.desc':
-    'Um chat criado com o chip Cloud roda no Anthropic Managed Agents: uma sessão em um sandbox na nuvem da Anthropic, cobrada por token na sua conta do Console, que continua trabalhando depois que o PopBot fecha.',
   'prefs.agents.cloud.apiKey.title': 'Chave de API da Anthropic',
-  'prefs.agents.cloud.apiKey.desc':
-    'Armazenada localmente no banco de dados deste app. Deixe em branco para usar a variável de ambiente ANTHROPIC_API_KEY.',
-  'prefs.agents.cloud.getKey': 'Obter uma chave',
-  'prefs.agents.cloud.githubToken.title': 'Token do GitHub',
-  'prefs.agents.cloud.githubToken.desc':
-    'O sandbox clona seus repositórios com ele (escopo repo). Deixe em branco para usar o token com que o gh está autenticado.',
   'prefs.agents.cloud.workspace.title': 'ID do workspace',
-  'prefs.agents.cloud.workspace.desc':
-    'Só para uma chave que não está vinculada a um workspace (a verificação avisa): o id wrkspc_… da página Workspaces do Console. Uma chave criada dentro de um workspace não precisa.',
   'prefs.agents.cloud.envKey': 'Usando a variável de ambiente ANTHROPIC_API_KEY.',
-  'prefs.agents.cloud.noKey': 'Ainda sem chave: os chats na nuvem estão indisponíveis.',
-  'prefs.agents.cloud.ghToken': 'GitHub: usando o token com que o gh está autenticado.',
-  'prefs.agents.cloud.noGh': 'GitHub: sem token. Salve um aqui ou execute gh auth login.',
   'prefs.agents.cloud.ok': 'A chave funciona.',
-  'prefs.agents.cloud.error': 'Salva, mas a chave não funcionou: {error}',
   'prefs.hosts.title': 'Hosts',
   'prefs.hosts.desc':
     'Outras máquinas que executam chats para este PopBot. Cada uma roda o popbot-host: compile-o, copie dist-host/popbot-host.cjs e execute-o uma vez com --init para gravar a configuração e imprimir o token. A transcrição, a busca e as configurações do chat ficam aqui; o agente, suas ferramentas e o checkout ficam lá. Uma máquina remota é alcançada por um túnel SSH: ssh -L 7677:127.0.0.1:7677 maquina.',

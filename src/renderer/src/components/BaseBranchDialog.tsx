@@ -48,6 +48,10 @@ interface BaseBranchDialogProps {
   allowRepoRoot?: boolean;
   /** Show an agent/model picker before creating the chat. */
   showAgentPicker?: boolean;
+  /** Open set up for a cloud chat ("New cloud chat" in Preferences ▸
+   *  Agents): Cloud on, a Claude model, running on this computer —
+   *  whatever the last chat was made with. */
+  initialCloud?: boolean;
   /** Open Preferences at a section — offered when the Cloud chip is on
    *  but no Anthropic API key is set, so the fix is one click away. */
   onOpenPrefs?: (sectionId?: string) => void;
@@ -265,6 +269,7 @@ export function BaseBranchDialog({
   allowNoRepo,
   allowRepoRoot,
   showAgentPicker,
+  initialCloud,
   onOpenPrefs,
   onCancel,
   onConfirm,
@@ -304,9 +309,12 @@ export function BaseBranchDialog({
       window.popbot.settings.get<AgentCreateConfig>(LAST_AGENT_SETTING),
       window.popbot.settings.get<AgentEffortDefaultsSettings>(AGENT_EFFORT_DEFAULTS_SETTING),
     ]).then(([lastAgent, defaults]) => {
-      setAgentConfig(agentCreateConfigWithEffortDefaults(lastAgent, defaults, 'general'));
+      const config = agentCreateConfigWithEffortDefaults(lastAgent, defaults, 'general');
+      // A cloud chat is Claude: the Cloud toggle only exists beside a
+      // Claude model, so the last chat's Codex is not restored over it.
+      setAgentConfig(initialCloud ? { ...config, agent: 'claude' } : config);
     });
-  }, [showAgentPicker]);
+  }, [showAgentPicker, initialCloud]);
 
   // Blank subject falls back to the generated default, so name + branch
   // are always derivable.
@@ -343,10 +351,12 @@ export function BaseBranchDialog({
       ]);
       if (cancelled) return;
       setHosts(list);
-      if (last && list.some((h) => h.id === last)) setHostId(last);
+      // A cloud chat starts from this computer (Cloud is not offered for a
+      // host chat), so the last chat's host is not restored over it.
+      if (!initialCloud && last && list.some((h) => h.id === last)) setHostId(last);
     })();
     return () => { cancelled = true; };
-  }, [hostAllowed]);
+  }, [hostAllowed, initialCloud]);
   // Ask the picked host what it has; start on its first repository.
   useEffect(() => {
     if (!host) {
@@ -438,7 +448,7 @@ export function BaseBranchDialog({
   // repo (it just runs remotely), the repo root, or a slot / worktree
   // whose branch gets pushed for the cloud to clone. Offered by the
   // generic new-chat flow; Claude only (the toggle hides for Codex).
-  const [cloud, setCloud] = useState(false);
+  const [cloud, setCloud] = useState(initialCloud === true);
   const cloudAllowed = allowRepoRoot === true && showAgentPicker === true && !isHost;
   const isCloud = cloudAllowed && cloud && agentConfig.agent !== 'codex';
   // Cloud chats run on an Anthropic API key; without one there is no
@@ -895,7 +905,7 @@ export function BaseBranchDialog({
                       <button
                         type="button"
                         className="btn-link"
-                        onClick={() => { onOpenPrefs('agents'); onCancel(); }}
+                        onClick={() => { onOpenPrefs('agents#cloud'); onCancel(); }}
                       >
                         {t('app.noSlots.openPreferences')}
                       </button>
@@ -920,7 +930,7 @@ export function BaseBranchDialog({
                   <button
                     type="button"
                     className="btn-link"
-                    onClick={() => { onOpenPrefs('agents'); onCancel(); }}
+                    onClick={() => { onOpenPrefs('agents#cloud'); onCancel(); }}
                   >
                     {t('app.noSlots.openPreferences')}
                   </button>

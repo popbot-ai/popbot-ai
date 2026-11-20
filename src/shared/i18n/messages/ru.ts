@@ -981,44 +981,14 @@ export const ru = {
   'prefs.footMeta': 'PopBot · пре-альфа',
 
   // Preferences — Agents pane.
-  'prefs.agents.title': 'Агенты',
-  'prefs.agents.desc':
-    'Уровни усилий по умолчанию для новых чатов. Существующие чаты сохраняют собственный заданный уровень усилий, пока вы не измените его в композере чата.',
   'prefs.agents.newChats.title': 'Новые чаты',
-  'prefs.agents.newChats.desc':
-    'Используется обычными чатами и чатами тикетов при открытии выбора агента.',
   'prefs.agents.codeReviews.title': 'Код-ревью',
-  'prefs.agents.codeReviews.desc':
-    'Используется чатами ревью PR, резервными чатами повторного ревью и уведомлениями о ревью.',
   'prefs.agents.codexSteering.title': 'Направлять Codex во время работы',
-  'prefs.agents.codexSteering.desc':
-    'Подключается к Codex через его app-server вместо exec SDK: сообщение, отправленное, пока Codex занят, доходит до него на следующем шаге, а не ждёт конца хода. Также наполняет индикатор контекста в чатах Codex и включает «Сжать контекст». В Codex CLI функция экспериментальная; требуется codex 0.153 или новее. Действует со следующего сообщения в каждом чате.',
-  'prefs.agents.codexSteering.on': 'Вкл. — сообщения доходят до Codex посреди хода',
-  'prefs.agents.codexSteering.off': 'Выкл. — сообщения ждут конца хода',
-  'prefs.agents.mcp.title': 'Инструменты PopBot для агентов',
-  'prefs.agents.mcp.desc':
-    'Даёт агенту каждого чата MCP-сервер «popbot»: перечислять, создавать, закрывать и заново открывать чаты, писать другим чатам и ждать их ответа, запускать код-ревью и чаты по тикетам, читать и искать по расшифровкам. Действует со следующей сессии агента в каждом чате.',
-  'prefs.agents.mcp.on': 'Вкл — агенты могут управлять PopBot',
-  'prefs.agents.mcp.off': 'Выкл — без инструментов popbot',
   'prefs.agents.cloud.title': 'Облачные чаты',
-  'prefs.agents.cloud.desc':
-    'Чат, созданный с чипом Cloud, работает на Anthropic Managed Agents: сессия в облачной песочнице Anthropic, оплачиваемая по токенам с вашего аккаунта Console, которая продолжает работать после закрытия PopBot.',
   'prefs.agents.cloud.apiKey.title': 'API-ключ Anthropic',
-  'prefs.agents.cloud.apiKey.desc':
-    'Хранится локально в базе данных приложения. Оставьте пустым, чтобы использовать переменную окружения ANTHROPIC_API_KEY.',
-  'prefs.agents.cloud.getKey': 'Получить ключ',
-  'prefs.agents.cloud.githubToken.title': 'Токен GitHub',
-  'prefs.agents.cloud.githubToken.desc':
-    'Песочница клонирует ваши репозитории с ним (scope repo). Оставьте пустым, чтобы использовать токен, под которым авторизован gh.',
   'prefs.agents.cloud.workspace.title': 'ID рабочего пространства',
-  'prefs.agents.cloud.workspace.desc':
-    'Только для ключа, не привязанного к рабочему пространству (проверка об этом скажет): id wrkspc_… со страницы Workspaces в Console. Ключу, созданному внутри рабочего пространства, он не нужен.',
   'prefs.agents.cloud.envKey': 'Используется переменная окружения ANTHROPIC_API_KEY.',
-  'prefs.agents.cloud.noKey': 'Ключа пока нет — облачные чаты недоступны.',
-  'prefs.agents.cloud.ghToken': 'GitHub: используется токен, под которым авторизован gh.',
-  'prefs.agents.cloud.noGh': 'GitHub: токена нет — сохраните его здесь или выполните gh auth login.',
   'prefs.agents.cloud.ok': 'Ключ работает.',
-  'prefs.agents.cloud.error': 'Сохранён, но ключ не сработал: {error}',
   'prefs.hosts.title': 'Хосты',
   'prefs.hosts.desc':
     'Другие машины, выполняющие чаты для этого PopBot. На каждой работает popbot-host: соберите его, скопируйте dist-host/popbot-host.cjs и запустите один раз с --init, чтобы записать конфигурацию и вывести токен. Транскрипт, поиск и настройки чата остаются здесь; агент, его инструменты и checkout — там. Удалённая машина доступна через SSH-туннель: ssh -L 7677:127.0.0.1:7677 машина.',

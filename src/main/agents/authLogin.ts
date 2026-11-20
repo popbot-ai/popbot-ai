@@ -13,6 +13,8 @@
  * Also the "are we signed in?" probes the readiness checklist uses:
  * `claude auth status` (JSON) and `codex login status`.
  */
+import { activeClaudeToken } from './claudeAuth';
+import { activeCodexAuth } from './codexAuth';
 import { execFile, spawn, type ChildProcess } from 'node:child_process';
 import { promisify } from 'node:util';
 import type { WebContents } from 'electron';
@@ -23,6 +25,9 @@ const execFileP = promisify(execFile);
 
 /** `claude auth status` → is the CLI signed in? */
 export async function probeClaudeAuth(binary: string): Promise<AuthState> {
+  // Running on one of PopBot's Claude accounts: its token is checked when
+  // it is added, and every chat is handed it.
+  if (activeClaudeToken()) return 'signed-in';
   try {
     const { stdout } = await execFileP(binary, ['auth', 'status'], {
       timeout: 8000,
@@ -42,6 +47,9 @@ export async function probeClaudeAuth(binary: string): Promise<AuthState> {
 
 /** `codex login status` → is the CLI signed in? Exit 0 means yes. */
 export async function probeCodexAuth(binary: string): Promise<AuthState> {
+  // Running on one of PopBot's Codex accounts: every Codex chat is handed
+  // its token, whatever this computer's own Codex sign-in is.
+  if (activeCodexAuth()) return 'signed-in';
   try {
     const { stdout } = await execFileP(binary, ['login', 'status'], {
       timeout: 8000,

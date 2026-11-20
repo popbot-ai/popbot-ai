@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { NotificationAction, NotificationRecord } from '@shared/notifications';
 import { NotificationsBell } from './NotificationsBell';
+import { AccountSwitchers } from './AccountSwitcher';
 import { MenuBar } from './MenuBar';
 import { hotkey } from '../lib/hotkeys';
 import { useTranslation } from '../lib/i18n';
@@ -95,9 +96,10 @@ export function Titlebar({
   const isMac = window.popbot.platform === 'darwin';
   const isLinux = window.popbot.platform === 'linux';
 
-  // Shared right-hand app buttons (drift / capacity / bell / git / prefs).
+  // Shared right-hand app buttons (account / drift / capacity / bell / git / prefs).
   const rightButtons = (
     <div className="right">
+      <AccountSwitchers />
       {driftActive && (
         <button className="notify-err" title={t('titlebar.driftTitle')} onClick={() => onOpenModal('drift')}>
           <i className="fa-solid fa-triangle-exclamation" />

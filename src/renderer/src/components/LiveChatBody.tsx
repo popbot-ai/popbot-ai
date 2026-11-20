@@ -1207,10 +1207,16 @@ function CompactFailedRow({ error }: { error: string }): JSX.Element {
  *  look like an error. */
 function SystemWarningRow({ text, signIn }: {
   text: string;
-  /** Offer a Sign in button for this CLI (App opens the dialog). */
+  /** Offer a Sign in button for this CLI (App opens the dialog — or, for
+   *  Claude with an account in use, the Claude accounts pane). */
   signIn?: 'claude' | 'codex' | null;
 }): JSX.Element {
   const { t } = useTranslation();
+  // A warning about PopBot's Claude accounts (one is out of usage, all
+  // are) is answered in Preferences, where an account is added or
+  // switched. A sign-in warning keeps its one Sign in button: App sends
+  // that to the same pane whenever an account is in use.
+  const accounts = !signIn && /claude account/i.test(text);
   return (
     <div className="msg system-warning">
       <div className="body">
@@ -1222,6 +1228,14 @@ function SystemWarningRow({ text, signIn }: {
             onClick={() => window.dispatchEvent(new CustomEvent('popbot:auth-sign-in', { detail: { provider: signIn } }))}
           >
             <i className="fa-solid fa-right-to-bracket" aria-hidden /> {t('auth.signIn.button')}
+          </button>
+        )}
+        {accounts && (
+          <button
+            className="btn sm msg-warning-action"
+            onClick={() => window.dispatchEvent(new CustomEvent('popbot:open-prefs', { detail: { section: 'accounts' } }))}
+          >
+            <i className="fa-solid fa-circle-user" aria-hidden /> {t('chat.warning.accounts')}
           </button>
         )}
       </div>

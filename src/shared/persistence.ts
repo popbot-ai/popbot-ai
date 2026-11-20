@@ -19,10 +19,11 @@ export type AgentBackendId = 'claude' | 'codex';
  * of its own line (Opus 5, Sonnet 5, Fable 5.1), which upstream now calls
  * legacy; chats on those move up quietly (see {@link normalizeClaudeModel}).
  *
- * GPT-6 Astra is listed but deliberately NOT the default and never a
- * roll-forward target (see {@link normalizeCodexModel}): Codex only
- * serves it to API-key logins (a ChatGPT-account login gets a 400), so a
- * chat lands on it only because the user picked it.
+ * Codex: GPT-6.2 Sol (the default, and on the fast tier), GPT-6.1 Terra,
+ * GPT-6 Luna, GPT-6.2 Astra. Each replaced an earlier version of its line;
+ * chats on those move up quietly (see {@link normalizeCodexModel}). Astra
+ * is the premium tier and deliberately NOT the default: a chat reaches it
+ * only because the user picked Astra — then or on an earlier version.
  */
 export const CLAUDE_MODELS = [
   'claude-opus-5-5',
@@ -30,9 +31,9 @@ export const CLAUDE_MODELS = [
   'claude-haiku-5-5',
   'claude-fable-5-2',
 ] as const;
-export const CODEX_MODELS = ['gpt-6.1-sol', 'gpt-6.1-sol-fast', 'gpt-5.6-terra', 'gpt-5.6-luna', 'gpt-6-astra'] as const;
+export const CODEX_MODELS = ['gpt-6.2-sol', 'gpt-6.2-sol-fast', 'gpt-6.1-terra', 'gpt-6-luna', 'gpt-6.2-astra'] as const;
 export const DEFAULT_CLAUDE_MODEL = 'claude-opus-5-5' as const;
-export const DEFAULT_CODEX_MODEL = 'gpt-6.1-sol' as const;
+export const DEFAULT_CODEX_MODEL = 'gpt-6.2-sol' as const;
 export const DEFAULT_CLAUDE_REASONING_EFFORT = 'high' as const;
 export const DEFAULT_CODEX_REASONING_EFFORT = 'medium' as const;
 
@@ -59,11 +60,11 @@ export const CLAUDE_MODEL_LABELS: Record<ClaudeModelId, string> = {
   'claude-fable-5-2': 'Claude Fable 5.2',
 };
 export const CODEX_MODEL_LABELS: Record<CodexModelId, string> = {
-  'gpt-6.1-sol': 'GPT-6.1 Sol',
-  'gpt-6.1-sol-fast': 'GPT-6.1 Sol Fast',
-  'gpt-5.6-terra': 'GPT-5.6 Terra',
-  'gpt-5.6-luna': 'GPT-5.6 Luna',
-  'gpt-6-astra': 'GPT-6 Astra',
+  'gpt-6.2-sol': 'GPT-6.2 Sol',
+  'gpt-6.2-sol-fast': 'GPT-6.2 Sol Fast',
+  'gpt-6.1-terra': 'GPT-6.1 Terra',
+  'gpt-6-luna': 'GPT-6 Luna',
+  'gpt-6.2-astra': 'GPT-6.2 Astra',
 };
 
 /** Coerce a persisted/raw model string to a known Claude model, falling
@@ -91,28 +92,33 @@ export function normalizeClaudeModel(value: string | null | undefined): ClaudeMo
   return DEFAULT_CLAUDE_MODEL;
 }
 
-/** Retired Codex models mapped to their closest current price/performance
- *  tier, so a chat rolls forward to an equivalent rather than jumping to
- *  the (pricier) default. GPT-5.5 sat where Terra now sits. GPT-6 Astra
- *  is never a target here for the same reason: it costs more than every
- *  GPT-5.6 tier and isn't available on every Codex login. */
+/** Retired Codex models with no line of their own, mapped to the closest
+ *  current tier: GPT-5.5 sat where Terra now sits. */
 const RETIRED_CODEX_MODELS: Record<string, CodexModelId> = {
-  'gpt-5.5': 'gpt-5.6-terra',
+  'gpt-5.5': 'gpt-6.1-terra',
 };
 
-/** Every Sol before the current one (GPT-5.6 Sol, GPT-6 Sol, …): Sol is
- *  one line that supersedes itself, like Opus, so its chats move up to
- *  the current Sol quietly. A different tier on the same line (a
- *  `-sol-pro`, say) does not match. */
-const PRIOR_SOL = /^gpt-[0-9.]+-sol$/;
+/** Each Codex line — Sol, Terra, Luna, Astra, and Sol on the fast tier —
+ *  supersedes itself, like the Claude lines: an earlier version (GPT-6.1
+ *  Sol, GPT-5.6 Terra, GPT-5.6 Luna, GPT-6 Astra, …) moves to its line's
+ *  current model, quietly. Never across lines, so a chat only reaches
+ *  Astra from an earlier Astra. A different tier on a line (a
+ *  `-sol-pro`, say) matches none of them. */
+const CODEX_CURRENT_IN_LINE: Array<[RegExp, CodexModelId]> = [
+  [/^gpt-[0-9.]+-sol-fast$/, 'gpt-6.2-sol-fast'],
+  [/^gpt-[0-9.]+-sol$/, 'gpt-6.2-sol'],
+  [/^gpt-[0-9.]+-terra$/, 'gpt-6.1-terra'],
+  [/^gpt-[0-9.]+-luna$/, 'gpt-6-luna'],
+  [/^gpt-[0-9.]+-astra$/, 'gpt-6.2-astra'],
+];
 
 /** Codex counterpart of {@link normalizeClaudeModel}. */
 export function normalizeCodexModel(value: string | null | undefined): CodexModelId {
   if (CODEX_MODELS.includes(value as CodexModelId)) return value as CodexModelId;
-  if (typeof value === 'string' && value in RETIRED_CODEX_MODELS) {
-    return RETIRED_CODEX_MODELS[value];
+  if (typeof value === 'string') {
+    if (value in RETIRED_CODEX_MODELS) return RETIRED_CODEX_MODELS[value];
+    for (const [line, current] of CODEX_CURRENT_IN_LINE) if (line.test(value)) return current;
   }
-  if (typeof value === 'string' && PRIOR_SOL.test(value)) return 'gpt-6.1-sol';
   return DEFAULT_CODEX_MODEL;
 }
 
@@ -123,7 +129,7 @@ export function normalizeCodexModel(value: string | null | undefined): CodexMode
  * chat moves to one unless someone picks it.
  */
 const CODEX_FAST_MODELS: Partial<Record<CodexModelId, string>> = {
-  'gpt-6.1-sol-fast': 'gpt-6.1-sol',
+  'gpt-6.2-sol-fast': 'gpt-6.2-sol',
 };
 
 /** What Codex is asked for: the model, and the service tier when it is a
@@ -133,8 +139,8 @@ export function codexWireModel(model: CodexModelId | string): { model: string; s
   return base ? { model: base, serviceTier: 'priority' } : { model, serviceTier: null };
 }
 
-/** Reasoning efforts each Codex model accepts, per the model catalog in
- *  the Codex CLI the SDK bundles (0.160.x):
+/** Reasoning efforts each Codex model accepts, per the model catalog the
+ *  Codex CLI on the PATH serves (0.167.x, ~/.codex/models_cache.json):
  *
  *  - The floor is `low` everywhere. `none` (the API's `minimal`) is gone
  *    from every model in this catalog, so a saved `none` moves up to
@@ -145,11 +151,11 @@ export function codexWireModel(model: CodexModelId | string): { model: string; s
  *
  *  Claude models all take the full {@link CLAUDE_REASONING_EFFORTS} ladder. */
 const CODEX_MODEL_REASONING_EFFORTS: Record<CodexModelId, readonly CodexReasoningEffort[]> = {
-  'gpt-6.1-sol': ['low', 'medium', 'high', 'xhigh', 'max', 'ultra'],
-  'gpt-6.1-sol-fast': ['low', 'medium', 'high', 'xhigh', 'max', 'ultra'],
-  'gpt-5.6-terra': ['low', 'medium', 'high', 'xhigh', 'max', 'ultra'],
-  'gpt-5.6-luna': ['low', 'medium', 'high', 'xhigh', 'max'],
-  'gpt-6-astra': ['low', 'medium', 'high', 'xhigh', 'max', 'ultra'],
+  'gpt-6.2-sol': ['low', 'medium', 'high', 'xhigh', 'max', 'ultra'],
+  'gpt-6.2-sol-fast': ['low', 'medium', 'high', 'xhigh', 'max', 'ultra'],
+  'gpt-6.1-terra': ['low', 'medium', 'high', 'xhigh', 'max', 'ultra'],
+  'gpt-6-luna': ['low', 'medium', 'high', 'xhigh', 'max'],
+  'gpt-6.2-astra': ['low', 'medium', 'high', 'xhigh', 'max', 'ultra'],
 };
 
 export function codexReasoningEffortsForModel(
